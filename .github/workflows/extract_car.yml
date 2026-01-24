@@ -2,185 +2,75 @@ name: Extract .car assets
 
 on:
   workflow_dispatch:
-    inputs:
-      search_root:
-        description: "Scan this folder for .car files"
-        required: true
-        default: "input"
-      pattern:
-        description: "Filename pattern (case-insensitive)"
-        required: true
-        default: "*.car"
-      tool_repo:
-        description: "cartool repo (owner/name)"
-        required: true
-        default: "steventroughtonsmith/cartool"
-      max_files:
-        description: "0 = all, otherwise limit number of .car files"
-        required: true
-        default: "0"
 
 jobs:
   extract:
     runs-on: macos-latest
-    permissions:
-      contents: read
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build cartool from source (no Homebrew)
+      - name: Build cartool (from source, no Homebrew)
         shell: bash
         run: |
           set -euo pipefail
 
-          mkdir -p "$HOME/bin"
-          echo "$HOME/bin" >> "$GITHUB_PATH"
+          echo "Cloning cartool..."
+          git clone --depth 1 https://github.com/szwathub/cartool.git
 
-          REPO="${{ github.event.inputs.tool_repo }}"
-          echo "==> Cloning cartool repo: $REPO"
-          git clone --depth 1 "https://github.com/${REPO}.git" cartool-src
-          cd cartool-src
+          echo "Building cartool..."
+          cd cartool
+          make build
 
-          echo "==> Repo contents:"
-          ls -la
-
-          if [[ -f Package.swift ]]; then
-            echo "==> Detected SwiftPM. Building..."
-            swift --version
-            swift build -c release
-
-            # Try to find the built binary
-            BIN="$(find .build -type f -name cartool -perm -111 2>/dev/null | head -n 1 || true)"
-            [[ -n "$BIN" ]] || { echo "ERROR: cartool binary not found after swift build"; exit 1; }
-
-            cp "$BIN" "$HOME/bin/cartool"
-          else
-            echo "==> Detected Xcode project build."
-            PROJ="$(ls -1 *.xcodeproj 2>/dev/null | head -n 1 || true)"
-            [[ -n "$PROJ" ]] || { echo "ERROR: No Package.swift or *.xcodeproj found"; exit 1; }
-
-            echo "==> Listing schemes for $PROJ"
-            xcodebuild -list -project "$PROJ" || true
-
-            # Pick first scheme listed under "Schemes:"
-            SCHEME="$(xcodebuild -list -project "$PROJ" \
-              | awk '/Schemes:/{flag=1;next} flag && NF{print $1; exit}')"
-            [[ -n "$SCHEME" ]] || SCHEME="cartool"
-
-            echo "==> Building scheme: $SCHEME"
-            xcodebuild \
-              -project "$PROJ" \
-              -scheme "$SCHEME" \
-              -configuration Release \
-              -sdk macosx \
-              -derivedDataPath "$PWD/DerivedData" \
-              build \
-              CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
-
-            # Typical output location
-            BIN="$PWD/DerivedData/Build/Products/Release/cartool"
-            if [[ ! -x "$BIN" ]]; then
-              # Fallback search
-              BIN="$(find "$PWD/DerivedData" -type f -name cartool -perm -111 2>/dev/null | head -n 1 || true)"
-            fi
-            [[ -n "$BIN" && -x "$BIN" ]] || { echo "ERROR: cartool binary not found after xcodebuild"; exit 1; }
-
-            cp "$BIN" "$HOME/bin/cartool"
-          fi
-
-          chmod +x "$HOME/bin/cartool"
-          echo "==> cartool path:"
-          which cartool
-          echo "==> cartool help (for sanity):"
-          cartool -h || true
-
-      - name: Extract all .car
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          ROOT="${{ github.event.inputs.search_root }}"
-          PATTERN="${{ github.event.inputs.pattern }}"
-          MAX="${{ github.event.inputs.max_files }}"
-
-          echo "==> ROOT=$ROOT"
-          echo "==> PATTERN=$PATTERN"
-          echo "==> MAX=$MAX"
-
-          if [[ ! -d "$ROOT" ]]; then
-            echo "ERROR: search_root folder not found: $ROOT"
-            echo "==> repo root listing:"
-            ls -la
+          CARTOOL_BIN="$(find build -type f -path "*/Products/Release/cartool" | head -n 1)"
+          if [ -z "${CARTOOL_BIN}" ] || [ ! -f "${CARTOOL_BIN}" ]; then
+            echo "cartool binary not found after build" >&2
             exit 1
           fi
 
-          mkdir -p extracted extracted_failed
+          echo "Using cartool: ${CARTOOL_BIN}"
+          sudo cp "${CARTOOL_BIN}" /usr/local/bin/cartool
+          cartool -h || true
 
-          total=0
-          ok=0
-          fail=0
+      - name: Extract all .car under input/
+        shell: bash
+        run: |
+          set -euo pipefail
 
-          echo "==> Scanning for .car files..."
-          while IFS= read -r -d '' f; do
-            total=$((total+1))
-            if [[ "$MAX" != "0" && "$total" -gt "$MAX" ]]; then
-              echo "==> MAX reached ($MAX). Stopping scan."
-              break
-            fi
-
-            # Build relative path for nice folder layout
-            rel="$f"
-            if [[ "$ROOT" != "." ]]; then
-              rel="${f#${ROOT}/}"
-            fi
-
-            base="$(basename "$f" .car)"
-            outdir="extracted/$(dirname "$rel")/${base}"
-            mkdir -p "$outdir"  # cartool requires output folder exists :contentReference[oaicite:0]{index=0}
-
-            echo "==> [$total] $f -> $outdir"
-
-            set +e
-            cartool "$f" "$outdir"
-            rc=$?
-            set -e
-
-            if [[ $rc -eq 0 ]]; then
-              ok=$((ok+1))
-            else
-              fail=$((fail+1))
-              echo "WARN: cartool failed (rc=$rc): $f"
-              mkdir -p "extracted_failed/$(dirname "$rel")"
-              cp "$f" "extracted_failed/$(dirname "$rel")/" || true
-            fi
-          done < <(find "$ROOT" -type f -iname "$PATTERN" -print0)
-
-          echo "==> Done. total=$total ok=$ok fail=$fail"
-
-          # Always create a zip so upload step never fails
-          echo "Created by GitHub Actions at $(date -u). total=$total ok=$ok fail=$fail" > extracted/README.txt
-          ditto -c -k --sequesterRsrc --keepParent extracted extracted_car_assets.zip
-
-          if [[ -d extracted_failed && "$(find extracted_failed -type f | wc -l | tr -d ' ')" != "0" ]]; then
-            ditto -c -k --sequesterRsrc --keepParent extracted_failed extracted_failed_car_files.zip
+          if [ ! -d "input" ]; then
+            echo "input/ folder not found in repo root." >&2
+            exit 1
           fi
 
-          echo "==> ZIP outputs:"
-          ls -la *.zip || true
+          mkdir -p extracted
 
-      - name: Upload extracted ZIP
+          mapfile -d '' files < <(find input -type f -name "*.car" -print0)
+          echo "Found ${#files[@]} .car files"
+
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No .car files found under input/." >&2
+            exit 1
+          fi
+
+          for f in "${files[@]}"; do
+            rel="${f#input/}"
+            base="$(basename "$f" .car)"
+            outdir="extracted/$(dirname "$rel")/$base"
+            mkdir -p "$outdir"
+            echo "==> $rel -> $outdir"
+            cartool "$f" "$outdir"
+          done
+
+      - name: Zip results
+        shell: bash
+        run: |
+          set -euo pipefail
+          zip -r extracted_car_assets.zip extracted
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: extracted_car_assets
           path: extracted_car_assets.zip
           if-no-files-found: error
-
-      - name: Upload failed .car ZIP (optional)
-        if: ${{ hashFiles('extracted_failed_car_files.zip') != '' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: extracted_failed_car_files
-          path: extracted_failed_car_files.zip
-          if-no-files-found: ignore
