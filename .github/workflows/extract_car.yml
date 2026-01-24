@@ -1,0 +1,33 @@
+name: Extract .car assets
+
+on:
+  workflow_dispatch:
+
+jobs:
+  extract:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cartool
+        run: |
+          brew update
+          (brew tap 0xxd0/tap && brew install cartool) || (brew tap szwathub/tap && brew install cartool)
+
+      - name: Extract all .car
+        run: |
+          mkdir -p extracted
+          find input -name "*.car" -print0 | while IFS= read -r -d '' f; do
+            rel="${f#input/}"
+            base="$(basename "$f" .car)"
+            outdir="extracted/$(dirname "$rel")/${base}"
+            mkdir -p "$outdir"
+            echo "==> $f -> $outdir"
+            cartool "$f" "$outdir" || true
+          done
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: extracted_car_assets
+          path: extracted
