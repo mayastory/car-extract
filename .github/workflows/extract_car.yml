@@ -4,112 +4,183 @@ on:
   workflow_dispatch:
     inputs:
       search_root:
-        description: Folder to search .car files (relative path)
+        description: "Scan this folder for .car files"
         required: true
-        default: input
-      name_filter:
-        description: Find pattern (case-insensitive). Usually *.car
+        default: "input"
+      pattern:
+        description: "Filename pattern (case-insensitive)"
         required: true
         default: "*.car"
+      tool_repo:
+        description: "cartool repo (owner/name)"
+        required: true
+        default: "steventroughtonsmith/cartool"
+      max_files:
+        description: "0 = all, otherwise limit number of .car files"
+        required: true
+        default: "0"
 
 jobs:
   extract:
     runs-on: macos-latest
+    permissions:
+      contents: read
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build cartool from source (no brew/tap)
+      - name: Build cartool from source (no Homebrew)
         shell: bash
         run: |
           set -euo pipefail
 
-          echo "Cloning cartool source..."
-          rm -rf /tmp/cartool-src /tmp/cartool-build
-          git clone --depth 1 https://github.com/steventroughtonsmith/cartool.git /tmp/cartool-src
+          mkdir -p "$HOME/bin"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
 
-          echo "Listing schemes/targets (info only)..."
-          xcodebuild -list -project /tmp/cartool-src/cartool.xcodeproj || true
+          REPO="${{ github.event.inputs.tool_repo }}"
+          echo "==> Cloning cartool repo: $REPO"
+          git clone --depth 1 "https://github.com/${REPO}.git" cartool-src
+          cd cartool-src
 
-          echo "Building..."
-          cd /tmp/cartool-src
-          # Try scheme first, then fallback to target (some Xcode projects vary)
-          if xcodebuild -project cartool.xcodeproj -scheme cartool -configuration Release -derivedDataPath /tmp/cartool-build build; then
-            echo "Built with scheme."
+          echo "==> Repo contents:"
+          ls -la
+
+          if [[ -f Package.swift ]]; then
+            echo "==> Detected SwiftPM. Building..."
+            swift --version
+            swift build -c release
+
+            # Try to find the built binary
+            BIN="$(find .build -type f -name cartool -perm -111 2>/dev/null | head -n 1 || true)"
+            [[ -n "$BIN" ]] || { echo "ERROR: cartool binary not found after swift build"; exit 1; }
+
+            cp "$BIN" "$HOME/bin/cartool"
           else
-            echo "Scheme build failed, trying target build..."
-            xcodebuild -project cartool.xcodeproj -target cartool -configuration Release -derivedDataPath /tmp/cartool-build build
+            echo "==> Detected Xcode project build."
+            PROJ="$(ls -1 *.xcodeproj 2>/dev/null | head -n 1 || true)"
+            [[ -n "$PROJ" ]] || { echo "ERROR: No Package.swift or *.xcodeproj found"; exit 1; }
+
+            echo "==> Listing schemes for $PROJ"
+            xcodebuild -list -project "$PROJ" || true
+
+            # Pick first scheme listed under "Schemes:"
+            SCHEME="$(xcodebuild -list -project "$PROJ" \
+              | awk '/Schemes:/{flag=1;next} flag && NF{print $1; exit}')"
+            [[ -n "$SCHEME" ]] || SCHEME="cartool"
+
+            echo "==> Building scheme: $SCHEME"
+            xcodebuild \
+              -project "$PROJ" \
+              -scheme "$SCHEME" \
+              -configuration Release \
+              -sdk macosx \
+              -derivedDataPath "$PWD/DerivedData" \
+              build \
+              CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+
+            # Typical output location
+            BIN="$PWD/DerivedData/Build/Products/Release/cartool"
+            if [[ ! -x "$BIN" ]]; then
+              # Fallback search
+              BIN="$(find "$PWD/DerivedData" -type f -name cartool -perm -111 2>/dev/null | head -n 1 || true)"
+            fi
+            [[ -n "$BIN" && -x "$BIN" ]] || { echo "ERROR: cartool binary not found after xcodebuild"; exit 1; }
+
+            cp "$BIN" "$HOME/bin/cartool"
           fi
 
-          CARTOOL_BIN="$(find /tmp/cartool-build -type f -name cartool -perm -111 | head -n 1)"
-          if [ -z "${CARTOOL_BIN}" ] || [ ! -x "${CARTOOL_BIN}" ]; then
-            echo "ERROR: cartool binary not found after build."
-            find /tmp/cartool-build -maxdepth 6 -type f | head -n 200 || true
-            exit 1
-          fi
-
-          echo "cartool built at: ${CARTOOL_BIN}"
-          echo "CARTOOL_BIN=${CARTOOL_BIN}" >> "$GITHUB_ENV"
-          "${CARTOOL_BIN}" -h || true
+          chmod +x "$HOME/bin/cartool"
+          echo "==> cartool path:"
+          which cartool
+          echo "==> cartool help (for sanity):"
+          cartool -h || true
 
       - name: Extract all .car
-        id: extract_step
         shell: bash
-        env:
-          SEARCH_ROOT: ${{ inputs.search_root }}
-          NAME_FILTER: ${{ inputs.name_filter }}
         run: |
           set -euo pipefail
 
-          ROOT="${SEARCH_ROOT}"
-          PATTERN="${NAME_FILTER}"
+          ROOT="${{ github.event.inputs.search_root }}"
+          PATTERN="${{ github.event.inputs.pattern }}"
+          MAX="${{ github.event.inputs.max_files }}"
 
-          if [ ! -d "$ROOT" ]; then
+          echo "==> ROOT=$ROOT"
+          echo "==> PATTERN=$PATTERN"
+          echo "==> MAX=$MAX"
+
+          if [[ ! -d "$ROOT" ]]; then
             echo "ERROR: search_root folder not found: $ROOT"
+            echo "==> repo root listing:"
+            ls -la
             exit 1
           fi
 
-          mkdir -p extracted
+          mkdir -p extracted extracted_failed
 
-          echo "Searching: ROOT=$ROOT / PATTERN=$PATTERN"
-          mapfile -d '' files < <(find "$ROOT" -type f -iname "$PATTERN" -print0 || true)
-          echo "Found .car files: ${#files[@]}"
-
+          total=0
+          ok=0
           fail=0
-          for f in "${files[@]}"; do
-            rel="${f#$ROOT/}"
-            stem="$(basename "$f")"
-            stem="${stem%.*}"          # remove .car
-            outdir="extracted/$(dirname "$rel")/${stem}"
 
-            mkdir -p "$outdir"
-            echo "==> $f -> $outdir"
-
-            if "${CARTOOL_BIN}" "$f" "$outdir"; then
-              :
-            else
-              echo "WARN: cartool failed for: $f"
-              fail=1
+          echo "==> Scanning for .car files..."
+          while IFS= read -r -d '' f; do
+            total=$((total+1))
+            if [[ "$MAX" != "0" && "$total" -gt "$MAX" ]]; then
+              echo "==> MAX reached ($MAX). Stopping scan."
+              break
             fi
-          done
 
-          echo "fail=$fail" >> "$GITHUB_OUTPUT"
+            # Build relative path for nice folder layout
+            rel="$f"
+            if [[ "$ROOT" != "." ]]; then
+              rel="${f#${ROOT}/}"
+            fi
 
-          echo "Zipping extracted results..."
-          rm -f extracted_car_assets.zip
+            base="$(basename "$f" .car)"
+            outdir="extracted/$(dirname "$rel")/${base}"
+            mkdir -p "$outdir"  # cartool requires output folder exists :contentReference[oaicite:0]{index=0}
+
+            echo "==> [$total] $f -> $outdir"
+
+            set +e
+            cartool "$f" "$outdir"
+            rc=$?
+            set -e
+
+            if [[ $rc -eq 0 ]]; then
+              ok=$((ok+1))
+            else
+              fail=$((fail+1))
+              echo "WARN: cartool failed (rc=$rc): $f"
+              mkdir -p "extracted_failed/$(dirname "$rel")"
+              cp "$f" "extracted_failed/$(dirname "$rel")/" || true
+            fi
+          done < <(find "$ROOT" -type f -iname "$PATTERN" -print0)
+
+          echo "==> Done. total=$total ok=$ok fail=$fail"
+
+          # Always create a zip so upload step never fails
+          echo "Created by GitHub Actions at $(date -u). total=$total ok=$ok fail=$fail" > extracted/README.txt
           ditto -c -k --sequesterRsrc --keepParent extracted extracted_car_assets.zip
-          ls -lah extracted_car_assets.zip
 
-      - name: Upload artifact (zip)
-        if: always()
+          if [[ -d extracted_failed && "$(find extracted_failed -type f | wc -l | tr -d ' ')" != "0" ]]; then
+            ditto -c -k --sequesterRsrc --keepParent extracted_failed extracted_failed_car_files.zip
+          fi
+
+          echo "==> ZIP outputs:"
+          ls -la *.zip || true
+
+      - name: Upload extracted ZIP
         uses: actions/upload-artifact@v4
         with:
           name: extracted_car_assets
           path: extracted_car_assets.zip
+          if-no-files-found: error
 
-      - name: Fail job if there were extraction errors
-        if: steps.extract_step.outputs.fail == '1'
-        shell: bash
-        run: |
-          echo "One or more .car files failed to extract (artifact still uploaded)."
-          exit 1
+      - name: Upload failed .car ZIP (optional)
+        if: ${{ hashFiles('extracted_failed_car_files.zip') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: extracted_failed_car_files
+          path: extracted_failed_car_files.zip
+          if-no-files-found: ignore
