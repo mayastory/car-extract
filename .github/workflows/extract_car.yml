@@ -6,47 +6,109 @@ on:
 jobs:
   extract:
     runs-on: macos-latest
+    timeout-minutes: 60
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install cartool (force single tap)
+      - name: Install cartool (robust)
         shell: bash
         run: |
           set -euo pipefail
-          brew update
 
-          # 혹시 runner에 남아있거나(또는 자동 탭) 중복되는 tap이 있으면 제거
+          # Homebrew 환경 잡음/자동업데이트로 인한 실패 방지
+          export HOMEBREW_NO_AUTO_UPDATE=1
+          export HOMEBREW_NO_INSTALL_CLEANUP=1
+          export HOMEBREW_NO_ANALYTICS=1
+          export HOMEBREW_NO_ENV_HINTS=1
+
+          # brew 경로 (arm64: /opt/homebrew, intel: /usr/local)
+          if [ -x /opt/homebrew/bin/brew ]; then
+            echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
+          elif [ -x /usr/local/bin/brew ]; then
+            echo "/usr/local/bin" >> "$GITHUB_PATH"
+          fi
+
+          brew --version
+          echo "== taps(before) =="
+          brew tap || true
+
+          # 충돌나는 tap 정리(있으면 제거)
           brew untap szwathub/tap --force 2>/dev/null || true
-          brew untap 0xxd0/tap  --force 2>/dev/null || true
+          brew untap oxxd0/tap   --force 2>/dev/null || true
 
-          # 한 군데만 탭하고, 완전한 이름으로 설치
-          brew tap 0xxd0/tap
-          brew install 0xxd0/tap/cartool
+          echo "== try install from oxxd0/tap =="
+          set +e
+          brew tap oxxd0/tap 2>/dev/null
+          brew install oxxd0/tap/cartool
+          rc=$?
+          set -e
 
+          if [ $rc -ne 0 ]; then
+            echo "oxxd0/tap install failed, fallback to szwathub/tap"
+            brew untap oxxd0/tap --force 2>/dev/null || true
+            brew tap szwathub/tap
+            brew install szwathub/tap/cartool
+          fi
+
+          # cartool PATH 보강
+          BREW_PREFIX="$(brew --prefix)"
+          echo "$BREW_PREFIX/bin" >> "$GITHUB_PATH"
+
+          echo "== cartool path =="
+          which cartool
           cartool -h || true
-          brew tap
 
-      - name: Extract all .car
+      - name: Extract all .car under input/
         shell: bash
         run: |
-          set +e
-          mkdir -p extracted
-          count=$(find input -name "*.car" | wc -l | tr -d ' ')
-          echo "Found .car files: $count"
+          set -u
 
-          find input -name "*.car" -print0 | while IFS= read -r -d '' f; do
+          if ! command -v cartool >/dev/null 2>&1; then
+            echo "cartool not found in PATH"
+            exit 1
+          fi
+
+          mkdir -p extracted
+          failed=0
+          total=0
+
+          # .car 찾기 (input 아래 전체)
+          while IFS= read -r -d '' f; do
+            total=$((total+1))
+
             rel="${f#input/}"
             base="$(basename "$f" .car)"
-            outdir="extracted/$(dirname "$rel")/${base}"
+            outdir="extracted/$(dirname "$rel")/$base"
             mkdir -p "$outdir"
-            echo "==> $f -> $outdir"
-            cartool "$f" "$outdir"
-            echo "exit=$?"
-          done
 
-      - name: Upload artifact
+            echo "==> [$total] $f -> $outdir"
+            cartool "$f" "$outdir"
+            rc=$?
+
+            if [ $rc -ne 0 ]; then
+              echo "!! cartool failed (rc=$rc): $f"
+              failed=$((failed+1))
+            fi
+          done < <(find input -type f -name "*.car" -print0)
+
+          echo "Found .car files: $total"
+          echo "Failed extractions: $failed"
+
+          # 결과 요약 파일 (아티팩트에 같이 들어감)
+          {
+            echo "Found .car files: $total"
+            echo "Failed extractions: $failed"
+            echo "Timestamp: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          } > extracted/_summary.txt
+
+          # 일부 실패해도 아티팩트는 올리고 워크플로우는 성공 처리
+          exit 0
+
+      - name: Upload artifact (extracted)
         uses: actions/upload-artifact@v4
         with:
-          name: extracted_car_assets
+          name: extracted-car-assets
           path: extracted
+          if-no-files-found: error
