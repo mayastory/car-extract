@@ -7,23 +7,42 @@ jobs:
   extract:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Install cartool
+      - name: Install cartool (force single tap)
+        shell: bash
         run: |
+          set -euo pipefail
           brew update
-          (brew tap 0xxd0/tap && brew install cartool) || (brew tap szwathub/tap && brew install cartool)
+
+          # 혹시 runner에 남아있거나(또는 자동 탭) 중복되는 tap이 있으면 제거
+          brew untap szwathub/tap --force 2>/dev/null || true
+          brew untap 0xxd0/tap  --force 2>/dev/null || true
+
+          # 한 군데만 탭하고, 완전한 이름으로 설치
+          brew tap 0xxd0/tap
+          brew install 0xxd0/tap/cartool
+
+          cartool -h || true
+          brew tap
 
       - name: Extract all .car
+        shell: bash
         run: |
+          set +e
           mkdir -p extracted
+          count=$(find input -name "*.car" | wc -l | tr -d ' ')
+          echo "Found .car files: $count"
+
           find input -name "*.car" -print0 | while IFS= read -r -d '' f; do
             rel="${f#input/}"
             base="$(basename "$f" .car)"
             outdir="extracted/$(dirname "$rel")/${base}"
             mkdir -p "$outdir"
             echo "==> $f -> $outdir"
-            cartool "$f" "$outdir" || true
+            cartool "$f" "$outdir"
+            echo "exit=$?"
           done
 
       - name: Upload artifact
