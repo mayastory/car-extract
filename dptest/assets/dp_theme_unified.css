@@ -1,0 +1,214 @@
+/* DPTest Unified Theme v22
+   목표:
+   - 1번 카드(필터/검색)와 2번 카드(테이블/리스트) 투명도 동일
+   - DataTables 내부 레이어의 '불투명 배경'이 카드 배경을 덮는 문제 제거
+   - 마우스/hover/커서 위치에 따라 카드가 변하는 효과(글로우/라이트/opacity 변화) 강제 제거
+   - 사이드바 백드롭은 .show일 때만 클릭을 먹게(pointer-events) 고정
+*/
+
+:root{
+  /* ✅ 기본 카드 투명도 */
+  --dp-card-bg: rgba(0,0,0,0.52);
+  --dp-card-border: rgba(255,255,255,0.10);
+  --dp-card-shadow: 0 10px 28px rgba(0,0,0,0.50);
+  --dp-card-radius: 14px;
+
+  /* 테이블 헤더/고정열 등 조금 더 진하게 */
+  --dp-card-bg-strong: rgba(0,0,0,0.70);
+  --dp-card-bg-soft: rgba(0,0,0,0.40);
+}
+
+/* =========================================================
+   카드/컨테이너 공통 (필터 카드 + 테이블 카드가 동일하게 보이도록)
+   ========================================================= */
+:where(
+  .dp-card,
+  .card,
+  .dp-container,
+  .card-filter,
+  .filter-card,
+  .search-box,
+  .top-card,
+  .panel-card,
+  .sum-card,
+  .summary,
+  .filters,
+  .table-wrap,
+  .oqc-card,
+  .oqc-summary,
+  .oqc-top,
+  .tool-modal,
+  .modal,
+  .popup,
+  .dp-table-wrap,
+  .dataTables_wrapper,
+  .dt-container,
+  .dt-layout-row,
+  .dt-layout-cell
+){
+  background: var(--dp-card-bg) !important;
+  border: 1px solid var(--dp-card-border) !important;
+  border-radius: var(--dp-card-radius) !important;
+  box-shadow: var(--dp-card-shadow) !important;
+
+  /* glass 느낌은 유지하되(너무 과하면 테이블이 꼬여서) 약하게 */
+  backdrop-filter: blur(8px) saturate(130%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(130%) !important;
+
+  /* ✅ 마우스/hover로 opacity나 filter가 바뀌는 걸 전부 차단 */
+  opacity: 1 !important;
+  filter: none !important;
+  transform: none !important;
+  transition: none !important;
+}
+
+/* 카드에 붙는 글로우/라이트 pseudo-element(커서 따라 변하는 것) 강제 제거 */
+:where(
+  .dp-card,
+  .card,
+  .dp-container,
+  .filters,
+  .summary,
+  .table-wrap,
+  .dataTables_wrapper,
+  .dt-container
+)::before,
+:where(
+  .dp-card,
+  .card,
+  .dp-container,
+  .filters,
+  .summary,
+  .table-wrap,
+  .dataTables_wrapper,
+  .dt-container
+)::after{
+  content: none !important;
+  display: none !important;
+}
+
+/* hover로 배경이 바뀌는 효과도 완전 차단 */
+:where(
+  .dp-card,
+  .card,
+  .dp-container,
+  .filters,
+  .summary,
+  .table-wrap,
+  .dataTables_wrapper,
+  .dt-container
+):hover{
+  background: var(--dp-card-bg) !important;
+  box-shadow: var(--dp-card-shadow) !important;
+  opacity: 1 !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+/* =========================================================
+   DataTables 내부 레이어가 불투명 배경을 덮는 문제 제거
+   (바깥 카드=table-wrap/dataTables_wrapper만 배경을 갖고,
+    내부 스크롤/헤드/바디는 투명하게)
+   ========================================================= */
+html[data-dp-unified="1"] :where(
+  .dataTables_scroll,
+  .dataTables_scrollHead,
+  .dataTables_scrollHeadInner,
+  .dataTables_scrollBody,
+  .dataTables_processing,
+  .dt-scroll,
+  .dt-scroll-head,
+  .dt-scroll-headInner,
+  .dt-scroll-body,
+  .dt-layout-row,
+  .dt-layout-cell
+){
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+
+/* 테이블 자체가 흰/진한 배경으로 카드 투명도를 죽이는 케이스 차단 */
+html[data-dp-unified="1"] :where(
+  table.dataTable,
+  table.dataTable thead,
+  table.dataTable tbody,
+  table.dataTable tfoot,
+  table.dataTable th,
+  table.dataTable td,
+  table.dataTables_scrollBody,
+  table.dataTables_scrollHead
+){
+  background: transparent !important;
+}
+
+/* 헤더만 조금 진하게 */
+html[data-dp-unified="1"] :where(
+  table.dataTable thead th,
+  table.dataTable thead td
+){
+  background: var(--dp-card-bg-strong) !important;
+}
+
+/* 바디 줄은 "아주 약한" 반투명로(완전 불투명 방지) */
+html[data-dp-unified="1"] table.dataTable tbody tr{
+  background: rgba(0,0,0,0.18) !important;
+}
+html[data-dp-unified="1"] table.dataTable tbody tr:nth-child(even){
+  background: rgba(0,0,0,0.24) !important;
+}
+html[data-dp-unified="1"] table.dataTable tbody tr:hover{
+  background: rgba(0,0,0,0.24) !important;
+}
+
+/* =========================================================
+   OQC 전용(기존 oqc-table 클래스)
+   ========================================================= */
+html[data-dp-unified="1"] .filters,
+html[data-dp-unified="1"] .summary,
+html[data-dp-unified="1"] .table-wrap{
+  background: var(--dp-card-bg) !important;
+}
+
+html[data-dp-unified="1"] table.oqc-table thead th{
+  background: var(--dp-card-bg-strong) !important;
+}
+
+html[data-dp-unified="1"] table.oqc-table th.sticky,
+html[data-dp-unified="1"] table.oqc-table td.sticky{
+  background: var(--dp-card-bg-strong) !important;
+}
+
+html[data-dp-unified="1"] table.oqc-table{
+  background: transparent !important;
+}
+
+/* =========================================================
+   사이드바 backdrop: show일 때만 클릭 가능(페이지 클릭 막는 현상 방지)
+   ========================================================= */
+#dpSideBackdrop,
+.dp-side-backdrop{
+  z-index: 99998 !important;
+  pointer-events: none !important;
+}
+#dpSideBackdrop.show,
+.dp-side-backdrop.show{
+  pointer-events: auto !important;
+}
+
+#dpSidePanel,
+.dp-side{
+  z-index: 99999 !important;
+}
+
+.dp-rail{
+  z-index: 100000 !important;
+}
+
+/* iframe(쉘 구조) 쪽이 backdrop 위로 올라오는 케이스 방지 */
+iframe#dpFrame,
+iframe#dpShellFrame,
+#dpFrame,
+#dpShellFrame{
+  z-index: 1 !important;
+}

@@ -1,0 +1,27 @@
+# JTMES cleanroot v3 FIX
+# - This replaces older RewriteBase/RewriteRule blocks that pointed to removed root files.
+Options -Indexes
+DirectoryIndex public/index.php
+
+RewriteEngine On
+
+# If request is an existing file/dir, serve it as-is
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Pretty URLs -> legacy app (keeps matrix background behavior)
+RewriteRule ^$ public/index.php [L]
+RewriteRule ^index/?$ public/index.php [L,QSA]
+RewriteRule ^logout/?$ public/legacy/logout.php [L,QSA]
+RewriteRule ^app/?$ public/legacy/app.php [L,QSA]
+
+RewriteRule ^shipinglist/?$ public/legacy/app.php?view=shipinglist [L,QSA]
+RewriteRule ^rma/?$ public/legacy/app.php?view=rma [L,QSA]
+RewriteRule ^oqc/?$ public/legacy/app.php?view=oqc [L,QSA]
+RewriteRule ^ipqc/?$ public/legacy/app.php?view=ipqc [L,QSA]
+
+RewriteRule ^admin_settings/?$ public/legacy/admin_settings.php [L,QSA]
+
+# Any direct legacy php entrypoint (shipinglist_list.php, oqc_view.php, ...)
+RewriteRule ^(.+\.php)$ public/legacy/$1 [L]

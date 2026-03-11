@@ -1,0 +1,87 @@
+/* assets/dp_userbar.css */
+/* 스크롤 따라오지 않음 + 매트릭스 캔버스 위로 */
+
+.dp-ub{
+  position: relative;   /* sticky 해제 + z-index 적용 */
+  z-index: 1400;
+
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:10px;
+  padding: 10px 18px;
+
+  background: transparent !important;
+  backdrop-filter: none !important;
+  border-bottom: none !important;
+}
+
+.dp-ub-left{display:flex; align-items:center; gap:12px; margin-right:auto;}
+.dp-ub-title{font-size:16px; font-weight:700; color:#e8eaed; text-shadow:0 2px 6px rgba(0,0,0,.70);}
+
+.dp-ub-right{display:flex; align-items:center; gap:10px;}
+.dp-ub-user{font-size:13px; color:#cfd3d7; text-shadow:0 2px 6px rgba(0,0,0,.70);}
+
+.dp-ub-badge{
+  display:inline-flex; align-items:center; justify-content:center;
+  height:30px; padding:0 10px;
+  border-radius:999px;
+  background:#f4c542; color:#111;
+  font-size:12px; font-weight:700;
+  border:none; cursor:pointer; text-decoration:none;
+  box-shadow:0 6px 16px rgba(0,0,0,.35);
+}
+
+.dp-ub-logout-form{margin:0;}
+.dp-ub-logout{
+  height:30px; padding:0 12px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.18);
+  background: rgba(0,0,0,.18);
+  color:#e8eaed;
+  cursor:pointer;
+  text-shadow:0 2px 6px rgba(0,0,0,.70);
+  box-shadow:0 6px 16px rgba(0,0,0,.28);
+}
+.dp-ub-logout:hover{background: rgba(255,255,255,.06);}
+
+/* 관리자 모달 */
+.dp-admin-backdrop{
+  position:fixed;
+  top:0; right:0; bottom:0;
+  /* 좌측 레일(사이드바) 영역은 가리지 않음 */
+  left: var(--rail-w, 72px);
+  background:rgba(0,0,0,.60);
+  z-index:2000;
+}
+.dp-admin-modal{
+  /* 제로보드 느낌: 관리자 설정은 기본이 '전체 화면' (레일 영역 제외) */
+  position:fixed;
+  top:0; right:0; bottom:0;
+  left: var(--rail-w, 72px);
+  transform:none;
+  width: calc(100vw - var(--rail-w, 72px));
+  max-width:none;
+  height:100vh;
+  max-height:none;
+  background:#2b2b2b;
+  border-radius:0;
+  box-shadow:0 18px 50px rgba(0,0,0,.65);
+  z-index:2001;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.06);
+}
+.dp-admin-top{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 12px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+  background: rgba(255,255,255,.02);
+}
+.dp-admin-title{font-size:14px; font-weight:700; color:#e8eaed;}
+.dp-admin-close{
+  width:32px; height:32px; border-radius:10px;
+  border:none; background:transparent; color:#e8eaed;
+  font-size:20px; cursor:pointer;
+}
+.dp-admin-close:hover{background: rgba(255,255,255,.06);}
+.dp-admin-iframe{width:100%; height:calc(100% - 52px); border:none; background:#202124;}
