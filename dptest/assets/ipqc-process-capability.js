@@ -681,10 +681,8 @@
       if (!sorted.length) return 1;
       const minVal = sorted[0];
       const maxVal = sorted[sorted.length - 1];
-      const specMin = Number.isFinite(entry && entry.lsl) ? entry.lsl : minVal;
-      const specMax = Number.isFinite(entry && entry.usl) ? entry.usl : maxVal;
       const span = Math.max(1e-9, maxVal - minVal);
-      const domainSpan = Math.max(1e-9, Math.max(maxVal, specMax) - Math.min(minVal, specMin));
+      const domainSpan = Math.max(1e-9, span);
       if (sorted.length < 2 || !(span > 0)) return niceNumber(domainSpan || Math.max(Math.abs(minVal || 1), 1) * 0.1, true);
 
       const q1 = quantileSorted(sorted, 0.25);
@@ -695,7 +693,7 @@
       let raw = Number.isFinite(fd) && fd > 0 ? fd : scott;
       if (!(raw > 0)) raw = domainSpan / Math.max(1, Math.round(Math.sqrt(sorted.length)));
 
-      const targetBins = Math.max(6, Math.min(10, Math.round(Math.log2(sorted.length) + 1)));
+      const targetBins = Math.max(5, Math.min(8, Math.round(Math.log2(sorted.length) * 0.8)));
       const baseExp = Math.floor(Math.log10(raw));
       const seeds = [1, 2, 2.5, 5, 10];
       const candidates = [];
@@ -710,8 +708,8 @@
       let best = Math.max(niceNumber(raw, true), 1e-9);
       let bestScore = Infinity;
       uniqCands.forEach(cand => {
-        const startVal = Math.floor(Math.min(minVal, specMin) / cand) * cand;
-        const endVal = Math.ceil(Math.max(maxVal, specMax) / cand) * cand;
+        const startVal = Math.floor(minVal / cand) * cand;
+        const endVal = Math.ceil(maxVal / cand) * cand;
         const count = Math.max(1, Math.ceil((endVal - startVal) / cand));
         const score = (Math.abs(count - targetBins) * 1.2) + (Math.abs(Math.log(cand / raw)) * 0.6);
         if (score < bestScore - 1e-9 || (Math.abs(score - bestScore) < 1e-9 && cand > best)){
@@ -746,8 +744,8 @@
     const specMin = Number.isFinite(entry.lsl) ? entry.lsl : dataMin;
     const specMax = Number.isFinite(entry.usl) ? entry.usl : dataMax;
     const binW = chooseBinWidth(values);
-    const binStart = Math.floor(Math.min(dataMin, specMin) / binW) * binW;
-    const binEnd = Math.ceil(Math.max(dataMax, specMax) / binW) * binW;
+    const binStart = Math.floor(dataMin / binW) * binW;
+    const binEnd = Math.ceil(dataMax / binW) * binW;
     const binCount = Math.max(1, Math.ceil((binEnd - binStart) / binW));
     const bins = new Array(binCount).fill(0);
     values.forEach(v => {
@@ -757,8 +755,12 @@
       bins[i]++;
     });
 
-    const axisMin = binStart;
-    const axisMax = binEnd;
+    const rawAxisMin = Math.min(specMin, dataMin);
+    const rawAxisMax = Math.max(specMax, dataMax);
+    const axisPad = Math.max(binW * 0.35, (rawAxisMax - rawAxisMin) * 0.03, 1e-9);
+    const axisTickStep = Math.max(niceNumber((rawAxisMax - rawAxisMin + (axisPad * 2)) / 5, true), 1e-9);
+    const axisMin = Math.floor((rawAxisMin - axisPad) / axisTickStep) * axisTickStep;
+    const axisMax = Math.ceil((rawAxisMax + axisPad) / axisTickStep) * axisTickStep;
     const range = Math.max(1e-9, axisMax - axisMin);
     const x = v => left + ((v - axisMin) / range) * plotW;
 
@@ -802,7 +804,7 @@
       return d.trim();
     }
 
-    const tickStep = Math.max(niceNumber(range / 5, true), 1e-9);
+    const tickStep = axisTickStep;
     const tickStart = Math.ceil(axisMin / tickStep) * tickStep;
     const ticks = [];
     for (let v = tickStart; v <= axisMax + tickStep * 0.25; v += tickStep){
@@ -986,26 +988,22 @@
     if (!Number.isFinite(value)) return '';
     if (kind === 'stability'){
       if (value <= 1.25) return 'is-good';
-      if (value <= 1.50) return 'is-warn';
+      if (value <= 2.00) return 'is-warn';
       return 'is-bad';
     }
     if (kind === 'capability'){
-      if (value >= 1.33) return 'is-good';
+      if (value >= 1.50) return 'is-good';
       if (value >= 1.00) return 'is-warn';
       return 'is-bad';
     }
     return '';
   }
-  function summaryValueCell(value, kind, formatter, palette){
+  function summaryValueCell(value, kind, formatter){
     const cls = summaryStatusClass(kind, value);
     let style = '';
-    if (kind === 'stability'){
-      style = 'background:#f4caca;color:#3a1111;font-weight:700;';
-    } else if (kind === 'capability' && palette === 'within'){
-      style = 'background:#cfe7c3;color:#173312;font-weight:700;';
-    } else if (kind === 'capability' && palette === 'overall'){
-      style = 'background:#f4caca;color:#3a1111;font-weight:700;';
-    }
+    if (cls === 'is-good') style = 'background:#cfe7c3;color:#173312;font-weight:700;';
+    else if (cls === 'is-warn') style = 'background:#efe3a6;color:#3f3208;font-weight:700;';
+    else if (cls === 'is-bad') style = 'background:#f4caca;color:#3a1111;font-weight:700;';
     const extra = kind ? (' kind-' + kind) : '';
     return '<td' + ((cls || extra) ? ' class="' + (cls ? cls : '') + extra + '"' : '') + (style ? ' style="' + style + '"' : '') + '>' + esc((formatter || fmtWide)(value)) + '</td>';
   }
@@ -1032,11 +1030,11 @@
         '<td>' + esc(fmtSpec(entry.usl)) + '</td>' +
         '<td>' + esc(fmtWide(entry.avg)) + '</td>' +
         '<td>' + esc(fmtWide(sigma)) + '</td>' +
-        summaryValueCell(entry.stability, 'stability', fmtWide, isWithin ? 'within' : 'overall') +
-        summaryValueCell(capA, 'capability', fmtIndex, isWithin ? 'within' : 'overall') +
-        summaryValueCell(capB, 'capability', fmtIndex, isWithin ? 'within' : 'overall') +
-        summaryValueCell(capC, 'capability', fmtIndex, isWithin ? 'within' : 'overall') +
-        summaryValueCell(capD, 'capability', fmtIndex, isWithin ? 'within' : 'overall') +
+        summaryValueCell(entry.stability, 'stability', fmtWide) +
+        summaryValueCell(capA, 'capability', fmtIndex) +
+        summaryValueCell(capB, 'capability', fmtIndex) +
+        summaryValueCell(capC, 'capability', fmtIndex) +
+        summaryValueCell(capD, 'capability', fmtIndex) +
         '<td>' + esc(Number.isFinite(entry.cpm) ? fmtIndex(entry.cpm) : '-') + '</td>' +
         '<td>' + esc(fmtPct(expTotal)) + '</td>' +
         '<td>' + esc(fmtPct(expBelow)) + '</td>' +
