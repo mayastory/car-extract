@@ -645,7 +645,7 @@
   }
 
   function histogramSvg(entry){
-    const values = entry.values;
+    const values = (entry && Array.isArray(entry.values) ? entry.values : []).filter(Number.isFinite);
     const width = 500, height = 290;
     const left = 42, right = 78, top = 18, bottom = 42;
     const plotW = width - left - right;
@@ -653,27 +653,65 @@
     if (!values.length){
       return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true"><rect x="0.5" y="0.5" width="499" height="289" fill="transparent" stroke="rgba(255,255,255,.14)"/><text x="250" y="150" fill="rgba(236,247,240,.55)" text-anchor="middle" font-size="14">데이터 없음</text></svg>';
     }
-    let rawMin = Math.min.apply(null, values);
-    let rawMax = Math.max.apply(null, values);
-    if (Number.isFinite(entry.lsl)) rawMin = Math.min(rawMin, entry.lsl);
-    if (Number.isFinite(entry.usl)) rawMax = Math.max(rawMax, entry.usl);
-    let range = Math.max(1e-9, rawMax - rawMin);
-    let min = rawMin - range * 0.06;
-    let max = rawMax + range * 0.06;
-    if (Number.isFinite(entry.lsl)) min = Math.min(min, entry.lsl - range * 0.03);
-    if (Number.isFinite(entry.usl)) max = Math.max(max, entry.usl + range * 0.03);
-    range = Math.max(1e-9, max - min);
-    const x = v => left + ((v - min) / range) * plotW;
-    const preferredBins = Math.round(Math.sqrt(values.length) * 1.8);
-    const binCount = Math.max(10, Math.min(24, preferredBins || 10));
-    const binW = range / binCount;
+
+    function niceNumber(v, round){
+      if (!(v > 0) || !Number.isFinite(v)) return 1;
+      const exponent = Math.floor(Math.log10(v));
+      const fraction = v / Math.pow(10, exponent);
+      let niceFraction;
+      if (round){
+        if (fraction <= 1) niceFraction = 1;
+        else if (fraction <= 2) niceFraction = 2;
+        else if (fraction <= 2.5) niceFraction = 2.5;
+        else if (fraction <= 5) niceFraction = 5;
+        else niceFraction = 10;
+      } else {
+        if (fraction <= 1) niceFraction = 1;
+        else if (fraction <= 2) niceFraction = 2;
+        else if (fraction <= 2.5) niceFraction = 2.5;
+        else if (fraction <= 5) niceFraction = 5;
+        else niceFraction = 10;
+      }
+      return niceFraction * Math.pow(10, exponent);
+    }
+
+    function chooseBinWidth(nums){
+      const sorted = sortedNums(nums);
+      if (!sorted.length) return 1;
+      const span = Math.max(1e-9, sorted[sorted.length - 1] - sorted[0]);
+      if (sorted.length < 2 || !(span > 0)) return niceNumber(span || 1, true);
+      const q1 = quantileSorted(sorted, 0.25);
+      const q3 = quantileSorted(sorted, 0.75);
+      const iqr = Math.max(0, q3 - q1);
+      const fd = iqr > 0 ? (2 * iqr / Math.cbrt(sorted.length)) : NaN;
+      const scott = Number.isFinite(entry && entry.sigmaOverall) && entry.sigmaOverall > 0 ? (3.5 * entry.sigmaOverall / Math.cbrt(sorted.length)) : NaN;
+      let raw = Number.isFinite(fd) && fd > 0 ? fd : scott;
+      if (!(raw > 0)) raw = span / Math.max(1, Math.round(Math.sqrt(sorted.length)));
+      return Math.max(niceNumber(raw, true), 1e-9);
+    }
+
+    const dataMin = Math.min.apply(null, values);
+    const dataMax = Math.max.apply(null, values);
+    const binW = chooseBinWidth(values);
+    const binStart = Math.floor(dataMin / binW) * binW;
+    const binEnd = Math.ceil(dataMax / binW) * binW;
+    const binCount = Math.max(1, Math.round((binEnd - binStart) / binW));
     const bins = new Array(binCount).fill(0);
     values.forEach(v => {
-      let i = Math.floor((v - min) / binW);
+      let i = Math.floor((v - binStart) / binW);
       if (i < 0) i = 0;
       if (i >= binCount) i = binCount - 1;
       bins[i]++;
     });
+
+    let axisMinRaw = Math.min(binStart, Number.isFinite(entry.lsl) ? entry.lsl : binStart);
+    let axisMaxRaw = Math.max(binEnd, Number.isFinite(entry.usl) ? entry.usl : binEnd);
+    const tickStep = Math.max(niceNumber((axisMaxRaw - axisMinRaw) / 4, true), binW);
+    const min = Math.floor(axisMinRaw / tickStep) * tickStep;
+    const max = Math.ceil(axisMaxRaw / tickStep) * tickStep;
+    const range = Math.max(1e-9, max - min);
+    const x = v => left + ((v - min) / range) * plotW;
+
     const maxCount = Math.max.apply(null, bins.concat([1]));
     function curveCounts(v, sigma){
       if (!Number.isFinite(sigma) || sigma <= 0) return 0;
@@ -690,8 +728,9 @@
 
     const plotRect = '<rect x="' + left + '" y="' + top + '" width="' + plotW + '" height="' + plotH + '" fill="transparent" stroke="rgba(255,255,255,.18)"/>';
     const bars = bins.map((c, i) => {
-      const x0 = left + i * (plotW / binCount) + 0.5;
-      const w = Math.max(1, plotW / binCount - 1);
+      const x0 = x(binStart + i * binW) + 0.5;
+      const x1 = x(binStart + (i + 1) * binW) - 0.5;
+      const w = Math.max(1, x1 - x0);
       const y0 = y(c);
       return '<rect x="' + fixedTrim(x0, 2) + '" y="' + fixedTrim(y0, 2) + '" width="' + fixedTrim(w, 2) + '" height="' + fixedTrim(top + plotH - y0, 2) + '" fill="rgba(184,194,183,.85)" stroke="rgba(54,60,56,.85)" stroke-width="0.7"/>';
     }).join('');
@@ -708,13 +747,13 @@
       return d.trim();
     }
 
-    const tickCount = 5;
-    const axis = new Array(tickCount).fill(0).map((_, i) => {
-      const v = min + range * (i / (tickCount - 1));
+    const ticks = [];
+    for (let v = min; v <= max + tickStep * 0.5; v += tickStep){
       const px = x(v);
-      return '<line x1="' + fixedTrim(px, 2) + '" y1="' + (top + plotH) + '" x2="' + fixedTrim(px, 2) + '" y2="' + (top + plotH + 4) + '" stroke="rgba(255,255,255,.55)"/>' +
-        '<text x="' + fixedTrim(px, 2) + '" y="' + (top + plotH + 16) + '" fill="rgba(236,247,240,.84)" font-size="10" text-anchor="middle">' + esc(fmtSpec(v)) + '</text>';
-    }).join('');
+      ticks.push('<line x1="' + fixedTrim(px, 2) + '" y1="' + (top + plotH) + '" x2="' + fixedTrim(px, 2) + '" y2="' + (top + plotH + 4) + '" stroke="rgba(255,255,255,.55)"/>' +
+        '<text x="' + fixedTrim(px, 2) + '" y="' + (top + plotH + 16) + '" fill="rgba(236,247,240,.84)" font-size="10" text-anchor="middle">' + esc(fixedTrim(v, Math.abs(v) < 0.1 ? 3 : 2)) + '</text>');
+    }
+    const axis = ticks.join('');
 
     let specLines = '';
     if (Number.isFinite(entry.lsl)) specLines += '<line x1="' + fixedTrim(x(entry.lsl), 2) + '" y1="' + top + '" x2="' + fixedTrim(x(entry.lsl), 2) + '" y2="' + (top + plotH) + '" stroke="#ff5062" stroke-width="1.5"/><text x="' + fixedTrim(x(entry.lsl), 2) + '" y="' + (top - 4) + '" fill="#ff9ca6" font-size="10" text-anchor="middle">LSL</text>';
