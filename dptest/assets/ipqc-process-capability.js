@@ -706,9 +706,9 @@
 
     let axisMinRaw = Math.min(binStart, Number.isFinite(entry.lsl) ? entry.lsl : binStart);
     let axisMaxRaw = Math.max(binEnd, Number.isFinite(entry.usl) ? entry.usl : binEnd);
-    const tickStep = Math.max(niceNumber((axisMaxRaw - axisMinRaw) / 4, true), binW);
+    const tickStep = Math.max(niceNumber((axisMaxRaw - axisMinRaw) / 5, true), 1e-9);
     const min = Math.floor(axisMinRaw / tickStep) * tickStep;
-    const max = Math.ceil(axisMaxRaw / tickStep) * tickStep;
+    const max = Math.max(binEnd, Math.ceil(axisMaxRaw / tickStep) * tickStep);
     const range = Math.max(1e-9, max - min);
     const x = v => left + ((v - min) / range) * plotW;
 
@@ -728,8 +728,8 @@
 
     const plotRect = '<rect x="' + left + '" y="' + top + '" width="' + plotW + '" height="' + plotH + '" fill="transparent" stroke="rgba(255,255,255,.18)"/>';
     const bars = bins.map((c, i) => {
-      const x0 = x(binStart + i * binW) + 0.5;
-      const x1 = x(binStart + (i + 1) * binW) - 0.5;
+      const x0 = x(binStart + i * binW);
+      const x1 = x(binStart + (i + 1) * binW);
       const w = Math.max(1, x1 - x0);
       const y0 = y(c);
       return '<rect x="' + fixedTrim(x0, 2) + '" y="' + fixedTrim(y0, 2) + '" width="' + fixedTrim(w, 2) + '" height="' + fixedTrim(top + plotH - y0, 2) + '" fill="rgba(184,194,183,.85)" stroke="rgba(54,60,56,.85)" stroke-width="0.7"/>';
@@ -751,7 +751,7 @@
     for (let v = min; v <= max + tickStep * 0.5; v += tickStep){
       const px = x(v);
       ticks.push('<line x1="' + fixedTrim(px, 2) + '" y1="' + (top + plotH) + '" x2="' + fixedTrim(px, 2) + '" y2="' + (top + plotH + 4) + '" stroke="rgba(255,255,255,.55)"/>' +
-        '<text x="' + fixedTrim(px, 2) + '" y="' + (top + plotH + 16) + '" fill="rgba(236,247,240,.84)" font-size="10" text-anchor="middle">' + esc(fixedTrim(v, Math.abs(v) < 0.1 ? 3 : 2)) + '</text>');
+        '<text x="' + fixedTrim(px, 2) + '" y="' + (top + plotH + 16) + '" fill="rgba(236,247,240,.84)" font-size="10" text-anchor="middle">' + esc(fixedTrim(v, Math.abs(v) < 0.1 ? 2 : 2)) + '</text>');
     }
     const axis = ticks.join('');
 
