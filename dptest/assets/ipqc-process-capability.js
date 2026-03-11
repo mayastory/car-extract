@@ -916,13 +916,14 @@
     // 박스/수염보다 먼저 그려 박스 내부 점은 자연스럽게 가려지게 만든다.
     // 별도 상단 밴드나 outlier-only 표시를 쓰지 않고, 같은 행 안에서만 아주 얕게 쌓아
     // 바깥쪽 분포는 보이고 박스 중심부는 과도하게 뭉쳐 보이지 않게 한다.
-    const pointRadius = 2.0;
+    const pointRadius = 1.9;
     const pointFill = 'rgba(184,184,184,.92)';
-    const points = sorted.map((v, idx) => {
+    const outliers = sorted.filter(v => v < lowFence || v > highFence);
+    const points = outliers.map((v, idx) => {
       const px = x(v);
       const cy = yMid;
-      const tip = 'value: ' + fixedTrim(v,6) + ' | index: ' + idx;
-      return '<circle cx="' + fixedTrim(px,2) + '" cy="' + fixedTrim(cy,2) + '" r="' + fixedTrim(pointRadius,2) + '" fill="' + pointFill + '" stroke="none"><title>' + esc(tip) + '</title></circle>';
+      const tip = 'value: ' + fixedTrim(v, 6);
+      return '<circle cx="' + fixedTrim(px, 2) + '" cy="' + fixedTrim(cy, 2) + '" r="' + fixedTrim(pointRadius, 2) + '" fill="' + pointFill + '" stroke="none"><title>' + esc(tip) + '</title></circle>';
     }).join('');
 
     const specLineDefs = [];
