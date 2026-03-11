@@ -815,16 +815,29 @@
     const x = v => left + ((v - xMin) / Math.max(1e-9, xMax - xMin)) * plotW;
 
 
-    // JMP capability box plot: 기본은 box plot만 보이고, 점은 수염 밖(outlier)일 때만 최소로 표시
-    const pointRadius = 2.05;
-    const outliersLow = sorted.filter(v => v < whiskerLow);
-    const outliersHigh = sorted.filter(v => v > whiskerHigh);
-    const maxOutliersPerSide = 120;
-    const trimSide = arr => (arr.length <= maxOutliersPerSide ? arr : arr.slice(0, maxOutliersPerSide));
-    const visibleOutliers = trimSide(outliersLow).concat(trimSide(outliersHigh));
-    const points = visibleOutliers.map(v => {
-      const cy = yMid;
-      return '<circle cx="' + fixedTrim(x(v), 2) + '" cy="' + fixedTrim(cy, 2) + '" r="' + fixedTrim(pointRadius, 2) + '" fill="rgba(183,183,183,.96)" stroke="none"/>';
+    // JMP capability box plot: 점은 박스플롯과 같은 행에 모두 배치하되,
+    // 박스/수염보다 먼저 그려 박스 내부 점은 자연스럽게 가려지게 만든다.
+    // 별도 상단 밴드나 outlier-only 표시를 쓰지 않고, 같은 행 안에서만 아주 얕게 쌓아
+    // 바깥쪽 분포는 보이고 박스 중심부는 과도하게 뭉쳐 보이지 않게 한다.
+    const pointRadius = 1.9;
+    const laneStep = 1.7;
+    const laneLimit = Math.max(0, Math.floor(((boxH / 2) - pointRadius - 0.8) / laneStep));
+    const bucketPx = Math.max(pointRadius * 2.6, 4.8);
+    const laneOrder = [0];
+    for (let i = 1; i <= Math.max(1, laneLimit); i++) laneOrder.push(-i, i);
+    const laneCycleLen = laneOrder.length || 1;
+    const bucketCounts = new Map();
+    const pointFill = 'rgba(184,184,184,.92)';
+    const points = sorted.map((v, idx) => {
+      const px = x(v);
+      const bucket = Math.round((px - left) / bucketPx);
+      const seen = bucketCounts.get(bucket) || 0;
+      bucketCounts.set(bucket, seen + 1);
+      const lane = laneOrder[seen % laneCycleLen] || 0;
+      const wrap = Math.floor(seen / laneCycleLen);
+      const extraShift = wrap > 0 && laneLimit > 0 ? ((wrap % 2 === 1 ? 1 : -1) * laneLimit * 0.35) : 0;
+      const cy = yMid + ((lane * laneStep) + extraShift);
+      return '<circle cx="' + fixedTrim(px, 2) + '" cy="' + fixedTrim(cy, 2) + '" r="' + fixedTrim(pointRadius, 2) + '" fill="' + pointFill + '" stroke="none" data-point-index="' + idx + '"/>';
     }).join('');
 
     const specLineDefs = [];
