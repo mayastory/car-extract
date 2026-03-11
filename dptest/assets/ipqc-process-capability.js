@@ -646,7 +646,7 @@
 
 
   function histogramSvg(entry){
-    const values = (entry && Array.isArray(entry.values) ? entry.values : []).filter(Number.isFinite);
+    const values = entry.values;
     const width = 500, height = 290;
     const left = 42, right = 78, top = 18, bottom = 42;
     const plotW = width - left - right;
@@ -654,175 +654,71 @@
     if (!values.length){
       return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true"><rect x="0.5" y="0.5" width="499" height="289" fill="transparent" stroke="rgba(255,255,255,.14)"/><text x="250" y="150" fill="rgba(236,247,240,.55)" text-anchor="middle" font-size="14">데이터 없음</text></svg>';
     }
-
-    function niceNumber(v, round){
-      if (!(v > 0) || !Number.isFinite(v)) return 1;
-      const exponent = Math.floor(Math.log10(v));
-      const fraction = v / Math.pow(10, exponent);
-      let niceFraction;
-      if (round){
-        if (fraction <= 1) niceFraction = 1;
-        else if (fraction <= 2) niceFraction = 2;
-        else if (fraction <= 2.5) niceFraction = 2.5;
-        else if (fraction <= 5) niceFraction = 5;
-        else niceFraction = 10;
-      } else {
-        if (fraction <= 1) niceFraction = 1;
-        else if (fraction <= 2) niceFraction = 2;
-        else if (fraction <= 2.5) niceFraction = 2.5;
-        else if (fraction <= 5) niceFraction = 5;
-        else niceFraction = 10;
-      }
-      return niceFraction * Math.pow(10, exponent);
-    }
-
-    function chooseBinWidth(nums){
-      const sorted = sortedNums(nums);
-      if (!sorted.length) return 1;
-      const minVal = sorted[0];
-      const maxVal = sorted[sorted.length - 1];
-      const span = Math.max(1e-9, maxVal - minVal);
-      const domainSpan = Math.max(1e-9, span);
-      if (sorted.length < 2 || !(span > 0)) return niceNumber(domainSpan || Math.max(Math.abs(minVal || 1), 1) * 0.1, true);
-
-      const q1 = quantileSorted(sorted, 0.25);
-      const q3 = quantileSorted(sorted, 0.75);
-      const iqr = Math.max(0, q3 - q1);
-      const fd = iqr > 0 ? (2 * iqr / Math.cbrt(sorted.length)) : NaN;
-      const scott = Number.isFinite(entry && entry.sigmaOverall) && entry.sigmaOverall > 0 ? (3.5 * entry.sigmaOverall / Math.cbrt(sorted.length)) : NaN;
-      let raw = Number.isFinite(fd) && fd > 0 ? fd : scott;
-      if (!(raw > 0)) raw = domainSpan / Math.max(1, Math.round(Math.sqrt(sorted.length)));
-
-      const targetBins = Math.max(5, Math.min(8, Math.round(Math.log2(sorted.length) * 0.8)));
-      const baseExp = Math.floor(Math.log10(raw));
-      const seeds = [1, 2, 2.5, 5, 10];
-      const candidates = [];
-      for (let exp = baseExp - 1; exp <= baseExp + 1; exp++){
-        const pow = Math.pow(10, exp);
-        seeds.forEach(seed => {
-          const cand = seed * pow;
-          if (cand > 0 && Number.isFinite(cand)) candidates.push(cand);
-        });
-      }
-      const uniqCands = Array.from(new Set(candidates)).sort((a, b) => a - b);
-      let best = Math.max(niceNumber(raw, true), 1e-9);
-      let bestScore = Infinity;
-      uniqCands.forEach(cand => {
-        const startVal = Math.floor(minVal / cand) * cand;
-        const endVal = Math.ceil(maxVal / cand) * cand;
-        const count = Math.max(1, Math.ceil((endVal - startVal) / cand));
-        const score = (Math.abs(count - targetBins) * 1.2) + (Math.abs(Math.log(cand / raw)) * 0.6);
-        if (score < bestScore - 1e-9 || (Math.abs(score - bestScore) < 1e-9 && cand > best)){
-          best = cand;
-          bestScore = score;
-        }
-      });
-      return Math.max(best, 1e-9);
-    }
-
-    function formatHistTick(v){
-      if (!Number.isFinite(v)) return '';
-      if (Math.abs(v) < 1e-9) return '0';
-      const abs = Math.abs(v);
-      if (abs >= 1) return fixedTrim(v, 2);
-      if (abs >= 0.1) return fixedTrim(v, 2);
-      if (abs >= 0.01) return fixedTrim(v, 2);
-      return fixedTrim(v, 3);
-    }
-
-    function formatHistBinEdge(v){
-      if (!Number.isFinite(v)) return '';
-      const abs = Math.abs(v);
-      if (abs >= 1) return fixedTrim(v, 3);
-      if (abs >= 0.1) return fixedTrim(v, 3);
-      if (abs >= 0.01) return fixedTrim(v, 3);
-      return fixedTrim(v, 4);
-    }
-
-    const dataMin = Math.min.apply(null, values);
-    const dataMax = Math.max.apply(null, values);
-    const specMin = Number.isFinite(entry.lsl) ? entry.lsl : dataMin;
-    const specMax = Number.isFinite(entry.usl) ? entry.usl : dataMax;
-    const binW = chooseBinWidth(values);
-    const binStart = Math.floor(dataMin / binW) * binW;
-    const binEnd = Math.ceil(dataMax / binW) * binW;
-    const binCount = Math.max(1, Math.ceil((binEnd - binStart) / binW));
+    let rawMin = Math.min.apply(null, values);
+    let rawMax = Math.max.apply(null, values);
+    if (Number.isFinite(entry.lsl)) rawMin = Math.min(rawMin, entry.lsl);
+    if (Number.isFinite(entry.usl)) rawMax = Math.max(rawMax, entry.usl);
+    let range = Math.max(1e-9, rawMax - rawMin);
+    let min = rawMin - range * 0.06;
+    let max = rawMax + range * 0.06;
+    if (Number.isFinite(entry.lsl)) min = Math.min(min, entry.lsl - range * 0.03);
+    if (Number.isFinite(entry.usl)) max = Math.max(max, entry.usl + range * 0.03);
+    range = Math.max(1e-9, max - min);
+    const x = v => left + ((v - min) / range) * plotW;
+    const preferredBins = Math.round(Math.sqrt(values.length) * 1.8);
+    const binCount = Math.max(10, Math.min(24, preferredBins || 10));
+    const binW = range / binCount;
     const bins = new Array(binCount).fill(0);
     values.forEach(v => {
-      let i = Math.floor((v - binStart) / binW);
+      let i = Math.floor((v - min) / binW);
       if (i < 0) i = 0;
       if (i >= binCount) i = binCount - 1;
       bins[i]++;
     });
-
-    const rawAxisMin = Math.min(specMin, dataMin);
-    const rawAxisMax = Math.max(specMax, dataMax);
-    const axisPad = Math.max(binW * 0.35, (rawAxisMax - rawAxisMin) * 0.03, 1e-9);
-    const axisTickStep = Math.max(niceNumber((rawAxisMax - rawAxisMin + (axisPad * 2)) / 5, true), 1e-9);
-    const axisMin = Math.floor((rawAxisMin - axisPad) / axisTickStep) * axisTickStep;
-    const axisMax = Math.ceil((rawAxisMax + axisPad) / axisTickStep) * axisTickStep;
-    const range = Math.max(1e-9, axisMax - axisMin);
-    const x = v => left + ((v - axisMin) / range) * plotW;
-
     const maxCount = Math.max.apply(null, bins.concat([1]));
     function curveCounts(v, sigma){
       if (!Number.isFinite(sigma) || sigma <= 0) return 0;
       const density = (1 / (sigma * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((v - entry.avg) / sigma, 2));
       return density * values.length * binW;
     }
-
     let curveMax = 0;
-    for (let i = 0; i <= 320; i++){
-      const xv = axisMin + range * (i / 320);
+    for (let i = 0; i <= 240; i++){
+      const xv = min + range * (i / 240);
       curveMax = Math.max(curveMax, curveCounts(xv, entry.sigmaOverall), curveCounts(xv, entry.sigmaWithin));
     }
     const yMax = Math.max(maxCount, curveMax, 1);
     const y = c => top + plotH - (c / yMax) * plotH;
-
     const plotRect = '<rect x="' + left + '" y="' + top + '" width="' + plotW + '" height="' + plotH + '" fill="transparent" stroke="rgba(255,255,255,.18)"/>';
     const bars = bins.map((c, i) => {
-      const edge0 = binStart + i * binW;
-      const edge1 = edge0 + binW;
-      const x0 = x(edge0);
-      const x1 = x(edge1);
-      const w = Math.max(1, (x1 - x0) - 0.6);
+      const x0 = left + i * (plotW / binCount) + 0.5;
+      const w = Math.max(1, plotW / binCount - 1);
       const y0 = y(c);
-      const label = esc(entry.label || entry.proc || '');
-      const tip = esc(label + ': [' + formatHistBinEdge(edge0) + ', ' + formatHistBinEdge(edge1) + ')' + '\nN:' + c);
-      return '<rect x="' + fixedTrim(x0 + 0.3, 2) + '" y="' + fixedTrim(y0, 2) + '" width="' + fixedTrim(w, 2) + '" height="' + fixedTrim(top + plotH - y0, 2) + '" fill="rgba(184,194,183,.85)" stroke="rgba(54,60,56,.85)" stroke-width="0.7"><title>' + tip + '</title></rect>';
+      return '<rect x="' + fixedTrim(x0, 2) + '" y="' + fixedTrim(y0, 2) + '" width="' + fixedTrim(w, 2) + '" height="' + fixedTrim(top + plotH - y0, 2) + '" fill="rgba(184,194,183,.85)" stroke="rgba(54,60,56,.85)" stroke-width="0.7"/>';
     }).join('');
-
     function linePath(sigma){
       if (!Number.isFinite(sigma) || sigma <= 0) return '';
       let d = '';
-      for (let i = 0; i <= 320; i++){
-        const xv = axisMin + range * (i / 320);
+      for (let i = 0; i <= 240; i++){
+        const xv = min + range * (i / 240);
         const px = x(xv);
         const py = y(curveCounts(xv, sigma));
         d += (i === 0 ? 'M' : 'L') + fixedTrim(px, 2) + ' ' + fixedTrim(py, 2) + ' ';
       }
       return d.trim();
     }
-
-    const tickStep = axisTickStep;
-    const tickStart = Math.ceil(axisMin / tickStep) * tickStep;
-    const ticks = [];
-    for (let v = tickStart; v <= axisMax + tickStep * 0.25; v += tickStep){
-      if (v < axisMin - 1e-9 || v > axisMax + 1e-9) continue;
+    const tickCount = 5;
+    const axis = new Array(tickCount).fill(0).map((_, i) => {
+      const v = min + range * (i / (tickCount - 1));
       const px = x(v);
-      ticks.push('<line x1="' + fixedTrim(px, 2) + '" y1="' + (top + plotH) + '" x2="' + fixedTrim(px, 2) + '" y2="' + (top + plotH + 4) + '" stroke="rgba(255,255,255,.55)"/>' +
-        '<text x="' + fixedTrim(px, 2) + '" y="' + (top + plotH + 16) + '" fill="rgba(236,247,240,.84)" font-size="10" text-anchor="middle">' + esc(formatHistTick(v)) + '</text>');
-    }
-    const axis = ticks.join('');
-
+      return '<line x1="' + fixedTrim(px, 2) + '" y1="' + (top + plotH) + '" x2="' + fixedTrim(px, 2) + '" y2="' + (top + plotH + 4) + '" stroke="rgba(255,255,255,.55)"/>' +
+      '<text x="' + fixedTrim(px, 2) + '" y="' + (top + plotH + 16) + '" fill="rgba(236,247,240,.84)" font-size="10" text-anchor="middle">' + esc(fmtSpec(v)) + '</text>';
+    }).join('');
     let specLines = '';
     if (Number.isFinite(entry.lsl)) specLines += '<line x1="' + fixedTrim(x(entry.lsl), 2) + '" y1="' + top + '" x2="' + fixedTrim(x(entry.lsl), 2) + '" y2="' + (top + plotH) + '" stroke="#ff5062" stroke-width="1.5"/><text x="' + fixedTrim(x(entry.lsl), 2) + '" y="' + (top - 4) + '" fill="#ff9ca6" font-size="10" text-anchor="middle">LSL</text>';
     if (Number.isFinite(entry.usl)) specLines += '<line x1="' + fixedTrim(x(entry.usl), 2) + '" y1="' + top + '" x2="' + fixedTrim(x(entry.usl), 2) + '" y2="' + (top + plotH) + '" stroke="#ff5062" stroke-width="1.5"/><text x="' + fixedTrim(x(entry.usl), 2) + '" y="' + (top - 4) + '" fill="#ff9ca6" font-size="10" text-anchor="middle">USL</text>';
-
     const overallPath = linePath(entry.sigmaOverall);
     const withinPath = linePath(entry.sigmaWithin);
     const legendX = width - 62, legendY = 24;
-
     return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
       plotRect +
       '<line x1="' + left + '" y1="' + (top + plotH) + '" x2="' + (left + plotW) + '" y2="' + (top + plotH) + '" stroke="rgba(255,255,255,.55)"/>' +
@@ -913,17 +809,29 @@
     const xMax = axisAbs;
     const x = v => left + ((v - xMin) / Math.max(1e-9, xMax - xMin)) * plotW;
 
-
-    // JMP capability box plot: 점은 항상 그리지 않고, fence 밖 outlier만
-    // 박스와 같은 행(yMid)에 표시한다.
+    // JMP capability box plot: 점은 박스플롯과 같은 행에 모두 배치하되,
+    // 박스/수염보다 먼저 그려 박스 내부 점은 자연스럽게 가려지게 만든다.
+    // 별도 상단 밴드나 outlier-only 표시를 쓰지 않고, 같은 행 안에서만 아주 얕게 쌓아
+    // 바깥쪽 분포는 보이고 박스 중심부는 과도하게 뭉쳐 보이지 않게 한다.
     const pointRadius = 1.9;
+    const laneStep = 1.7;
+    const laneLimit = Math.max(0, Math.floor(((boxH / 2) - pointRadius - 0.8) / laneStep));
+    const bucketPx = Math.max(pointRadius * 2.6, 4.8);
+    const laneOrder = [0];
+    for (let i = 1; i <= Math.max(1, laneLimit); i++) laneOrder.push(-i, i);
+    const laneCycleLen = laneOrder.length || 1;
+    const bucketCounts = new Map();
     const pointFill = 'rgba(184,184,184,.92)';
-    const outliers = sorted.filter(v => v < lowFence || v > highFence);
-    const points = outliers.map((v, idx) => {
+    const points = sorted.map((v, idx) => {
       const px = x(v);
-      const cy = yMid;
-      const tip = 'value: ' + fixedTrim(v, 6);
-      return '<circle cx="' + fixedTrim(px, 2) + '" cy="' + fixedTrim(cy, 2) + '" r="' + fixedTrim(pointRadius, 2) + '" fill="' + pointFill + '" stroke="none"><title>' + esc(tip) + '</title></circle>';
+      const bucket = Math.round((px - left) / bucketPx);
+      const seen = bucketCounts.get(bucket) || 0;
+      bucketCounts.set(bucket, seen + 1);
+      const lane = laneOrder[seen % laneCycleLen] || 0;
+      const wrap = Math.floor(seen / laneCycleLen);
+      const extraShift = wrap > 0 && laneLimit > 0 ? ((wrap % 2 === 1 ? 1 : -1) * laneLimit * 0.35) : 0;
+      const cy = yMid + ((lane * laneStep) + extraShift);
+      return '<circle cx="' + fixedTrim(px, 2) + '" cy="' + fixedTrim(cy, 2) + '" r="' + fixedTrim(pointRadius, 2) + '" fill="' + pointFill + '" stroke="none" data-point-index="' + idx + '"/>';
     }).join('');
 
     const specLineDefs = [];
@@ -955,7 +863,6 @@
     const boxTop = yMid - (boxH / 2);
     const box = '<rect x="' + fixedTrim(x(q1), 2) + '" y="' + fixedTrim(boxTop, 2) + '" width="' + fixedTrim(Math.max(1, x(q3) - x(q1)), 2) + '" height="' + fixedTrim(boxH, 2) + '" fill="' + boxFill + '" fill-opacity="0.90" stroke="rgba(244,244,244,.98)" stroke-width="1"/>' +
       '<line x1="' + fixedTrim(x(med), 2) + '" y1="' + fixedTrim(boxTop, 2) + '" x2="' + fixedTrim(x(med), 2) + '" y2="' + fixedTrim(boxTop + boxH, 2) + '" stroke="rgba(248,248,248,.98)" stroke-width="1"/>';
-
     const ticks = [-0.5, 0, 0.5].map(v => {
       const xx = x(v);
       return '<line x1="' + fixedTrim(xx, 2) + '" y1="' + fixedTrim(axisY, 2) + '" x2="' + fixedTrim(xx, 2) + '" y2="' + fixedTrim(axisY + 4, 2) + '" stroke="rgba(255,255,255,.45)"/><text x="' + fixedTrim(xx, 2) + '" y="' + fixedTrim(height - 14, 2) + '" fill="rgba(236,247,240,.92)" font-size="10" text-anchor="middle">' + esc(fmtTargetTick(v)) + '</text>';
@@ -988,11 +895,11 @@
     if (!Number.isFinite(value)) return '';
     if (kind === 'stability'){
       if (value <= 1.25) return 'is-good';
-      if (value <= 2.00) return 'is-warn';
+      if (value <= 1.50) return 'is-warn';
       return 'is-bad';
     }
     if (kind === 'capability'){
-      if (value >= 1.50) return 'is-good';
+      if (value >= 1.33) return 'is-good';
       if (value >= 1.00) return 'is-warn';
       return 'is-bad';
     }
@@ -1000,12 +907,8 @@
   }
   function summaryValueCell(value, kind, formatter){
     const cls = summaryStatusClass(kind, value);
-    let style = '';
-    if (cls === 'is-good') style = 'background:#cfe7c3;color:#173312;font-weight:700;';
-    else if (cls === 'is-warn') style = 'background:#efe3a6;color:#3f3208;font-weight:700;';
-    else if (cls === 'is-bad') style = 'background:#f4caca;color:#3a1111;font-weight:700;';
     const extra = kind ? (' kind-' + kind) : '';
-    return '<td' + ((cls || extra) ? ' class="' + (cls ? cls : '') + extra + '"' : '') + (style ? ' style="' + style + '"' : '') + '>' + esc((formatter || fmtWide)(value)) + '</td>';
+    return '<td' + ((cls || extra) ? ' class="' + (cls ? cls : '') + extra + '"' : '') + '>' + esc((formatter || fmtWide)(value)) + '</td>';
   }
   function summaryReportTableHtml(entries, mode){
     const isWithin = mode !== 'overall';
