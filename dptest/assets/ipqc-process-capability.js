@@ -681,8 +681,11 @@
       if (!sorted.length) return 1;
       const minVal = sorted[0];
       const maxVal = sorted[sorted.length - 1];
+      const specMin = Number.isFinite(entry && entry.lsl) ? entry.lsl : minVal;
+      const specMax = Number.isFinite(entry && entry.usl) ? entry.usl : maxVal;
       const span = Math.max(1e-9, maxVal - minVal);
-      if (sorted.length < 2 || !(span > 0)) return niceNumber(span || Math.max(Math.abs(minVal || 1), 1) * 0.1, true);
+      const domainSpan = Math.max(1e-9, Math.max(maxVal, specMax) - Math.min(minVal, specMin));
+      if (sorted.length < 2 || !(span > 0)) return niceNumber(domainSpan || Math.max(Math.abs(minVal || 1), 1) * 0.1, true);
 
       const q1 = quantileSorted(sorted, 0.25);
       const q3 = quantileSorted(sorted, 0.75);
@@ -690,9 +693,9 @@
       const fd = iqr > 0 ? (2 * iqr / Math.cbrt(sorted.length)) : NaN;
       const scott = Number.isFinite(entry && entry.sigmaOverall) && entry.sigmaOverall > 0 ? (3.5 * entry.sigmaOverall / Math.cbrt(sorted.length)) : NaN;
       let raw = Number.isFinite(fd) && fd > 0 ? fd : scott;
-      if (!(raw > 0)) raw = span / Math.max(1, Math.round(Math.sqrt(sorted.length)));
+      if (!(raw > 0)) raw = domainSpan / Math.max(1, Math.round(Math.sqrt(sorted.length)));
 
-      const targetBins = Math.max(6, Math.min(12, Math.round(Math.sqrt(sorted.length) / 2)));
+      const targetBins = Math.max(6, Math.min(10, Math.round(Math.log2(sorted.length) + 1)));
       const baseExp = Math.floor(Math.log10(raw));
       const seeds = [1, 2, 2.5, 5, 10];
       const candidates = [];
@@ -707,11 +710,11 @@
       let best = Math.max(niceNumber(raw, true), 1e-9);
       let bestScore = Infinity;
       uniqCands.forEach(cand => {
-        const startVal = Math.floor(minVal / cand) * cand;
-        const endVal = Math.ceil(maxVal / cand) * cand;
-        const count = Math.max(1, Math.round((endVal - startVal) / cand));
-        const score = Math.abs(count - targetBins) + Math.abs(Math.log(cand / raw));
-        if (score < bestScore - 1e-9 || (Math.abs(score - bestScore) < 1e-9 && cand < best)){
+        const startVal = Math.floor(Math.min(minVal, specMin) / cand) * cand;
+        const endVal = Math.ceil(Math.max(maxVal, specMax) / cand) * cand;
+        const count = Math.max(1, Math.ceil((endVal - startVal) / cand));
+        const score = (Math.abs(count - targetBins) * 1.2) + (Math.abs(Math.log(cand / raw)) * 0.6);
+        if (score < bestScore - 1e-9 || (Math.abs(score - bestScore) < 1e-9 && cand > best)){
           best = cand;
           bestScore = score;
         }
@@ -740,10 +743,12 @@
 
     const dataMin = Math.min.apply(null, values);
     const dataMax = Math.max.apply(null, values);
+    const specMin = Number.isFinite(entry.lsl) ? entry.lsl : dataMin;
+    const specMax = Number.isFinite(entry.usl) ? entry.usl : dataMax;
     const binW = chooseBinWidth(values);
-    const binStart = Math.floor(dataMin / binW) * binW;
-    const binEnd = Math.ceil(dataMax / binW) * binW;
-    const binCount = Math.max(1, Math.round((binEnd - binStart) / binW));
+    const binStart = Math.floor(Math.min(dataMin, specMin) / binW) * binW;
+    const binEnd = Math.ceil(Math.max(dataMax, specMax) / binW) * binW;
+    const binCount = Math.max(1, Math.ceil((binEnd - binStart) / binW));
     const bins = new Array(binCount).fill(0);
     values.forEach(v => {
       let i = Math.floor((v - binStart) / binW);
@@ -752,8 +757,8 @@
       bins[i]++;
     });
 
-    const axisMin = Math.min(binStart, Number.isFinite(entry.lsl) ? entry.lsl : binStart);
-    const axisMax = Math.max(binEnd, Number.isFinite(entry.usl) ? entry.usl : binEnd);
+    const axisMin = binStart;
+    const axisMax = binEnd;
     const range = Math.max(1e-9, axisMax - axisMin);
     const x = v => left + ((v - axisMin) / range) * plotW;
 
@@ -778,11 +783,11 @@
       const edge1 = edge0 + binW;
       const x0 = x(edge0);
       const x1 = x(edge1);
-      const w = Math.max(1, x1 - x0 - 0.8);
+      const w = Math.max(1, (x1 - x0) - 0.6);
       const y0 = y(c);
       const label = esc(entry.label || entry.proc || '');
       const tip = esc(label + ': [' + formatHistBinEdge(edge0) + ', ' + formatHistBinEdge(edge1) + ')' + '\nN:' + c);
-      return '<rect x="' + fixedTrim(x0 + 0.4, 2) + '" y="' + fixedTrim(y0, 2) + '" width="' + fixedTrim(w, 2) + '" height="' + fixedTrim(top + plotH - y0, 2) + '" fill="rgba(184,194,183,.85)" stroke="rgba(54,60,56,.85)" stroke-width="0.7"><title>' + tip + '</title></rect>';
+      return '<rect x="' + fixedTrim(x0 + 0.3, 2) + '" y="' + fixedTrim(y0, 2) + '" width="' + fixedTrim(w, 2) + '" height="' + fixedTrim(top + plotH - y0, 2) + '" fill="rgba(184,194,183,.85)" stroke="rgba(54,60,56,.85)" stroke-width="0.7"><title>' + tip + '</title></rect>';
     }).join('');
 
     function linePath(sigma){
@@ -797,7 +802,7 @@
       return d.trim();
     }
 
-    const tickStep = Math.max(niceNumber(range / 4, true), 1e-9);
+    const tickStep = Math.max(niceNumber(range / 5, true), 1e-9);
     const tickStart = Math.ceil(axisMin / tickStep) * tickStep;
     const ticks = [];
     for (let v = tickStart; v <= axisMax + tickStep * 0.25; v += tickStep){
