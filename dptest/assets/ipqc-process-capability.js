@@ -644,6 +644,7 @@
     };
   }
 
+
   function histogramSvg(entry){
     const values = (entry && Array.isArray(entry.values) ? entry.values : []).filter(Number.isFinite);
     const width = 500, height = 290;
@@ -678,8 +679,11 @@
     function chooseBinWidth(nums){
       const sorted = sortedNums(nums);
       if (!sorted.length) return 1;
-      const span = Math.max(1e-9, sorted[sorted.length - 1] - sorted[0]);
-      if (sorted.length < 2 || !(span > 0)) return niceNumber(span || 1, true);
+      const minVal = sorted[0];
+      const maxVal = sorted[sorted.length - 1];
+      const span = Math.max(1e-9, maxVal - minVal);
+      if (sorted.length < 2 || !(span > 0)) return niceNumber(span || Math.max(Math.abs(minVal || 1), 1) * 0.1, true);
+
       const q1 = quantileSorted(sorted, 0.25);
       const q3 = quantileSorted(sorted, 0.75);
       const iqr = Math.max(0, q3 - q1);
@@ -687,7 +691,51 @@
       const scott = Number.isFinite(entry && entry.sigmaOverall) && entry.sigmaOverall > 0 ? (3.5 * entry.sigmaOverall / Math.cbrt(sorted.length)) : NaN;
       let raw = Number.isFinite(fd) && fd > 0 ? fd : scott;
       if (!(raw > 0)) raw = span / Math.max(1, Math.round(Math.sqrt(sorted.length)));
-      return Math.max(niceNumber(raw, true), 1e-9);
+
+      const targetBins = Math.max(6, Math.min(12, Math.round(Math.sqrt(sorted.length) / 2)));
+      const baseExp = Math.floor(Math.log10(raw));
+      const seeds = [1, 2, 2.5, 5, 10];
+      const candidates = [];
+      for (let exp = baseExp - 1; exp <= baseExp + 1; exp++){
+        const pow = Math.pow(10, exp);
+        seeds.forEach(seed => {
+          const cand = seed * pow;
+          if (cand > 0 && Number.isFinite(cand)) candidates.push(cand);
+        });
+      }
+      const uniqCands = Array.from(new Set(candidates)).sort((a, b) => a - b);
+      let best = Math.max(niceNumber(raw, true), 1e-9);
+      let bestScore = Infinity;
+      uniqCands.forEach(cand => {
+        const startVal = Math.floor(minVal / cand) * cand;
+        const endVal = Math.ceil(maxVal / cand) * cand;
+        const count = Math.max(1, Math.round((endVal - startVal) / cand));
+        const score = Math.abs(count - targetBins) + Math.abs(Math.log(cand / raw));
+        if (score < bestScore - 1e-9 || (Math.abs(score - bestScore) < 1e-9 && cand < best)){
+          best = cand;
+          bestScore = score;
+        }
+      });
+      return Math.max(best, 1e-9);
+    }
+
+    function formatHistTick(v){
+      if (!Number.isFinite(v)) return '';
+      if (Math.abs(v) < 1e-9) return '0';
+      const abs = Math.abs(v);
+      if (abs >= 1) return fixedTrim(v, 2);
+      if (abs >= 0.1) return fixedTrim(v, 2);
+      if (abs >= 0.01) return fixedTrim(v, 2);
+      return fixedTrim(v, 3);
+    }
+
+    function formatHistBinEdge(v){
+      if (!Number.isFinite(v)) return '';
+      const abs = Math.abs(v);
+      if (abs >= 1) return fixedTrim(v, 3);
+      if (abs >= 0.1) return fixedTrim(v, 3);
+      if (abs >= 0.01) return fixedTrim(v, 3);
+      return fixedTrim(v, 4);
     }
 
     const dataMin = Math.min.apply(null, values);
@@ -704,13 +752,10 @@
       bins[i]++;
     });
 
-    let axisMinRaw = Math.min(binStart, Number.isFinite(entry.lsl) ? entry.lsl : binStart);
-    let axisMaxRaw = Math.max(binEnd, Number.isFinite(entry.usl) ? entry.usl : binEnd);
-    const tickStep = Math.max(niceNumber((axisMaxRaw - axisMinRaw) / 5, true), 1e-9);
-    const min = Math.floor(axisMinRaw / tickStep) * tickStep;
-    const max = Math.max(binEnd, Math.ceil(axisMaxRaw / tickStep) * tickStep);
-    const range = Math.max(1e-9, max - min);
-    const x = v => left + ((v - min) / range) * plotW;
+    const axisMin = Math.min(binStart, Number.isFinite(entry.lsl) ? entry.lsl : binStart);
+    const axisMax = Math.max(binEnd, Number.isFinite(entry.usl) ? entry.usl : binEnd);
+    const range = Math.max(1e-9, axisMax - axisMin);
+    const x = v => left + ((v - axisMin) / range) * plotW;
 
     const maxCount = Math.max.apply(null, bins.concat([1]));
     function curveCounts(v, sigma){
@@ -718,9 +763,10 @@
       const density = (1 / (sigma * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((v - entry.avg) / sigma, 2));
       return density * values.length * binW;
     }
+
     let curveMax = 0;
-    for (let i = 0; i <= 240; i++){
-      const xv = min + range * (i / 240);
+    for (let i = 0; i <= 320; i++){
+      const xv = axisMin + range * (i / 320);
       curveMax = Math.max(curveMax, curveCounts(xv, entry.sigmaOverall), curveCounts(xv, entry.sigmaWithin));
     }
     const yMax = Math.max(maxCount, curveMax, 1);
@@ -728,18 +774,22 @@
 
     const plotRect = '<rect x="' + left + '" y="' + top + '" width="' + plotW + '" height="' + plotH + '" fill="transparent" stroke="rgba(255,255,255,.18)"/>';
     const bars = bins.map((c, i) => {
-      const x0 = x(binStart + i * binW);
-      const x1 = x(binStart + (i + 1) * binW);
-      const w = Math.max(1, x1 - x0);
+      const edge0 = binStart + i * binW;
+      const edge1 = edge0 + binW;
+      const x0 = x(edge0);
+      const x1 = x(edge1);
+      const w = Math.max(1, x1 - x0 - 0.8);
       const y0 = y(c);
-      return '<rect x="' + fixedTrim(x0, 2) + '" y="' + fixedTrim(y0, 2) + '" width="' + fixedTrim(w, 2) + '" height="' + fixedTrim(top + plotH - y0, 2) + '" fill="rgba(184,194,183,.85)" stroke="rgba(54,60,56,.85)" stroke-width="0.7"/>';
+      const label = esc(entry.label || entry.proc || '');
+      const tip = esc(label + ': [' + formatHistBinEdge(edge0) + ', ' + formatHistBinEdge(edge1) + ')' + '\nN:' + c);
+      return '<rect x="' + fixedTrim(x0 + 0.4, 2) + '" y="' + fixedTrim(y0, 2) + '" width="' + fixedTrim(w, 2) + '" height="' + fixedTrim(top + plotH - y0, 2) + '" fill="rgba(184,194,183,.85)" stroke="rgba(54,60,56,.85)" stroke-width="0.7"><title>' + tip + '</title></rect>';
     }).join('');
 
     function linePath(sigma){
       if (!Number.isFinite(sigma) || sigma <= 0) return '';
       let d = '';
-      for (let i = 0; i <= 240; i++){
-        const xv = min + range * (i / 240);
+      for (let i = 0; i <= 320; i++){
+        const xv = axisMin + range * (i / 320);
         const px = x(xv);
         const py = y(curveCounts(xv, sigma));
         d += (i === 0 ? 'M' : 'L') + fixedTrim(px, 2) + ' ' + fixedTrim(py, 2) + ' ';
@@ -747,11 +797,14 @@
       return d.trim();
     }
 
+    const tickStep = Math.max(niceNumber(range / 4, true), 1e-9);
+    const tickStart = Math.ceil(axisMin / tickStep) * tickStep;
     const ticks = [];
-    for (let v = min; v <= max + tickStep * 0.5; v += tickStep){
+    for (let v = tickStart; v <= axisMax + tickStep * 0.25; v += tickStep){
+      if (v < axisMin - 1e-9 || v > axisMax + 1e-9) continue;
       const px = x(v);
       ticks.push('<line x1="' + fixedTrim(px, 2) + '" y1="' + (top + plotH) + '" x2="' + fixedTrim(px, 2) + '" y2="' + (top + plotH + 4) + '" stroke="rgba(255,255,255,.55)"/>' +
-        '<text x="' + fixedTrim(px, 2) + '" y="' + (top + plotH + 16) + '" fill="rgba(236,247,240,.84)" font-size="10" text-anchor="middle">' + esc(fixedTrim(v, Math.abs(v) < 0.1 ? 2 : 2)) + '</text>');
+        '<text x="' + fixedTrim(px, 2) + '" y="' + (top + plotH + 16) + '" fill="rgba(236,247,240,.84)" font-size="10" text-anchor="middle">' + esc(formatHistTick(v)) + '</text>');
     }
     const axis = ticks.join('');
 
