@@ -912,10 +912,8 @@
     const x = v => left + ((v - xMin) / Math.max(1e-9, xMax - xMin)) * plotW;
 
 
-    // JMP capability box plot: 점은 박스플롯과 같은 행에 모두 배치하되,
-    // 박스/수염보다 먼저 그려 박스 내부 점은 자연스럽게 가려지게 만든다.
-    // 별도 상단 밴드나 outlier-only 표시를 쓰지 않고, 같은 행 안에서만 아주 얕게 쌓아
-    // 바깥쪽 분포는 보이고 박스 중심부는 과도하게 뭉쳐 보이지 않게 한다.
+    // JMP capability box plot: 점은 항상 그리지 않고, fence 밖 outlier만
+    // 박스와 같은 행(yMid)에 표시한다.
     const pointRadius = 1.9;
     const pointFill = 'rgba(184,184,184,.92)';
     const outliers = sorted.filter(v => v < lowFence || v > highFence);
@@ -998,10 +996,18 @@
     }
     return '';
   }
-  function summaryValueCell(value, kind, formatter){
+  function summaryValueCell(value, kind, formatter, palette){
     const cls = summaryStatusClass(kind, value);
+    let style = '';
+    if (kind === 'stability'){
+      style = 'background:#f4caca;color:#3a1111;font-weight:700;';
+    } else if (kind === 'capability' && palette === 'within'){
+      style = 'background:#cfe7c3;color:#173312;font-weight:700;';
+    } else if (kind === 'capability' && palette === 'overall'){
+      style = 'background:#f4caca;color:#3a1111;font-weight:700;';
+    }
     const extra = kind ? (' kind-' + kind) : '';
-    return '<td' + ((cls || extra) ? ' class="' + (cls ? cls : '') + extra + '"' : '') + '>' + esc((formatter || fmtWide)(value)) + '</td>';
+    return '<td' + ((cls || extra) ? ' class="' + (cls ? cls : '') + extra + '"' : '') + (style ? ' style="' + style + '"' : '') + '>' + esc((formatter || fmtWide)(value)) + '</td>';
   }
   function summaryReportTableHtml(entries, mode){
     const isWithin = mode !== 'overall';
@@ -1026,11 +1032,11 @@
         '<td>' + esc(fmtSpec(entry.usl)) + '</td>' +
         '<td>' + esc(fmtWide(entry.avg)) + '</td>' +
         '<td>' + esc(fmtWide(sigma)) + '</td>' +
-        summaryValueCell(entry.stability, 'stability', fmtWide) +
-        summaryValueCell(capA, 'capability', fmtIndex) +
-        summaryValueCell(capB, 'capability', fmtIndex) +
-        summaryValueCell(capC, 'capability', fmtIndex) +
-        summaryValueCell(capD, 'capability', fmtIndex) +
+        summaryValueCell(entry.stability, 'stability', fmtWide, isWithin ? 'within' : 'overall') +
+        summaryValueCell(capA, 'capability', fmtIndex, isWithin ? 'within' : 'overall') +
+        summaryValueCell(capB, 'capability', fmtIndex, isWithin ? 'within' : 'overall') +
+        summaryValueCell(capC, 'capability', fmtIndex, isWithin ? 'within' : 'overall') +
+        summaryValueCell(capD, 'capability', fmtIndex, isWithin ? 'within' : 'overall') +
         '<td>' + esc(Number.isFinite(entry.cpm) ? fmtIndex(entry.cpm) : '-') + '</td>' +
         '<td>' + esc(fmtPct(expTotal)) + '</td>' +
         '<td>' + esc(fmtPct(expBelow)) + '</td>' +
