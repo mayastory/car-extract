@@ -115,33 +115,6 @@
     if (!(x > 0)) return 0;
     return gammaLowerReg(df / 2, x / 2);
   }
-  function chiSquarePdf(x, df){
-    if (!(df > 0) || !(x > 0)) return 0;
-    return Math.exp((((df / 2) - 1) * Math.log(x)) - (x / 2) - ((df / 2) * Math.log(2)) - logGamma(df / 2));
-  }
-  function noncentralTCdf(x, df, delta){
-    if (!Number.isFinite(x) || !(df > 0) || !Number.isFinite(delta)) return NaN;
-    if (x === Infinity) return 1;
-    if (x === -Infinity) return 0;
-    const mean = df;
-    const sd = Math.sqrt(2 * df);
-    const lo = Math.max(1e-9, mean - (10 * sd));
-    const hi = mean + (10 * sd);
-    const steps = 200;
-    const h = (hi - lo) / steps;
-    let sum = 0;
-    for (let i = 0; i <= steps; i++){
-      const v = lo + (i * h);
-      const z = (x * Math.sqrt(v / df)) - delta;
-      const f = normCdf(z, 0, 1) * chiSquarePdf(v, df);
-      const coef = (i === 0 || i === steps) ? 1 : (i % 2 ? 4 : 2);
-      sum += coef * f;
-    }
-    const out = sum * h / 3;
-    if (out <= 0) return 0;
-    if (out >= 1) return 1;
-    return out;
-  }
   function invNormCdf(p){
     if (!(p > 0 && p < 1)) return NaN;
     const a = [-39.6968302866538, 220.946098424521, -275.928510446969, 138.357751867269, -30.6647980661472, 2.50662827745924];
@@ -205,31 +178,9 @@
     const r = (meanValue - target) / sigma;
     return (n * Math.pow(1 + r * r, 2)) / (1 + 2 * r * r);
   }
-  function capabilityCIExactOneSided(indexValue, n, mode, alpha){
-    const df = capabilityDf(n, mode);
-    if (!Number.isFinite(indexValue) || !(indexValue >= 0) || !(n > 1) || !(df > 0)) return { lower: NaN, upper: NaN };
-    const a = Number.isFinite(alpha) ? alpha : 0.05;
-    const threshold = 3 * indexValue * Math.sqrt(n);
-    function solve(target){
-      let lo = 0;
-      let hi = Math.max(1, indexValue * 2);
-      while (noncentralTCdf(threshold, df, 3 * hi * Math.sqrt(n)) > target && hi < 1e6) hi *= 2;
-      for (let i = 0; i < 60; i++){
-        const mid = (lo + hi) / 2;
-        const cdf = noncentralTCdf(threshold, df, 3 * mid * Math.sqrt(n));
-        if (cdf > target) lo = mid; else hi = mid;
-      }
-      return (lo + hi) / 2;
-    }
-    return {
-      lower: solve(1 - (a / 2)),
-      upper: solve(a / 2),
-    };
-  }
   function capabilityCI(indexValue, n, mode, kind, alpha, extra){
     const df = capabilityDf(n, mode);
     if (kind === 'cp' || kind === 'pp') return capabilityCIChi(indexValue, df, alpha);
-    if (kind === 'cpl' || kind === 'cpu' || kind === 'ppl' || kind === 'ppu') return capabilityCIExactOneSided(indexValue, n, mode, alpha);
     if (kind === 'cpm') {
       const gamma = capabilityCpmGamma(n, extra && extra.meanValue, extra && extra.target, extra && extra.sigma);
       return capabilityCIChi(indexValue, gamma, alpha);
@@ -683,8 +634,8 @@
 
   function histogramSvg(entry){
     const values = (entry && Array.isArray(entry.values) ? entry.values : []).filter(Number.isFinite);
-    const width = 500, height = 290;
-    const left = 42, right = 78, top = 18, bottom = 42;
+    const width = 470, height = 248;
+    const left = 38, right = 72, top = 16, bottom = 34;
     const plotW = width - left - right;
     const plotH = height - top - bottom;
     if (!values.length){
@@ -919,13 +870,13 @@
 
   function capabilityBoxPlotSvg(entry){
     const values = standardizedBySpecValues(entry);
-    const width = 670, height = 102;
-    const left = 34, right = 116, top = 10, bottom = 28;
+    const width = 590, height = 92;
+    const left = 32, right = 94, top = 8, bottom = 24;
     const plotW = width - left - right;
     const plotH = height - top - bottom;
     const axisY = top + plotH;
-    const yMid = top + 31;
-    const boxH = 18;
+    const yMid = top + 28;
+    const boxH = 16;
     if (!values.length){
       return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true"><rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="transparent" stroke="rgba(255,255,255,.12)"/><text x="' + fixedTrim(width / 2, 2) + '" y="' + fixedTrim(height / 2, 2) + '" fill="rgba(236,247,240,.55)" text-anchor="middle" font-size="11">규격 한계가 있어야 표시됩니다.</text></svg>';
     }
@@ -1377,8 +1328,8 @@
   }
 
   function targetPlotSvg(entry, opts){
-    const width = 520, height = 330;
-    const left = 42, right = 16, top = 8, bottom = 34;
+    const width = 468, height = 290;
+    const left = 40, right = 14, top = 8, bottom = 30;
     const plotW = width - left - right;
     const plotH = height - top - bottom;
     const xMin = -0.6, xMax = 0.6;
@@ -1427,9 +1378,9 @@
 
   function targetPlotHtml(entry, idx){
     const ppkDefault = '1';
-    return '<div class="qpc-target-grid" data-entry-index="' + idx + '">' +
-      '<div class="qpc-target-main"><div class="qpc-svgbox" data-role="target-svg">' + targetPlotSvg(entry, { useOverall: targetPlotUseOverall(idx), ppk: 1 }) + '</div><div class="qpc-target-hover-tip" data-role="target-hover-tip" hidden></div></div>' +
-      '<div class="qpc-target-side">' +
+    return '<div class="qpc-target-grid" data-entry-index="' + idx + '" style="display:grid;grid-template-columns:minmax(0,468px) 118px;gap:12px;align-items:start;max-width:598px;">' +
+      '<div class="qpc-target-main" style="width:100%;max-width:468px;position:relative;"><div class="qpc-svgbox" data-role="target-svg" style="width:100%;max-width:468px;">' + targetPlotSvg(entry, { useOverall: targetPlotUseOverall(idx), ppk: 1 }) + '</div><div class="qpc-target-hover-tip" data-role="target-hover-tip" hidden></div></div>' +
+      '<div class="qpc-target-side" style="width:118px;">' +
         '<div class="qpc-target-side-head"><div class="qpc-target-legend-link" data-role="open-legend" title="더블클릭: 범례 설정">' + esc(getLegendPrefs(idx).title || '범례') + '</div></div>' +
         '<div class="qpc-target-side-preview" data-role="legend-side-preview">' + legendSidePreviewHtml(idx) + '</div>' +
         '<div class="qpc-target-ppk-label">Ppk</div>' +
@@ -1459,8 +1410,8 @@
   }
 
   function capabilityIndexPlotSvg(entry, opts){
-    const width = 338, height = 248;
-    const left = 30, right = 16, top = 8, bottom = 38;
+    const width = 292, height = 222;
+    const left = 28, right = 14, top = 8, bottom = 34;
     const plotW = width - left - right;
     const plotH = height - top - bottom;
     const refVal = clampNum(Number.isFinite(parseNum(opts && opts.refPpk)) ? parseNum(opts && opts.refPpk) : 1, 0.20, 2.50);
@@ -1509,9 +1460,9 @@
 
   function capabilityIndexPlotHtml(entry, idx){
     const refDefault = '1';
-    return '<div class="qpc-index-grid" data-entry-index="' + idx + '" style="display:grid;grid-template-columns:minmax(0,338px) 112px;gap:12px;align-items:start;max-width:462px;">' +
-      '<div class="qpc-index-main" style="width:100%;max-width:338px;"><div class="qpc-svgbox" data-role="index-svg" style="width:100%;max-width:338px;">' + capabilityIndexPlotSvg(entry, { refPpk: 1 }) + '</div></div>' +
-      '<div class="qpc-index-side" style="width:112px;">' + capabilityIndexLegendSideHtml() +
+    return '<div class="qpc-index-grid" data-entry-index="' + idx + '" style="display:grid;grid-template-columns:minmax(0,292px) 106px;gap:12px;align-items:start;max-width:410px;">' +
+      '<div class="qpc-index-main" style="width:100%;max-width:292px;"><div class="qpc-svgbox" data-role="index-svg" style="width:100%;max-width:292px;">' + capabilityIndexPlotSvg(entry, { refPpk: 1 }) + '</div></div>' +
+      '<div class="qpc-index-side" style="width:106px;">' + capabilityIndexLegendSideHtml() +
         '<div style="height:10px;"></div>' +
         '<div style="font-size:11px;font-weight:700;color:rgba(236,247,240,.96);margin-bottom:4px;">Ppk</div>' +
         '<div style="display:flex;align-items:center;gap:4px;margin-bottom:6px;"><span style="display:inline-block;min-width:34px;padding:2px 6px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.03);font-size:11px;font-weight:700;text-align:center;color:rgba(236,247,240,.96);">Ppk</span><input type="text" class="qpc-index-ppk-input" data-role="index-ppk-text" value="' + refDefault + '" style="width:38px;height:20px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.03);color:rgba(236,247,240,.96);font-size:11px;text-align:center;padding:0 4px;"></div>' +
@@ -1580,8 +1531,8 @@
       return '<details class="qpc-report-group" ' + (idx === 0 ? 'open' : 'open') + '>' +
         '<summary>' + esc(entry.label) + ' 공정 능력</summary>' +
         '<div class="qpc-report-group-body">' +
-          '<details class="qpc-report-sub" open><summary>히스토그램</summary><div class="qpc-report-sub-body"><div class="qpc-report-hist-grid"><div class="qpc-hist-wrap"><div class="qpc-svgbox">' + histogramSvg(entry) + '</div></div>' + summaryBoxHtml(entry) + '</div></div></details>' +
-          '<div class="qpc-report-two">' +
+          '<details class="qpc-report-sub" open><summary>히스토그램</summary><div class="qpc-report-sub-body"><div class="qpc-report-hist-grid" style="display:grid;grid-template-columns:minmax(0,470px) 148px;gap:12px;align-items:start;"><div class="qpc-hist-wrap"><div class="qpc-svgbox" style="width:100%;max-width:470px;">' + histogramSvg(entry) + '</div></div>' + summaryBoxHtml(entry) + '</div></div></details>' +
+          '<div class="qpc-report-two" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;">' +
             '<details class="qpc-report-sub" open><summary>군내 표준편차 공정 능력</summary><div class="qpc-report-sub-body">' + statTableHtml('군내 표준편차 공정 능력', withinRows) + '</div></details>' +
             '<details class="qpc-report-sub" open><summary>전체 표준편차 공정 능력</summary><div class="qpc-report-sub-body">' + statTableHtml('전체 표준편차 공정 능력', overallRows) + '</div></details>' +
           '</div>' +
