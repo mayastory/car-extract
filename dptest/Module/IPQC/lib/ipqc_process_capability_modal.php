@@ -232,6 +232,10 @@ if (!function_exists('h')) {
   #qpcOverlay .qpc-report-two-tight{ max-width:706px; gap:8px; }
   #qpcOverlay .qpc-stat-box,
   #qpcOverlay .qpc-reject-box{ padding:6px 8px; }
+  #qpcOverlay .qpc-reject-box{ padding:4px 6px 5px; }
+  #qpcOverlay .qpc-reject-table th,
+  #qpcOverlay .qpc-reject-table td{ padding:1px 4px; }
+  #qpcOverlay .qpc-reject-table thead th{ background:rgba(255,255,255,.035); }
   #qpcOverlay .qpc-stat-table{ width:100%; border-collapse:collapse; font-size:11px; }
   #qpcOverlay .qpc-stat-table th,
   #qpcOverlay .qpc-stat-table td{ border:1px solid rgba(255,255,255,.10); padding:2px 5px; text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }

@@ -770,11 +770,14 @@
       const edge1 = edge0 + binW;
       const x0 = x(edge0);
       const x1 = x(edge1);
-      const w = Math.max(1, (x1 - x0) - 0.6);
+      const binPx = Math.max(1, x1 - x0);
+      const gapPx = Math.min(2.2, Math.max(1.2, binPx * 0.08));
+      const w = Math.max(1, binPx - gapPx);
+      const inset = (binPx - w) / 2;
       const y0 = y(c);
       const label = esc(entry.label || entry.proc || '');
       const tip = esc(label + ': [' + formatHistBinEdge(edge0) + ', ' + formatHistBinEdge(edge1) + ')' + '\nN:' + c);
-      return '<rect x="' + fixedTrim(x0 + 0.3, 2) + '" y="' + fixedTrim(y0, 2) + '" width="' + fixedTrim(w, 2) + '" height="' + fixedTrim(top + plotH - y0, 2) + '" fill="rgba(184,194,183,.85)" stroke="rgba(54,60,56,.85)" stroke-width="0.7"><title>' + tip + '</title></rect>';
+      return '<rect x="' + fixedTrim(x0 + inset, 2) + '" y="' + fixedTrim(y0, 2) + '" width="' + fixedTrim(w, 2) + '" height="' + fixedTrim(top + plotH - y0, 2) + '" fill="rgba(184,194,183,.85)" stroke="rgba(54,60,56,.85)" stroke-width="0.7"><title>' + tip + '</title></rect>';
     }).join('');
 
     function linePath(sigma){
@@ -955,7 +958,7 @@
   function rejectTableHtml(entry){
     const withinTotal = (Number.isFinite(entry.expWithinBelowPct) ? entry.expWithinBelowPct : 0) + (Number.isFinite(entry.expWithinAbovePct) ? entry.expWithinAbovePct : 0);
     const overallTotal = (Number.isFinite(entry.expOverallBelowPct) ? entry.expOverallBelowPct : 0) + (Number.isFinite(entry.expOverallAbovePct) ? entry.expOverallAbovePct : 0);
-    return '<div class="qpc-reject-box"><div class="qpc-summary-title">부적합</div><table class="qpc-stat-table"><thead><tr><th>비율</th><th>관측 %</th><th>기대 군내 %</th><th>기대 전체 %</th></tr></thead><tbody>' +
+    return '<div class="qpc-reject-box"><table class="qpc-stat-table qpc-reject-table"><thead><tr><th>비율</th><th>관측 %</th><th>기대 군내 %</th><th>기대 전체 %</th></tr></thead><tbody>' +
       '<tr><th>LSL 아래</th><td>' + esc(fmtPct(entry.obsBelowPct)) + '</td><td>' + esc(fmtPct(entry.expWithinBelowPct)) + '</td><td>' + esc(fmtPct(entry.expOverallBelowPct)) + '</td></tr>' +
       '<tr><th>USL 위</th><td>' + esc(fmtPct(entry.obsAbovePct)) + '</td><td>' + esc(fmtPct(entry.expWithinAbovePct)) + '</td><td>' + esc(fmtPct(entry.expOverallAbovePct)) + '</td></tr>' +
       '<tr><th>규격 밖 전체</th><td>' + esc(fmtPct(entry.obsTotalPct)) + '</td><td>' + esc(fmtPct(withinTotal)) + '</td><td>' + esc(fmtPct(overallTotal)) + '</td></tr>' +
