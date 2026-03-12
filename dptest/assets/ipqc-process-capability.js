@@ -899,15 +899,15 @@
     const x = v => left + ((v - xMin) / Math.max(1e-9, xMax - xMin)) * plotW;
 
 
-    // JMP capability box plot: 점은 박스플롯과 같은 행의 단일 스트립(strip)으로 표시한다.
-    // 상단 별도 밴드나 다단 적층을 쓰지 않고, 모든 점을 동일한 yMid 행에 두어
-    // JMP 기본 표시처럼 한 줄에 겹쳐 보이게 만든다.
+    // JMP capability box plot은 전체 점 스트립을 항상 깔지 않는다.
+    // 박스플롯의 outlier만 같은 행(yMid)에 표시하고, outlier가 없으면 점도 없다.
     const pointRadius = 1.9;
     const pointFill = 'rgba(184,184,184,.92)';
     const pointStroke = 'rgba(88,88,88,.28)';
     const pointStrokeWidth = 0.35;
     const pointTitlePrefix = entry.label || entry.proc || '';
-    const points = sorted.map((v, idx) => {
+    const outliers = sorted.filter(v => v < lowFence || v > highFence);
+    const points = outliers.map((v, idx) => {
       const px = x(v);
       const cy = yMid;
       const title = esc(pointTitlePrefix + '\n값: ' + fmtWide(v));
@@ -976,11 +976,11 @@
     if (!Number.isFinite(value)) return '';
     if (kind === 'stability'){
       if (value <= 1.25) return 'is-good';
-      if (value <= 1.50) return 'is-warn';
+      if (value <= 2.00) return 'is-warn';
       return 'is-bad';
     }
     if (kind === 'capability'){
-      if (value >= 1.33) return 'is-good';
+      if (value >= 1.50) return 'is-good';
       if (value >= 1.00) return 'is-warn';
       return 'is-bad';
     }
