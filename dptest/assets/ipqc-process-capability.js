@@ -634,7 +634,7 @@
 
   function histogramSvg(entry){
     const values = (entry && Array.isArray(entry.values) ? entry.values : []).filter(Number.isFinite);
-    const width = 600, height = 252;
+    const width = 660, height = 296;
     const left = 40, right = 74, top = 16, bottom = 34;
     const plotW = width - left - right;
     const plotH = height - top - bottom;
@@ -1536,7 +1536,7 @@
         '<summary>' + esc(entry.label) + ' 공정 능력</summary>' +
         '<div class="qpc-report-group-body">' +
           '<div class="qpc-report-hist-grid qpc-report-top-grid">' +
-            '<details class="qpc-report-sub qpc-report-sub-top qpc-report-sub-hist" open><summary>히스토그램</summary><div class="qpc-report-sub-body"><div class="qpc-hist-wrap"><div class="qpc-svgbox qpc-hist-svgbox">' + histogramSvg(entry) + '</div></div></div></details>' +
+            '<details class="qpc-report-sub qpc-report-sub-top qpc-report-sub-hist" open><summary>히스토그램</summary><div class="qpc-report-sub-body"><div class="qpc-hist-wrap qpc-hist-wrap--top"><div class="qpc-svgbox qpc-svgbox--hist">' + histogramSvg(entry) + '</div></div></div></details>' +
             '<details class="qpc-report-top-summary" open><summary>공정 요약</summary><div class="qpc-report-top-summary-body">' + summaryBoxHtml(entry, { plain: true }) + '</div></details>' +
           '</div>' +
           '<div class="qpc-report-two qpc-report-two-tight">' +
