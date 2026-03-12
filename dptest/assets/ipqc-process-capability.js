@@ -771,13 +771,13 @@
       const x0 = x(edge0);
       const x1 = x(edge1);
       const binPx = Math.max(1, x1 - x0);
-      const gapPx = Math.min(8, Math.max(3.2, binPx * 0.18));
+      const gapPx = 0;
       const w = Math.max(1, binPx - gapPx);
       const inset = (binPx - w) / 2;
       const y0 = y(c);
       const label = esc(entry.label || entry.proc || '');
       const tip = esc(label + ': [' + formatHistBinEdge(edge0) + ', ' + formatHistBinEdge(edge1) + ')' + '\nN:' + c);
-      return '<rect x="' + fixedTrim(x0 + inset, 2) + '" y="' + fixedTrim(y0, 2) + '" width="' + fixedTrim(w, 2) + '" height="' + fixedTrim(top + plotH - y0, 2) + '" fill="rgba(184,194,183,.85)" stroke="rgba(54,60,56,.85)" stroke-width="0.7"><title>' + tip + '</title></rect>';
+      return '<rect x="' + fixedTrim(x0 + inset, 2) + '" y="' + fixedTrim(y0, 2) + '" width="' + fixedTrim(w, 2) + '" height="' + fixedTrim(top + plotH - y0, 2) + '" fill="rgba(200,216,197,.92)" stroke="rgba(200,216,197,.92)" stroke-width="0.15"><title>' + tip + '</title></rect>';
     }).join('');
 
     function linePath(sigma){
