@@ -233,6 +233,9 @@ if (!function_exists('h')) {
   #qpcOverlay .qpc-stat-box,
   #qpcOverlay .qpc-reject-box{ padding:6px 8px; }
   #qpcOverlay .qpc-reject-box{ padding:4px 6px 5px; }
+  #qpcOverlay .qpc-report-sub-reject{ width:max-content; max-width:100%; }
+  #qpcOverlay .qpc-report-sub-reject > .qpc-report-sub-body{ display:inline-block; padding:4px 6px 5px; }
+  #qpcOverlay .qpc-report-sub-reject .qpc-reject-box{ display:inline-block; width:auto; }
   #qpcOverlay .qpc-reject-table th,
   #qpcOverlay .qpc-reject-table td{ padding:1px 4px; }
   #qpcOverlay .qpc-reject-table thead th{ background:rgba(255,255,255,.035); }

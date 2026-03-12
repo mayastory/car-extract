@@ -771,7 +771,7 @@
       const x0 = x(edge0);
       const x1 = x(edge1);
       const binPx = Math.max(1, x1 - x0);
-      const gapPx = Math.min(2.2, Math.max(1.2, binPx * 0.08));
+      const gapPx = Math.min(8, Math.max(3.2, binPx * 0.18));
       const w = Math.max(1, binPx - gapPx);
       const inset = (binPx - w) / 2;
       const y0 = y(c);
@@ -1546,7 +1546,7 @@
             '<details class="qpc-report-sub" open><summary>군내 표준편차 공정 능력</summary><div class="qpc-report-sub-body">' + statTableHtml('', withinRows) + '</div></details>' +
             '<details class="qpc-report-sub" open><summary>전체 표준편차 공정 능력</summary><div class="qpc-report-sub-body">' + statTableHtml('', overallRows) + '</div></details>' +
           '</div>' +
-          '<details class="qpc-report-sub" open><summary>부적합</summary><div class="qpc-report-sub-body">' + rejectTableHtml(entry) + '</div></details>' +
+          '<details class="qpc-report-sub qpc-report-sub-reject" open><summary>부적합</summary><div class="qpc-report-sub-body">' + rejectTableHtml(entry) + '</div></details>' +
           '<details class="qpc-report-sub" open><summary>목표 그림</summary><div class="qpc-report-sub-body">' + targetPlotHtml(entry, idx) + '</div></details>' +
           '<details class="qpc-report-sub qpc-report-sub-summary" open><summary>군내 표준편차 공정 능력 요약 보고서</summary><div class="qpc-report-sub-body">' + summaryReportTableHtml([entry], 'within') + '</div></details>' +
           '<details class="qpc-report-sub qpc-report-sub-summary" open><summary>전체 표준편차 공정 능력 요약 보고서</summary><div class="qpc-report-sub-body">' + summaryReportTableHtml([entry], 'overall') + '</div></details>' +
