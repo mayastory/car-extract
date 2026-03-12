@@ -825,7 +825,8 @@
   }
 
   function statTableHtml(title, rows){
-    return '<div class="qpc-stat-box"><div class="qpc-summary-title">' + esc(title) + '</div><table class="qpc-stat-table"><thead><tr><th>인덱스</th><th>추정값</th><th>95% 하한</th><th>95% 상한</th></tr></thead><tbody>' + rows.map(r => '<tr><th>' + esc(r.name) + '</th><td>' + esc(fmtIndex(r.value)) + '</td><td>' + esc(fmtIndex(r.lower)) + '</td><td>' + esc(fmtIndex(r.upper)) + '</td></tr>').join('') + '</tbody></table></div>';
+    const header = title ? ('<div class="qpc-summary-title">' + esc(title) + '</div>') : '';
+    return '<div class="qpc-stat-box">' + header + '<table class="qpc-stat-table"><thead><tr><th>인덱스</th><th>추정값</th><th>95% 하한</th><th>95% 상한</th></tr></thead><tbody>' + rows.map(r => '<tr><th>' + esc(r.name) + '</th><td>' + esc(fmtIndex(r.value)) + '</td><td>' + esc(fmtIndex(r.lower)) + '</td><td>' + esc(fmtIndex(r.upper)) + '</td></tr>').join('') + '</tbody></table></div>';
   }
 
   function standardizedBySpecValues(entry){
@@ -1533,8 +1534,8 @@
         '<div class="qpc-report-group-body">' +
           '<details class="qpc-report-sub" open><summary>히스토그램</summary><div class="qpc-report-sub-body"><div class="qpc-report-hist-grid" style="display:grid;grid-template-columns:minmax(0,470px) 148px;gap:12px;align-items:start;"><div class="qpc-hist-wrap"><div class="qpc-svgbox" style="width:100%;max-width:470px;">' + histogramSvg(entry) + '</div></div>' + summaryBoxHtml(entry) + '</div></div></details>' +
           '<div class="qpc-report-two" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;">' +
-            '<details class="qpc-report-sub" open><summary>군내 표준편차 공정 능력</summary><div class="qpc-report-sub-body">' + statTableHtml('군내 표준편차 공정 능력', withinRows) + '</div></details>' +
-            '<details class="qpc-report-sub" open><summary>전체 표준편차 공정 능력</summary><div class="qpc-report-sub-body">' + statTableHtml('전체 표준편차 공정 능력', overallRows) + '</div></details>' +
+            '<details class="qpc-report-sub" open><summary>군내 표준편차 공정 능력</summary><div class="qpc-report-sub-body">' + statTableHtml('', withinRows) + '</div></details>' +
+            '<details class="qpc-report-sub" open><summary>전체 표준편차 공정 능력</summary><div class="qpc-report-sub-body">' + statTableHtml('', overallRows) + '</div></details>' +
           '</div>' +
           '<details class="qpc-report-sub" open><summary>부적합</summary><div class="qpc-report-sub-body">' + rejectTableHtml(entry) + '</div></details>' +
           '<details class="qpc-report-sub" open><summary>목표 그림</summary><div class="qpc-report-sub-body">' + targetPlotHtml(entry, idx) + '</div></details>' +
