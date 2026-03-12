@@ -1537,7 +1537,7 @@
         '<div class="qpc-report-group-body">' +
           '<div class="qpc-report-hist-grid" style="display:grid;grid-template-columns:minmax(0,600px) 168px;gap:10px;align-items:start;max-width:778px;">' +
             '<details class="qpc-report-sub" open><summary>히스토그램</summary><div class="qpc-report-sub-body"><div class="qpc-hist-wrap"><div class="qpc-svgbox" style="width:100%;max-width:600px;">' + histogramSvg(entry) + '</div></div></div></details>' +
-            '<details class="qpc-report-sub" open style="border:none;background:transparent;overflow:visible;box-shadow:none;margin:0;"><summary style="background:transparent;padding:2px 0 2px;font-size:11px;line-height:1.35;font-weight:700;white-space:nowrap;">공정 요약</summary><div class="qpc-report-sub-body" style="padding:4px 0 0;border-top:none;">' + summaryBoxHtml(entry, { plain: true }) + '</div></details>' +
+            '<details class="qpc-report-sub" open style="border:none;background:transparent;overflow:visible;box-shadow:none;margin:0;"><summary>공정 요약</summary><div class="qpc-report-sub-body" style="padding:4px 0 0;border-top:none;background:transparent;">' + summaryBoxHtml(entry, { plain: true }) + '</div></details>' +
           '</div>' +
           '<div class="qpc-report-two" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;">' +
             '<details class="qpc-report-sub" open><summary>군내 표준편차 공정 능력</summary><div class="qpc-report-sub-body">' + statTableHtml('', withinRows) + '</div></details>' +
