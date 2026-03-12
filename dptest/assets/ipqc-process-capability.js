@@ -899,20 +899,9 @@
     const x = v => left + ((v - xMin) / Math.max(1e-9, xMax - xMin)) * plotW;
 
 
-    // JMP capability box plot은 전체 점 스트립을 항상 깔지 않는다.
-    // 박스플롯의 outlier만 같은 행(yMid)에 표시하고, outlier가 없으면 점도 없다.
-    const pointRadius = 1.9;
-    const pointFill = 'rgba(184,184,184,.92)';
-    const pointStroke = 'rgba(88,88,88,.28)';
-    const pointStrokeWidth = 0.35;
-    const pointTitlePrefix = entry.label || entry.proc || '';
-    const outliers = sorted.filter(v => v < lowFence || v > highFence);
-    const points = outliers.map((v, idx) => {
-      const px = x(v);
-      const cy = yMid;
-      const title = esc(pointTitlePrefix + '\n값: ' + fmtWide(v));
-      return '<circle cx="' + fixedTrim(px, 2) + '" cy="' + fixedTrim(cy, 2) + '" r="' + fixedTrim(pointRadius, 2) + '" fill="' + pointFill + '" stroke="' + pointStroke + '" stroke-width="' + fixedTrim(pointStrokeWidth, 2) + '" data-point-index="' + idx + '"><title>' + title + '</title></circle>';
-    }).join('');
+    // JMP 비교 케이스에서는 공정 능력 상자 그림의 개별 점을 표시하지 않는다.
+    // 현재는 개별 점 렌더링을 끄고, 박스/수염/규격 기준선만 표시한다.
+    const points = '';
 
     const specLineDefs = [];
     if (Number.isFinite(entry.lsl) && Number.isFinite(entry.usl)){
