@@ -635,7 +635,7 @@
   function histogramSvg(entry){
     const values = (entry && Array.isArray(entry.values) ? entry.values : []).filter(Number.isFinite);
     const width = 660, height = 296;
-    const left = 40, right = 74, top = 16, bottom = 34;
+    const left = 40, right = 74, top = 16, bottom = 50;
     const plotW = width - left - right;
     const plotH = height - top - bottom;
     if (!values.length){
@@ -777,7 +777,7 @@
       const y0 = y(c);
       const label = esc(entry.label || entry.proc || '');
       const tip = esc(label + ': [' + formatHistBinEdge(edge0) + ', ' + formatHistBinEdge(edge1) + ')' + '\nN:' + c);
-      return '<rect x="' + fixedTrim(x0 + inset, 2) + '" y="' + fixedTrim(y0, 2) + '" width="' + fixedTrim(w, 2) + '" height="' + fixedTrim(top + plotH - y0, 2) + '" fill="rgba(201,210,196,.88)" stroke="rgba(112,122,111,.7)" stroke-width="0.34" vector-effect="non-scaling-stroke" shape-rendering="crispEdges"><title>' + tip + '</title></rect>';
+      return '<rect x="' + fixedTrim(x0 + inset, 2) + '" y="' + fixedTrim(y0, 2) + '" width="' + fixedTrim(w, 2) + '" height="' + fixedTrim(top + plotH - y0, 2) + '" fill="#bacaba" stroke="rgba(120,134,120,.55)" stroke-width="0.6" shape-rendering="crispEdges"><title>' + tip + '</title></rect>';
     }).join('');
 
     function linePath(sigma){
@@ -799,7 +799,7 @@
       if (v < axisMin - 1e-9 || v > axisMax + 1e-9) continue;
       const px = x(v);
       ticks.push('<line x1="' + fixedTrim(px, 2) + '" y1="' + (top + plotH) + '" x2="' + fixedTrim(px, 2) + '" y2="' + (top + plotH + 4) + '" stroke="rgba(255,255,255,.55)"/>' +
-        '<text x="' + fixedTrim(px, 2) + '" y="' + (top + plotH + 16) + '" fill="rgba(236,247,240,.84)" font-size="12" text-anchor="middle">' + esc(formatHistTick(v)) + '</text>');
+        '<text x="' + fixedTrim(px, 2) + '" y="' + (top + plotH + 15) + '" fill="rgba(236,247,240,.84)" font-size="12" text-anchor="middle">' + esc(formatHistTick(v)) + '</text>');
     }
     const axis = ticks.join('');
 
@@ -818,7 +818,7 @@
       (overallPath ? '<path d="' + overallPath + '" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="1.3" stroke-dasharray="3 3"/>' : '') +
       (withinPath ? '<path d="' + withinPath + '" fill="none" stroke="#2d74ff" stroke-width="1.8"/>' : '') +
       specLines + axis +
-      '<text x="' + (left + plotW / 2) + '" y="' + (height - 8) + '" fill="rgba(236,247,240,.95)" font-size="13" text-anchor="middle">' + esc(entry.label) + '</text>' +
+      '<text x="' + (left + plotW / 2) + '" y="' + (height - 10) + '" fill="rgba(236,247,240,.95)" font-size="13" text-anchor="middle">' + esc(entry.label) + '</text>' +
       '<text x="' + legendX + '" y="' + legendY + '" fill="rgba(236,247,240,.95)" font-size="12" font-weight="700">밀도</text>' +
       '<line x1="' + legendX + '" y1="' + (legendY + 13) + '" x2="' + (legendX + 16) + '" y2="' + (legendY + 13) + '" stroke="rgba(255,255,255,.88)" stroke-width="1.3" stroke-dasharray="3 3"/>' +
       '<text x="' + (legendX + 20) + '" y="' + (legendY + 16) + '" fill="rgba(236,247,240,.95)" font-size="12">전체</text>' +
