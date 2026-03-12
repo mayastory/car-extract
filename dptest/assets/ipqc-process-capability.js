@@ -639,7 +639,7 @@
     const plotW = width - left - right;
     const plotH = height - top - bottom;
     if (!values.length){
-      return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true"><rect x="0.5" y="0.5" width="499" height="289" fill="transparent" stroke="rgba(255,255,255,.14)"/><text x="250" y="150" fill="rgba(236,247,240,.55)" text-anchor="middle" font-size="14">데이터 없음</text></svg>';
+      return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true"><rect x="0.5" y="0.5" width="499" height="289" fill="#ffffff" stroke="rgba(0,0,0,.22)"/><text x="250" y="150" fill="#000" text-anchor="middle" font-size="14">데이터 없음</text></svg>';
     }
 
     function niceNumber(v, round){
@@ -764,20 +764,24 @@
     const yMax = Math.max(maxCount, curveMax, 1);
     const y = c => top + plotH - (c / yMax) * plotH;
 
-    const plotRect = '<rect x="' + left + '" y="' + top + '" width="' + plotW + '" height="' + plotH + '" fill="rgba(18,24,21,.72)" stroke="rgba(228,234,229,.22)"/>';
+    const svgBg = '<rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="#ffffff" stroke="rgba(0,0,0,.22)"/>';
+    const plotRect = '<rect x="' + left + '" y="' + top + '" width="' + plotW + '" height="' + plotH + '" fill="none" stroke="rgba(0,0,0,.18)"/>';
     const bars = bins.map((c, i) => {
       const edge0 = binStart + i * binW;
       const edge1 = edge0 + binW;
       const x0 = x(edge0);
       const x1 = x(edge1);
-      const binPx = Math.max(1, x1 - x0);
-      const gapPx = 0;
-      const w = Math.max(1, binPx - gapPx);
-      const inset = (binPx - w) / 2;
+      let xStart = Math.floor(x0);
+      let xEnd = Math.ceil(x1);
+      const minX = Math.floor(left);
+      const maxX = Math.ceil(left + plotW);
+      if (xStart < minX) xStart = minX;
+      if (xEnd > maxX) xEnd = maxX;
+      const w = Math.max(1, xEnd - xStart);
       const y0 = y(c);
       const label = esc(entry.label || entry.proc || '');
       const tip = esc(label + ': [' + formatHistBinEdge(edge0) + ', ' + formatHistBinEdge(edge1) + ')' + '\nN:' + c);
-      return '<rect x="' + fixedTrim(x0 + inset, 2) + '" y="' + fixedTrim(y0, 2) + '" width="' + fixedTrim(w, 2) + '" height="' + fixedTrim(top + plotH - y0, 2) + '" fill="#bacaba" stroke="rgba(102,116,102,.34)" stroke-width="0.45" shape-rendering="crispEdges"><title>' + tip + '</title></rect>';
+      return '<rect x="' + fixedTrim(xStart, 2) + '" y="' + fixedTrim(y0, 2) + '" width="' + fixedTrim(w, 2) + '" height="' + fixedTrim(top + plotH - y0, 2) + '" fill="#bacaba" stroke="rgba(0,0,0,.65)" stroke-width="0.7" shape-rendering="crispEdges"><title>' + tip + '</title></rect>';
     }).join('');
 
     function linePath(sigma){
@@ -798,32 +802,33 @@
     for (let v = tickStart; v <= axisMax + tickStep * 0.25; v += tickStep){
       if (v < axisMin - 1e-9 || v > axisMax + 1e-9) continue;
       const px = x(v);
-      ticks.push('<line x1="' + fixedTrim(px, 2) + '" y1="' + (top + plotH) + '" x2="' + fixedTrim(px, 2) + '" y2="' + (top + plotH + 4) + '" stroke="rgba(221,227,222,.42)"/>' +
-        '<text x="' + fixedTrim(px, 2) + '" y="' + (top + plotH + 15) + '" fill="rgba(224,231,226,.76)" font-size="12" text-anchor="middle">' + esc(formatHistTick(v)) + '</text>');
+      ticks.push('<line x1="' + fixedTrim(px, 2) + '" y1="' + (top + plotH) + '" x2="' + fixedTrim(px, 2) + '" y2="' + (top + plotH + 4) + '" stroke="rgba(0,0,0,.45)"/>' +
+        '<text x="' + fixedTrim(px, 2) + '" y="' + (top + plotH + 15) + '" fill="rgba(0,0,0,.80)" font-size="12" text-anchor="middle">' + esc(formatHistTick(v)) + '</text>');
     }
     const axis = ticks.join('');
 
     let specLines = '';
-    if (Number.isFinite(entry.lsl)) specLines += '<line x1="' + fixedTrim(x(entry.lsl), 2) + '" y1="' + top + '" x2="' + fixedTrim(x(entry.lsl), 2) + '" y2="' + (top + plotH) + '" stroke="#ff5e6f" stroke-width="1.3"/><text x="' + fixedTrim(x(entry.lsl), 2) + '" y="' + (top - 4) + '" fill="rgba(245,220,223,.82)" font-size="12" text-anchor="middle">LSL</text>';
-    if (Number.isFinite(entry.usl)) specLines += '<line x1="' + fixedTrim(x(entry.usl), 2) + '" y1="' + top + '" x2="' + fixedTrim(x(entry.usl), 2) + '" y2="' + (top + plotH) + '" stroke="#ff5e6f" stroke-width="1.3"/><text x="' + fixedTrim(x(entry.usl), 2) + '" y="' + (top - 4) + '" fill="rgba(245,220,223,.82)" font-size="12" text-anchor="middle">USL</text>';
+    if (Number.isFinite(entry.lsl)) specLines += '<line x1="' + fixedTrim(x(entry.lsl), 2) + '" y1="' + top + '" x2="' + fixedTrim(x(entry.lsl), 2) + '" y2="' + (top + plotH) + '" stroke="#ff0000" stroke-width="1.3"/><text x="' + fixedTrim(x(entry.lsl), 2) + '" y="' + (top - 4) + '" fill="#000" font-size="12" text-anchor="middle">LSL</text>';
+    if (Number.isFinite(entry.usl)) specLines += '<line x1="' + fixedTrim(x(entry.usl), 2) + '" y1="' + top + '" x2="' + fixedTrim(x(entry.usl), 2) + '" y2="' + (top + plotH) + '" stroke="#ff0000" stroke-width="1.3"/><text x="' + fixedTrim(x(entry.usl), 2) + '" y="' + (top - 4) + '" fill="#000" font-size="12" text-anchor="middle">USL</text>';
 
     const overallPath = linePath(entry.sigmaOverall);
     const withinPath = linePath(entry.sigmaWithin);
     const legendX = width - 62, legendY = 24;
 
     return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
+      svgBg +
       plotRect +
-      '<line x1="' + left + '" y1="' + (top + plotH) + '" x2="' + (left + plotW) + '" y2="' + (top + plotH) + '" stroke="rgba(221,227,222,.46)"/>' +
+      '<line x1="' + left + '" y1="' + (top + plotH) + '" x2="' + (left + plotW) + '" y2="' + (top + plotH) + '" stroke="rgba(0,0,0,.55)"/>' +
       bars +
-      (overallPath ? '<path d="' + overallPath + '" fill="none" stroke="rgba(219,223,220,.84)" stroke-width="1.15" stroke-dasharray="2.5 2.5"/>' : '') +
-      (withinPath ? '<path d="' + withinPath + '" fill="none" stroke="#4b7fff" stroke-width="1.65"/>' : '') +
+      (overallPath ? '<path d="' + overallPath + '" fill="none" stroke="#000" stroke-width="1.15" stroke-dasharray="3 3"/>' : '') +
+      (withinPath ? '<path d="' + withinPath + '" fill="none" stroke="#2d74ff" stroke-width="1.65"/>' : '') +
       specLines + axis +
-      '<text x="' + (left + plotW / 2) + '" y="' + (height - 10) + '" fill="rgba(232,237,233,.88)" font-size="13" text-anchor="middle">' + esc(entry.label) + '</text>' +
-      '<text x="' + legendX + '" y="' + legendY + '" fill="rgba(232,237,233,.88)" font-size="12" font-weight="700">밀도</text>' +
-      '<line x1="' + legendX + '" y1="' + (legendY + 13) + '" x2="' + (legendX + 16) + '" y2="' + (legendY + 13) + '" stroke="rgba(219,223,220,.84)" stroke-width="1.15" stroke-dasharray="2.5 2.5"/>' +
-      '<text x="' + (legendX + 20) + '" y="' + (legendY + 16) + '" fill="rgba(232,237,233,.88)" font-size="12">전체</text>' +
-      '<line x1="' + legendX + '" y1="' + (legendY + 29) + '" x2="' + (legendX + 16) + '" y2="' + (legendY + 29) + '" stroke="#4b7fff" stroke-width="1.65"/>' +
-      '<text x="' + (legendX + 20) + '" y="' + (legendY + 32) + '" fill="rgba(232,237,233,.88)" font-size="12">군내</text>' +
+      '<text x="' + (left + plotW / 2) + '" y="' + (height - 10) + '" fill="#000" font-size="13" text-anchor="middle">' + esc(entry.label) + '</text>' +
+      '<text x="' + legendX + '" y="' + legendY + '" fill="#000" font-size="12" font-weight="700">밀도</text>' +
+      '<line x1="' + legendX + '" y1="' + (legendY + 13) + '" x2="' + (legendX + 16) + '" y2="' + (legendY + 13) + '" stroke="#000" stroke-width="1.15" stroke-dasharray="3 3"/>' +
+      '<text x="' + (legendX + 20) + '" y="' + (legendY + 16) + '" fill="#000" font-size="12">전체</text>' +
+      '<line x1="' + legendX + '" y1="' + (legendY + 29) + '" x2="' + (legendX + 16) + '" y2="' + (legendY + 29) + '" stroke="#2d74ff" stroke-width="1.65"/>' +
+      '<text x="' + (legendX + 20) + '" y="' + (legendY + 32) + '" fill="#000" font-size="12">군내</text>' +
       '</svg>';
   }
 
