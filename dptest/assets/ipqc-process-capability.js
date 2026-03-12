@@ -654,23 +654,36 @@
     if (!values.length){
       return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true"><rect x="0.5" y="0.5" width="499" height="289" fill="transparent" stroke="rgba(255,255,255,.14)"/><text x="250" y="150" fill="rgba(236,247,240,.55)" text-anchor="middle" font-size="14">데이터 없음</text></svg>';
     }
-    let rawMin = Math.min.apply(null, values);
-    let rawMax = Math.max.apply(null, values);
-    if (Number.isFinite(entry.lsl)) rawMin = Math.min(rawMin, entry.lsl);
-    if (Number.isFinite(entry.usl)) rawMax = Math.max(rawMax, entry.usl);
-    let range = Math.max(1e-9, rawMax - rawMin);
-    let min = rawMin - range * 0.06;
-    let max = rawMax + range * 0.06;
-    if (Number.isFinite(entry.lsl)) min = Math.min(min, entry.lsl - range * 0.03);
-    if (Number.isFinite(entry.usl)) max = Math.max(max, entry.usl + range * 0.03);
-    range = Math.max(1e-9, max - min);
+    function niceStep(raw){
+      if (!Number.isFinite(raw) || raw <= 0) return 1;
+      const exp = Math.floor(Math.log10(raw));
+      const base = Math.pow(10, exp);
+      const frac = raw / base;
+      const nice = frac <= 1 ? 1 : (frac <= 2 ? 2 : (frac <= 2.5 ? 2.5 : (frac <= 5 ? 5 : 10)));
+      return nice * base;
+    }
+    const dataMin = Math.min.apply(null, values);
+    const dataMax = Math.max.apply(null, values);
+    let axisRawMin = dataMin;
+    let axisRawMax = dataMax;
+    if (Number.isFinite(entry.lsl)) axisRawMin = Math.min(axisRawMin, entry.lsl);
+    if (Number.isFinite(entry.usl)) axisRawMax = Math.max(axisRawMax, entry.usl);
+    if (!(axisRawMax > axisRawMin)) axisRawMax = axisRawMin + 1;
+    const tickCount = 5;
+    let axisStep = niceStep((axisRawMax - axisRawMin) / Math.max(1, tickCount - 1));
+    let min = Math.floor(axisRawMin / axisStep) * axisStep;
+    let max = Math.ceil(axisRawMax / axisStep) * axisStep;
+    if (min < 0 && axisRawMin >= 0) min = 0;
+    if (!(max > min)) max = min + axisStep;
+    const range = Math.max(1e-9, max - min);
     const x = v => left + ((v - min) / range) * plotW;
-    const preferredBins = Math.round(Math.sqrt(values.length) * 1.8);
-    const binCount = Math.max(10, Math.min(24, preferredBins || 10));
-    const binW = range / binCount;
+
+    const binW = Math.max(axisStep / 2, 1e-9);
+    const binStart = min;
+    const binCount = Math.max(1, Math.ceil((max - binStart) / binW));
     const bins = new Array(binCount).fill(0);
     values.forEach(v => {
-      let i = Math.floor((v - min) / binW);
+      let i = Math.floor((v - binStart) / binW);
       if (i < 0) i = 0;
       if (i >= binCount) i = binCount - 1;
       bins[i]++;
@@ -690,8 +703,10 @@
     const y = c => top + plotH - (c / yMax) * plotH;
     const plotRect = '<rect x="' + left + '" y="' + top + '" width="' + plotW + '" height="' + plotH + '" fill="transparent" stroke="rgba(255,255,255,.18)"/>';
     const bars = bins.map((c, i) => {
-      const x0 = left + i * (plotW / binCount) + 0.5;
-      const w = Math.max(1, plotW / binCount - 1);
+      const startV = binStart + (i * binW);
+      const endV = Math.min(max, startV + binW);
+      const x0 = x(startV) + 0.5;
+      const w = Math.max(1, x(endV) - x(startV) - 1);
       const y0 = y(c);
       return '<rect x="' + fixedTrim(x0, 2) + '" y="' + fixedTrim(y0, 2) + '" width="' + fixedTrim(w, 2) + '" height="' + fixedTrim(top + plotH - y0, 2) + '" fill="rgba(184,194,183,.85)" stroke="rgba(54,60,56,.85)" stroke-width="0.7"/>';
     }).join('');
@@ -706,9 +721,8 @@
       }
       return d.trim();
     }
-    const tickCount = 5;
     const axis = new Array(tickCount).fill(0).map((_, i) => {
-      const v = min + range * (i / (tickCount - 1));
+      const v = min + (axisStep * i);
       const px = x(v);
       return '<line x1="' + fixedTrim(px, 2) + '" y1="' + (top + plotH) + '" x2="' + fixedTrim(px, 2) + '" y2="' + (top + plotH + 4) + '" stroke="rgba(255,255,255,.55)"/>' +
       '<text x="' + fixedTrim(px, 2) + '" y="' + (top + plotH + 16) + '" fill="rgba(236,247,240,.84)" font-size="10" text-anchor="middle">' + esc(fmtSpec(v)) + '</text>';
