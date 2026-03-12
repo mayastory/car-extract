@@ -1023,8 +1023,11 @@
       '</tr></thead><tbody>' + (rows || '<tr><td colspan="18" class="qpc-report-empty">데이터 없음</td></tr>') + '</tbody></table></div>';
   }
 
-  function summaryBoxHtml(entry){
-    return '<div class="qpc-summary-box" style="width:100%;max-width:168px;align-self:start;"><div class="qpc-summary-title">공정 요약</div><div class="qpc-summary-grid">' +
+  function summaryBoxHtml(entry, opts){
+    const plain = !!(opts && opts.plain);
+    return '<div class="qpc-summary-box" style="width:100%;max-width:168px;align-self:start;' + (plain ? 'border:none;padding:0;background:transparent;' : '') + '">' +
+      (plain ? '' : '<div class="qpc-summary-title">공정 요약</div>') +
+      '<div class="qpc-summary-grid">' +
       '<div class="k">LSL</div><div class="v">' + esc(fmtSpec(entry.lsl)) + '</div>' +
       '<div class="k">USL</div><div class="v">' + esc(fmtSpec(entry.usl)) + '</div>' +
       '<div class="k">N</div><div class="v">' + esc(fixedTrim(entry.n, 0)) + '</div>' +
@@ -1032,7 +1035,7 @@
       '<div class="k">군내 표준편차</div><div class="v">' + esc(fmtWide(entry.sigmaWithin)) + '</div>' +
       '<div class="k">전체 표준편차</div><div class="v">' + esc(fmtWide(entry.sigmaOverall)) + '</div>' +
       '<div class="k">안정성 지수</div><div class="v">' + esc(fmtWide(entry.stability)) + '</div>' +
-      '</div><div class="qpc-summary-sep"></div><div class="qpc-summary-grid"><div class="k">평균 이동 범위()로 추정된 군내 표준편차</div><div class="v">' + esc(fmtWide(entry.sigmaWithin)) + '</div></div></div>';
+      '</div><div class="qpc-summary-sep"' + (plain ? ' style="margin:6px 0 6px;"' : '') + '></div><div class="qpc-summary-grid"><div class="k">평균 이동 범위()로 추정된 군내 표준편차</div><div class="v">' + esc(fmtWide(entry.sigmaWithin)) + '</div></div></div>';
   }
 
   function clampNum(v, min, max){
@@ -1534,7 +1537,7 @@
         '<div class="qpc-report-group-body">' +
           '<div class="qpc-report-hist-grid" style="display:grid;grid-template-columns:minmax(0,600px) 168px;gap:10px;align-items:start;max-width:778px;">' +
             '<details class="qpc-report-sub" open><summary>히스토그램</summary><div class="qpc-report-sub-body"><div class="qpc-hist-wrap"><div class="qpc-svgbox" style="width:100%;max-width:600px;">' + histogramSvg(entry) + '</div></div></div></details>' +
-            summaryBoxHtml(entry) +
+            '<details class="qpc-report-sub" open style="border:none;background:transparent;overflow:visible;box-shadow:none;margin:0;"><summary style="background:transparent;padding:2px 0 2px;font-size:11px;line-height:1.35;font-weight:700;white-space:nowrap;">공정 요약</summary><div class="qpc-report-sub-body" style="padding:4px 0 0;border-top:none;">' + summaryBoxHtml(entry, { plain: true }) + '</div></details>' +
           '</div>' +
           '<div class="qpc-report-two" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;">' +
             '<details class="qpc-report-sub" open><summary>군내 표준편차 공정 능력</summary><div class="qpc-report-sub-body">' + statTableHtml('', withinRows) + '</div></details>' +
