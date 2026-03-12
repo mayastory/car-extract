@@ -1532,15 +1532,14 @@
         { name: 'Ppu', value: entry.ppu, lower: entry.ci.ppu.lower, upper: entry.ci.ppu.upper },
         { name: 'Pp', value: entry.pp, lower: entry.ci.pp.lower, upper: entry.ci.pp.upper },
       ];
-      const topSummaryStyle = 'padding:2px 8px;';
       return '<details class="qpc-report-group" ' + (idx === 0 ? 'open' : 'open') + '>' +
         '<summary>' + esc(entry.label) + ' 공정 능력</summary>' +
         '<div class="qpc-report-group-body">' +
-          '<div class="qpc-report-hist-grid" style="display:grid;grid-template-columns:minmax(0,600px) 168px;gap:10px;align-items:start;max-width:778px;">' +
-            '<details class="qpc-report-sub" open><summary style="' + topSummaryStyle + '">히스토그램</summary><div class="qpc-report-sub-body"><div class="qpc-hist-wrap"><div class="qpc-svgbox" style="width:100%;max-width:600px;">' + histogramSvg(entry) + '</div></div></div></details>' +
-            '<details open style="margin:0;align-self:start;border:none;background:transparent;box-shadow:none;overflow:visible;"><summary style="' + topSummaryStyle + '">공정 요약</summary><div style="padding:4px 0 0;background:transparent;border:none;">' + summaryBoxHtml(entry, { plain: true }) + '</div></details>' +
+          '<div class="qpc-report-hist-grid qpc-report-top-grid">' +
+            '<details class="qpc-report-sub qpc-report-sub-top qpc-report-sub-hist" open><summary>히스토그램</summary><div class="qpc-report-sub-body"><div class="qpc-hist-wrap"><div class="qpc-svgbox qpc-hist-svgbox">' + histogramSvg(entry) + '</div></div></div></details>' +
+            '<details class="qpc-report-top-summary" open><summary>공정 요약</summary><div class="qpc-report-top-summary-body">' + summaryBoxHtml(entry, { plain: true }) + '</div></details>' +
           '</div>' +
-          '<div class="qpc-report-two" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;">' +
+          '<div class="qpc-report-two qpc-report-two-tight">' +
             '<details class="qpc-report-sub" open><summary>군내 표준편차 공정 능력</summary><div class="qpc-report-sub-body">' + statTableHtml('', withinRows) + '</div></details>' +
             '<details class="qpc-report-sub" open><summary>전체 표준편차 공정 능력</summary><div class="qpc-report-sub-body">' + statTableHtml('', overallRows) + '</div></details>' +
           '</div>' +

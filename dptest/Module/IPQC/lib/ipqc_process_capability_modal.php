@@ -187,33 +187,62 @@ if (!function_exists('h')) {
   #qpcOverlay .qpc-report-sub{ border:1px solid rgba(255,255,255,.16); background:transparent; border-radius:0; overflow:hidden; margin:0 0 4px; box-shadow:none; }
   #qpcOverlay .qpc-report-tree > summary,
   #qpcOverlay .qpc-report-group > summary,
-  #qpcOverlay .qpc-report-sub > summary{ list-style:none; cursor:pointer; padding:2px 8px; font-size:11px; line-height:1.35; font-weight:700; color:var(--qpc-text); background:rgba(255,255,255,.03); }
+  #qpcOverlay .qpc-report-sub > summary,
+  #qpcOverlay .qpc-report-top-summary > summary{
+    list-style:none; cursor:pointer; padding:2px 8px; font-size:11px; line-height:1.35; font-weight:700; color:var(--qpc-text);
+    background:linear-gradient(180deg, rgba(56,102,72,.34), rgba(20,36,27,.18));
+    border-bottom:1px solid rgba(137,205,160,.16);
+  }
   #qpcOverlay .qpc-report-tree > summary::-webkit-details-marker,
   #qpcOverlay .qpc-report-group > summary::-webkit-details-marker,
-  #qpcOverlay .qpc-report-sub > summary::-webkit-details-marker{ display:none; }
+  #qpcOverlay .qpc-report-sub > summary::-webkit-details-marker,
+  #qpcOverlay .qpc-report-top-summary > summary::-webkit-details-marker{ display:none; }
   #qpcOverlay .qpc-report-tree > summary:before,
   #qpcOverlay .qpc-report-group > summary:before,
-  #qpcOverlay .qpc-report-sub > summary:before{ content:'▸ '; color:rgba(236,247,240,.78); }
+  #qpcOverlay .qpc-report-sub > summary:before,
+  #qpcOverlay .qpc-report-top-summary > summary:before{ content:'▸ '; color:rgba(168,231,188,.9); }
   #qpcOverlay .qpc-report-tree[open] > summary:before,
   #qpcOverlay .qpc-report-group[open] > summary:before,
-  #qpcOverlay .qpc-report-sub[open] > summary:before{ content:'▾ '; }
+  #qpcOverlay .qpc-report-sub[open] > summary:before,
+  #qpcOverlay .qpc-report-top-summary[open] > summary:before{ content:'▾ '; }
   #qpcOverlay .qpc-report-body,
-  #qpcOverlay .qpc-report-group-body,
   #qpcOverlay .qpc-report-sub-body{ padding:4px 8px 8px; border-top:1px solid rgba(255,255,255,.08); }
+  #qpcOverlay .qpc-report-group-body{
+    padding:4px 8px 8px; border-top:1px solid rgba(255,255,255,.08);
+    display:grid; gap:4px; width:max-content; max-width:100%;
+  }
   #qpcOverlay .qpc-report-note{ padding:16px 12px; color:var(--qpc-muted); font-size:12px; }
-  #qpcOverlay .qpc-report-hist-grid{ display:grid; grid-template-columns:minmax(0, 1fr) 168px; gap:10px; align-items:start; }
+  #qpcOverlay .qpc-report-hist-grid{
+    display:grid; grid-template-columns:minmax(0, 340px) 150px; gap:8px; align-items:start;
+    width:max-content; max-width:100%;
+  }
+  #qpcOverlay .qpc-report-top-grid{ margin:0; }
+  #qpcOverlay .qpc-report-sub-top{ margin-bottom:0; }
+  #qpcOverlay .qpc-report-sub-hist{ width:340px; }
+  #qpcOverlay .qpc-hist-svgbox{ width:100%; max-width:340px; }
+  #qpcOverlay .qpc-report-top-summary{
+    margin:0; align-self:start; border:none; background:transparent; box-shadow:none; overflow:visible;
+  }
+  #qpcOverlay .qpc-report-top-summary > summary{
+    min-width:108px; border:1px solid rgba(255,255,255,.16); border-radius:0;
+  }
+  #qpcOverlay .qpc-report-top-summary-body{ padding:4px 0 0; background:transparent; border:none; }
   #qpcOverlay .qpc-hist-wrap,
   #qpcOverlay .qpc-summary-box,
   #qpcOverlay .qpc-stat-box,
   #qpcOverlay .qpc-reject-box{ border:1px solid rgba(255,255,255,.12); background:transparent; border-radius:0; }
   #qpcOverlay .qpc-hist-wrap{ padding:6px 6px 4px; }
-  #qpcOverlay .qpc-summary-box{ padding:6px 8px; }
+  #qpcOverlay .qpc-summary-box{ padding:6px 8px; max-width:150px; }
   #qpcOverlay .qpc-summary-title{ font-size:11px; font-weight:700; margin-bottom:6px; }
   #qpcOverlay .qpc-summary-grid{ display:grid; grid-template-columns:1fr auto; gap:2px 8px; font-size:11px; }
   #qpcOverlay .qpc-summary-grid .k{ color:var(--qpc-text); }
   #qpcOverlay .qpc-summary-grid .v{ color:var(--qpc-text); text-align:right; font-variant-numeric:tabular-nums; }
   #qpcOverlay .qpc-summary-sep{ height:1px; background:rgba(255,255,255,.10); margin:6px 0; }
-  #qpcOverlay .qpc-report-two{ display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
+  #qpcOverlay .qpc-report-two{
+    display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px;
+    width:max-content; max-width:100%;
+  }
+  #qpcOverlay .qpc-report-two-tight{ gap:8px; }
   #qpcOverlay .qpc-stat-box,
   #qpcOverlay .qpc-reject-box{ padding:6px 8px; }
   #qpcOverlay .qpc-stat-table{ width:100%; border-collapse:collapse; font-size:11px; }
