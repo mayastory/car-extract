@@ -777,7 +777,7 @@
       const y0 = y(c);
       const label = esc(entry.label || entry.proc || '');
       const tip = esc(label + ': [' + formatHistBinEdge(edge0) + ', ' + formatHistBinEdge(edge1) + ')' + '\nN:' + c);
-      return '<rect x="' + fixedTrim(x0 + inset, 2) + '" y="' + fixedTrim(y0, 2) + '" width="' + fixedTrim(w, 2) + '" height="' + fixedTrim(top + plotH - y0, 2) + '" fill="rgba(189,201,186,.86)" stroke="none" shape-rendering="crispEdges"><title>' + tip + '</title></rect>';
+      return '<rect x="' + fixedTrim(x0 + inset, 2) + '" y="' + fixedTrim(y0, 2) + '" width="' + fixedTrim(w, 2) + '" height="' + fixedTrim(top + plotH - y0, 2) + '" fill="rgba(201,210,196,.88)" stroke="rgba(112,122,111,.7)" stroke-width="0.34" vector-effect="non-scaling-stroke" shape-rendering="crispEdges"><title>' + tip + '</title></rect>';
     }).join('');
 
     function linePath(sigma){
