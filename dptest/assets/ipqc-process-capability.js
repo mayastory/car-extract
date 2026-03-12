@@ -185,20 +185,7 @@
       const gamma = capabilityCpmGamma(n, extra && extra.meanValue, extra && extra.target, extra && extra.sigma);
       return capabilityCIChi(indexValue, gamma, alpha);
     }
-    const ci = capabilityCIApprox(indexValue, n, df, alpha);
-    // Narrow JMP-style endpoint nudges for one-sided indices only.
-    // Keep the core index engine unchanged and only correct the last 0.001-level
-    // display drift that remained on Cpl/Cpu/Ppl/Ppu after the v3 formula pass.
-    if (mode === 'within-mrbar' && kind === 'cpl') {
-      ci.lower = Math.max(0, ci.lower + 5e-4);
-      ci.upper = Math.max(0, ci.upper - 1.6e-3);
-    } else if (mode === 'within-mrbar' && kind === 'cpu') {
-      ci.lower = Math.max(0, ci.lower + 5e-4);
-      ci.upper = Math.max(0, ci.upper - 1.7e-3);
-    } else if (mode === 'overall' && (kind === 'ppl' || kind === 'ppu')) {
-      ci.upper = Math.max(0, ci.upper - 5e-4);
-    }
-    return ci;
+    return capabilityCIApprox(indexValue, n, df, alpha);
   }
 
   const STATE = {
@@ -912,15 +899,15 @@
     const x = v => left + ((v - xMin) / Math.max(1e-9, xMax - xMin)) * plotW;
 
 
-    // JMP capability box plot은 기본적으로 박스/수염이 중심이며,
-    // 개별 데이터를 전부 깔지 않는다. 점은 fence 밖 outlier만 같은 행(yMid)에 표시한다.
-    const pointRadius = 2.1;
-    const pointFill = 'rgba(236,247,240,.96)';
-    const pointStroke = 'rgba(18,18,18,.72)';
-    const pointStrokeWidth = 0.7;
+    // JMP capability box plot: 점은 박스플롯과 같은 행의 단일 스트립(strip)으로 표시한다.
+    // 상단 별도 밴드나 다단 적층을 쓰지 않고, 모든 점을 동일한 yMid 행에 두어
+    // JMP 기본 표시처럼 한 줄에 겹쳐 보이게 만든다.
+    const pointRadius = 1.9;
+    const pointFill = 'rgba(184,184,184,.92)';
+    const pointStroke = 'rgba(88,88,88,.28)';
+    const pointStrokeWidth = 0.35;
     const pointTitlePrefix = entry.label || entry.proc || '';
-    const outliers = sorted.filter(v => v < lowFence || v > highFence);
-    const points = outliers.map((v, idx) => {
+    const points = sorted.map((v, idx) => {
       const px = x(v);
       const cy = yMid;
       const title = esc(pointTitlePrefix + '\n값: ' + fmtWide(v));
@@ -989,11 +976,11 @@
     if (!Number.isFinite(value)) return '';
     if (kind === 'stability'){
       if (value <= 1.25) return 'is-good';
-      if (value <= 2.00) return 'is-warn';
+      if (value <= 1.50) return 'is-warn';
       return 'is-bad';
     }
     if (kind === 'capability'){
-      if (value >= 1.50) return 'is-good';
+      if (value >= 1.33) return 'is-good';
       if (value >= 1.00) return 'is-warn';
       return 'is-bad';
     }
