@@ -115,6 +115,33 @@
     if (!(x > 0)) return 0;
     return gammaLowerReg(df / 2, x / 2);
   }
+  function chiSquarePdf(x, df){
+    if (!(df > 0) || !(x > 0)) return 0;
+    return Math.exp((((df / 2) - 1) * Math.log(x)) - (x / 2) - ((df / 2) * Math.log(2)) - logGamma(df / 2));
+  }
+  function noncentralTCdf(x, df, delta){
+    if (!Number.isFinite(x) || !(df > 0) || !Number.isFinite(delta)) return NaN;
+    if (x === Infinity) return 1;
+    if (x === -Infinity) return 0;
+    const mean = df;
+    const sd = Math.sqrt(2 * df);
+    const lo = Math.max(1e-9, mean - (10 * sd));
+    const hi = mean + (10 * sd);
+    const steps = 200;
+    const h = (hi - lo) / steps;
+    let sum = 0;
+    for (let i = 0; i <= steps; i++){
+      const v = lo + (i * h);
+      const z = (x * Math.sqrt(v / df)) - delta;
+      const f = normCdf(z, 0, 1) * chiSquarePdf(v, df);
+      const coef = (i === 0 || i === steps) ? 1 : (i % 2 ? 4 : 2);
+      sum += coef * f;
+    }
+    const out = sum * h / 3;
+    if (out <= 0) return 0;
+    if (out >= 1) return 1;
+    return out;
+  }
   function invNormCdf(p){
     if (!(p > 0 && p < 1)) return NaN;
     const a = [-39.6968302866538, 220.946098424521, -275.928510446969, 138.357751867269, -30.6647980661472, 2.50662827745924];
@@ -178,9 +205,31 @@
     const r = (meanValue - target) / sigma;
     return (n * Math.pow(1 + r * r, 2)) / (1 + 2 * r * r);
   }
+  function capabilityCIExactOneSided(indexValue, n, mode, alpha){
+    const df = capabilityDf(n, mode);
+    if (!Number.isFinite(indexValue) || !(indexValue >= 0) || !(n > 1) || !(df > 0)) return { lower: NaN, upper: NaN };
+    const a = Number.isFinite(alpha) ? alpha : 0.05;
+    const threshold = 3 * indexValue * Math.sqrt(n);
+    function solve(target){
+      let lo = 0;
+      let hi = Math.max(1, indexValue * 2);
+      while (noncentralTCdf(threshold, df, 3 * hi * Math.sqrt(n)) > target && hi < 1e6) hi *= 2;
+      for (let i = 0; i < 60; i++){
+        const mid = (lo + hi) / 2;
+        const cdf = noncentralTCdf(threshold, df, 3 * mid * Math.sqrt(n));
+        if (cdf > target) lo = mid; else hi = mid;
+      }
+      return (lo + hi) / 2;
+    }
+    return {
+      lower: solve(1 - (a / 2)),
+      upper: solve(a / 2),
+    };
+  }
   function capabilityCI(indexValue, n, mode, kind, alpha, extra){
     const df = capabilityDf(n, mode);
     if (kind === 'cp' || kind === 'pp') return capabilityCIChi(indexValue, df, alpha);
+    if (kind === 'cpl' || kind === 'cpu' || kind === 'ppl' || kind === 'ppu') return capabilityCIExactOneSided(indexValue, n, mode, alpha);
     if (kind === 'cpm') {
       const gamma = capabilityCpmGamma(n, extra && extra.meanValue, extra && extra.target, extra && extra.sigma);
       return capabilityCIChi(indexValue, gamma, alpha);
