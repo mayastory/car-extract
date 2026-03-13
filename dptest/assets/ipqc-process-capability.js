@@ -764,8 +764,8 @@
     const yMax = Math.max(maxCount, curveMax, 1);
     const y = c => top + plotH - (c / yMax) * plotH;
 
-    const svgBg = '<rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="#ffffff" stroke="rgba(0,0,0,.22)"/>';
-    const plotRect = '<rect x="' + left + '" y="' + top + '" width="' + plotW + '" height="' + plotH + '" fill="none" stroke="rgba(0,0,0,.18)"/>';
+    const svgBg = '<rect x="0" y="0" width="' + width + '" height="' + height + '" fill="#ffffff"/>';
+    const plotRect = '<rect x="' + left + '" y="' + top + '" width="' + plotW + '" height="' + plotH + '" fill="none" stroke="rgba(0,0,0,.30)"/>';
     const bars = bins.map((c, i) => {
       const edge0 = binStart + i * binW;
       const edge1 = edge0 + binW;

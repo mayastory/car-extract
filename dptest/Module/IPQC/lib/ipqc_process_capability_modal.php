@@ -423,7 +423,6 @@ if (!function_exists('h')) {
   #qpcOverlay[data-step="report"] .qpc-report-sub-hist > .qpc-report-sub-body{
     padding:6px 8px 8px;
   }
-  #qpcOverlay[data-step="report"] .qpc-hist-wrap,
   #qpcOverlay[data-step="report"] .qpc-summary-box,
   #qpcOverlay[data-step="report"] .qpc-stat-box,
   #qpcOverlay[data-step="report"] .qpc-reject-box,
@@ -432,12 +431,21 @@ if (!function_exists('h')) {
     border:1px solid #bdbdbd;
     background:#ffffff;
   }
+
+  /* Histogram inner wrapper: JMP has no extra frame */
   #qpcOverlay[data-step="report"] .qpc-hist-wrap{
-    padding:8px 8px 6px;
-    background:#f7f7f7;
+    border:0;
+    padding:0;
+    background:transparent;
   }
   #qpcOverlay[data-step="report"] .qpc-svgbox--hist{
-    max-width:600px;
+    max-width:none;
+    width:100%;
+  }
+  #qpcOverlay[data-step="report"] .qpc-svgbox--hist > svg{
+    display:block;
+    width:100%;
+    height:auto;
   }
   #qpcOverlay[data-step="report"] .qpc-report-top-summary{
     border:1px solid #bdbdbd;
