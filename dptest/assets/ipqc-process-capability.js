@@ -1574,6 +1574,42 @@
     return entries.length;
   }
 
+  function buildReportPopupStorageKey(){
+    return 'qpc-report-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+  }
+
+  function getReportPopupUrl(payloadKey){
+    const base = (typeof window.__QPC_REPORT_PAGE_URL === 'string' && window.__QPC_REPORT_PAGE_URL)
+      ? window.__QPC_REPORT_PAGE_URL
+      : 'ipqc_process_capability_report.php';
+    const url = new URL(base, window.location.href);
+    url.searchParams.set('key', payloadKey);
+    return url.toString();
+  }
+
+  function openReportPopup(){
+    const root = qs('#qpcReportBody');
+    if (!root) return false;
+    const html = String(root.innerHTML || '').trim();
+    if (!html) return false;
+    const payloadKey = buildReportPopupStorageKey();
+    const storageKey = '__qpc_report_payload__:' + payloadKey;
+    const payload = {
+      title: '공정 능력 결과',
+      createdAt: Date.now(),
+      html: html
+    };
+    try{
+      localStorage.setItem(storageKey, JSON.stringify(payload));
+    }catch(err){
+      return false;
+    }
+    const win = window.open(getReportPopupUrl(payloadKey), '_blank', 'popup=yes,width=1360,height=940,scrollbars=yes,resizable=yes');
+    if (!win) return false;
+    try{ win.focus(); }catch(_err){}
+    return true;
+  }
+
   function bind(){
     bindDrag();
     bindWindowDrag();
@@ -1653,12 +1689,16 @@
       }
       if (ev.target && ev.target.id === 'qpcSpecCheckAll'){ ev.preventDefault(); qsa('#qpcSpecTableBody .qpc-spec-show').forEach(chk => chk.checked = true); setSpecStatus(''); return; }
       if (ev.target && ev.target.id === 'qpcSpecCancel'){ ev.preventDefault(); setStep('setup'); setTimeout(clampWindowToViewport, 0); return; }
-      if (ev.target && ev.target.id === 'qpcSpecHelp'){ ev.preventDefault(); setSpecStatus('LSL / USL을 확인한 뒤 확인을 누르면 결과 보고서를 엽니다.'); return; }
+      if (ev.target && ev.target.id === 'qpcSpecHelp'){ ev.preventDefault(); setSpecStatus('LSL / USL을 확인한 뒤 확인을 누르면 결과 새창을 엽니다.'); return; }
       if (ev.target && ev.target.id === 'qpcSpecOk'){
         ev.preventDefault();
         const count = renderReport();
         if (!count){ setSpecStatus('결과를 만들 데이터가 없습니다. 현재 테이블과 선택 공정을 확인하세요.'); return; }
         setSpecStatus('');
+        if (openReportPopup()){
+          close();
+          return;
+        }
         setStep('report');
         setTimeout(clampWindowToViewport, 0);
         return;

@@ -4393,6 +4393,10 @@ qs.set('cols', String(cols));
 
 
 <script>
+window.__QPC_REPORT_PAGE_URL = <?php echo json_encode(rtrim(dirname($_SERVER['SCRIPT_NAME'] ?? ''), '/') . '/ipqc_process_capability_report.php', JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
+</script>
+
+<script>
 /* IPQC Quick Graph open safety wrapper (modal + JS are external):
  * - keeps ipqc_view.php smaller
  * - gives visible feedback when quick graph modal script didn't load
