@@ -634,12 +634,12 @@
 
   function histogramSvg(entry){
     const values = (entry && Array.isArray(entry.values) ? entry.values : []).filter(Number.isFinite);
-    const width = 660, height = 296;
-    const left = 40, right = 74, top = 16, bottom = 50;
+    const width = 600, height = 300;
+    const left = 44, right = 130, top = 24, bottom = 52;
     const plotW = width - left - right;
     const plotH = height - top - bottom;
     if (!values.length){
-      return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true"><rect x="0.5" y="0.5" width="499" height="289" fill="#ffffff" stroke="rgba(0,0,0,.22)"/><text x="250" y="150" fill="#000" text-anchor="middle" font-size="14">데이터 없음</text></svg>';
+      return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true"><rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="#ffffff" stroke="rgba(0,0,0,.22)"/><text x="' + (width/2) + '" y="' + (height/2) + '" fill="#000" text-anchor="middle" font-size="14">데이터 없음</text></svg>';
     }
 
     function niceNumber(v, round){
@@ -808,12 +808,13 @@
     const axis = ticks.join('');
 
     let specLines = '';
-    if (Number.isFinite(entry.lsl)) specLines += '<line x1="' + fixedTrim(x(entry.lsl), 2) + '" y1="' + top + '" x2="' + fixedTrim(x(entry.lsl), 2) + '" y2="' + (top + plotH) + '" stroke="#ff0000" stroke-width="1.3"/><text x="' + fixedTrim(x(entry.lsl), 2) + '" y="' + (top - 4) + '" fill="#000" font-size="12" text-anchor="middle">LSL</text>';
-    if (Number.isFinite(entry.usl)) specLines += '<line x1="' + fixedTrim(x(entry.usl), 2) + '" y1="' + top + '" x2="' + fixedTrim(x(entry.usl), 2) + '" y2="' + (top + plotH) + '" stroke="#ff0000" stroke-width="1.3"/><text x="' + fixedTrim(x(entry.usl), 2) + '" y="' + (top - 4) + '" fill="#000" font-size="12" text-anchor="middle">USL</text>';
+    if (Number.isFinite(entry.lsl)) specLines += '<line x1="' + fixedTrim(x(entry.lsl), 2) + '" y1="' + top + '" x2="' + fixedTrim(x(entry.lsl), 2) + '" y2="' + (top + plotH) + '" stroke="#ff0000" stroke-width="1.3"/><text x="' + fixedTrim(x(entry.lsl), 2) + '" y="' + (top - 6) + '" fill="#000" font-size="12" text-anchor="middle">LSL</text>';
+    if (Number.isFinite(entry.usl)) specLines += '<line x1="' + fixedTrim(x(entry.usl), 2) + '" y1="' + top + '" x2="' + fixedTrim(x(entry.usl), 2) + '" y2="' + (top + plotH) + '" stroke="#ff0000" stroke-width="1.3"/><text x="' + fixedTrim(x(entry.usl), 2) + '" y="' + (top - 6) + '" fill="#000" font-size="12" text-anchor="middle">USL</text>';
 
     const overallPath = linePath(entry.sigmaOverall);
     const withinPath = linePath(entry.sigmaWithin);
-    const legendX = width - 62, legendY = 24;
+    const legendX = left + plotW + 18;
+    const legendY = top + 6;
 
     return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
       svgBg +
