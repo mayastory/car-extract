@@ -635,12 +635,14 @@
   function histogramSvg(entry){
     const values = (entry && Array.isArray(entry.values) ? entry.values : []).filter(Number.isFinite);
     const width = 660, height = 296;
-    const left = 36, right = 136, top = 17, bottom = 64;
+    const left = 36, right = 144, top = 24, bottom = 64;
     const plotW = width - left - right;
     const plotH = height - top - bottom;
+    const outerBg = '<rect x="0" y="0" width="' + width + '" height="' + height + '" fill="#ececec"/>';
+    const plotBg = '<rect x="' + left + '" y="' + top + '" width="' + plotW + '" height="' + plotH + '" fill="#f8f8f8" stroke="#b7b7b7" stroke-width="1"/>';
     if (!values.length){
       return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
-        '<rect x="' + left + '" y="' + top + '" width="' + plotW + '" height="' + plotH + '" fill="#ffffff"/>' +
+        outerBg + plotBg +
         '<text x="' + fixedTrim(left + (plotW / 2), 2) + '" y="' + fixedTrim(top + (plotH / 2) + 4, 2) + '" fill="#000" text-anchor="middle" font-size="14">데이터 없음</text>' +
       '</svg>';
     }
@@ -767,7 +769,6 @@
     const yMax = Math.max(maxCount, curveMax, 1);
     const y = c => top + plotH - (c / yMax) * plotH;
 
-    const plotBg = '<rect x="' + left + '" y="' + top + '" width="' + plotW + '" height="' + plotH + '" fill="#ffffff"/>';
     const bars = bins.map((c, i) => {
       const edge0 = binStart + i * binW;
       const edge1 = edge0 + binW;
@@ -782,7 +783,8 @@
       const w = Math.max(1, xEnd - xStart);
       const y0 = y(c);
       const label = esc(entry.label || entry.proc || '');
-      const tip = esc(label + ': [' + formatHistBinEdge(edge0) + ', ' + formatHistBinEdge(edge1) + ')' + '\nN:' + c);
+      const tip = esc(label + ': [' + formatHistBinEdge(edge0) + ', ' + formatHistBinEdge(edge1) + ')' + '
+N:' + c);
       return '<rect x="' + fixedTrim(xStart, 2) + '" y="' + fixedTrim(y0, 2) + '" width="' + fixedTrim(w, 2) + '" height="' + fixedTrim(top + plotH - y0, 2) + '" fill="#bacaba" stroke="rgba(0,0,0,.55)" stroke-width="0.7" shape-rendering="crispEdges"><title>' + tip + '</title></rect>';
     }).join('');
 
@@ -809,17 +811,18 @@
     }
     const axis = ticks.join('');
 
-    const labelY = top - 4;
+    const labelY = top - 6;
     let specLines = '';
     if (Number.isFinite(entry.lsl)) specLines += '<line x1="' + fixedTrim(x(entry.lsl), 2) + '" y1="' + top + '" x2="' + fixedTrim(x(entry.lsl), 2) + '" y2="' + (top + plotH) + '" stroke="#ff0000" stroke-width="1.3"/><text x="' + fixedTrim(x(entry.lsl), 2) + '" y="' + labelY + '" fill="#000" font-size="12" text-anchor="middle">LSL</text>';
     if (Number.isFinite(entry.usl)) specLines += '<line x1="' + fixedTrim(x(entry.usl), 2) + '" y1="' + top + '" x2="' + fixedTrim(x(entry.usl), 2) + '" y2="' + (top + plotH) + '" stroke="#ff0000" stroke-width="1.3"/><text x="' + fixedTrim(x(entry.usl), 2) + '" y="' + labelY + '" fill="#000" font-size="12" text-anchor="middle">USL</text>';
 
     const overallPath = linePath(entry.sigmaOverall);
     const withinPath = linePath(entry.sigmaWithin);
-    const legendX = left + plotW + 18;
-    const legendY = top + 10;
+    const legendX = left + plotW + 20;
+    const legendY = top + 18;
 
     return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
+      outerBg +
       plotBg +
       '<line x1="' + left + '" y1="' + (top + plotH) + '" x2="' + (left + plotW) + '" y2="' + (top + plotH) + '" stroke="rgba(0,0,0,.55)"/>' +
       bars +

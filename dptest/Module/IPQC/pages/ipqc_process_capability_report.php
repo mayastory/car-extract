@@ -69,22 +69,12 @@ body{min-width:980px;}
 .qpc-report-sub-top > summary{background:linear-gradient(180deg, rgba(44,92,62,.88), rgba(14,29,20,.98));}
 .qpc-report-sub-top.qpc-report-sub-hist{width:676px;max-width:100%;}
 .qpc-report-sub-hist > .qpc-report-sub-body{padding:2px 3px 3px;}
-.qpc-hist-wrap--top{padding:2px 2px 1px;position:relative;background:#f3f3f3;}
+.qpc-hist-wrap--top{padding:2px 2px 1px;position:relative;background:#ececec;}
 .qpc-svgbox{width:100%;overflow:auto;}
 .qpc-svgbox svg{width:100%;height:auto;display:block;}
-.qpc-svgbox--hist{width:660px;max-width:100%;position:relative;display:block;background:#f3f3f3;}
+.qpc-svgbox--hist{width:660px;max-width:100%;position:relative;display:block;background:transparent;}
 .qpc-svgbox--hist svg{width:660px;max-width:100%;height:auto;display:block;}
-.qpc-hist-wrap--top .qpc-svgbox--hist::after{
-    content:"";
-    position:absolute;
-    left:36px;
-    right:136px;
-    top:17px;
-    bottom:64px;
-    border:1px solid rgba(0,0,0,.22);
-    box-sizing:border-box;
-    pointer-events:none;
-}
+.qpc-hist-wrap--top .qpc-svgbox--hist::after{display:none;}
 .qpc-report-top-summary{margin:0;width:156px;max-width:156px;border:0;background:transparent;overflow:visible;align-self:start;}
 .qpc-report-top-summary > summary{list-style:none;cursor:pointer;padding:1px 6px;font-size:12px;line-height:1.3;font-weight:700;color:var(--qpc-text);background:linear-gradient(180deg, rgba(44,92,62,.88), rgba(14,29,20,.98));border:1px solid var(--qpc-border);}
 .qpc-report-top-summary-body{padding:4px 0 0;}
