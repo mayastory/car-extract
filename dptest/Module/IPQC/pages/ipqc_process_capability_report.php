@@ -78,6 +78,10 @@ body{min-width:980px;}
 .qpc-hist-topline{display:flex;align-items:flex-end;min-height:18px;width:516px;padding:0 0 1px;background:transparent;}
 .qpc-hist-toplabels{position:relative;height:18px;flex:0 0 auto;width:516px;}
 .qpc-hist-limit{position:absolute;top:0;transform:translateX(-50%);font-size:12px;line-height:1;color:#000;font-weight:400;white-space:nowrap;}
+.qpc-hist-limit,.qpc-hist-legend,.qpc-hist-legend-title,.qpc-hist-legend-item,.qpc-hist-caption{color:#fff !important;}
+.qpc-hist-legend-line--overall{border-top-color:#fff !important;}
+.qpc-hist-plot svg text,.qpc-hist-plot svg tspan,.qpc-hist-plot svg .tick text,.qpc-hist-plot svg .axis text,.qpc-hist-plot svg [data-role="axis-tick"],.qpc-hist-plot svg [data-role="axis-label"]{fill:#fff !important;color:#fff !important;}
+.qpc-hist-plot svg text[fill],.qpc-hist-plot svg tspan[fill],.qpc-hist-plot svg .tick text[fill],.qpc-hist-plot svg .axis text[fill]{fill:#fff !important;}
 .qpc-hist-main{display:grid;grid-template-columns:516px max-content;column-gap:14px;align-items:start;justify-content:start;width:max-content;max-width:100%;background:transparent;}
 .qpc-hist-plot{display:block;background:transparent;}
 .qpc-hist-plot svg{width:516px;max-width:100%;height:auto;display:block;background:transparent;}
