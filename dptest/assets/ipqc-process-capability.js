@@ -783,8 +783,7 @@
       const w = Math.max(1, xEnd - xStart);
       const y0 = y(c);
       const label = esc(entry.label || entry.proc || '');
-      const tip = esc(label + ': [' + formatHistBinEdge(edge0) + ', ' + formatHistBinEdge(edge1) + ')' + '
-N:' + c);
+      const tip = esc(label + ': [' + formatHistBinEdge(edge0) + ', ' + formatHistBinEdge(edge1) + ')' + '\nN:' + c);
       return '<rect x="' + fixedTrim(xStart, 2) + '" y="' + fixedTrim(y0, 2) + '" width="' + fixedTrim(w, 2) + '" height="' + fixedTrim(top + plotH - y0, 2) + '" fill="#bacaba" stroke="rgba(0,0,0,.55)" stroke-width="0.7" shape-rendering="crispEdges"><title>' + tip + '</title></rect>';
     }).join('');
 
