@@ -1623,7 +1623,8 @@
     const payload = {
       title: '공정 능력 결과',
       createdAt: Date.now(),
-      html: html
+      html: html,
+      entries: Array.isArray(STATE.reportEntries) ? STATE.reportEntries : []
     };
     try{
       localStorage.setItem(storageKey, JSON.stringify(payload));

@@ -77,23 +77,19 @@ body{min-width:980px;}
 .qpc-hist-card{display:flex;flex-direction:column;gap:0;width:660px;max-width:100%;background:transparent;}
 .qpc-hist-topline{display:flex;align-items:flex-end;min-height:18px;width:516px;padding:0 0 1px;background:transparent;}
 .qpc-hist-toplabels{position:relative;height:18px;flex:0 0 auto;width:516px;}
-.qpc-hist-limit{position:absolute;top:0;transform:translateX(-50%);font-size:12px;line-height:1;color:#000;font-weight:400;white-space:nowrap;}
-.qpc-hist-limit,.qpc-hist-legend,.qpc-hist-legend-title,.qpc-hist-legend-item,.qpc-hist-caption{color:#fff !important;}
-.qpc-hist-legend-line--overall{border-top-color:#fff !important;}
-.qpc-hist-plot svg text,.qpc-hist-plot svg tspan,.qpc-hist-plot svg .tick text,.qpc-hist-plot svg .axis text,.qpc-hist-plot svg [data-role="axis-tick"],.qpc-hist-plot svg [data-role="axis-label"]{fill:#fff !important;color:#fff !important;}
-.qpc-hist-plot svg text[fill],.qpc-hist-plot svg tspan[fill],.qpc-hist-plot svg .tick text[fill],.qpc-hist-plot svg .axis text[fill]{fill:#fff !important;}
+.qpc-hist-limit{position:absolute;top:0;transform:translateX(-50%);font-size:12px;line-height:1;color:rgba(236,247,240,.96);font-weight:400;white-space:nowrap;}
 .qpc-hist-main{display:grid;grid-template-columns:516px max-content;column-gap:14px;align-items:start;justify-content:start;width:max-content;max-width:100%;background:transparent;}
 .qpc-hist-plot{display:block;background:transparent;}
-.qpc-hist-plot svg{width:516px;max-width:100%;height:auto;display:block;background:transparent;}
-.qpc-hist-side{display:flex;align-items:flex-start;justify-content:flex-start;padding-top:2px;background:transparent;}
-.qpc-hist-legend{display:flex;flex-direction:column;gap:6px;color:#000;font-size:12px;line-height:1.2;background:transparent;}
+.qpc-hist-plot svg{width:516px;max-width:100%;height:162px;display:block;background:transparent;}
+.qpc-hist-side{display:flex;align-items:flex-start;justify-content:flex-start;padding-top:4px;background:transparent;}
+.qpc-hist-legend{display:flex;flex-direction:column;gap:6px;color:rgba(236,247,240,.96);font-size:12px;line-height:1.2;background:transparent;}
 .qpc-hist-legend-title{font-weight:700;}
 .qpc-hist-legend-item{display:flex;align-items:center;gap:6px;white-space:nowrap;}
-.qpc-hist-legend-line{display:inline-block;width:16px;height:0;border-top:1.15px solid #000;box-sizing:border-box;}
+.qpc-hist-legend-line{display:inline-block;width:16px;height:0;border-top:1.15px solid rgba(236,247,240,.96);box-sizing:border-box;}
 .qpc-hist-legend-line--overall{border-top-style:dashed;}
 .qpc-hist-legend-line--within{border-top:1.65px solid #2d74ff;}
 .qpc-hist-foot{display:flex;justify-content:flex-start;width:516px;padding-top:3px;background:transparent;}
-.qpc-hist-caption{width:516px;text-align:center;color:#000;font-size:13px;line-height:1.15;}
+.qpc-hist-caption{width:516px;text-align:center;color:rgba(236,247,240,.96);font-size:13px;line-height:1.15;}
 .qpc-hist-wrap--top .qpc-svgbox--hist::after{display:none;}
 .qpc-report-top-summary{margin:0;width:156px;max-width:156px;border:0;background:transparent;overflow:visible;align-self:start;}
 .qpc-report-top-summary > summary{list-style:none;cursor:pointer;padding:1px 6px;font-size:12px;line-height:1.3;font-weight:700;color:var(--qpc-text);background:linear-gradient(180deg, rgba(44,92,62,.88), rgba(14,29,20,.98));border:1px solid var(--qpc-border);}
@@ -202,8 +198,102 @@ body{min-width:980px;}
         setMessage('결과 데이터를 찾지 못했습니다. 이전 창에서 다시 확인을 눌러 주세요.');
         return;
     }
+    function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(ch){ return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]; }); }
+    function parseNum(v){
+        var raw = String(v == null ? '' : v).replace(/,/g, '').trim();
+        if (!raw) return NaN;
+        var cleaned = raw.replace(/[^0-9eE+\-.]/g, '');
+        var n = parseFloat(cleaned);
+        return isFinite(n) ? n : NaN;
+    }
+    function clampNum(v, min, max){
+        var n = Number(v);
+        if (!isFinite(n)) n = min;
+        if (n < min) n = min;
+        if (n > max) n = max;
+        return n;
+    }
+    function fixedTrim(n, d){
+        var v = Number(n);
+        if (!isFinite(v)) return '';
+        var mul = Math.pow(10, d);
+        v = Math.round((v + Number.EPSILON) * mul) / mul;
+        return v.toFixed(d).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
+    }
+    function capabilityIndexPlotSvg(entry, refPpk){
+        var width = 292, height = 222;
+        var left = 28, right = 14, top = 8, bottom = 34;
+        var plotW = width - left - right;
+        var plotH = height - top - bottom;
+        var refVal = clampNum(parseNum(refPpk), 0.20, 2.50);
+        var rawPpk = Number(entry && entry.ppk);
+        var yMaxBase = Math.max(3.2, Math.ceil((Math.max(refVal, isFinite(rawPpk) ? rawPpk : 0) + 0.25) * 2) / 2);
+        var yMax = Math.max(3.2, yMaxBase);
+        var xMid = left + plotW / 2;
+        function y(v){ return top + plotH - ((v - 0) / (yMax - 0)) * plotH; }
+        var yTicks = [];
+        for (var v = 0; v <= yMax + 1e-9; v += 0.5) yTicks.push(Number(v.toFixed(1)));
+        var hGrid = yTicks.map(function(v){
+            var yy = y(v);
+            var stroke = Math.abs(v - Math.round(v)) < 1e-9 ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.05)';
+            return '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="' + stroke + '"/>';
+        }).join('');
+        var yAxisTicks = yTicks.map(function(v){
+            var yy = y(v);
+            var label = Math.abs(v - Math.round(v)) < 1e-9 ? String(Math.round(v)) : '';
+            return '<line x1="' + fixedTrim(left - 4,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="rgba(255,255,255,.45)"/>' +
+              (label ? '<text x="' + fixedTrim(left - 7,2) + '" y="' + fixedTrim(yy + 3,2) + '" fill="rgba(236,247,240,.92)" font-size="10" text-anchor="end">' + esc(label) + '</text>' : '');
+        }).join('');
+        var xAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(255,255,255,.55)"/>';
+        var yAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(255,255,255,.55)"/>';
+        var refLine = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(y(refVal),2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(y(refVal),2) + '" stroke="#ff6672" stroke-width="1.15"/>';
+        var marker = '';
+        if (isFinite(rawPpk)){
+            var py = y(clampNum(rawPpk, 0, yMax));
+            marker = '<rect x="' + fixedTrim(xMid - 3,2) + '" y="' + fixedTrim(py - 3,2) + '" width="6" height="6" fill="transparent" stroke="rgba(236,247,240,.95)" stroke-width="1.1"/>';
+        }
+        var labelText = esc(entry && (entry.label || entry.proc) || '-');
+        return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
+          '<rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="transparent" stroke="rgba(255,255,255,.12)"/>' +
+          hGrid + xAxis + yAxis + refLine + marker + yAxisTicks +
+          '<text x="' + fixedTrim(xMid,2) + '" y="' + fixedTrim(top + plotH + 18,2) + '" fill="rgba(236,247,240,.92)" font-size="10" text-anchor="middle" transform="rotate(-90 ' + fixedTrim(xMid,2) + ' ' + fixedTrim(top + plotH + 18,2) + ')">' + labelText + '</text>' +
+          '<text x="' + fixedTrim(xMid,2) + '" y="' + (height - 4) + '" fill="rgba(236,247,240,.92)" font-size="11" text-anchor="middle">공정</text>' +
+          '<text x="14" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(236,247,240,.96)" font-size="11" text-anchor="middle" transform="rotate(-90 14 ' + fixedTrim(top + plotH/2,2) + ')">Ppk</text>' +
+          '</svg>';
+    }
+    function renderCapabilityIndexPlotBox(box){
+        if (!box || !payload || !payload.entries) return;
+        var idx = parseInt(box.getAttribute('data-entry-index') || '-1', 10);
+        if (!(idx >= 0) || !payload.entries[idx]) return;
+        var entry = payload.entries[idx];
+        var textEl = box.querySelector('[data-role="index-ppk-text"]');
+        var rangeEl = box.querySelector('[data-role="index-ppk-range"]');
+        var ref = parseNum(textEl ? textEl.value : '1');
+        if (!isFinite(ref)) ref = parseNum(rangeEl ? rangeEl.value : '1');
+        ref = clampNum(isFinite(ref) ? ref : 1, 0.20, 2.50);
+        if (textEl) textEl.value = fixedTrim(ref, 2);
+        if (rangeEl) rangeEl.value = String(ref);
+        var host = box.querySelector('[data-role="index-svg"]');
+        if (host) host.innerHTML = capabilityIndexPlotSvg(entry, ref);
+    }
     document.title = payload.title ? String(payload.title) : titleBase;
     if (root) root.innerHTML = String(payload.html || '');
+    Array.prototype.forEach.call(document.querySelectorAll('.qpc-index-grid'), function(box){ renderCapabilityIndexPlotBox(box); });
+    document.addEventListener('input', function(ev){
+        if (ev.target && ev.target.matches && ev.target.matches('.qpc-index-ppk-input')){
+            var box = ev.target.closest('.qpc-index-grid');
+            var range = box ? box.querySelector('[data-role="index-ppk-range"]') : null;
+            var v = clampNum(isFinite(parseNum(ev.target.value)) ? parseNum(ev.target.value) : 1, 0.20, 2.50);
+            if (range) range.value = String(v);
+            renderCapabilityIndexPlotBox(box);
+        }
+        if (ev.target && ev.target.matches && ev.target.matches('.qpc-index-range')){
+            var box2 = ev.target.closest('.qpc-index-grid');
+            var text2 = box2 ? box2.querySelector('[data-role="index-ppk-text"]') : null;
+            if (text2) text2.value = fixedTrim(parseNum(ev.target.value), 2);
+            renderCapabilityIndexPlotBox(box2);
+        }
+    });
 })();
 </script>
 </body>
