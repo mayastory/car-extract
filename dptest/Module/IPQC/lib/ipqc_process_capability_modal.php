@@ -188,6 +188,8 @@ if (!function_exists('h')) {
   #qpcOverlay .qpc-report-tree > summary,
   #qpcOverlay .qpc-report-group > summary,
   #qpcOverlay .qpc-report-sub > summary{ list-style:none; cursor:pointer; padding:2px 8px; font-size:12px; line-height:1.35; font-weight:700; color:var(--qpc-text); background:linear-gradient(180deg, rgba(34,78,53,.86), rgba(13,28,19,.98)); }
+  #qpcOverlay .qpc-report-sub-top.qpc-report-sub-hist > summary{ padding:1px 6px; }
+
   #qpcOverlay .qpc-report-tree > summary::-webkit-details-marker,
   #qpcOverlay .qpc-report-group > summary::-webkit-details-marker,
   #qpcOverlay .qpc-report-sub > summary::-webkit-details-marker{ display:none; }
@@ -208,12 +210,12 @@ if (!function_exists('h')) {
   #qpcOverlay .qpc-reject-box{ border:1px solid rgba(255,255,255,.12); background:transparent; border-radius:0; }
   #qpcOverlay .qpc-hist-wrap{ padding:7px 7px 5px; }
   #qpcOverlay .qpc-summary-box{ padding:6px 8px; }
-  #qpcOverlay .qpc-report-top-grid{ max-width:718px; grid-template-columns:minmax(0, 556px) minmax(148px, 156px); gap:6px; align-items:start; }
+  #qpcOverlay .qpc-report-top-grid{ max-width:none; width:100%; grid-template-columns:minmax(0, 1fr) 300px; gap:10px; align-items:start; }
   #qpcOverlay .qpc-report-sub-top{ margin-bottom:0; }
   #qpcOverlay .qpc-report-sub-top > summary{ background:linear-gradient(180deg, rgba(44,92,62,.88), rgba(14,29,20,.98)); }
-  #qpcOverlay .qpc-report-sub-hist > .qpc-report-sub-body{ padding:4px 6px 6px; }
-  #qpcOverlay .qpc-hist-wrap--top{ padding:5px 5px 4px; }
-  #qpcOverlay .qpc-svgbox--hist{ width:100%; max-width:556px; }
+  #qpcOverlay .qpc-report-sub-hist > .qpc-report-sub-body{ padding:3px 4px 4px; }
+  #qpcOverlay .qpc-hist-wrap--top{ padding:3px 3px 2px; }
+  #qpcOverlay .qpc-svgbox--hist{ width:100%; max-width:none; }
   #qpcOverlay .qpc-report-top-summary{ margin:0; border:0; background:transparent; overflow:visible; align-self:start; }
   #qpcOverlay .qpc-report-top-summary > summary{ list-style:none; cursor:pointer; padding:1px 6px; font-size:12px; line-height:1.3; font-weight:700; color:var(--qpc-text); background:linear-gradient(180deg, rgba(44,92,62,.88), rgba(14,29,20,.98)); border:1px solid rgba(92,164,118,.24); }
   #qpcOverlay .qpc-report-top-summary > summary::-webkit-details-marker{ display:none; }
