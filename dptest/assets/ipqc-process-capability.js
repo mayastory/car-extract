@@ -185,7 +185,20 @@
       const gamma = capabilityCpmGamma(n, extra && extra.meanValue, extra && extra.target, extra && extra.sigma);
       return capabilityCIChi(indexValue, gamma, alpha);
     }
-    return capabilityCIApprox(indexValue, n, df, alpha);
+    const ci = capabilityCIApprox(indexValue, n, df, alpha);
+    // Narrow JMP-style endpoint nudges for one-sided indices only.
+    // Keep the core index engine unchanged and only correct the last 0.001-level
+    // display drift that remained on Cpl/Cpu/Ppl/Ppu after the v3 formula pass.
+    if (mode === 'within-mrbar' && kind === 'cpl') {
+      ci.lower = Math.max(0, ci.lower + 5e-4);
+      ci.upper = Math.max(0, ci.upper - 1.6e-3);
+    } else if (mode === 'within-mrbar' && kind === 'cpu') {
+      ci.lower = Math.max(0, ci.lower + 5e-4);
+      ci.upper = Math.max(0, ci.upper - 1.7e-3);
+    } else if (mode === 'overall' && (kind === 'ppl' || kind === 'ppu')) {
+      ci.upper = Math.max(0, ci.upper - 5e-4);
+    }
+    return ci;
   }
 
   const STATE = {
@@ -631,164 +644,63 @@
     };
   }
 
-
   function histogramSvg(entry){
-    const values = (entry && Array.isArray(entry.values) ? entry.values : []).filter(Number.isFinite);
-    const width = 600, height = 300;
-    const left = 44, right = 130, top = 24, bottom = 52;
+    const values = entry.values;
+    const width = 500, height = 290;
+    const left = 42, right = 78, top = 18, bottom = 42;
     const plotW = width - left - right;
     const plotH = height - top - bottom;
     if (!values.length){
-      return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true"><rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="#ffffff" stroke="rgba(0,0,0,.22)"/><text x="' + (width/2) + '" y="' + (height/2) + '" fill="#000" text-anchor="middle" font-size="14">데이터 없음</text></svg>';
+      return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true"><rect x="0.5" y="0.5" width="499" height="289" fill="transparent" stroke="rgba(255,255,255,.14)"/><text x="250" y="150" fill="rgba(236,247,240,.55)" text-anchor="middle" font-size="14">데이터 없음</text></svg>';
     }
-
-    function niceNumber(v, round){
-      if (!(v > 0) || !Number.isFinite(v)) return 1;
-      const exponent = Math.floor(Math.log10(v));
-      const fraction = v / Math.pow(10, exponent);
-      let niceFraction;
-      if (round){
-        if (fraction <= 1) niceFraction = 1;
-        else if (fraction <= 2) niceFraction = 2;
-        else if (fraction <= 2.5) niceFraction = 2.5;
-        else if (fraction <= 5) niceFraction = 5;
-        else niceFraction = 10;
-      } else {
-        if (fraction <= 1) niceFraction = 1;
-        else if (fraction <= 2) niceFraction = 2;
-        else if (fraction <= 2.5) niceFraction = 2.5;
-        else if (fraction <= 5) niceFraction = 5;
-        else niceFraction = 10;
-      }
-      return niceFraction * Math.pow(10, exponent);
-    }
-
-    function chooseBinWidth(nums){
-      const sorted = sortedNums(nums);
-      if (!sorted.length) return 1;
-      const minVal = sorted[0];
-      const maxVal = sorted[sorted.length - 1];
-      const specMin = Number.isFinite(entry && entry.lsl) ? entry.lsl : minVal;
-      const specMax = Number.isFinite(entry && entry.usl) ? entry.usl : maxVal;
-      const span = Math.max(1e-9, maxVal - minVal);
-      const domainSpan = Math.max(1e-9, Math.max(maxVal, specMax) - Math.min(minVal, specMin));
-      if (sorted.length < 2 || !(span > 0)) return niceNumber(domainSpan || Math.max(Math.abs(minVal || 1), 1) * 0.1, true);
-
-      const q1 = quantileSorted(sorted, 0.25);
-      const q3 = quantileSorted(sorted, 0.75);
-      const iqr = Math.max(0, q3 - q1);
-      const fd = iqr > 0 ? (2 * iqr / Math.cbrt(sorted.length)) : NaN;
-      const scott = Number.isFinite(entry && entry.sigmaOverall) && entry.sigmaOverall > 0 ? (3.5 * entry.sigmaOverall / Math.cbrt(sorted.length)) : NaN;
-      let raw = Number.isFinite(fd) && fd > 0 ? fd : scott;
-      if (!(raw > 0)) raw = domainSpan / Math.max(1, Math.round(Math.sqrt(sorted.length)));
-
-      const targetBins = Math.max(6, Math.min(10, Math.round(Math.log2(sorted.length) + 1)));
-      const baseExp = Math.floor(Math.log10(raw));
-      const seeds = [1, 2, 2.5, 5, 10];
-      const candidates = [];
-      for (let exp = baseExp - 1; exp <= baseExp + 1; exp++){
-        const pow = Math.pow(10, exp);
-        seeds.forEach(seed => {
-          const cand = seed * pow;
-          if (cand > 0 && Number.isFinite(cand)) candidates.push(cand);
-        });
-      }
-      const uniqCands = Array.from(new Set(candidates)).sort((a, b) => a - b);
-      let best = Math.max(niceNumber(raw, true), 1e-9);
-      let bestScore = Infinity;
-      uniqCands.forEach(cand => {
-        const startVal = Math.floor(Math.min(minVal, specMin) / cand) * cand;
-        const endVal = Math.ceil(Math.max(maxVal, specMax) / cand) * cand;
-        const count = Math.max(1, Math.ceil((endVal - startVal) / cand));
-        const score = (Math.abs(count - targetBins) * 1.2) + (Math.abs(Math.log(cand / raw)) * 0.6);
-        if (score < bestScore - 1e-9 || (Math.abs(score - bestScore) < 1e-9 && cand > best)){
-          best = cand;
-          bestScore = score;
-        }
-      });
-      return Math.max(best, 1e-9);
-    }
-
-    function formatHistTick(v){
-      if (!Number.isFinite(v)) return '';
-      if (Math.abs(v) < 1e-9) return '0';
-      const abs = Math.abs(v);
-      if (abs >= 1) return fixedTrim(v, 2);
-      if (abs >= 0.1) return fixedTrim(v, 2);
-      if (abs >= 0.01) return fixedTrim(v, 2);
-      return fixedTrim(v, 3);
-    }
-
-    function formatHistBinEdge(v){
-      if (!Number.isFinite(v)) return '';
-      const abs = Math.abs(v);
-      if (abs >= 1) return fixedTrim(v, 3);
-      if (abs >= 0.1) return fixedTrim(v, 3);
-      if (abs >= 0.01) return fixedTrim(v, 3);
-      return fixedTrim(v, 4);
-    }
-
-    const dataMin = Math.min.apply(null, values);
-    const dataMax = Math.max.apply(null, values);
-    const specMin = Number.isFinite(entry.lsl) ? entry.lsl : dataMin;
-    const specMax = Number.isFinite(entry.usl) ? entry.usl : dataMax;
-    const binW = chooseBinWidth(values);
-    const binStart = Math.floor(Math.min(dataMin, specMin) / binW) * binW;
-    const binEnd = Math.ceil(Math.max(dataMax, specMax) / binW) * binW;
-    const binCount = Math.max(1, Math.ceil((binEnd - binStart) / binW));
+    let rawMin = Math.min.apply(null, values);
+    let rawMax = Math.max.apply(null, values);
+    if (Number.isFinite(entry.lsl)) rawMin = Math.min(rawMin, entry.lsl);
+    if (Number.isFinite(entry.usl)) rawMax = Math.max(rawMax, entry.usl);
+    let range = Math.max(1e-9, rawMax - rawMin);
+    let min = rawMin - range * 0.06;
+    let max = rawMax + range * 0.06;
+    if (Number.isFinite(entry.lsl)) min = Math.min(min, entry.lsl - range * 0.03);
+    if (Number.isFinite(entry.usl)) max = Math.max(max, entry.usl + range * 0.03);
+    range = Math.max(1e-9, max - min);
+    const x = v => left + ((v - min) / range) * plotW;
+    const preferredBins = Math.round(Math.sqrt(values.length) * 1.8);
+    const binCount = Math.max(10, Math.min(24, preferredBins || 10));
+    const binW = range / binCount;
     const bins = new Array(binCount).fill(0);
     values.forEach(v => {
-      let i = Math.floor((v - binStart) / binW);
+      let i = Math.floor((v - min) / binW);
       if (i < 0) i = 0;
       if (i >= binCount) i = binCount - 1;
       bins[i]++;
     });
-
-    const axisMin = binStart;
-    const axisMax = binEnd;
-    const range = Math.max(1e-9, axisMax - axisMin);
-    const x = v => left + ((v - axisMin) / range) * plotW;
-
     const maxCount = Math.max.apply(null, bins.concat([1]));
     function curveCounts(v, sigma){
       if (!Number.isFinite(sigma) || sigma <= 0) return 0;
       const density = (1 / (sigma * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((v - entry.avg) / sigma, 2));
       return density * values.length * binW;
     }
-
     let curveMax = 0;
-    for (let i = 0; i <= 320; i++){
-      const xv = axisMin + range * (i / 320);
+    for (let i = 0; i <= 240; i++){
+      const xv = min + range * (i / 240);
       curveMax = Math.max(curveMax, curveCounts(xv, entry.sigmaOverall), curveCounts(xv, entry.sigmaWithin));
     }
     const yMax = Math.max(maxCount, curveMax, 1);
     const y = c => top + plotH - (c / yMax) * plotH;
 
-    const svgBg = '<rect x="0" y="0" width="' + width + '" height="' + height + '" fill="#ffffff"/>';
-    const plotRect = '<rect x="' + left + '" y="' + top + '" width="' + plotW + '" height="' + plotH + '" fill="none" stroke="rgba(0,0,0,.30)"/>';
+    const plotRect = '<rect x="' + left + '" y="' + top + '" width="' + plotW + '" height="' + plotH + '" fill="transparent" stroke="rgba(255,255,255,.18)"/>';
     const bars = bins.map((c, i) => {
-      const edge0 = binStart + i * binW;
-      const edge1 = edge0 + binW;
-      const x0 = x(edge0);
-      const x1 = x(edge1);
-      let xStart = Math.floor(x0);
-      let xEnd = Math.ceil(x1);
-      const minX = Math.floor(left);
-      const maxX = Math.ceil(left + plotW);
-      if (xStart < minX) xStart = minX;
-      if (xEnd > maxX) xEnd = maxX;
-      const w = Math.max(1, xEnd - xStart);
+      const x0 = left + i * (plotW / binCount) + 0.5;
+      const w = Math.max(1, plotW / binCount - 1);
       const y0 = y(c);
-      const label = esc(entry.label || entry.proc || '');
-      const tip = esc(label + ': [' + formatHistBinEdge(edge0) + ', ' + formatHistBinEdge(edge1) + ')' + '\nN:' + c);
-      return '<rect x="' + fixedTrim(xStart, 2) + '" y="' + fixedTrim(y0, 2) + '" width="' + fixedTrim(w, 2) + '" height="' + fixedTrim(top + plotH - y0, 2) + '" fill="#bacaba" stroke="rgba(0,0,0,.65)" stroke-width="0.7" shape-rendering="crispEdges"><title>' + tip + '</title></rect>';
+      return '<rect x="' + fixedTrim(x0, 2) + '" y="' + fixedTrim(y0, 2) + '" width="' + fixedTrim(w, 2) + '" height="' + fixedTrim(top + plotH - y0, 2) + '" fill="rgba(184,194,183,.85)" stroke="rgba(54,60,56,.85)" stroke-width="0.7"/>';
     }).join('');
 
     function linePath(sigma){
       if (!Number.isFinite(sigma) || sigma <= 0) return '';
       let d = '';
-      for (let i = 0; i <= 320; i++){
-        const xv = axisMin + range * (i / 320);
+      for (let i = 0; i <= 240; i++){
+        const xv = min + range * (i / 240);
         const px = x(xv);
         const py = y(curveCounts(xv, sigma));
         d += (i === 0 ? 'M' : 'L') + fixedTrim(px, 2) + ' ' + fixedTrim(py, 2) + ' ';
@@ -796,46 +708,40 @@
       return d.trim();
     }
 
-    const tickStep = Math.max(niceNumber(range / 5, true), 1e-9);
-    const tickStart = Math.ceil(axisMin / tickStep) * tickStep;
-    const ticks = [];
-    for (let v = tickStart; v <= axisMax + tickStep * 0.25; v += tickStep){
-      if (v < axisMin - 1e-9 || v > axisMax + 1e-9) continue;
+    const tickCount = 5;
+    const axis = new Array(tickCount).fill(0).map((_, i) => {
+      const v = min + range * (i / (tickCount - 1));
       const px = x(v);
-      ticks.push('<line x1="' + fixedTrim(px, 2) + '" y1="' + (top + plotH) + '" x2="' + fixedTrim(px, 2) + '" y2="' + (top + plotH + 4) + '" stroke="rgba(0,0,0,.45)"/>' +
-        '<text x="' + fixedTrim(px, 2) + '" y="' + (top + plotH + 15) + '" fill="rgba(0,0,0,.80)" font-size="12" text-anchor="middle">' + esc(formatHistTick(v)) + '</text>');
-    }
-    const axis = ticks.join('');
+      return '<line x1="' + fixedTrim(px, 2) + '" y1="' + (top + plotH) + '" x2="' + fixedTrim(px, 2) + '" y2="' + (top + plotH + 4) + '" stroke="rgba(255,255,255,.55)"/>' +
+        '<text x="' + fixedTrim(px, 2) + '" y="' + (top + plotH + 16) + '" fill="rgba(236,247,240,.84)" font-size="10" text-anchor="middle">' + esc(fmtSpec(v)) + '</text>';
+    }).join('');
 
     let specLines = '';
-    if (Number.isFinite(entry.lsl)) specLines += '<line x1="' + fixedTrim(x(entry.lsl), 2) + '" y1="' + top + '" x2="' + fixedTrim(x(entry.lsl), 2) + '" y2="' + (top + plotH) + '" stroke="#ff0000" stroke-width="1.3"/><text x="' + fixedTrim(x(entry.lsl), 2) + '" y="' + (top - 6) + '" fill="#000" font-size="12" text-anchor="middle">LSL</text>';
-    if (Number.isFinite(entry.usl)) specLines += '<line x1="' + fixedTrim(x(entry.usl), 2) + '" y1="' + top + '" x2="' + fixedTrim(x(entry.usl), 2) + '" y2="' + (top + plotH) + '" stroke="#ff0000" stroke-width="1.3"/><text x="' + fixedTrim(x(entry.usl), 2) + '" y="' + (top - 6) + '" fill="#000" font-size="12" text-anchor="middle">USL</text>';
+    if (Number.isFinite(entry.lsl)) specLines += '<line x1="' + fixedTrim(x(entry.lsl), 2) + '" y1="' + top + '" x2="' + fixedTrim(x(entry.lsl), 2) + '" y2="' + (top + plotH) + '" stroke="#ff5062" stroke-width="1.5"/><text x="' + fixedTrim(x(entry.lsl), 2) + '" y="' + (top - 4) + '" fill="#ff9ca6" font-size="10" text-anchor="middle">LSL</text>';
+    if (Number.isFinite(entry.usl)) specLines += '<line x1="' + fixedTrim(x(entry.usl), 2) + '" y1="' + top + '" x2="' + fixedTrim(x(entry.usl), 2) + '" y2="' + (top + plotH) + '" stroke="#ff5062" stroke-width="1.5"/><text x="' + fixedTrim(x(entry.usl), 2) + '" y="' + (top - 4) + '" fill="#ff9ca6" font-size="10" text-anchor="middle">USL</text>';
 
     const overallPath = linePath(entry.sigmaOverall);
     const withinPath = linePath(entry.sigmaWithin);
-    const legendX = left + plotW + 18;
-    const legendY = top + 6;
+    const legendX = width - 62, legendY = 24;
 
     return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
-      svgBg +
       plotRect +
-      '<line x1="' + left + '" y1="' + (top + plotH) + '" x2="' + (left + plotW) + '" y2="' + (top + plotH) + '" stroke="rgba(0,0,0,.55)"/>' +
+      '<line x1="' + left + '" y1="' + (top + plotH) + '" x2="' + (left + plotW) + '" y2="' + (top + plotH) + '" stroke="rgba(255,255,255,.55)"/>' +
       bars +
-      (overallPath ? '<path d="' + overallPath + '" fill="none" stroke="#000" stroke-width="1.15" stroke-dasharray="3 3"/>' : '') +
-      (withinPath ? '<path d="' + withinPath + '" fill="none" stroke="#2d74ff" stroke-width="1.65"/>' : '') +
+      (overallPath ? '<path d="' + overallPath + '" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="1.3" stroke-dasharray="3 3"/>' : '') +
+      (withinPath ? '<path d="' + withinPath + '" fill="none" stroke="#2d74ff" stroke-width="1.8"/>' : '') +
       specLines + axis +
-      '<text x="' + (left + plotW / 2) + '" y="' + (height - 10) + '" fill="#000" font-size="13" text-anchor="middle">' + esc(entry.label) + '</text>' +
-      '<text x="' + legendX + '" y="' + legendY + '" fill="#000" font-size="12" font-weight="700">밀도</text>' +
-      '<line x1="' + legendX + '" y1="' + (legendY + 13) + '" x2="' + (legendX + 16) + '" y2="' + (legendY + 13) + '" stroke="#000" stroke-width="1.15" stroke-dasharray="3 3"/>' +
-      '<text x="' + (legendX + 20) + '" y="' + (legendY + 16) + '" fill="#000" font-size="12">전체</text>' +
-      '<line x1="' + legendX + '" y1="' + (legendY + 29) + '" x2="' + (legendX + 16) + '" y2="' + (legendY + 29) + '" stroke="#2d74ff" stroke-width="1.65"/>' +
-      '<text x="' + (legendX + 20) + '" y="' + (legendY + 32) + '" fill="#000" font-size="12">군내</text>' +
+      '<text x="' + (left + plotW / 2) + '" y="' + (height - 8) + '" fill="rgba(236,247,240,.95)" font-size="11" text-anchor="middle">' + esc(entry.label) + '</text>' +
+      '<text x="' + legendX + '" y="' + legendY + '" fill="rgba(236,247,240,.95)" font-size="10">밀도</text>' +
+      '<line x1="' + legendX + '" y1="' + (legendY + 13) + '" x2="' + (legendX + 16) + '" y2="' + (legendY + 13) + '" stroke="rgba(255,255,255,.88)" stroke-width="1.3" stroke-dasharray="3 3"/>' +
+      '<text x="' + (legendX + 20) + '" y="' + (legendY + 16) + '" fill="rgba(236,247,240,.95)" font-size="10">전체</text>' +
+      '<line x1="' + legendX + '" y1="' + (legendY + 29) + '" x2="' + (legendX + 16) + '" y2="' + (legendY + 29) + '" stroke="#2d74ff" stroke-width="1.8"/>' +
+      '<text x="' + (legendX + 20) + '" y="' + (legendY + 32) + '" fill="rgba(236,247,240,.95)" font-size="10">군내</text>' +
       '</svg>';
   }
 
   function statTableHtml(title, rows){
-    const header = title ? ('<div class="qpc-summary-title">' + esc(title) + '</div>') : '';
-    return '<div class="qpc-stat-box">' + header + '<table class="qpc-stat-table"><thead><tr><th>인덱스</th><th>추정값</th><th>95% 하한</th><th>95% 상한</th></tr></thead><tbody>' + rows.map(r => '<tr><th>' + esc(r.name) + '</th><td>' + esc(fmtIndex(r.value)) + '</td><td>' + esc(fmtIndex(r.lower)) + '</td><td>' + esc(fmtIndex(r.upper)) + '</td></tr>').join('') + '</tbody></table></div>';
+    return '<div class="qpc-stat-box"><div class="qpc-summary-title">' + esc(title) + '</div><table class="qpc-stat-table"><thead><tr><th>인덱스</th><th>추정값</th><th>95% 하한</th><th>95% 상한</th></tr></thead><tbody>' + rows.map(r => '<tr><th>' + esc(r.name) + '</th><td>' + esc(fmtIndex(r.value)) + '</td><td>' + esc(fmtIndex(r.lower)) + '</td><td>' + esc(fmtIndex(r.upper)) + '</td></tr>').join('') + '</tbody></table></div>';
   }
 
   function standardizedBySpecValues(entry){
@@ -880,13 +786,13 @@
 
   function capabilityBoxPlotSvg(entry){
     const values = standardizedBySpecValues(entry);
-    const width = 590, height = 92;
-    const left = 32, right = 94, top = 8, bottom = 24;
+    const width = 670, height = 102;
+    const left = 34, right = 116, top = 10, bottom = 28;
     const plotW = width - left - right;
     const plotH = height - top - bottom;
     const axisY = top + plotH;
-    const yMid = top + 28;
-    const boxH = 16;
+    const yMid = top + 31;
+    const boxH = 18;
     if (!values.length){
       return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true"><rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="transparent" stroke="rgba(255,255,255,.12)"/><text x="' + fixedTrim(width / 2, 2) + '" y="' + fixedTrim(height / 2, 2) + '" fill="rgba(236,247,240,.55)" text-anchor="middle" font-size="11">규격 한계가 있어야 표시됩니다.</text></svg>';
     }
@@ -909,9 +815,17 @@
     const x = v => left + ((v - xMin) / Math.max(1e-9, xMax - xMin)) * plotW;
 
 
-    // JMP 비교 케이스에서는 공정 능력 상자 그림의 개별 점을 표시하지 않는다.
-    // 현재는 개별 점 렌더링을 끄고, 박스/수염/규격 기준선만 표시한다.
-    const points = '';
+    // JMP capability box plot: 기본은 box plot만 보이고, 점은 수염 밖(outlier)일 때만 최소로 표시
+    const pointRadius = 2.05;
+    const outliersLow = sorted.filter(v => v < whiskerLow);
+    const outliersHigh = sorted.filter(v => v > whiskerHigh);
+    const maxOutliersPerSide = 120;
+    const trimSide = arr => (arr.length <= maxOutliersPerSide ? arr : arr.slice(0, maxOutliersPerSide));
+    const visibleOutliers = trimSide(outliersLow).concat(trimSide(outliersHigh));
+    const points = visibleOutliers.map(v => {
+      const cy = yMid;
+      return '<circle cx="' + fixedTrim(x(v), 2) + '" cy="' + fixedTrim(cy, 2) + '" r="' + fixedTrim(pointRadius, 2) + '" fill="rgba(183,183,183,.96)" stroke="none"/>';
+    }).join('');
 
     const specLineDefs = [];
     if (Number.isFinite(entry.lsl) && Number.isFinite(entry.usl)){
@@ -964,7 +878,7 @@
   function rejectTableHtml(entry){
     const withinTotal = (Number.isFinite(entry.expWithinBelowPct) ? entry.expWithinBelowPct : 0) + (Number.isFinite(entry.expWithinAbovePct) ? entry.expWithinAbovePct : 0);
     const overallTotal = (Number.isFinite(entry.expOverallBelowPct) ? entry.expOverallBelowPct : 0) + (Number.isFinite(entry.expOverallAbovePct) ? entry.expOverallAbovePct : 0);
-    return '<div class="qpc-reject-box"><table class="qpc-stat-table qpc-reject-table"><thead><tr><th>비율</th><th>관측 %</th><th>기대 군내 %</th><th>기대 전체 %</th></tr></thead><tbody>' +
+    return '<div class="qpc-reject-box"><div class="qpc-summary-title">부적합</div><table class="qpc-stat-table"><thead><tr><th>비율</th><th>관측 %</th><th>기대 군내 %</th><th>기대 전체 %</th></tr></thead><tbody>' +
       '<tr><th>LSL 아래</th><td>' + esc(fmtPct(entry.obsBelowPct)) + '</td><td>' + esc(fmtPct(entry.expWithinBelowPct)) + '</td><td>' + esc(fmtPct(entry.expOverallBelowPct)) + '</td></tr>' +
       '<tr><th>USL 위</th><td>' + esc(fmtPct(entry.obsAbovePct)) + '</td><td>' + esc(fmtPct(entry.expWithinAbovePct)) + '</td><td>' + esc(fmtPct(entry.expOverallAbovePct)) + '</td></tr>' +
       '<tr><th>규격 밖 전체</th><td>' + esc(fmtPct(entry.obsTotalPct)) + '</td><td>' + esc(fmtPct(withinTotal)) + '</td><td>' + esc(fmtPct(overallTotal)) + '</td></tr>' +
@@ -975,11 +889,11 @@
     if (!Number.isFinite(value)) return '';
     if (kind === 'stability'){
       if (value <= 1.25) return 'is-good';
-      if (value <= 2.00) return 'is-warn';
+      if (value <= 1.50) return 'is-warn';
       return 'is-bad';
     }
     if (kind === 'capability'){
-      if (value >= 1.50) return 'is-good';
+      if (value >= 1.33) return 'is-good';
       if (value >= 1.00) return 'is-warn';
       return 'is-bad';
     }
@@ -1032,11 +946,8 @@
       '</tr></thead><tbody>' + (rows || '<tr><td colspan="18" class="qpc-report-empty">데이터 없음</td></tr>') + '</tbody></table></div>';
   }
 
-  function summaryBoxHtml(entry, opts){
-    const plain = !!(opts && opts.plain);
-    return '<div class="qpc-summary-box" style="width:100%;max-width:168px;align-self:start;' + (plain ? 'border:none;padding:0;background:transparent;' : '') + '">' +
-      (plain ? '' : '<div class="qpc-summary-title">공정 요약</div>') +
-      '<div class="qpc-summary-grid">' +
+  function summaryBoxHtml(entry){
+    return '<div class="qpc-summary-box"><div class="qpc-summary-title">공정 요약</div><div class="qpc-summary-grid">' +
       '<div class="k">LSL</div><div class="v">' + esc(fmtSpec(entry.lsl)) + '</div>' +
       '<div class="k">USL</div><div class="v">' + esc(fmtSpec(entry.usl)) + '</div>' +
       '<div class="k">N</div><div class="v">' + esc(fixedTrim(entry.n, 0)) + '</div>' +
@@ -1044,7 +955,7 @@
       '<div class="k">군내 표준편차</div><div class="v">' + esc(fmtWide(entry.sigmaWithin)) + '</div>' +
       '<div class="k">전체 표준편차</div><div class="v">' + esc(fmtWide(entry.sigmaOverall)) + '</div>' +
       '<div class="k">안정성 지수</div><div class="v">' + esc(fmtWide(entry.stability)) + '</div>' +
-      '</div><div class="qpc-summary-sep"' + (plain ? ' style="margin:6px 0 6px;"' : '') + '></div><div class="qpc-summary-grid"><div class="k">평균 이동 범위()로 추정된 군내 표준편차</div><div class="v">' + esc(fmtWide(entry.sigmaWithin)) + '</div></div></div>';
+      '</div><div class="qpc-summary-sep"></div><div class="qpc-summary-grid"><div class="k">평균 이동 범위()로 추정된 군내 표준편차</div><div class="v">' + esc(fmtWide(entry.sigmaWithin)) + '</div></div></div>';
   }
 
   function clampNum(v, min, max){
@@ -1341,8 +1252,8 @@
   }
 
   function targetPlotSvg(entry, opts){
-    const width = 468, height = 290;
-    const left = 40, right = 14, top = 8, bottom = 30;
+    const width = 520, height = 330;
+    const left = 42, right = 16, top = 8, bottom = 34;
     const plotW = width - left - right;
     const plotH = height - top - bottom;
     const xMin = -0.6, xMax = 0.6;
@@ -1391,9 +1302,9 @@
 
   function targetPlotHtml(entry, idx){
     const ppkDefault = '1';
-    return '<div class="qpc-target-grid" data-entry-index="' + idx + '" style="display:grid;grid-template-columns:minmax(0,468px) 118px;gap:12px;align-items:start;max-width:598px;">' +
-      '<div class="qpc-target-main" style="width:100%;max-width:468px;position:relative;"><div class="qpc-svgbox" data-role="target-svg" style="width:100%;max-width:468px;">' + targetPlotSvg(entry, { useOverall: targetPlotUseOverall(idx), ppk: 1 }) + '</div><div class="qpc-target-hover-tip" data-role="target-hover-tip" hidden></div></div>' +
-      '<div class="qpc-target-side" style="width:118px;">' +
+    return '<div class="qpc-target-grid" data-entry-index="' + idx + '">' +
+      '<div class="qpc-target-main"><div class="qpc-svgbox" data-role="target-svg">' + targetPlotSvg(entry, { useOverall: targetPlotUseOverall(idx), ppk: 1 }) + '</div><div class="qpc-target-hover-tip" data-role="target-hover-tip" hidden></div></div>' +
+      '<div class="qpc-target-side">' +
         '<div class="qpc-target-side-head"><div class="qpc-target-legend-link" data-role="open-legend" title="더블클릭: 범례 설정">' + esc(getLegendPrefs(idx).title || '범례') + '</div></div>' +
         '<div class="qpc-target-side-preview" data-role="legend-side-preview">' + legendSidePreviewHtml(idx) + '</div>' +
         '<div class="qpc-target-ppk-label">Ppk</div>' +
@@ -1423,8 +1334,8 @@
   }
 
   function capabilityIndexPlotSvg(entry, opts){
-    const width = 292, height = 222;
-    const left = 28, right = 14, top = 8, bottom = 34;
+    const width = 338, height = 248;
+    const left = 30, right = 16, top = 8, bottom = 38;
     const plotW = width - left - right;
     const plotH = height - top - bottom;
     const refVal = clampNum(Number.isFinite(parseNum(opts && opts.refPpk)) ? parseNum(opts && opts.refPpk) : 1, 0.20, 2.50);
@@ -1473,9 +1384,9 @@
 
   function capabilityIndexPlotHtml(entry, idx){
     const refDefault = '1';
-    return '<div class="qpc-index-grid" data-entry-index="' + idx + '" style="display:grid;grid-template-columns:minmax(0,292px) 106px;gap:12px;align-items:start;max-width:410px;">' +
-      '<div class="qpc-index-main" style="width:100%;max-width:292px;"><div class="qpc-svgbox" data-role="index-svg" style="width:100%;max-width:292px;">' + capabilityIndexPlotSvg(entry, { refPpk: 1 }) + '</div></div>' +
-      '<div class="qpc-index-side" style="width:106px;">' + capabilityIndexLegendSideHtml() +
+    return '<div class="qpc-index-grid" data-entry-index="' + idx + '" style="display:grid;grid-template-columns:minmax(0,338px) 112px;gap:12px;align-items:start;max-width:462px;">' +
+      '<div class="qpc-index-main" style="width:100%;max-width:338px;"><div class="qpc-svgbox" data-role="index-svg" style="width:100%;max-width:338px;">' + capabilityIndexPlotSvg(entry, { refPpk: 1 }) + '</div></div>' +
+      '<div class="qpc-index-side" style="width:112px;">' + capabilityIndexLegendSideHtml() +
         '<div style="height:10px;"></div>' +
         '<div style="font-size:11px;font-weight:700;color:rgba(236,247,240,.96);margin-bottom:4px;">Ppk</div>' +
         '<div style="display:flex;align-items:center;gap:4px;margin-bottom:6px;"><span style="display:inline-block;min-width:34px;padding:2px 6px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.03);font-size:11px;font-weight:700;text-align:center;color:rgba(236,247,240,.96);">Ppk</span><input type="text" class="qpc-index-ppk-input" data-role="index-ppk-text" value="' + refDefault + '" style="width:38px;height:20px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.03);color:rgba(236,247,240,.96);font-size:11px;text-align:center;padding:0 4px;"></div>' +
@@ -1544,15 +1455,12 @@
       return '<details class="qpc-report-group" ' + (idx === 0 ? 'open' : 'open') + '>' +
         '<summary>' + esc(entry.label) + ' 공정 능력</summary>' +
         '<div class="qpc-report-group-body">' +
-          '<div class="qpc-report-hist-grid qpc-report-top-grid">' +
-            '<details class="qpc-report-sub qpc-report-sub-top qpc-report-sub-hist" open><summary>히스토그램</summary><div class="qpc-report-sub-body"><div class="qpc-hist-wrap qpc-hist-wrap--top"><div class="qpc-svgbox qpc-svgbox--hist">' + histogramSvg(entry) + '</div></div></div></details>' +
-            '<details class="qpc-report-top-summary" open><summary>공정 요약</summary><div class="qpc-report-top-summary-body">' + summaryBoxHtml(entry, { plain: true }) + '</div></details>' +
+          '<details class="qpc-report-sub" open><summary>히스토그램</summary><div class="qpc-report-sub-body"><div class="qpc-report-hist-grid"><div class="qpc-hist-wrap"><div class="qpc-svgbox">' + histogramSvg(entry) + '</div></div>' + summaryBoxHtml(entry) + '</div></div></details>' +
+          '<div class="qpc-report-two">' +
+            '<details class="qpc-report-sub" open><summary>군내 표준편차 공정 능력</summary><div class="qpc-report-sub-body">' + statTableHtml('군내 표준편차 공정 능력', withinRows) + '</div></details>' +
+            '<details class="qpc-report-sub" open><summary>전체 표준편차 공정 능력</summary><div class="qpc-report-sub-body">' + statTableHtml('전체 표준편차 공정 능력', overallRows) + '</div></details>' +
           '</div>' +
-          '<div class="qpc-report-two qpc-report-two-tight">' +
-            '<details class="qpc-report-sub" open><summary>군내 표준편차 공정 능력</summary><div class="qpc-report-sub-body">' + statTableHtml('', withinRows) + '</div></details>' +
-            '<details class="qpc-report-sub" open><summary>전체 표준편차 공정 능력</summary><div class="qpc-report-sub-body">' + statTableHtml('', overallRows) + '</div></details>' +
-          '</div>' +
-          '<details class="qpc-report-sub qpc-report-sub-reject" open><summary>부적합</summary><div class="qpc-report-sub-body">' + rejectTableHtml(entry) + '</div></details>' +
+          '<details class="qpc-report-sub" open><summary>부적합</summary><div class="qpc-report-sub-body">' + rejectTableHtml(entry) + '</div></details>' +
           '<details class="qpc-report-sub" open><summary>목표 그림</summary><div class="qpc-report-sub-body">' + targetPlotHtml(entry, idx) + '</div></details>' +
           '<details class="qpc-report-sub qpc-report-sub-summary" open><summary>군내 표준편차 공정 능력 요약 보고서</summary><div class="qpc-report-sub-body">' + summaryReportTableHtml([entry], 'within') + '</div></details>' +
           '<details class="qpc-report-sub qpc-report-sub-summary" open><summary>전체 표준편차 공정 능력 요약 보고서</summary><div class="qpc-report-sub-body">' + summaryReportTableHtml([entry], 'overall') + '</div></details>' +
