@@ -634,18 +634,13 @@
 
   function histogramSvg(entry){
     const values = (entry && Array.isArray(entry.values) ? entry.values : []).filter(Number.isFinite);
-    const width = 660, height = 296;
-    const left = 36, right = 144, top = 24, bottom = 64;
-    const plotW = width - left - right;
-    const plotH = height - top - bottom;
-    const outerBg = '<rect x="0" y="0" width="' + width + '" height="' + height + '" fill="#ececec"/>';
-    const plotBg = '<rect x="' + left + '" y="' + top + '" width="' + plotW + '" height="' + plotH + '" fill="#f8f8f8" stroke="#b7b7b7" stroke-width="1"/>';
-    if (!values.length){
-      return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
-        outerBg + plotBg +
-        '<text x="' + fixedTrim(left + (plotW / 2), 2) + '" y="' + fixedTrim(top + (plotH / 2) + 4, 2) + '" fill="#000" text-anchor="middle" font-size="14">데이터 없음</text>' +
-      '</svg>';
-    }
+    const cardWidth = 660;
+    const plotSvgW = 516;
+    const plotSvgH = 236;
+    const left = 36, top = 18, bottom = 34;
+    const plotW = 480;
+    const plotH = 176;
+    const axisY = top + plotH;
 
     function niceNumber(v, round){
       if (!(v > 0) || !Number.isFinite(v)) return 1;
@@ -733,6 +728,25 @@
       return fixedTrim(v, 4);
     }
 
+    function buildShell(plotInner, labelHtml, legendHtml, footerHtml){
+      return '<div class="qpc-hist-card" style="width:' + cardWidth + 'px">' +
+        '<div class="qpc-hist-topline"><div class="qpc-hist-toplabels" style="width:' + plotSvgW + 'px">' + labelHtml + '</div></div>' +
+        '<div class="qpc-hist-main">' +
+          '<div class="qpc-hist-plot" style="width:' + plotSvgW + 'px">' + plotInner + '</div>' +
+          '<div class="qpc-hist-side">' + legendHtml + '</div>' +
+        '</div>' +
+        '<div class="qpc-hist-foot"><div class="qpc-hist-caption">' + footerHtml + '</div></div>' +
+      '</div>';
+    }
+
+    if (!values.length){
+      const emptySvg = '<svg viewBox="0 0 ' + plotSvgW + ' ' + plotSvgH + '" aria-hidden="true">' +
+        '<rect x="' + left + '" y="' + top + '" width="' + plotW + '" height="' + plotH + '" fill="#f8f8f8" stroke="#b7b7b7" stroke-width="1"/>' +
+        '<text x="' + fixedTrim(left + (plotW / 2), 2) + '" y="' + fixedTrim(top + (plotH / 2) + 4, 2) + '" fill="#000" text-anchor="middle" font-size="14">데이터 없음</text>' +
+      '</svg>';
+      return buildShell(emptySvg, '', '<div class="qpc-hist-legend"><div class="qpc-hist-legend-title">밀도</div></div>', esc(entry && entry.label ? entry.label : ''));
+    }
+
     const dataMin = Math.min.apply(null, values);
     const dataMax = Math.max.apply(null, values);
     const specMin = Number.isFinite(entry.lsl) ? entry.lsl : dataMin;
@@ -753,6 +767,7 @@
     const axisMax = binEnd;
     const range = Math.max(1e-9, axisMax - axisMin);
     const x = v => left + ((v - axisMin) / range) * plotW;
+    const clampPlotX = v => Math.max(0, Math.min(plotSvgW, x(v)));
 
     const maxCount = Math.max.apply(null, bins.concat([1]));
     function curveCounts(v, sigma){
@@ -783,7 +798,7 @@
       const w = Math.max(1, xEnd - xStart);
       const y0 = y(c);
       const label = esc(entry.label || entry.proc || '');
-      const tip = esc(label + ': [' + formatHistBinEdge(edge0) + ', ' + formatHistBinEdge(edge1) + ')' + '\nN:' + c);
+      const tip = esc(label + ': [' + formatHistBinEdge(edge0) + ', ' + formatHistBinEdge(edge1) + ')' + '\\nN:' + c);
       return '<rect x="' + fixedTrim(xStart, 2) + '" y="' + fixedTrim(y0, 2) + '" width="' + fixedTrim(w, 2) + '" height="' + fixedTrim(top + plotH - y0, 2) + '" fill="#bacaba" stroke="rgba(0,0,0,.55)" stroke-width="0.7" shape-rendering="crispEdges"><title>' + tip + '</title></rect>';
     }).join('');
 
@@ -805,36 +820,42 @@
     for (let v = tickStart; v <= axisMax + tickStep * 0.25; v += tickStep){
       if (v < axisMin - 1e-9 || v > axisMax + 1e-9) continue;
       const px = x(v);
-      ticks.push('<line x1="' + fixedTrim(px, 2) + '" y1="' + (top + plotH) + '" x2="' + fixedTrim(px, 2) + '" y2="' + (top + plotH + 4) + '" stroke="rgba(0,0,0,.45)"/>' +
-        '<text x="' + fixedTrim(px, 2) + '" y="' + (top + plotH + 15) + '" fill="rgba(0,0,0,.80)" font-size="12" text-anchor="middle">' + esc(formatHistTick(v)) + '</text>');
+      ticks.push('<line x1="' + fixedTrim(px, 2) + '" y1="' + axisY + '" x2="' + fixedTrim(px, 2) + '" y2="' + (axisY + 4) + '" stroke="rgba(0,0,0,.45)"/>' +
+        '<text x="' + fixedTrim(px, 2) + '" y="' + (axisY + 15) + '" fill="rgba(0,0,0,.80)" font-size="12" text-anchor="middle">' + esc(formatHistTick(v)) + '</text>');
     }
     const axis = ticks.join('');
 
-    const labelY = top - 6;
     let specLines = '';
-    if (Number.isFinite(entry.lsl)) specLines += '<line x1="' + fixedTrim(x(entry.lsl), 2) + '" y1="' + top + '" x2="' + fixedTrim(x(entry.lsl), 2) + '" y2="' + (top + plotH) + '" stroke="#ff0000" stroke-width="1.3"/><text x="' + fixedTrim(x(entry.lsl), 2) + '" y="' + labelY + '" fill="#000" font-size="12" text-anchor="middle">LSL</text>';
-    if (Number.isFinite(entry.usl)) specLines += '<line x1="' + fixedTrim(x(entry.usl), 2) + '" y1="' + top + '" x2="' + fixedTrim(x(entry.usl), 2) + '" y2="' + (top + plotH) + '" stroke="#ff0000" stroke-width="1.3"/><text x="' + fixedTrim(x(entry.usl), 2) + '" y="' + labelY + '" fill="#000" font-size="12" text-anchor="middle">USL</text>';
+    let headLabels = '';
+    if (Number.isFinite(entry.lsl)) {
+      const lx = fixedTrim(x(entry.lsl), 2);
+      specLines += '<line x1="' + lx + '" y1="' + top + '" x2="' + lx + '" y2="' + axisY + '" stroke="#ff0000" stroke-width="1.3"/>';
+      headLabels += '<div class="qpc-hist-limit qpc-hist-limit--lsl" style="left:' + fixedTrim(clampPlotX(entry.lsl), 2) + 'px">LSL</div>';
+    }
+    if (Number.isFinite(entry.usl)) {
+      const ux = fixedTrim(x(entry.usl), 2);
+      specLines += '<line x1="' + ux + '" y1="' + top + '" x2="' + ux + '" y2="' + axisY + '" stroke="#ff0000" stroke-width="1.3"/>';
+      headLabels += '<div class="qpc-hist-limit qpc-hist-limit--usl" style="left:' + fixedTrim(clampPlotX(entry.usl), 2) + 'px">USL</div>';
+    }
 
     const overallPath = linePath(entry.sigmaOverall);
     const withinPath = linePath(entry.sigmaWithin);
-    const legendX = left + plotW + 20;
-    const legendY = top + 18;
-
-    return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
-      outerBg +
-      plotBg +
-      '<line x1="' + left + '" y1="' + (top + plotH) + '" x2="' + (left + plotW) + '" y2="' + (top + plotH) + '" stroke="rgba(0,0,0,.55)"/>' +
+    const plotSvg = '<svg viewBox="0 0 ' + plotSvgW + ' ' + plotSvgH + '" aria-hidden="true">' +
+      '<rect x="' + left + '" y="' + top + '" width="' + plotW + '" height="' + plotH + '" fill="#f8f8f8" stroke="#b7b7b7" stroke-width="1"/>' +
+      '<line x1="' + left + '" y1="' + axisY + '" x2="' + (left + plotW) + '" y2="' + axisY + '" stroke="rgba(0,0,0,.55)"/>' +
       bars +
       (overallPath ? '<path d="' + overallPath + '" fill="none" stroke="#000" stroke-width="1.15" stroke-dasharray="3 3"/>' : '') +
       (withinPath ? '<path d="' + withinPath + '" fill="none" stroke="#2d74ff" stroke-width="1.65"/>' : '') +
       specLines + axis +
-      '<text x="' + fixedTrim(left + (plotW / 2), 2) + '" y="' + (height - 10) + '" fill="#000" font-size="13" text-anchor="middle">' + esc(entry.label) + '</text>' +
-      '<text x="' + legendX + '" y="' + legendY + '" fill="#000" font-size="12" font-weight="700">밀도</text>' +
-      '<line x1="' + legendX + '" y1="' + (legendY + 13) + '" x2="' + (legendX + 16) + '" y2="' + (legendY + 13) + '" stroke="#000" stroke-width="1.15" stroke-dasharray="3 3"/>' +
-      '<text x="' + (legendX + 20) + '" y="' + (legendY + 16) + '" fill="#000" font-size="12">전체</text>' +
-      '<line x1="' + legendX + '" y1="' + (legendY + 29) + '" x2="' + (legendX + 16) + '" y2="' + (legendY + 29) + '" stroke="#2d74ff" stroke-width="1.65"/>' +
-      '<text x="' + (legendX + 20) + '" y="' + (legendY + 32) + '" fill="#000" font-size="12">군내</text>' +
-      '</svg>';
+    '</svg>';
+
+    const legendHtml = '<div class="qpc-hist-legend">' +
+      '<div class="qpc-hist-legend-title">밀도</div>' +
+      '<div class="qpc-hist-legend-item"><span class="qpc-hist-legend-line qpc-hist-legend-line--overall"></span><span class="qpc-hist-legend-text">전체</span></div>' +
+      '<div class="qpc-hist-legend-item"><span class="qpc-hist-legend-line qpc-hist-legend-line--within"></span><span class="qpc-hist-legend-text">군내</span></div>' +
+    '</div>';
+
+    return buildShell(plotSvg, headLabels, legendHtml, esc(entry.label));
   }
 
   function statTableHtml(title, rows){

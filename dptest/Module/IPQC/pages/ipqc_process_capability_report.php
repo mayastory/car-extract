@@ -74,6 +74,22 @@ body{min-width:980px;}
 .qpc-svgbox svg{width:100%;height:auto;display:block;}
 .qpc-svgbox--hist{width:660px;max-width:100%;position:relative;display:block;background:transparent;}
 .qpc-svgbox--hist svg{width:660px;max-width:100%;height:auto;display:block;}
+.qpc-hist-card{display:flex;flex-direction:column;gap:0;width:660px;max-width:100%;}
+.qpc-hist-topline{display:flex;align-items:flex-end;min-height:18px;padding:0 0 1px;}
+.qpc-hist-toplabels{position:relative;height:18px;flex:0 0 auto;}
+.qpc-hist-limit{position:absolute;top:0;transform:translateX(-50%);font-size:12px;line-height:1;color:#000;font-weight:400;white-space:nowrap;}
+.qpc-hist-main{display:grid;grid-template-columns:516px 1fr;column-gap:18px;align-items:start;width:100%;}
+.qpc-hist-plot{display:block;}
+.qpc-hist-plot svg{width:516px;max-width:100%;height:auto;display:block;}
+.qpc-hist-side{display:flex;align-items:flex-start;justify-content:flex-start;padding-top:16px;}
+.qpc-hist-legend{display:flex;flex-direction:column;gap:6px;color:#000;font-size:12px;line-height:1.2;}
+.qpc-hist-legend-title{font-weight:700;}
+.qpc-hist-legend-item{display:flex;align-items:center;gap:6px;white-space:nowrap;}
+.qpc-hist-legend-line{display:inline-block;width:16px;height:0;border-top:1.15px solid #000;box-sizing:border-box;}
+.qpc-hist-legend-line--overall{border-top-style:dashed;}
+.qpc-hist-legend-line--within{border-top:1.65px solid #2d74ff;}
+.qpc-hist-foot{display:flex;justify-content:flex-start;padding-top:3px;}
+.qpc-hist-caption{width:516px;text-align:center;color:#000;font-size:13px;line-height:1.15;}
 .qpc-hist-wrap--top .qpc-svgbox--hist::after{display:none;}
 .qpc-report-top-summary{margin:0;width:156px;max-width:156px;border:0;background:transparent;overflow:visible;align-self:start;}
 .qpc-report-top-summary > summary{list-style:none;cursor:pointer;padding:1px 6px;font-size:12px;line-height:1.3;font-weight:700;color:var(--qpc-text);background:linear-gradient(180deg, rgba(44,92,62,.88), rgba(14,29,20,.98));border:1px solid var(--qpc-border);}
