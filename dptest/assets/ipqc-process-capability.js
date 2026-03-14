@@ -220,12 +220,13 @@
     if (!(sum >= 0)) return NaN;
     return Math.max(0, Math.min(1, sum * quad.scale));
   }
-  function capabilityCIOneSidedExact(indexValue, n, alpha){
+  function capabilityCIOneSidedExact(indexValue, n, alpha, dfOverride){
     if (!Number.isFinite(indexValue) || !(n > 1)) return { lower: NaN, upper: NaN };
     const a = Number.isFinite(alpha) ? alpha : 0.05;
+    const df = Number.isFinite(dfOverride) && dfOverride > 0 ? dfOverride : (n - 1);
     const tObs = 3 * Math.sqrt(n) * indexValue;
     if (!Number.isFinite(tObs) || !(tObs >= 0)) return { lower: NaN, upper: NaN };
-    const quad = capabilityOneSidedQuad(n - 1, tObs);
+    const quad = capabilityOneSidedQuad(df, tObs);
     if (!quad) return { lower: NaN, upper: NaN };
     const deltaScale = 3 * Math.sqrt(n);
     const solve = (target) => {
@@ -267,7 +268,7 @@
   function capabilityCI(indexValue, n, mode, kind, alpha, extra){
     const df = capabilityDf(n, mode);
     if (kind === 'cp' || kind === 'pp') return capabilityCIChi(indexValue, df, alpha);
-    if (kind === 'ppl' || kind === 'ppu') return capabilityCIOneSidedExact(indexValue, n, alpha);
+    if (kind === 'ppl' || kind === 'ppu' || kind === 'cpl' || kind === 'cpu') return capabilityCIOneSidedExact(indexValue, n, alpha, df);
     if (kind === 'cpm') {
       const gamma = capabilityCpmGamma(n, extra && extra.meanValue, extra && extra.target, extra && extra.sigma);
       return capabilityCIChi(indexValue, gamma, alpha);
