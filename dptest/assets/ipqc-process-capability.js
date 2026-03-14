@@ -182,12 +182,13 @@
     const delta = z * seTerm;
     return { lower: Math.max(0, indexValue * (1 - delta)), upper: Math.max(0, indexValue * (1 + delta)) };
   }
+  // qpc-ci-v21: exact one-sided CI for Ppl/Ppu
   function capabilityOneSidedQuad(df, tObs){
     if (!(df > 0) || !Number.isFinite(tObs)) return null;
     const tailP = 1 - 1e-10;
     const maxV = chiSquareInv(tailP, df);
     if (!(maxV > 0) || !Number.isFinite(maxV)) return null;
-    const steps = 96;
+    const steps = 256;
     const maxU = Math.sqrt(maxV);
     const h = maxU / steps;
     const halfDf = df / 2;
