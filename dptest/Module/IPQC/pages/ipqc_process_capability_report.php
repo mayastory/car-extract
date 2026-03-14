@@ -70,9 +70,9 @@ body{min-width:980px;}
 .qpc-report-sub-top.qpc-report-sub-hist{width:676px;max-width:100%;}
 .qpc-report-sub-hist > .qpc-report-sub-body{padding:2px 3px 3px;background:transparent;}
 .qpc-hist-wrap--top{padding:0;position:relative;background:transparent;}
-.qpc-svgbox{width:100%;overflow:auto;}
+.qpc-svgbox{width:100%;overflow:visible;}
 .qpc-svgbox svg{width:100%;height:auto;display:block;}
-.qpc-svgbox--hist{width:660px;max-width:100%;position:relative;display:block;background:transparent;}
+.qpc-svgbox--hist{width:660px;max-width:100%;position:relative;display:block;background:transparent;overflow:visible;}
 .qpc-svgbox--hist svg{width:660px;max-width:100%;height:auto;display:block;}
 .qpc-hist-card{display:flex;flex-direction:column;gap:0;width:660px;max-width:100%;background:transparent;}
 .qpc-hist-topline{display:flex;align-items:flex-end;min-height:18px;width:516px;padding:0 0 1px;background:transparent;}
@@ -80,7 +80,7 @@ body{min-width:980px;}
 .qpc-hist-limit{position:absolute;top:0;transform:translateX(-50%);font-size:12px;line-height:1;color:rgba(236,247,240,.96);font-weight:400;white-space:nowrap;}
 .qpc-hist-main{display:grid;grid-template-columns:516px max-content;column-gap:14px;align-items:start;justify-content:start;width:max-content;max-width:100%;background:transparent;}
 .qpc-hist-plot{display:block;background:transparent;}
-.qpc-hist-plot svg{width:516px;max-width:100%;height:162px;display:block;background:transparent;}
+.qpc-hist-plot svg{width:516px;max-width:100%;height:180px;display:block;background:transparent;overflow:visible;}
 .qpc-hist-side{display:flex;align-items:flex-start;justify-content:flex-start;padding-top:4px;background:transparent;}
 .qpc-hist-legend{display:flex;flex-direction:column;gap:6px;color:rgba(236,247,240,.96);font-size:12px;line-height:1.2;background:transparent;}
 .qpc-hist-legend-title{font-weight:700;}
@@ -220,6 +220,88 @@ body{min-width:980px;}
         v = Math.round((v + Number.EPSILON) * mul) / mul;
         return v.toFixed(d).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
     }
+    function fmtTargetTick(v){
+        if (!isFinite(v)) return '';
+        if (Math.abs(v) < 1e-9) return '0';
+        return fixedTrim(v, 1);
+    }
+    function targetPlotUseOverall(box){
+        var preview = box ? box.querySelector('[data-role="legend-side-preview"]') : null;
+        if (!preview) return true;
+        var text = String(preview.textContent || '');
+        var hasOverall = text.indexOf('전체 표준편차') !== -1;
+        var hasWithin = text.indexOf('군내 표준편차') !== -1;
+        if (hasOverall && !hasWithin) return true;
+        if (!hasOverall && hasWithin) return false;
+        return true;
+    }
+    function targetPlotSvg(entry, opts){
+        var width = 468, height = 290;
+        var left = 40, right = 14, top = 8, bottom = 30;
+        var plotW = width - left - right;
+        var plotH = height - top - bottom;
+        var xMin = -0.6, xMax = 0.6;
+        var yMin = 0, yMax = 0.30;
+        var useOverall = !opts || opts.useOverall !== false;
+        var sigma = useOverall ? Number(entry && entry.sigmaOverall) : Number(entry && entry.sigmaWithin);
+        var hasSpecs = isFinite(Number(entry && entry.lsl)) && isFinite(Number(entry && entry.usl)) && Number(entry.usl) > Number(entry.lsl);
+        var specWidth = hasSpecs ? (Number(entry.usl) - Number(entry.lsl)) : NaN;
+        var center = isFinite(Number(entry && entry.target)) ? Number(entry.target) : (hasSpecs ? ((Number(entry.lsl) + Number(entry.usl)) / 2) : Number(entry && entry.avg));
+        var normX = (hasSpecs && isFinite(Number(entry && entry.avg)) && isFinite(center) && isFinite(specWidth) && specWidth > 0) ? ((Number(entry.avg) - center) / specWidth) : NaN;
+        var normY = (hasSpecs && isFinite(sigma) && isFinite(specWidth) && specWidth > 0) ? (sigma / specWidth) : NaN;
+        var ppkVal = clampNum(isFinite(parseNum(opts && opts.ppk)) ? parseNum(opts && opts.ppk) : 1, 0.20, 2.50);
+        var apexY = 1 / (6 * ppkVal);
+        function x(v){ return left + ((v - xMin) / (xMax - xMin)) * plotW; }
+        function y(v){ return top + plotH - ((v - yMin) / (yMax - yMin)) * plotH; }
+        var xTicks = [-0.6,-0.4,-0.2,0,0.2,0.4,0.6];
+        var yTicks = [0,0.05,0.10,0.15,0.20,0.25,0.30];
+        var hGrid = yTicks.map(function(v){
+            var yy = y(v);
+            return '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="rgba(255,255,255,.08)"/>';
+        }).join('');
+        var xAxisTicks = xTicks.map(function(v){
+            return '<line x1="' + fixedTrim(x(v),2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(x(v),2) + '" y2="' + fixedTrim(top + plotH + 4,2) + '" stroke="rgba(255,255,255,.45)"/>' +
+              '<text x="' + fixedTrim(x(v),2) + '" y="' + fixedTrim(top + plotH + 16,2) + '" fill="rgba(236,247,240,.92)" font-size="10" text-anchor="middle">' + esc(fmtTargetTick(v)) + '</text>';
+        }).join('');
+        var yAxisTicks = yTicks.map(function(v){
+            return '<line x1="' + fixedTrim(left - 4,2) + '" y1="' + fixedTrim(y(v),2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(y(v),2) + '" stroke="rgba(255,255,255,.45)"/>' +
+              '<text x="' + fixedTrim(left - 7,2) + '" y="' + fixedTrim(y(v) + 3,2) + '" fill="rgba(236,247,240,.92)" font-size="10" text-anchor="end">' + esc(v === 0 ? '0' : fixedTrim(v,2)) + '</text>';
+        }).join('');
+        var tri = '<path d="M' + fixedTrim(x(-0.5),2) + ' ' + fixedTrim(y(0),2) + ' L' + fixedTrim(x(0),2) + ' ' + fixedTrim(y(apexY),2) + ' L' + fixedTrim(x(0.5),2) + ' ' + fixedTrim(y(0),2) + '" fill="none" stroke="#ff6672" stroke-width="1.2"/>';
+        var marker = '';
+        if (isFinite(normX) && isFinite(normY)){
+            var px = x(clampNum(normX, xMin, xMax));
+            var py = y(clampNum(normY, yMin, yMax));
+            marker = '<rect x="' + fixedTrim(px - 2.5,2) + '" y="' + fixedTrim(py - 2.5,2) + '" width="5" height="5" fill="transparent" stroke="rgba(236,247,240,.95)" stroke-width="1.1"/>';
+        }
+        var empty = (!hasSpecs || !isFinite(normX) || !isFinite(normY))
+          ? '<text x="' + fixedTrim(left + plotW/2,2) + '" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(236,247,240,.55)" text-anchor="middle" font-size="11">규격 한계와 데이터가 있어야 표시됩니다.</text>'
+          : '';
+        return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
+          '<rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="transparent" stroke="rgba(255,255,255,.12)"/>' +
+          hGrid +
+          '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(255,255,255,.55)"/>' +
+          '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(255,255,255,.55)"/>' +
+          tri + marker + xAxisTicks + yAxisTicks + empty +
+          '<text x="' + fixedTrim(left + plotW/2,2) + '" y="' + (height - 6) + '" fill="rgba(236,247,240,.96)" font-size="11" text-anchor="middle">규격으로 표준화된 평균</text>' +
+          '<text x="14" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(236,247,240,.96)" font-size="11" text-anchor="middle" transform="rotate(-90 14 ' + fixedTrim(top + plotH/2,2) + ')">규격으로 표준화된 표준편차</text>' +
+          '</svg>';
+    }
+    function renderTargetPlotBox(box){
+        if (!box || !payload || !payload.entries) return;
+        var idx = parseInt(box.getAttribute('data-entry-index') || '-1', 10);
+        if (!(idx >= 0) || !payload.entries[idx]) return;
+        var entry = payload.entries[idx];
+        var textEl = box.querySelector('[data-role="ppk-text"]');
+        var rangeEl = box.querySelector('[data-role="ppk-range"]');
+        var ppk = parseNum(textEl ? textEl.value : '1');
+        if (!isFinite(ppk)) ppk = parseNum(rangeEl ? rangeEl.value : '1');
+        ppk = clampNum(isFinite(ppk) ? ppk : 1, 0.20, 2.50);
+        if (textEl) textEl.value = fixedTrim(ppk, 2);
+        if (rangeEl) rangeEl.value = String(ppk);
+        var host = box.querySelector('[data-role="target-svg"]');
+        if (host) host.innerHTML = targetPlotSvg(entry, { useOverall: targetPlotUseOverall(box), ppk: ppk });
+    }
     function capabilityIndexPlotSvg(entry, refPpk){
         var width = 292, height = 222;
         var left = 28, right = 14, top = 8, bottom = 34;
@@ -278,8 +360,22 @@ body{min-width:980px;}
     }
     document.title = payload.title ? String(payload.title) : titleBase;
     if (root) root.innerHTML = String(payload.html || '');
+    Array.prototype.forEach.call(document.querySelectorAll('.qpc-target-grid'), function(box){ renderTargetPlotBox(box); });
     Array.prototype.forEach.call(document.querySelectorAll('.qpc-index-grid'), function(box){ renderCapabilityIndexPlotBox(box); });
     document.addEventListener('input', function(ev){
+        if (ev.target && ev.target.matches && ev.target.matches('.qpc-target-ppk-input')){
+            var box0 = ev.target.closest('.qpc-target-grid');
+            var range0 = box0 ? box0.querySelector('[data-role="ppk-range"]') : null;
+            var v0 = clampNum(isFinite(parseNum(ev.target.value)) ? parseNum(ev.target.value) : 1, 0.20, 2.50);
+            if (range0) range0.value = String(v0);
+            renderTargetPlotBox(box0);
+        }
+        if (ev.target && ev.target.matches && ev.target.matches('.qpc-target-range')){
+            var box1 = ev.target.closest('.qpc-target-grid');
+            var text1 = box1 ? box1.querySelector('[data-role="ppk-text"]') : null;
+            if (text1) text1.value = fixedTrim(parseNum(ev.target.value), 2);
+            renderTargetPlotBox(box1);
+        }
         if (ev.target && ev.target.matches && ev.target.matches('.qpc-index-ppk-input')){
             var box = ev.target.closest('.qpc-index-grid');
             var range = box ? box.querySelector('[data-role="index-ppk-range"]') : null;

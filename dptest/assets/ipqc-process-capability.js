@@ -636,10 +636,10 @@
     const values = (entry && Array.isArray(entry.values) ? entry.values : []).filter(Number.isFinite);
     const cardWidth = 660;
     const plotSvgW = 516;
-    const plotSvgH = 236;
-    const left = 36, top = 18, bottom = 34;
+    const plotSvgH = 252;
+    const left = 36, top = 14, bottom = 40;
     const plotW = 480;
-    const plotH = 176;
+    const plotH = 196;
     const axisY = top + plotH;
 
     function niceNumber(v, round){
@@ -820,8 +820,8 @@
     for (let v = tickStart; v <= axisMax + tickStep * 0.25; v += tickStep){
       if (v < axisMin - 1e-9 || v > axisMax + 1e-9) continue;
       const px = x(v);
-      ticks.push('<line x1="' + fixedTrim(px, 2) + '" y1="' + axisY + '" x2="' + fixedTrim(px, 2) + '" y2="' + (axisY + 4) + '" stroke="rgba(0,0,0,.45)"/>' +
-        '<text x="' + fixedTrim(px, 2) + '" y="' + (axisY + 15) + '" fill="rgba(0,0,0,.80)" font-size="12" text-anchor="middle">' + esc(formatHistTick(v)) + '</text>');
+      ticks.push('<line x1="' + fixedTrim(px, 2) + '" y1="' + axisY + '" x2="' + fixedTrim(px, 2) + '" y2="' + (axisY + 4) + '" stroke="rgba(236,247,240,.62)"/>' +
+        '<text x="' + fixedTrim(px, 2) + '" y="' + (axisY + 15) + '" fill="rgba(236,247,240,.96)" font-size="12" text-anchor="middle">' + esc(formatHistTick(v)) + '</text>');
     }
     const axis = ticks.join('');
 
