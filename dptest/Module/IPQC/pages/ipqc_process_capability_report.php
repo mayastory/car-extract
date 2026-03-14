@@ -36,7 +36,7 @@ body{min-width:980px;}
 .qpc-report-shell{min-height:100%;}
 .qpc-report-tree,
 .qpc-report-group,
-.qpc-report-sub{display:inline-block;width:auto;max-width:100%;border:1px solid var(--qpc-border);background:transparent;border-radius:0;overflow:hidden;margin:0 0 4px;box-shadow:none;}
+.qpc-report-sub{display:inline-block;width:auto;max-width:100%;border:none;background:transparent;border-radius:0;overflow:visible;margin:0 0 4px;box-shadow:none;}
 .qpc-report-tree > summary,
 .qpc-report-group > summary,
 .qpc-report-sub > summary{list-style:none;cursor:pointer;padding:2px 8px;font-size:12px;line-height:1.35;font-weight:700;color:var(--qpc-text);background:linear-gradient(180deg, rgba(34,78,53,.86), rgba(13,28,19,.98));}
@@ -55,7 +55,7 @@ body{min-width:980px;}
 .qpc-report-top-summary[open] > summary:before{content:'▾ ';}
 .qpc-report-body,
 .qpc-report-group-body,
-.qpc-report-sub-body{padding:4px 6px 6px;border-top:1px solid var(--qpc-border-soft);}
+.qpc-report-sub-body{padding:4px 6px 6px;border-top:none;}
 .qpc-report-body,
 .qpc-report-group-body{display:flex;flex-direction:column;align-items:flex-start;gap:4px;}
 .qpc-report-note{padding:14px 10px;color:var(--qpc-muted);font-size:12px;}
