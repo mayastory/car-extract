@@ -31,7 +31,7 @@
   function fmtPct(n){ return Number.isFinite(n) ? Number(n).toFixed(4) : ''; }
   function fmtSpec(n){ return Number.isFinite(n) ? fixedTrim(n, 3) : ''; }
   function fmtWide(n){ return Number.isFinite(n) ? fixedTrim(n, 6) : ''; }
-  function fmtIndex(n){ return Number.isFinite(n) ? fixedTrunc(n, 3) : ''; }
+  function fmtIndex(n){ return Number.isFinite(n) ? Number(n).toFixed(3) : ''; }
   function mean(arr){ return arr.length ? arr.reduce((a,b)=>a+b,0) / arr.length : NaN; }
   function sampleStd(arr){
     if (!arr || arr.length < 2) return NaN;
