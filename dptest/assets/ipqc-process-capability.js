@@ -19,10 +19,19 @@
     const v = Math.round((Number(n) + Number.EPSILON) * Math.pow(10, d)) / Math.pow(10, d);
     return v.toFixed(d).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
   }
+  function fixedTrunc(n, d){
+    if (!Number.isFinite(n)) return '';
+    const factor = Math.pow(10, d);
+    const num = Number(n);
+    const shifted = num * factor;
+    const truncated = num < 0 ? Math.ceil(shifted - Number.EPSILON) : Math.floor(shifted + Number.EPSILON);
+    const v = truncated / factor;
+    return v.toFixed(d).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
+  }
   function fmtPct(n){ return Number.isFinite(n) ? Number(n).toFixed(4) : ''; }
   function fmtSpec(n){ return Number.isFinite(n) ? fixedTrim(n, 3) : ''; }
   function fmtWide(n){ return Number.isFinite(n) ? fixedTrim(n, 6) : ''; }
-  function fmtIndex(n){ return Number.isFinite(n) ? Number(n).toFixed(3) : ''; }
+  function fmtIndex(n){ return Number.isFinite(n) ? fixedTrunc(n, 3) : ''; }
   function mean(arr){ return arr.length ? arr.reduce((a,b)=>a+b,0) / arr.length : NaN; }
   function sampleStd(arr){
     if (!arr || arr.length < 2) return NaN;
