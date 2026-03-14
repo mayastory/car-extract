@@ -182,6 +182,82 @@
     const delta = z * seTerm;
     return { lower: Math.max(0, indexValue * (1 - delta)), upper: Math.max(0, indexValue * (1 + delta)) };
   }
+  function capabilityOneSidedQuad(df, tObs){
+    if (!(df > 0) || !Number.isFinite(tObs)) return null;
+    const tailP = 1 - 1e-10;
+    const maxV = chiSquareInv(tailP, df);
+    if (!(maxV > 0) || !Number.isFinite(maxV)) return null;
+    const steps = 96;
+    const maxU = Math.sqrt(maxV);
+    const h = maxU / steps;
+    const halfDf = df / 2;
+    const logCoef = -halfDf * Math.log(2) - logGamma(halfDf);
+    const weights = new Array(steps + 1);
+    const args = new Array(steps + 1);
+    for (let i = 0; i <= steps; i++){
+      const u = i * h;
+      const v = u * u;
+      const simpson = (i === 0 || i === steps) ? 1 : (i % 2 === 1 ? 4 : 2);
+      let weight = 0;
+      if (u > 0){
+        const logPdf = (halfDf - 1) * Math.log(v) - (v / 2) + logCoef;
+        weight = simpson * 2 * u * Math.exp(logPdf);
+      }
+      weights[i] = weight;
+      args[i] = tObs * Math.sqrt(v / df);
+    }
+    return { weights, args, scale: h / 3 };
+  }
+  function capabilityOneSidedCdf(quad, delta){
+    if (!quad) return NaN;
+    let sum = 0;
+    for (let i = 0; i < quad.weights.length; i++){
+      const w = quad.weights[i];
+      if (!w) continue;
+      sum += w * (0.5 * (1 + erf((quad.args[i] - delta) / Math.SQRT2)));
+    }
+    if (!(sum >= 0)) return NaN;
+    return Math.max(0, Math.min(1, sum * quad.scale));
+  }
+  function capabilityCIOneSidedExact(indexValue, n, alpha){
+    if (!Number.isFinite(indexValue) || !(n > 1)) return { lower: NaN, upper: NaN };
+    const a = Number.isFinite(alpha) ? alpha : 0.05;
+    const tObs = 3 * Math.sqrt(n) * indexValue;
+    if (!Number.isFinite(tObs) || !(tObs >= 0)) return { lower: NaN, upper: NaN };
+    const quad = capabilityOneSidedQuad(n - 1, tObs);
+    if (!quad) return { lower: NaN, upper: NaN };
+    const deltaScale = 3 * Math.sqrt(n);
+    const solve = (target) => {
+      if (!(target > 0 && target < 1)) return NaN;
+      const cdf0 = capabilityOneSidedCdf(quad, 0);
+      if (!Number.isFinite(cdf0)) return NaN;
+      if (cdf0 <= target) return 0;
+      let lo = 0;
+      let hi = Math.max(tObs + 2, 4);
+      let cdfHi = capabilityOneSidedCdf(quad, hi);
+      let guard = 0;
+      while (Number.isFinite(cdfHi) && cdfHi > target && guard < 30){
+        lo = hi;
+        hi *= 2;
+        cdfHi = capabilityOneSidedCdf(quad, hi);
+        guard += 1;
+      }
+      if (!Number.isFinite(cdfHi)) return NaN;
+      let left = 0;
+      let right = hi;
+      for (let i = 0; i < 50; i++){
+        const mid = (left + right) / 2;
+        const cdfMid = capabilityOneSidedCdf(quad, mid);
+        if (!Number.isFinite(cdfMid)) return NaN;
+        if (cdfMid > target) left = mid; else right = mid;
+      }
+      return Math.max(0, (left + right) / 2 / deltaScale);
+    };
+    return {
+      lower: solve(1 - (a / 2)),
+      upper: solve(a / 2),
+    };
+  }
   function capabilityCpmGamma(n, meanValue, target, sigma){
     if (!(n > 1) || !Number.isFinite(meanValue) || !Number.isFinite(target) || !(sigma > 0)) return NaN;
     const r = (meanValue - target) / sigma;
@@ -190,6 +266,7 @@
   function capabilityCI(indexValue, n, mode, kind, alpha, extra){
     const df = capabilityDf(n, mode);
     if (kind === 'cp' || kind === 'pp') return capabilityCIChi(indexValue, df, alpha);
+    if (kind === 'ppl' || kind === 'ppu') return capabilityCIOneSidedExact(indexValue, n, alpha);
     if (kind === 'cpm') {
       const gamma = capabilityCpmGamma(n, extra && extra.meanValue, extra && extra.target, extra && extra.sigma);
       return capabilityCIChi(indexValue, gamma, alpha);
