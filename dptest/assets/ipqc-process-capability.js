@@ -722,11 +722,11 @@
 
   function histogramSvg(entry){
     const values = (entry && Array.isArray(entry.values) ? entry.values : []).filter(Number.isFinite);
-    const cardWidth = 468;
-    const plotSvgW = 338;
+    const cardWidth = 428;
+    const plotSvgW = 296;
     const plotSvgH = 224;
     const left = 28, top = 14, bottom = 34;
-    const plotW = 298;
+    const plotW = 256;
     const plotH = 178;
     const axisY = top + plotH;
 
