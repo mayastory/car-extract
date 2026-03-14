@@ -721,12 +721,12 @@
 
   function histogramSvg(entry){
     const values = (entry && Array.isArray(entry.values) ? entry.values : []).filter(Number.isFinite);
-    const cardWidth = 560;
-    const plotSvgW = 420;
-    const plotSvgH = 248;
+    const cardWidth = 500;
+    const plotSvgW = 360;
+    const plotSvgH = 224;
     const left = 28, top = 14, bottom = 34;
-    const plotW = 380;
-    const plotH = 200;
+    const plotW = 320;
+    const plotH = 178;
     const axisY = top + plotH;
 
     function niceNumber(v, round){
