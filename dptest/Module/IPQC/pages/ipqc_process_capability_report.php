@@ -104,10 +104,10 @@ body{min-width:980px;}
 .qpc-summary-sep{height:1px;background:rgba(255,255,255,.10);margin:6px 0;}
 .qpc-report-two{display:grid;grid-template-columns:repeat(2, minmax(0, max-content));gap:8px;align-items:start;justify-content:start;width:max-content;max-width:100%;}
 .qpc-report-two-tight{max-width:706px;gap:8px;}
-.qpc-stat-box,.qpc-reject-box{padding:6px 8px;}
-.qpc-reject-box{padding:4px 6px 5px;}
+.qpc-stat-box,.qpc-reject-box{border:none;background:transparent;padding:0;}
+.qpc-reject-box{padding:0;}
 .qpc-report-sub-reject{width:max-content;max-width:100%;}
-.qpc-report-sub-reject > .qpc-report-sub-body{display:inline-block;padding:4px 6px 5px;}
+.qpc-report-sub-reject > .qpc-report-sub-body{display:inline-block;padding:0;}
 .qpc-report-sub-reject .qpc-reject-box{display:inline-block;width:auto;}
 .qpc-reject-table th,.qpc-reject-table td{padding:1px 4px;}
 .qpc-reject-table thead th{background:rgba(255,255,255,.035);}
