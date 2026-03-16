@@ -994,13 +994,13 @@
 
   function capabilityBoxPlotSvg(entry){
     const values = standardizedBySpecValues(entry);
-    const width = 1040, height = 196;
-    const left = 52, right = 176, top = 18, bottom = 48;
+    const width = 1180, height = 224;
+    const left = 58, right = 198, top = 18, bottom = 54;
     const plotW = width - left - right;
     const plotH = height - top - bottom;
     const axisY = top + plotH;
-    const yMid = top + 56;
-    const boxH = 24;
+    const yMid = top + 66;
+    const boxH = 28;
     if (!values.length){
       return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true"><rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="transparent" stroke="rgba(255,255,255,.12)"/><text x="' + fixedTrim(width / 2, 2) + '" y="' + fixedTrim(height / 2, 2) + '" fill="rgba(236,247,240,.55)" text-anchor="middle" font-size="11">규격 한계가 있어야 표시됩니다.</text></svg>';
     }
@@ -1072,7 +1072,7 @@
   }
 
   function capabilityBoxPlotHtml(entry){
-    return '<div class="qpc-svgbox">' + capabilityBoxPlotSvg(entry) + '</div>';
+    return '<div class="qpc-svgbox" style="width:1180px;max-width:100%;">' + capabilityBoxPlotSvg(entry) + '</div>';
   }
 
   function rejectTableHtml(entry){
