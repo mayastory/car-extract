@@ -1506,9 +1506,9 @@
   function targetPlotHtml(entry, idx){
     const ppkDefault = '1';
     const useOverall = targetPlotUseOverall(idx);
-    return '<div class="qpc-target-grid" data-entry-index="' + idx + '" data-use-overall="' + (useOverall ? '1' : '0') + '" style="display:grid;grid-template-columns:minmax(0,620px) 168px;gap:12px;align-items:start;max-width:800px;">' +
+    return '<div class="qpc-target-grid" data-entry-index="' + idx + '" data-use-overall="' + (useOverall ? '1' : '0') + '" style="display:grid;grid-template-columns:minmax(0,620px) 232px;gap:12px;align-items:start;max-width:864px;">' +
       '<div class="qpc-target-main" style="width:100%;max-width:620px;position:relative;"><div class="qpc-svgbox" data-role="target-svg" style="width:100%;max-width:620px;">' + targetPlotSvg(entry, { useOverall: useOverall, ppk: 1 }) + '</div><div class="qpc-target-hover-tip" data-role="target-hover-tip" hidden></div></div>' +
-      '<div class="qpc-target-side" style="width:168px;min-width:168px;">' +
+      '<div class="qpc-target-side" style="width:232px;min-width:232px;">' +
         '<div class="qpc-target-side-head"><div class="qpc-target-legend-link" data-role="open-legend" title="더블클릭: 범례 설정">' + esc(getLegendPrefs(idx).title || '범례') + '</div></div>' +
         '<div class="qpc-target-side-preview" data-role="legend-side-preview">' + legendSidePreviewHtml(idx) + '</div>' +
         '<div class="qpc-target-ppk-label">Ppk</div>' +
