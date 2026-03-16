@@ -1454,6 +1454,39 @@
     '</div>';
   }
 
+  function getTargetPlotCoords(entry, useOverall){
+    const sigma = useOverall ? entry.sigmaOverall : entry.sigmaWithin;
+    const avg = Number(entry && entry.avg);
+    const lsl = Number(entry && entry.lsl);
+    const usl = Number(entry && entry.usl);
+    let target = Number(entry && entry.target);
+    if (!Number.isFinite(target) && Number.isFinite(lsl) && Number.isFinite(usl) && usl > lsl) target = (lsl + usl) / 2;
+    if (!(Number.isFinite(avg) && Number.isFinite(sigma) && sigma >= 0)) return { x: NaN, y: NaN };
+    if (Number.isFinite(target)){
+      let halfSpan = NaN;
+      if (Number.isFinite(lsl) && Number.isFinite(usl) && usl > lsl){
+        halfSpan = Math.min(target - lsl, usl - target);
+      } else if (Number.isFinite(lsl)){
+        halfSpan = target - lsl;
+      } else if (Number.isFinite(usl)){
+        halfSpan = usl - target;
+      }
+      const denom = Number.isFinite(halfSpan) && halfSpan > 0 ? (2 * halfSpan) : NaN;
+      if (Number.isFinite(denom) && denom > 0){
+        return { x: (avg - target) / denom, y: sigma / denom };
+      }
+    }
+    if (Number.isFinite(usl) && !Number.isFinite(lsl)){
+      const cap = useOverall ? Number(entry && entry.ppu) : Number(entry && entry.cpu);
+      if (Number.isFinite(cap) && cap > (-2 / 3)) return { x: 1 / ((3 * cap) + 2), y: 1 / ((6 * cap) + 4) };
+    }
+    if (Number.isFinite(lsl) && !Number.isFinite(usl)){
+      const cap = useOverall ? Number(entry && entry.ppl) : Number(entry && entry.cpl);
+      if (Number.isFinite(cap) && cap > (-2 / 3)) return { x: -1 / ((3 * cap) + 2), y: 1 / ((6 * cap) + 4) };
+    }
+    return { x: NaN, y: NaN };
+  }
+
   function targetPlotSvg(entry, opts){
     const width = 468, height = 290;
     const left = 40, right = 14, top = 8, bottom = 30;
@@ -1462,12 +1495,9 @@
     const xMin = -0.6, xMax = 0.6;
     const yMin = 0, yMax = 0.30;
     const useOverall = !opts || opts.useOverall !== false;
-    const sigma = useOverall ? entry.sigmaOverall : entry.sigmaWithin;
-    const hasSpecs = Number.isFinite(entry.lsl) && Number.isFinite(entry.usl) && entry.usl > entry.lsl;
-    const specWidth = hasSpecs ? (entry.usl - entry.lsl) : NaN;
-    const center = Number.isFinite(entry.target) ? entry.target : (hasSpecs ? ((entry.lsl + entry.usl) / 2) : entry.avg);
-    const normX = (hasSpecs && Number.isFinite(entry.avg) && Number.isFinite(center) && Number.isFinite(specWidth) && specWidth > 0) ? ((entry.avg - center) / specWidth) : NaN;
-    const normY = (hasSpecs && Number.isFinite(sigma) && Number.isFinite(specWidth) && specWidth > 0) ? (sigma / specWidth) : NaN;
+    const coords = getTargetPlotCoords(entry, useOverall);
+    const normX = coords.x;
+    const normY = coords.y;
     const ppkVal = clampNum(Number.isFinite(parseNum(opts && opts.ppk)) ? parseNum(opts && opts.ppk) : 1, 0.20, 2.50);
     const apexY = 1 / (6 * ppkVal);
     const x = v => left + ((v - xMin) / (xMax - xMin)) * plotW;
@@ -1489,7 +1519,7 @@
       marker = '<rect x="' + fixedTrim(px - 2.5,2) + '" y="' + fixedTrim(py - 2.5,2) + '" width="5" height="5" fill="transparent" stroke="rgba(236,247,240,.95)" stroke-width="1.1"/>' +
         '<rect x="' + fixedTrim(px - 8,2) + '" y="' + fixedTrim(py - 8,2) + '" width="16" height="16" fill="transparent" stroke="transparent" data-role="target-marker-hit" data-hit-type="' + hitType + '"/>';
     }
-    const empty = (!hasSpecs || !Number.isFinite(normX) || !Number.isFinite(normY))
+    const empty = (!Number.isFinite(normX) || !Number.isFinite(normY))
       ? '<text x="' + fixedTrim(left + plotW/2,2) + '" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(236,247,240,.55)" text-anchor="middle" font-size="11">규격 한계와 데이터가 있어야 표시됩니다.</text>'
       : '';
     return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
