@@ -291,7 +291,14 @@ body{min-width:980px;}
    '</div>';
  }
  function targetPlotUseOverallBox(box){
+  var raw = box ? String(box.getAttribute('data-use-overall') || '').trim() : '';
+  if (raw === '1') return true;
+  if (raw === '0') return false;
   var preview = box ? box.querySelector('[data-role="legend-side-preview"]') : null;
+  if (preview){
+   if (preview.querySelector('.qpc-target-marker--within') && !preview.querySelector('.qpc-target-marker--overall')) return false;
+   if (preview.querySelector('.qpc-target-marker--overall') && !preview.querySelector('.qpc-target-marker--within')) return true;
+  }
   var txt = preview ? String(preview.textContent || '') : '';
   if (txt.indexOf('군내') >= 0 && txt.indexOf('전체') < 0) return false;
   return true;
@@ -348,6 +355,7 @@ body{min-width:980px;}
   if (!(idx >= 0) || !payload.entries[idx]) return;
   var entry = payload.entries[idx];
   var useOverall = targetPlotUseOverallBox(box);
+  box.setAttribute('data-use-overall', useOverall ? '1' : '0');
   var textEl = box.querySelector('[data-role="ppk-text"]');
   var rangeEl = box.querySelector('[data-role="ppk-range"]');
   var ppk = parseNum(textEl ? textEl.value : '1');

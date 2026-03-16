@@ -1504,8 +1504,9 @@
 
   function targetPlotHtml(entry, idx){
     const ppkDefault = '1';
-    return '<div class="qpc-target-grid" data-entry-index="' + idx + '" style="display:grid;grid-template-columns:minmax(0,468px) 118px;gap:12px;align-items:start;max-width:598px;">' +
-      '<div class="qpc-target-main" style="width:100%;max-width:468px;position:relative;"><div class="qpc-svgbox" data-role="target-svg" style="width:100%;max-width:468px;">' + targetPlotSvg(entry, { useOverall: targetPlotUseOverall(idx), ppk: 1 }) + '</div><div class="qpc-target-hover-tip" data-role="target-hover-tip" hidden></div></div>' +
+    const useOverall = targetPlotUseOverall(idx);
+    return '<div class="qpc-target-grid" data-entry-index="' + idx + '" data-use-overall="' + (useOverall ? '1' : '0') + '" style="display:grid;grid-template-columns:minmax(0,468px) 118px;gap:12px;align-items:start;max-width:598px;">' +
+      '<div class="qpc-target-main" style="width:100%;max-width:468px;position:relative;"><div class="qpc-svgbox" data-role="target-svg" style="width:100%;max-width:468px;">' + targetPlotSvg(entry, { useOverall: useOverall, ppk: 1 }) + '</div><div class="qpc-target-hover-tip" data-role="target-hover-tip" hidden></div></div>' +
       '<div class="qpc-target-side" style="width:118px;">' +
         '<div class="qpc-target-side-head"><div class="qpc-target-legend-link" data-role="open-legend" title="더블클릭: 범례 설정">' + esc(getLegendPrefs(idx).title || '범례') + '</div></div>' +
         '<div class="qpc-target-side-preview" data-role="legend-side-preview">' + legendSidePreviewHtml(idx) + '</div>' +
@@ -1521,7 +1522,8 @@
     const idx = parseInt(box.getAttribute('data-entry-index') || '-1', 10);
     const entry = STATE.reportEntries[idx];
     if (!entry) return;
-    const useOverall = targetPlotUseOverall(idx);
+    const useOverall = (box.getAttribute('data-use-overall') || '') === '1' ? true : ((box.getAttribute('data-use-overall') || '') === '0' ? false : targetPlotUseOverall(idx));
+    box.setAttribute('data-use-overall', useOverall ? '1' : '0');
     const textEl = qs('[data-role="ppk-text"]', box);
     const rangeEl = qs('[data-role="ppk-range"]', box);
     let ppk = parseNum(textEl ? textEl.value : '1');
