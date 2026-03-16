@@ -397,14 +397,14 @@ body{min-width:980px;}
   tip.style.top = fixedTrim(top,2) + 'px';
  }
  function capabilityIndexPlotSvg(entry, refPpk){
-  var width = 440, height = 460;
-  var left = 38, right = 24, top = 12, bottom = 56;
+  var width = 392, height = 356;
+  var left = 36, right = 22, top = 12, bottom = 76;
   var plotW = width - left - right;
   var plotH = height - top - bottom;
   var refVal = clampNum(parseNum(refPpk), 0.20, 2.50);
   var rawPpk = Number(entry && entry.ppk);
-  var yMaxBase = Math.ceil((Math.max(refVal, isFinite(rawPpk) ? rawPpk : 0) + 0.25) * 2) / 2;
-  var yMax = Math.max(2.2, yMaxBase);
+  var yMaxBase = Math.max(3.2, Math.ceil((Math.max(refVal, isFinite(rawPpk) ? rawPpk : 0) + 0.25) * 2) / 2);
+  var yMax = Math.max(3.2, yMaxBase);
   var xMid = left + plotW / 2;
   function y(v){ return top + plotH - ((v - 0) / (yMax - 0)) * plotH; }
   var yTicks = [];
@@ -417,7 +417,7 @@ body{min-width:980px;}
   var yAxisTicks = yTicks.map(function(v){
    var yy = y(v);
    var label = Math.abs(v - Math.round(v)) < 1e-9 ? String(Math.round(v)) : '';
-   return '<line x1="' + fixedTrim(left - 3,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="rgba(0,0,0,.45)"/>' + (label ? '<text x="' + fixedTrim(left - 6,2) + '" y="' + fixedTrim(yy + 3,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="end">' + esc(label) + '</text>' : '');
+   return '<line x1="' + fixedTrim(left - 4,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="rgba(0,0,0,.45)"/>' + (label ? '<text x="' + fixedTrim(left - 8,2) + '" y="' + fixedTrim(yy + 3,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="end">' + esc(label) + '</text>' : '');
   }).join('');
   var xAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(0,0,0,.45)"/>';
   var yAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(0,0,0,.45)"/>';
@@ -431,8 +431,8 @@ body{min-width:980px;}
   return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
    '<rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="#f8f8f8" stroke="#b7b7b7"/>' +
    hGrid + xAxis + yAxis + refLine + marker + yAxisTicks +
-   '<text x="' + fixedTrim(xMid,2) + '" y="' + fixedTrim(top + plotH + 18,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="middle" transform="rotate(-90 ' + fixedTrim(xMid,2) + ' ' + fixedTrim(top + plotH + 18,2) + ')">' + labelText + '</text>' +
-   '<text x="' + fixedTrim(xMid,2) + '" y="' + (height - 4) + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">공정</text>' +
+   '<text x="' + fixedTrim(xMid,2) + '" y="' + fixedTrim(top + plotH + 34,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="middle" transform="rotate(-90 ' + fixedTrim(xMid,2) + ' ' + fixedTrim(top + plotH + 34,2) + ')">' + labelText + '</text>' +
+   '<text x="' + fixedTrim(xMid,2) + '" y="' + (height - 10) + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">공정</text>' +
    '<text x="14" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(17,17,17,.96)" font-size="11" text-anchor="middle" transform="rotate(-90 14 ' + fixedTrim(top + plotH/2,2) + ')">Ppk</text>' +
    '</svg>';
  }
