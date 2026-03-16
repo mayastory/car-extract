@@ -725,9 +725,9 @@
     const cardWidth = 460;
     const plotSvgW = 376;
     const plotSvgH = 236;
-    const left = 26, top = 14, bottom = 34;
+    const left = 26, top = 8, bottom = 34;
     const plotW = 336;
-    const plotH = 188;
+    const plotH = 196;
     const axisY = top + plotH;
 
     function niceNumber(v, round){
@@ -1465,9 +1465,7 @@
     const sigma = useOverall ? entry.sigmaOverall : entry.sigmaWithin;
     const hasSpecs = Number.isFinite(entry.lsl) && Number.isFinite(entry.usl) && entry.usl > entry.lsl;
     const specWidth = hasSpecs ? (entry.usl - entry.lsl) : NaN;
-    const targetRaw = Number.isFinite(entry.target) ? entry.target : NaN;
-    const targetInsideSpecs = hasSpecs && Number.isFinite(targetRaw) && targetRaw > entry.lsl && targetRaw < entry.usl;
-    const center = targetInsideSpecs ? targetRaw : (hasSpecs ? ((entry.lsl + entry.usl) / 2) : (Number.isFinite(targetRaw) ? targetRaw : entry.avg));
+    const center = Number.isFinite(entry.target) ? entry.target : (hasSpecs ? ((entry.lsl + entry.usl) / 2) : entry.avg);
     const normX = (hasSpecs && Number.isFinite(entry.avg) && Number.isFinite(center) && Number.isFinite(specWidth) && specWidth > 0) ? ((entry.avg - center) / specWidth) : NaN;
     const normY = (hasSpecs && Number.isFinite(sigma) && Number.isFinite(specWidth) && specWidth > 0) ? (sigma / specWidth) : NaN;
     const ppkVal = clampNum(Number.isFinite(parseNum(opts && opts.ppk)) ? parseNum(opts && opts.ppk) : 1, 0.20, 2.50);
