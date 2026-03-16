@@ -134,9 +134,9 @@ body{min-width:980px;}
 .qpc-summary-report-table td.is-warn{background:rgba(245,229,176,.96);color:#3a2a06;}
 .qpc-summary-report-table td.is-bad{background:rgba(240,188,188,.96);color:#341111;}
 .qpc-report-empty{text-align:center !important;color:var(--qpc-muted);}
-.qpc-target-grid{display:grid;grid-template-columns:minmax(0, 540px) 118px;gap:12px;align-items:start;max-width:670px;}
+.qpc-target-grid{display:grid;grid-template-columns:minmax(0, 580px) 118px;gap:12px;align-items:start;max-width:710px;}
 .qpc-target-main,.qpc-target-side{border:1px solid var(--qpc-box-border);background:transparent;border-radius:0;}
-.qpc-target-main{position:relative;padding:6px 6px 4px;overflow:visible;max-width:540px;}
+.qpc-target-main{position:relative;padding:6px 6px 4px;overflow:visible;max-width:580px;}
 .qpc-target-side{padding:6px 8px;width:118px;}
 .qpc-target-side-title{font-size:11px;font-weight:700;margin-bottom:8px;}
 .qpc-target-check{display:flex;align-items:center;gap:6px;font-size:11px;margin:0 0 10px;}
@@ -304,7 +304,7 @@ body{min-width:980px;}
   return true;
  }
  function targetPlotSvg(entry, opts){
-  var width = 540, height = 380;
+  var width = 580, height = 404;
   var left = 44, right = 18, top = 10, bottom = 34;
   var plotW = width - left - right;
   var plotH = height - top - bottom;
