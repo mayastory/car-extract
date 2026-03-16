@@ -134,18 +134,18 @@ body{min-width:980px;}
 .qpc-summary-report-table td.is-warn{background:rgba(245,229,176,.96);color:#3a2a06;}
 .qpc-summary-report-table td.is-bad{background:rgba(240,188,188,.96);color:#341111;}
 .qpc-report-empty{text-align:center !important;color:var(--qpc-muted);}
-.qpc-target-grid{display:grid;grid-template-columns:minmax(0, 620px) 148px;gap:12px;align-items:start;max-width:780px;}
+.qpc-target-grid{display:grid;grid-template-columns:minmax(0, 620px) 188px;gap:14px;align-items:start;max-width:822px;}
 .qpc-target-main,.qpc-target-side{border:1px solid var(--qpc-box-border);background:transparent;border-radius:0;}
 .qpc-target-main{position:relative;padding:6px 6px 4px;overflow:visible;max-width:620px;}
-.qpc-target-side{padding:6px 10px;width:148px;}
+.qpc-target-side{padding:6px 12px;width:188px;}
 .qpc-target-side-title{font-size:11px;font-weight:700;margin-bottom:8px;}
 .qpc-target-check{display:flex;align-items:center;gap:6px;font-size:11px;margin:0 0 10px;}
 .qpc-target-check input{margin:0;}
 .qpc-target-ppk-label{font-size:11px;font-weight:700;margin-bottom:4px;}
-.qpc-target-ppk-line{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+.qpc-target-ppk-line{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:nowrap;}
 .qpc-target-ppk-badge{min-width:36px;height:18px;padding:0 8px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.04);font-size:11px;font-weight:700;}
-.qpc-target-ppk-input{width:48px;height:20px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.03);color:var(--qpc-text);padding:0 4px;font-size:11px;text-align:center;box-sizing:border-box;}
-.qpc-target-range{width:100%;accent-color:#b9d8ff;}
+.qpc-target-ppk-input{width:52px;height:20px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.03);color:var(--qpc-text);padding:0 4px;font-size:11px;text-align:center;box-sizing:border-box;flex:0 0 52px;}
+.qpc-target-range{width:100%;min-width:0;flex:1 1 auto;accent-color:#b9d8ff;}
 .qpc-target-side-head{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:8px;}
 .qpc-target-legend-link{padding:0;border:0;background:transparent;color:var(--qpc-text);font-size:11px;font-weight:700;cursor:pointer;user-select:none;}
 .qpc-target-side-preview{min-height:48px;margin-bottom:10px;}
