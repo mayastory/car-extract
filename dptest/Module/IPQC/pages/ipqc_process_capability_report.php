@@ -304,7 +304,7 @@ body{min-width:980px;}
   return true;
  }
  function targetPlotSvg(entry, opts){
-  var width = 540, height = 336;
+  var width = 540, height = 380;
   var left = 44, right = 18, top = 10, bottom = 34;
   var plotW = width - left - right;
   var plotH = height - top - bottom;
