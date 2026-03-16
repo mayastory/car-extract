@@ -1539,8 +1539,8 @@
   }
 
   function capabilityIndexPlotSvg(entry, opts){
-    const width = 392, height = 404;
-    const left = 36, right = 22, top = 12, bottom = 104;
+    const width = 420, height = 454;
+    const left = 44, right = 20, top = 12, bottom = 122;
     const plotW = width - left - right;
     const plotH = height - top - bottom;
     const refVal = clampNum(Number.isFinite(parseNum(opts && opts.refPpk)) ? parseNum(opts && opts.refPpk) : 1, 0.20, 2.50);
@@ -1574,8 +1574,8 @@
     return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
       '<rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="#f8f8f8" stroke="#b7b7b7"/>' +
       hGrid + xAxis + yAxis + refLine + marker + yAxisTicks +
-      '<text x="' + fixedTrim(xMid,2) + '" y="' + fixedTrim(top + plotH + 44,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="middle" transform="rotate(-90 ' + fixedTrim(xMid,2) + ' ' + fixedTrim(top + plotH + 44,2) + ')">' + labelText + '</text>' +
-      '<text x="' + fixedTrim(xMid,2) + '" y="' + (height - 12) + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">공정</text>' +
+      '<text x="' + fixedTrim(xMid,2) + '" y="' + fixedTrim(top + plotH + 52,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="middle" transform="rotate(-90 ' + fixedTrim(xMid,2) + ' ' + fixedTrim(top + plotH + 52,2) + ')">' + labelText + '</text>' +
+      '<text x="' + fixedTrim(xMid,2) + '" y="' + (height - 14) + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">공정</text>' +
       '<text x="14" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(17,17,17,.96)" font-size="11" text-anchor="middle" transform="rotate(-90 14 ' + fixedTrim(top + plotH/2,2) + ')">Ppk</text>' +
       '</svg>';
   }
@@ -1589,9 +1589,9 @@
 
   function capabilityIndexPlotHtml(entry, idx){
     const refDefault = '1';
-    return '<div class="qpc-index-grid" data-entry-index="' + idx + '" style="display:grid;grid-template-columns:minmax(0,392px) 106px;gap:12px;align-items:start;max-width:510px;">' +
-      '<div class="qpc-index-main" style="width:100%;max-width:392px;"><div class="qpc-svgbox" data-role="index-svg" style="width:100%;max-width:392px;">' + capabilityIndexPlotSvg(entry, { refPpk: 1 }) + '</div></div>' +
-      '<div class="qpc-index-side" style="width:106px;">' + capabilityIndexLegendSideHtml() +
+    return '<div class="qpc-index-grid" data-entry-index="' + idx + '" style="display:grid;grid-template-columns:minmax(0,420px) 112px;gap:12px;align-items:start;max-width:544px;">' +
+      '<div class="qpc-index-main" style="width:100%;max-width:420px;"><div class="qpc-svgbox" data-role="index-svg" style="width:100%;max-width:420px;">' + capabilityIndexPlotSvg(entry, { refPpk: 1 }) + '</div></div>' +
+      '<div class="qpc-index-side" style="width:112px;">' + capabilityIndexLegendSideHtml() +
         '<div style="height:10px;"></div>' +
         '<div style="font-size:11px;font-weight:700;color:#111;margin-bottom:4px;">Ppk</div>' +
         '<div style="display:flex;align-items:center;gap:4px;margin-bottom:6px;"><span style="display:inline-block;min-width:34px;padding:2px 6px;border:1px solid rgba(0,0,0,.18);background:#f7f7f7;font-size:11px;font-weight:700;text-align:center;color:#111;">Ppk</span><input type="text" class="qpc-index-ppk-input" data-role="index-ppk-text" value="' + refDefault + '" style="width:38px;height:20px;border:1px solid rgba(0,0,0,.18);background:#f7f7f7;color:#111;font-size:11px;text-align:center;padding:0 4px;"></div>' +
