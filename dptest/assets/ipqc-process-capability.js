@@ -1539,14 +1539,14 @@
   }
 
   function capabilityIndexPlotSvg(entry, opts){
-    const width = 360, height = 326;
-    const left = 36, right = 20, top = 12, bottom = 42;
+    const width = 440, height = 360;
+    const left = 38, right = 24, top = 12, bottom = 48;
     const plotW = width - left - right;
     const plotH = height - top - bottom;
     const refVal = clampNum(Number.isFinite(parseNum(opts && opts.refPpk)) ? parseNum(opts && opts.refPpk) : 1, 0.20, 2.50);
     const rawPpk = Number(entry && entry.ppk);
-    const yMaxBase = Math.max(3.2, Math.ceil((Math.max(refVal, Number.isFinite(rawPpk) ? rawPpk : 0) + 0.25) * 2) / 2);
-    const yMax = Math.max(3.2, yMaxBase);
+    const yMaxBase = Math.ceil((Math.max(refVal, Number.isFinite(rawPpk) ? rawPpk : 0) + 0.25) * 2) / 2;
+    const yMax = Math.max(2.2, yMaxBase);
     const xMid = left + plotW / 2;
     const y = v => top + plotH - ((v - 0) / (yMax - 0)) * plotH;
     const yTicks = [];
@@ -1589,8 +1589,8 @@
 
   function capabilityIndexPlotHtml(entry, idx){
     const refDefault = '1';
-    return '<div class="qpc-index-grid" data-entry-index="' + idx + '" style="display:grid;grid-template-columns:minmax(0,360px) 106px;gap:12px;align-items:start;max-width:478px;">' +
-      '<div class="qpc-index-main" style="width:100%;max-width:360px;"><div class="qpc-svgbox" data-role="index-svg" style="width:100%;max-width:360px;">' + capabilityIndexPlotSvg(entry, { refPpk: 1 }) + '</div></div>' +
+    return '<div class="qpc-index-grid" data-entry-index="' + idx + '" style="display:grid;grid-template-columns:minmax(0,440px) 106px;gap:12px;align-items:start;max-width:558px;">' +
+      '<div class="qpc-index-main" style="width:100%;max-width:440px;"><div class="qpc-svgbox" data-role="index-svg" style="width:100%;max-width:440px;">' + capabilityIndexPlotSvg(entry, { refPpk: 1 }) + '</div></div>' +
       '<div class="qpc-index-side" style="width:106px;">' + capabilityIndexLegendSideHtml() +
         '<div style="height:10px;"></div>' +
         '<div style="font-size:11px;font-weight:700;color:#111;margin-bottom:4px;">Ppk</div>' +
