@@ -994,13 +994,13 @@
 
   function capabilityBoxPlotSvg(entry){
     const values = standardizedBySpecValues(entry);
-    const width = 590, height = 92;
-    const left = 32, right = 94, top = 8, bottom = 24;
+    const width = 680, height = 104;
+    const left = 36, right = 112, top = 10, bottom = 28;
     const plotW = width - left - right;
     const plotH = height - top - bottom;
     const axisY = top + plotH;
-    const yMid = top + 28;
-    const boxH = 16;
+    const yMid = top + 32;
+    const boxH = 18;
     if (!values.length){
       return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true"><rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="transparent" stroke="rgba(255,255,255,.12)"/><text x="' + fixedTrim(width / 2, 2) + '" y="' + fixedTrim(height / 2, 2) + '" fill="rgba(236,247,240,.55)" text-anchor="middle" font-size="11">규격 한계가 있어야 표시됩니다.</text></svg>';
     }
@@ -1455,8 +1455,8 @@
   }
 
   function targetPlotSvg(entry, opts){
-    const width = 468, height = 290;
-    const left = 40, right = 14, top = 8, bottom = 30;
+    const width = 540, height = 336;
+    const left = 44, right = 18, top = 10, bottom = 34;
     const plotW = width - left - right;
     const plotH = height - top - bottom;
     const xMin = -0.6, xMax = 0.6;
@@ -1506,8 +1506,8 @@
   function targetPlotHtml(entry, idx){
     const ppkDefault = '1';
     const useOverall = targetPlotUseOverall(idx);
-    return '<div class="qpc-target-grid" data-entry-index="' + idx + '" data-use-overall="' + (useOverall ? '1' : '0') + '" style="display:grid;grid-template-columns:minmax(0,468px) 118px;gap:12px;align-items:start;max-width:598px;">' +
-      '<div class="qpc-target-main" style="width:100%;max-width:468px;position:relative;"><div class="qpc-svgbox" data-role="target-svg" style="width:100%;max-width:468px;">' + targetPlotSvg(entry, { useOverall: useOverall, ppk: 1 }) + '</div><div class="qpc-target-hover-tip" data-role="target-hover-tip" hidden></div></div>' +
+    return '<div class="qpc-target-grid" data-entry-index="' + idx + '" data-use-overall="' + (useOverall ? '1' : '0') + '" style="display:grid;grid-template-columns:minmax(0,540px) 118px;gap:12px;align-items:start;max-width:670px;">' +
+      '<div class="qpc-target-main" style="width:100%;max-width:540px;position:relative;"><div class="qpc-svgbox" data-role="target-svg" style="width:100%;max-width:540px;">' + targetPlotSvg(entry, { useOverall: useOverall, ppk: 1 }) + '</div><div class="qpc-target-hover-tip" data-role="target-hover-tip" hidden></div></div>' +
       '<div class="qpc-target-side" style="width:118px;">' +
         '<div class="qpc-target-side-head"><div class="qpc-target-legend-link" data-role="open-legend" title="더블클릭: 범례 설정">' + esc(getLegendPrefs(idx).title || '범례') + '</div></div>' +
         '<div class="qpc-target-side-preview" data-role="legend-side-preview">' + legendSidePreviewHtml(idx) + '</div>' +
@@ -1539,8 +1539,8 @@
   }
 
   function capabilityIndexPlotSvg(entry, opts){
-    const width = 292, height = 222;
-    const left = 28, right = 14, top = 8, bottom = 34;
+    const width = 360, height = 262;
+    const left = 32, right = 18, top = 10, bottom = 36;
     const plotW = width - left - right;
     const plotH = height - top - bottom;
     const refVal = clampNum(Number.isFinite(parseNum(opts && opts.refPpk)) ? parseNum(opts && opts.refPpk) : 1, 0.20, 2.50);
@@ -1589,8 +1589,8 @@
 
   function capabilityIndexPlotHtml(entry, idx){
     const refDefault = '1';
-    return '<div class="qpc-index-grid" data-entry-index="' + idx + '" style="display:grid;grid-template-columns:minmax(0,292px) 106px;gap:12px;align-items:start;max-width:410px;">' +
-      '<div class="qpc-index-main" style="width:100%;max-width:292px;"><div class="qpc-svgbox" data-role="index-svg" style="width:100%;max-width:292px;">' + capabilityIndexPlotSvg(entry, { refPpk: 1 }) + '</div></div>' +
+    return '<div class="qpc-index-grid" data-entry-index="' + idx + '" style="display:grid;grid-template-columns:minmax(0,360px) 106px;gap:12px;align-items:start;max-width:478px;">' +
+      '<div class="qpc-index-main" style="width:100%;max-width:360px;"><div class="qpc-svgbox" data-role="index-svg" style="width:100%;max-width:360px;">' + capabilityIndexPlotSvg(entry, { refPpk: 1 }) + '</div></div>' +
       '<div class="qpc-index-side" style="width:106px;">' + capabilityIndexLegendSideHtml() +
         '<div style="height:10px;"></div>' +
         '<div style="font-size:11px;font-weight:700;color:rgba(236,247,240,.96);margin-bottom:4px;">Ppk</div>' +

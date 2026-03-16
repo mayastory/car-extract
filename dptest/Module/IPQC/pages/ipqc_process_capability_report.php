@@ -134,10 +134,10 @@ body{min-width:980px;}
 .qpc-summary-report-table td.is-warn{background:rgba(245,229,176,.96);color:#3a2a06;}
 .qpc-summary-report-table td.is-bad{background:rgba(240,188,188,.96);color:#341111;}
 .qpc-report-empty{text-align:center !important;color:var(--qpc-muted);}
-.qpc-target-grid{display:grid;grid-template-columns:minmax(0, 1fr) 128px;gap:8px;align-items:start;}
+.qpc-target-grid{display:grid;grid-template-columns:minmax(0, 540px) 118px;gap:12px;align-items:start;max-width:670px;}
 .qpc-target-main,.qpc-target-side{border:1px solid var(--qpc-box-border);background:transparent;border-radius:0;}
-.qpc-target-main{position:relative;padding:6px 6px 4px;overflow:visible;}
-.qpc-target-side{padding:6px 8px;}
+.qpc-target-main{position:relative;padding:6px 6px 4px;overflow:visible;max-width:540px;}
+.qpc-target-side{padding:6px 8px;width:118px;}
 .qpc-target-side-title{font-size:11px;font-weight:700;margin-bottom:8px;}
 .qpc-target-check{display:flex;align-items:center;gap:6px;font-size:11px;margin:0 0 10px;}
 .qpc-target-check input{margin:0;}
@@ -304,8 +304,8 @@ body{min-width:980px;}
   return true;
  }
  function targetPlotSvg(entry, opts){
-  var width = 468, height = 290;
-  var left = 40, right = 14, top = 8, bottom = 30;
+  var width = 540, height = 336;
+  var left = 44, right = 18, top = 10, bottom = 34;
   var plotW = width - left - right;
   var plotH = height - top - bottom;
   var xMin = -0.6, xMax = 0.6;
@@ -396,8 +396,8 @@ body{min-width:980px;}
   tip.style.top = fixedTrim(top,2) + 'px';
  }
  function capabilityIndexPlotSvg(entry, refPpk){
-  var width = 292, height = 222;
-  var left = 28, right = 14, top = 8, bottom = 34;
+  var width = 360, height = 262;
+  var left = 32, right = 18, top = 10, bottom = 36;
   var plotW = width - left - right;
   var plotH = height - top - bottom;
   var refVal = clampNum(parseNum(refPpk), 0.20, 2.50);
