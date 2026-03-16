@@ -397,8 +397,8 @@ body{min-width:980px;}
   tip.style.top = fixedTrim(top,2) + 'px';
  }
  function capabilityIndexPlotSvg(entry, refPpk){
-  var width = 360, height = 262;
-  var left = 32, right = 18, top = 10, bottom = 36;
+  var width = 390, height = 330;
+  var left = 36, right = 20, top = 12, bottom = 42;
   var plotW = width - left - right;
   var plotH = height - top - bottom;
   var refVal = clampNum(parseNum(refPpk), 0.20, 2.50);

@@ -1539,8 +1539,8 @@
   }
 
   function capabilityIndexPlotSvg(entry, opts){
-    const width = 440, height = 320;
-    const left = 38, right = 24, top = 12, bottom = 42;
+    const width = 390, height = 330;
+    const left = 36, right = 20, top = 12, bottom = 42;
     const plotW = width - left - right;
     const plotH = height - top - bottom;
     const refVal = clampNum(Number.isFinite(parseNum(opts && opts.refPpk)) ? parseNum(opts && opts.refPpk) : 1, 0.20, 2.50);
@@ -1589,8 +1589,8 @@
 
   function capabilityIndexPlotHtml(entry, idx){
     const refDefault = '1';
-    return '<div class="qpc-index-grid" data-entry-index="' + idx + '" style="display:grid;grid-template-columns:minmax(0,440px) 106px;gap:12px;align-items:start;max-width:558px;">' +
-      '<div class="qpc-index-main" style="width:100%;max-width:440px;"><div class="qpc-svgbox" data-role="index-svg" style="width:100%;max-width:440px;">' + capabilityIndexPlotSvg(entry, { refPpk: 1 }) + '</div></div>' +
+    return '<div class="qpc-index-grid" data-entry-index="' + idx + '" style="display:grid;grid-template-columns:minmax(0,390px) 106px;gap:12px;align-items:start;max-width:508px;">' +
+      '<div class="qpc-index-main" style="width:100%;max-width:390px;"><div class="qpc-svgbox" data-role="index-svg" style="width:100%;max-width:390px;">' + capabilityIndexPlotSvg(entry, { refPpk: 1 }) + '</div></div>' +
       '<div class="qpc-index-side" style="width:106px;">' + capabilityIndexLegendSideHtml() +
         '<div style="height:10px;"></div>' +
         '<div style="font-size:11px;font-weight:700;color:#111;margin-bottom:4px;">Ppk</div>' +
