@@ -994,13 +994,13 @@
 
   function capabilityBoxPlotSvg(entry){
     const values = standardizedBySpecValues(entry);
-    const width = 820, height = 122;
-    const left = 44, right = 134, top = 12, bottom = 34;
+    const width = 980, height = 146;
+    const left = 48, right = 176, top = 14, bottom = 40;
     const plotW = width - left - right;
     const plotH = height - top - bottom;
     const axisY = top + plotH;
-    const yMid = top + 38;
-    const boxH = 20;
+    const yMid = top + 46;
+    const boxH = 22;
     if (!values.length){
       return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true"><rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="transparent" stroke="rgba(255,255,255,.12)"/><text x="' + fixedTrim(width / 2, 2) + '" y="' + fixedTrim(height / 2, 2) + '" fill="rgba(236,247,240,.55)" text-anchor="middle" font-size="11">규격 한계가 있어야 표시됩니다.</text></svg>';
     }
