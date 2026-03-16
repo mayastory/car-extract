@@ -63,27 +63,27 @@ body{min-width:980px;}
 .qpc-report-body,
 .qpc-report-group-body{display:flex;flex-direction:column;align-items:flex-start;gap:4px;}
 .qpc-report-note{padding:14px 10px;color:var(--qpc-muted);font-size:12px;}
-.qpc-report-hist-grid{display:grid;grid-template-columns:minmax(0,460px) 156px;gap:12px;align-items:start;justify-content:start;width:max-content;max-width:100%;}
+.qpc-report-hist-grid{display:grid;grid-template-columns:minmax(0,428px) 156px;gap:12px;align-items:start;justify-content:start;width:max-content;max-width:100%;}
 .qpc-hist-wrap,.qpc-summary-box,.qpc-stat-box,.qpc-reject-box{border:1px solid var(--qpc-box-border);background:transparent;border-radius:0;}
 .qpc-hist-wrap{padding:0;border:none;background:transparent;}
 .qpc-summary-box{padding:4px 6px;}
-.qpc-report-top-grid{max-width:100%;width:max-content;grid-template-columns:minmax(0,460px) 156px;gap:12px;align-items:start;justify-content:start;}
+.qpc-report-top-grid{max-width:100%;width:max-content;grid-template-columns:minmax(0,428px) 156px;gap:12px;align-items:start;justify-content:start;}
 .qpc-report-sub-top{margin-bottom:0;}
 .qpc-report-sub-top > summary{background:linear-gradient(180deg, rgba(44,92,62,.88), rgba(14,29,20,.98));}
-.qpc-report-sub-top.qpc-report-sub-hist{width:476px;max-width:100%;}
+.qpc-report-sub-top.qpc-report-sub-hist{width:444px;max-width:100%;}
 .qpc-report-sub-hist > .qpc-report-sub-body{padding:2px 3px 3px;background:transparent;}
 .qpc-hist-wrap--top{padding:0;position:relative;background:transparent;}
 .qpc-svgbox{width:100%;overflow:auto;}
 .qpc-svgbox svg{width:100%;height:auto;display:block;}
-.qpc-svgbox--hist{width:460px;max-width:100%;position:relative;display:block;background:transparent;}
-.qpc-svgbox--hist svg{width:460px;max-width:100%;height:auto;display:block;}
-.qpc-hist-card{display:flex;flex-direction:column;gap:0;width:460px;max-width:100%;background:transparent;}
-.qpc-hist-topline{display:flex;align-items:flex-end;min-height:18px;width:376px;padding:0 0 1px;background:transparent;}
-.qpc-hist-toplabels{position:relative;height:18px;flex:0 0 auto;width:376px;}
+.qpc-svgbox--hist{width:428px;max-width:100%;position:relative;display:block;background:transparent;}
+.qpc-svgbox--hist svg{width:428px;max-width:100%;height:auto;display:block;}
+.qpc-hist-card{display:flex;flex-direction:column;gap:0;width:428px;max-width:100%;background:transparent;}
+.qpc-hist-topline{display:flex;align-items:flex-end;min-height:18px;width:344px;padding:0 0 1px;background:transparent;}
+.qpc-hist-toplabels{position:relative;height:18px;flex:0 0 auto;width:344px;}
 .qpc-hist-limit{position:absolute;top:0;transform:translateX(-50%);font-size:12px;line-height:1;color:rgba(236,247,240,.96);font-weight:400;white-space:nowrap;}
-.qpc-hist-main{display:grid;grid-template-columns:376px max-content;column-gap:12px;align-items:start;justify-content:start;width:max-content;max-width:100%;background:transparent;}
+.qpc-hist-main{display:grid;grid-template-columns:344px max-content;column-gap:12px;align-items:start;justify-content:start;width:max-content;max-width:100%;background:transparent;}
 .qpc-hist-plot{display:block;background:transparent;}
-.qpc-hist-plot svg{width:376px;max-width:100%;height:auto;display:block;background:transparent;}
+.qpc-hist-plot svg{width:344px;max-width:100%;height:auto;display:block;background:transparent;}
 .qpc-hist-side{display:flex;align-items:flex-start;justify-content:flex-start;padding-top:6px;background:transparent;}
 .qpc-hist-legend{display:flex;flex-direction:column;gap:6px;color:rgba(236,247,240,.96);font-size:12px;line-height:1.2;background:transparent;}
 .qpc-hist-legend-title{font-weight:700;}
@@ -91,8 +91,8 @@ body{min-width:980px;}
 .qpc-hist-legend-line{display:inline-block;width:16px;height:0;border-top:1.15px solid rgba(236,247,240,.96);box-sizing:border-box;}
 .qpc-hist-legend-line--overall{border-top-style:dashed;}
 .qpc-hist-legend-line--within{border-top:1.65px solid #2d74ff;}
-.qpc-hist-foot{display:flex;justify-content:flex-start;width:376px;padding-top:3px;background:transparent;}
-.qpc-hist-caption{width:376px;text-align:center;color:rgba(236,247,240,.96);font-size:13px;line-height:1.15;}
+.qpc-hist-foot{display:flex;justify-content:flex-start;width:344px;padding-top:3px;background:transparent;}
+.qpc-hist-caption{width:344px;text-align:center;color:rgba(236,247,240,.96);font-size:13px;line-height:1.15;}
 .qpc-hist-wrap--top .qpc-svgbox--hist::after{display:none;}
 .qpc-report-top-summary{margin:0;width:156px;max-width:156px;border:0;background:transparent;overflow:visible;align-self:start;}
 .qpc-report-top-summary > summary{list-style:none;cursor:pointer;padding:1px 6px;font-size:12px;line-height:1.3;font-weight:700;color:var(--qpc-text);background:linear-gradient(180deg, rgba(44,92,62,.88), rgba(14,29,20,.98));border:1px solid var(--qpc-border);}
@@ -314,7 +314,9 @@ body{min-width:980px;}
   var sigma = useOverall ? entry.sigmaOverall : entry.sigmaWithin;
   var hasSpecs = isFinite(entry.lsl) && isFinite(entry.usl) && entry.usl > entry.lsl;
   var specWidth = hasSpecs ? (entry.usl - entry.lsl) : NaN;
-  var center = isFinite(entry.target) ? entry.target : (hasSpecs ? ((entry.lsl + entry.usl) / 2) : entry.avg);
+  var targetRaw = Number(entry && entry.target);
+  var targetInsideSpecs = hasSpecs && isFinite(targetRaw) && targetRaw > entry.lsl && targetRaw < entry.usl;
+  var center = targetInsideSpecs ? targetRaw : (hasSpecs ? ((entry.lsl + entry.usl) / 2) : (isFinite(targetRaw) ? targetRaw : entry.avg));
   var normX = (hasSpecs && isFinite(entry.avg) && isFinite(center) && isFinite(specWidth) && specWidth > 0) ? ((entry.avg - center) / specWidth) : NaN;
   var normY = (hasSpecs && isFinite(sigma) && isFinite(specWidth) && specWidth > 0) ? (sigma / specWidth) : NaN;
   var ppkVal = clampNum(isFinite(parseNum(opts && opts.ppk)) ? parseNum(opts && opts.ppk) : 1, 0.20, 2.50);
