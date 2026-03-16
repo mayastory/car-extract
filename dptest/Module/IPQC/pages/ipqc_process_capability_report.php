@@ -137,18 +137,18 @@ body{min-width:980px;}
 .qpc-target-grid{display:grid;grid-template-columns:minmax(0, 620px) 240px;gap:12px;align-items:start;max-width:872px;}
 .qpc-target-main,.qpc-target-side{border:1px solid var(--qpc-box-border);background:transparent;border-radius:0;}
 .qpc-target-main{position:relative;padding:6px 6px 4px;overflow:visible;max-width:620px;}
-.qpc-target-side{padding:8px 12px;box-sizing:border-box;width:240px;min-width:240px;}
+.qpc-target-side{padding:8px 14px;min-width:240px;width:auto;box-sizing:border-box;}
 .qpc-target-side-title{font-size:11px;font-weight:700;margin-bottom:8px;}
-.qpc-target-check{display:flex;align-items:center;gap:6px;font-size:11px;margin:0 0 10px;}
+.qpc-target-check{display:flex;align-items:center;gap:6px;font-size:11px;margin:0 0 12px;white-space:nowrap;}
 .qpc-target-check input{margin:0;}
 .qpc-target-ppk-label{font-size:11px;font-weight:700;margin-bottom:4px;}
-.qpc-target-ppk-line{display:grid;grid-template-columns:max-content 52px minmax(0,1fr);align-items:center;column-gap:8px;margin-bottom:6px;width:100%;}
-.qpc-target-ppk-badge{min-width:44px;height:18px;padding:0 8px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.04);font-size:11px;font-weight:700;box-sizing:border-box;}
-.qpc-target-ppk-input{width:52px;height:20px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.03);color:var(--qpc-text);padding:0 4px;font-size:11px;text-align:center;box-sizing:border-box;}
-.qpc-target-range{display:block;width:100%;min-width:0;accent-color:#b9d8ff;}
+.qpc-target-ppk-line{display:grid;grid-template-columns:auto 48px minmax(120px,1fr);align-items:center;column-gap:8px;margin-bottom:6px;}
+.qpc-target-ppk-badge{min-width:36px;height:18px;padding:0 8px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.04);font-size:11px;font-weight:700;}
+.qpc-target-ppk-input{width:48px;height:20px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.03);color:var(--qpc-text);padding:0 4px;font-size:11px;text-align:center;box-sizing:border-box;}
+.qpc-target-range{display:block;width:100%;min-width:120px;accent-color:#b9d8ff;}
 .qpc-target-side-head{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:8px;}
 .qpc-target-legend-link{padding:0;border:0;background:transparent;color:var(--qpc-text);font-size:11px;font-weight:700;cursor:pointer;user-select:none;}
-.qpc-target-side-preview{min-height:56px;margin-bottom:10px;width:100%;}
+.qpc-target-side-preview{min-height:48px;margin-bottom:10px;}
 .qpc-target-side-item{display:flex;align-items:center;gap:6px;font-size:11px;margin:4px 0;padding:0;border:0;background:transparent;color:var(--qpc-text);cursor:pointer;text-align:left;width:100%;user-select:none;}
 .qpc-target-side-empty{font-size:11px;color:var(--qpc-muted);}
 .qpc-target-marker{width:9px;height:9px;display:inline-block;box-sizing:border-box;flex:0 0 9px;}
@@ -304,8 +304,8 @@ body{min-width:980px;}
   return true;
  }
  function targetPlotSvg(entry, opts){
-  var width = 620, height = 430;
-  var left = 44, right = 18, top = 10, bottom = 34;
+  var width = 620, height = 470;
+  var left = 44, right = 18, top = 10, bottom = 38;
   var plotW = width - left - right;
   var plotH = height - top - bottom;
   var xMin = -0.6, xMax = 0.6;
