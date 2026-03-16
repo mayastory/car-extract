@@ -1455,7 +1455,7 @@
   }
 
   function targetPlotSvg(entry, opts){
-    const width = 620, height = 392;
+    const width = 620, height = 430;
     const left = 50, right = 22, top = 12, bottom = 40;
     const plotW = width - left - right;
     const plotH = height - top - bottom;
