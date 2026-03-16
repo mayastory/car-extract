@@ -135,7 +135,7 @@ body{min-width:980px;}
 .qpc-summary-report-table td.is-bad{background:rgba(240,188,188,.96);color:#341111;}
 .qpc-report-empty{text-align:center !important;color:var(--qpc-muted);}
 .qpc-target-grid{display:grid;grid-template-columns:minmax(0, 620px) 240px;gap:12px;align-items:start;max-width:872px;}
-.qpc-target-main,.qpc-target-side{border:1px solid var(--qpc-box-border);background:transparent;border-radius:0;}
+.qpc-target-main,.qpc-target-side{border:0;background:transparent;border-radius:0;}
 .qpc-target-main{position:relative;padding:6px 6px 4px;overflow:visible;max-width:620px;}
 .qpc-target-side{padding:8px 14px;min-width:240px;width:auto;box-sizing:border-box;}
 .qpc-target-side-title{font-size:11px;font-weight:700;margin-bottom:8px;}
@@ -159,6 +159,7 @@ body{min-width:980px;}
 .qpc-target-tip-meta{font-size:12px;line-height:1.35;margin-bottom:2px;color:#333;}
 .qpc-target-tip-svg{margin-top:6px;}
 .qpc-target-tip-svg svg{width:250px;height:auto;display:block;}
+.qpc-index-main,.qpc-index-side{border:0;background:transparent;border-radius:0;}
 @media print{
  body{background:#fff;color:#000;}
  .qpc-page{padding:0;}
@@ -325,30 +326,30 @@ body{min-width:980px;}
   function y(v){ return top + plotH - ((v - yMin) / (yMax - yMin)) * plotH; }
   var xTicks = [-0.6,-0.4,-0.2,0,0.2,0.4,0.6];
   var yTicks = [0,0.05,0.10,0.15,0.20,0.25,0.30];
+  var plotRect = '<rect x="' + fixedTrim(left,2) + '" y="' + fixedTrim(top,2) + '" width="' + fixedTrim(plotW,2) + '" height="' + fixedTrim(plotH,2) + '" fill="#f8f8f8" stroke="#b7b7b7" stroke-width="1"/>';
   var hGrid = yTicks.map(function(v){
    var yy = y(v);
-   return '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="rgba(255,255,255,.08)"/>';
+   return '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="rgba(0,0,0,.08)"/>';
   }).join('');
-  var xAxisTicks = xTicks.map(function(v){ return '<line x1="' + fixedTrim(x(v),2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(x(v),2) + '" y2="' + fixedTrim(top + plotH + 4,2) + '" stroke="rgba(255,255,255,.45)"/><text x="' + fixedTrim(x(v),2) + '" y="' + fixedTrim(top + plotH + 16,2) + '" fill="rgba(236,247,240,.92)" font-size="10" text-anchor="middle">' + esc(fmtTargetTick(v)) + '</text>'; }).join('');
-  var yAxisTicks = yTicks.map(function(v){ return '<line x1="' + fixedTrim(left - 4,2) + '" y1="' + fixedTrim(y(v),2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(y(v),2) + '" stroke="rgba(255,255,255,.45)"/><text x="' + fixedTrim(left - 7,2) + '" y="' + fixedTrim(y(v) + 3,2) + '" fill="rgba(236,247,240,.92)" font-size="10" text-anchor="end">' + esc(v === 0 ? '0' : fixedTrim(v,2)) + '</text>'; }).join('');
+  var xAxisTicks = xTicks.map(function(v){ return '<line x1="' + fixedTrim(x(v),2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(x(v),2) + '" y2="' + fixedTrim(top + plotH + 4,2) + '" stroke="#7e7e7e"/><text x="' + fixedTrim(x(v),2) + '" y="' + fixedTrim(top + plotH + 16,2) + '" fill="#111" font-size="10" text-anchor="middle">' + esc(fmtTargetTick(v)) + '</text>'; }).join('');
+  var yAxisTicks = yTicks.map(function(v){ return '<line x1="' + fixedTrim(left - 4,2) + '" y1="' + fixedTrim(y(v),2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(y(v),2) + '" stroke="#7e7e7e"/><text x="' + fixedTrim(left - 7,2) + '" y="' + fixedTrim(y(v) + 3,2) + '" fill="#111" font-size="10" text-anchor="end">' + esc(v === 0 ? '0' : fixedTrim(v,2)) + '</text>'; }).join('');
   var tri = '<path d="M' + fixedTrim(x(-0.5),2) + ' ' + fixedTrim(y(0),2) + ' L' + fixedTrim(x(0),2) + ' ' + fixedTrim(y(apexY),2) + ' L' + fixedTrim(x(0.5),2) + ' ' + fixedTrim(y(0),2) + '" fill="none" stroke="#ff6672" stroke-width="1.2"/>';
   var marker = '';
   if (isFinite(normX) && isFinite(normY)){
    var px = x(clampNum(normX, xMin, xMax));
    var py = y(clampNum(normY, yMin, yMax));
    var hitType = useOverall ? 'overall' : 'within';
-   marker = '<rect x="' + fixedTrim(px - 2.5,2) + '" y="' + fixedTrim(py - 2.5,2) + '" width="5" height="5" fill="transparent" stroke="rgba(236,247,240,.95)" stroke-width="1.1"/>' +
+   marker = '<rect x="' + fixedTrim(px - 2.5,2) + '" y="' + fixedTrim(py - 2.5,2) + '" width="5" height="5" fill="transparent" stroke="#111" stroke-width="1.1"/>' +
     '<rect x="' + fixedTrim(px - 8,2) + '" y="' + fixedTrim(py - 8,2) + '" width="16" height="16" fill="transparent" stroke="transparent" data-role="target-marker-hit" data-hit-type="' + hitType + '"/>';
   }
-  var empty = (!hasSpecs || !isFinite(normX) || !isFinite(normY)) ? '<text x="' + fixedTrim(left + plotW/2,2) + '" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(236,247,240,.55)" text-anchor="middle" font-size="11">규격 한계와 데이터가 있어야 표시됩니다.</text>' : '';
+  var empty = (!hasSpecs || !isFinite(normX) || !isFinite(normY)) ? '<text x="' + fixedTrim(left + plotW/2,2) + '" y="' + fixedTrim(top + plotH/2,2) + '" fill="#444" text-anchor="middle" font-size="11">규격 한계와 데이터가 있어야 표시됩니다.</text>' : '';
   return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
-   '<rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="transparent" stroke="rgba(255,255,255,.12)"/>' +
-   hGrid +
-   '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(255,255,255,.55)"/>' +
-   '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(255,255,255,.55)"/>' +
+   plotRect + hGrid +
+   '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="#7e7e7e"/>' +
+   '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="#7e7e7e"/>' +
    tri + marker + xAxisTicks + yAxisTicks + empty +
-   '<text x="' + fixedTrim(left + plotW/2,2) + '" y="' + (height - 6) + '" fill="rgba(236,247,240,.96)" font-size="11" text-anchor="middle">규격으로 표준화된 평균</text>' +
-   '<text x="14" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(236,247,240,.96)" font-size="11" text-anchor="middle" transform="rotate(-90 14 ' + fixedTrim(top + plotH/2,2) + ')">규격으로 표준화된 표준편차</text>' +
+   '<text x="' + fixedTrim(left + plotW/2,2) + '" y="' + (height - 6) + '" fill="#111" font-size="11" text-anchor="middle">규격으로 표준화된 평균</text>' +
+   '<text x="14" y="' + fixedTrim(top + plotH/2,2) + '" fill="#111" font-size="11" text-anchor="middle" transform="rotate(-90 14 ' + fixedTrim(top + plotH/2,2) + ')">규격으로 표준화된 표준편차</text>' +
    '</svg>';
  }
  function renderTargetPlotBox(box){
@@ -408,31 +409,31 @@ body{min-width:980px;}
   function y(v){ return top + plotH - ((v - 0) / (yMax - 0)) * plotH; }
   var yTicks = [];
   for (var v = 0; v <= yMax + 1e-9; v += 0.5) yTicks.push(Number(v.toFixed(1)));
+  var plotRect = '<rect x="' + fixedTrim(left,2) + '" y="' + fixedTrim(top,2) + '" width="' + fixedTrim(plotW,2) + '" height="' + fixedTrim(plotH,2) + '" fill="#f8f8f8" stroke="#b7b7b7" stroke-width="1"/>';
   var hGrid = yTicks.map(function(v){
    var yy = y(v);
-   var stroke = Math.abs(v - Math.round(v)) < 1e-9 ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.05)';
+   var stroke = Math.abs(v - Math.round(v)) < 1e-9 ? 'rgba(0,0,0,.08)' : 'rgba(0,0,0,.05)';
    return '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="' + stroke + '"/>';
   }).join('');
   var yAxisTicks = yTicks.map(function(v){
    var yy = y(v);
    var label = Math.abs(v - Math.round(v)) < 1e-9 ? String(Math.round(v)) : '';
-   return '<line x1="' + fixedTrim(left - 3,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="rgba(236,247,240,.85)"/>' + (label ? '<text x="' + fixedTrim(left - 6,2) + '" y="' + fixedTrim(yy + 3,2) + '" fill="rgba(236,247,240,.9)" font-size="10" text-anchor="end">' + esc(label) + '</text>' : '');
+   return '<line x1="' + fixedTrim(left - 3,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="#7e7e7e"/>' + (label ? '<text x="' + fixedTrim(left - 6,2) + '" y="' + fixedTrim(yy + 3,2) + '" fill="#111" font-size="10" text-anchor="end">' + esc(label) + '</text>' : '');
   }).join('');
-  var xAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(236,247,240,.85)"/>';
-  var yAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(236,247,240,.85)"/>';
+  var xAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="#7e7e7e"/>';
+  var yAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="#7e7e7e"/>';
   var refLine = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(y(refVal),2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(y(refVal),2) + '" stroke="#ff6672" stroke-width="1.15"/>';
   var marker = '';
   if (isFinite(rawPpk)){
    var py = y(clampNum(rawPpk, 0, yMax));
-   marker = '<rect x="' + fixedTrim(xMid - 3,2) + '" y="' + fixedTrim(py - 3,2) + '" width="6" height="6" fill="transparent" stroke="rgba(236,247,240,.95)" stroke-width="1.1"/>';
+   marker = '<rect x="' + fixedTrim(xMid - 3,2) + '" y="' + fixedTrim(py - 3,2) + '" width="6" height="6" fill="transparent" stroke="#111" stroke-width="1.1"/>';
   }
   var labelText = esc(entry && (entry.label || entry.proc) || '-');
   return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
-   '<rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="transparent" stroke="rgba(255,255,255,.12)"/>' +
-   hGrid + xAxis + yAxis + refLine + marker + yAxisTicks +
-   '<text x="' + fixedTrim(xMid,2) + '" y="' + fixedTrim(top + plotH + 18,2) + '" fill="rgba(236,247,240,.92)" font-size="10" text-anchor="middle" transform="rotate(-90 ' + fixedTrim(xMid,2) + ' ' + fixedTrim(top + plotH + 18,2) + ')">' + labelText + '</text>' +
-   '<text x="' + fixedTrim(xMid,2) + '" y="' + (height - 4) + '" fill="rgba(236,247,240,.92)" font-size="11" text-anchor="middle">공정</text>' +
-   '<text x="14" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(236,247,240,.96)" font-size="11" text-anchor="middle" transform="rotate(-90 14 ' + fixedTrim(top + plotH/2,2) + ')">Ppk</text>' +
+   plotRect + hGrid + xAxis + yAxis + refLine + marker + yAxisTicks +
+   '<text x="' + fixedTrim(xMid,2) + '" y="' + fixedTrim(top + plotH + 18,2) + '" fill="#111" font-size="10" text-anchor="middle" transform="rotate(-90 ' + fixedTrim(xMid,2) + ' ' + fixedTrim(top + plotH + 18,2) + ')">' + labelText + '</text>' +
+   '<text x="' + fixedTrim(xMid,2) + '" y="' + (height - 4) + '" fill="#111" font-size="11" text-anchor="middle">공정</text>' +
+   '<text x="14" y="' + fixedTrim(top + plotH/2,2) + '" fill="#111" font-size="11" text-anchor="middle" transform="rotate(-90 14 ' + fixedTrim(top + plotH/2,2) + ')">Ppk</text>' +
    '</svg>';
  }
  function renderCapabilityIndexPlotBox(box){
