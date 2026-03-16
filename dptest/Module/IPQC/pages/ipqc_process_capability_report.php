@@ -75,7 +75,7 @@ body{min-width:980px;}
 .qpc-hist-wrap--top{padding:0;position:relative;background:transparent;}
 .qpc-svgbox{width:100%;overflow:auto;}
 .qpc-svgbox svg{width:100%;height:auto;display:block;}
-.qpc-svgbox--hist{width:428px;max-width:100%;position:relative;display:block;background:transparent;}
+.qpc-svgbox--hist{width:428px;max-width:100%;position:relative;display:block;background:transparent;overflow:visible;}
 .qpc-svgbox--hist svg{width:428px;max-width:100%;height:auto;display:block;}
 .qpc-hist-card{display:flex;flex-direction:column;gap:0;width:428px;max-width:100%;background:transparent;}
 .qpc-hist-topline{display:flex;align-items:flex-end;min-height:15px;width:344px;padding:0;background:transparent;}
