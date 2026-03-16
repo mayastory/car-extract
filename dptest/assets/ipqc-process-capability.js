@@ -1539,14 +1539,14 @@
   }
 
   function capabilityIndexPlotSvg(entry, opts){
-    const width = 392, height = 356;
-    const left = 36, right = 22, top = 12, bottom = 76;
+    const width = 392, height = 404;
+    const left = 36, right = 22, top = 12, bottom = 104;
     const plotW = width - left - right;
     const plotH = height - top - bottom;
     const refVal = clampNum(Number.isFinite(parseNum(opts && opts.refPpk)) ? parseNum(opts && opts.refPpk) : 1, 0.20, 2.50);
     const rawPpk = Number(entry && entry.ppk);
-    const yMaxBase = Math.max(3.2, Math.ceil((Math.max(refVal, Number.isFinite(rawPpk) ? rawPpk : 0) + 0.25) * 2) / 2);
-    const yMax = Math.max(3.2, yMaxBase);
+    const yMaxBase = Math.ceil((Math.max(refVal, Number.isFinite(rawPpk) ? rawPpk : 0) + 0.25) * 2) / 2;
+    const yMax = Math.max(2.2, yMaxBase);
     const xMid = left + plotW / 2;
     const y = v => top + plotH - ((v - 0) / (yMax - 0)) * plotH;
     const yTicks = [];
@@ -1574,8 +1574,8 @@
     return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
       '<rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="#f8f8f8" stroke="#b7b7b7"/>' +
       hGrid + xAxis + yAxis + refLine + marker + yAxisTicks +
-      '<text x="' + fixedTrim(xMid,2) + '" y="' + fixedTrim(top + plotH + 34,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="middle" transform="rotate(-90 ' + fixedTrim(xMid,2) + ' ' + fixedTrim(top + plotH + 34,2) + ')">' + labelText + '</text>' +
-      '<text x="' + fixedTrim(xMid,2) + '" y="' + (height - 10) + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">공정</text>' +
+      '<text x="' + fixedTrim(xMid,2) + '" y="' + fixedTrim(top + plotH + 44,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="middle" transform="rotate(-90 ' + fixedTrim(xMid,2) + ' ' + fixedTrim(top + plotH + 44,2) + ')">' + labelText + '</text>' +
+      '<text x="' + fixedTrim(xMid,2) + '" y="' + (height - 12) + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">공정</text>' +
       '<text x="14" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(17,17,17,.96)" font-size="11" text-anchor="middle" transform="rotate(-90 14 ' + fixedTrim(top + plotH/2,2) + ')">Ppk</text>' +
       '</svg>';
   }
