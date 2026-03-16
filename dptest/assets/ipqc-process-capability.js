@@ -1539,8 +1539,8 @@
   }
 
   function capabilityIndexPlotSvg(entry, opts){
-    const width = 420, height = 454;
-    const left = 44, right = 20, top = 12, bottom = 122;
+    const width = 470, height = 520;
+    const left = 48, right = 16, top = 12, bottom = 148;
     const plotW = width - left - right;
     const plotH = height - top - bottom;
     const refVal = clampNum(Number.isFinite(parseNum(opts && opts.refPpk)) ? parseNum(opts && opts.refPpk) : 1, 0.20, 2.50);
@@ -1589,9 +1589,9 @@
 
   function capabilityIndexPlotHtml(entry, idx){
     const refDefault = '1';
-    return '<div class="qpc-index-grid" data-entry-index="' + idx + '" style="display:grid;grid-template-columns:minmax(0,420px) 112px;gap:12px;align-items:start;max-width:544px;">' +
-      '<div class="qpc-index-main" style="width:100%;max-width:420px;"><div class="qpc-svgbox" data-role="index-svg" style="width:100%;max-width:420px;">' + capabilityIndexPlotSvg(entry, { refPpk: 1 }) + '</div></div>' +
-      '<div class="qpc-index-side" style="width:112px;">' + capabilityIndexLegendSideHtml() +
+    return '<div class="qpc-index-grid" data-entry-index="' + idx + '" style="display:grid;grid-template-columns:minmax(0,470px) 128px;gap:12px;align-items:start;max-width:610px;">' +
+      '<div class="qpc-index-main" style="width:100%;max-width:470px;"><div class="qpc-svgbox" data-role="index-svg" style="width:100%;max-width:470px;">' + capabilityIndexPlotSvg(entry, { refPpk: 1 }) + '</div></div>' +
+      '<div class="qpc-index-side" style="width:128px;">' + capabilityIndexLegendSideHtml() +
         '<div style="height:10px;"></div>' +
         '<div style="font-size:11px;font-weight:700;color:#111;margin-bottom:4px;">Ppk</div>' +
         '<div style="display:flex;align-items:center;gap:4px;margin-bottom:6px;"><span style="display:inline-block;min-width:34px;padding:2px 6px;border:1px solid rgba(0,0,0,.18);background:#f7f7f7;font-size:11px;font-weight:700;text-align:center;color:#111;">Ppk</span><input type="text" class="qpc-index-ppk-input" data-role="index-ppk-text" value="' + refDefault + '" style="width:38px;height:20px;border:1px solid rgba(0,0,0,.18);background:#f7f7f7;color:#111;font-size:11px;text-align:center;padding:0 4px;"></div>' +
