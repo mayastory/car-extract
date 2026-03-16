@@ -909,8 +909,8 @@
     for (let v = tickStart; v <= axisMax + tickStep * 0.25; v += tickStep){
       if (v < axisMin - 1e-9 || v > axisMax + 1e-9) continue;
       const px = x(v);
-      ticks.push('<line x1="' + fixedTrim(px, 2) + '" y1="' + axisY + '" x2="' + fixedTrim(px, 2) + '" y2="' + (axisY + 4) + '" stroke="rgba(236,247,240,.62)"/>' +
-        '<text x="' + fixedTrim(px, 2) + '" y="' + (axisY + 15) + '" fill="rgba(236,247,240,.96)" font-size="12" text-anchor="middle">' + esc(formatHistTick(v)) + '</text>');
+      ticks.push('<line x1="' + fixedTrim(px, 2) + '" y1="' + axisY + '" x2="' + fixedTrim(px, 2) + '" y2="' + (axisY + 4) + '" stroke="rgba(0,0,0,.55)"/>' +
+        '<text x="' + fixedTrim(px, 2) + '" y="' + (axisY + 15) + '" fill="rgba(17,17,17,.96)" font-size="12" text-anchor="middle">' + esc(formatHistTick(v)) + '</text>');
     }
     const axis = ticks.join('');
 
@@ -994,15 +994,18 @@
 
   function capabilityBoxPlotSvg(entry){
     const values = standardizedBySpecValues(entry);
-    const width = 1180, height = 224;
-    const left = 58, right = 198, top = 18, bottom = 54;
+    const width = 700, height = 122;
+    const left = 30, right = 96, top = 8;
     const plotW = width - left - right;
-    const plotH = height - top - bottom;
-    const axisY = top + plotH;
-    const yMid = top + 66;
-    const boxH = 28;
+    const plotH = 64;
+    const plotBottom = top + plotH;
+    const tickLineBottom = plotBottom + 4;
+    const tickTextY = plotBottom + 16;
+    const titleY = height - 2;
+    const yMid = top + (plotH / 2);
+    const boxH = 16;
     if (!values.length){
-      return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true"><rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="transparent" stroke="rgba(255,255,255,.12)"/><text x="' + fixedTrim(width / 2, 2) + '" y="' + fixedTrim(height / 2, 2) + '" fill="rgba(236,247,240,.55)" text-anchor="middle" font-size="11">규격 한계가 있어야 표시됩니다.</text></svg>';
+      return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true"><rect x="' + fixedTrim(left,2) + '" y="' + fixedTrim(top,2) + '" width="' + fixedTrim(plotW,2) + '" height="' + fixedTrim(plotH,2) + '" fill="#f8f8f8" stroke="#b7b7b7" stroke-width="1"/><text x="' + fixedTrim(left + (plotW / 2), 2) + '" y="' + fixedTrim(top + (plotH / 2) + 4, 2) + '" fill="#444" text-anchor="middle" font-size="11">규격 한계가 있어야 표시됩니다.</text></svg>';
     }
     const sorted = sortedNums(values);
     const q1 = quantileSorted(sorted, 0.25);
@@ -1022,9 +1025,6 @@
     const xMax = axisAbs;
     const x = v => left + ((v - xMin) / Math.max(1e-9, xMax - xMin)) * plotW;
 
-
-    // JMP 비교 케이스에서는 공정 능력 상자 그림의 개별 점을 표시하지 않는다.
-    // 현재는 개별 점 렌더링을 끄고, 박스/수염/규격 기준선만 표시한다.
     const points = '';
 
     const specLineDefs = [];
@@ -1041,11 +1041,11 @@
     }
     const specLines = specLineDefs.map(line => {
       const xx = x(line.v);
-      return '<line x1="' + fixedTrim(xx,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(xx,2) + '" y2="' + fixedTrim(axisY,2) + '" stroke="' + line.color + '" stroke-width="' + line.width + '"' + (line.dash ? ' stroke-dasharray="' + line.dash + '"' : '') + '/>';
+      return '<line x1="' + fixedTrim(xx,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(xx,2) + '" y2="' + fixedTrim(plotBottom,2) + '" stroke="' + line.color + '" stroke-width="' + line.width + '"' + (line.dash ? ' stroke-dasharray="' + line.dash + '"' : '') + '/>';
     }).join('');
 
     const whiskerY = yMid;
-    const whiskerColor = 'rgba(236,247,240,.98)';
+    const whiskerColor = 'rgba(0,0,0,.72)';
     const whisker = '<line x1="' + fixedTrim(x(whiskerLow), 2) + '" y1="' + fixedTrim(whiskerY, 2) + '" x2="' + fixedTrim(x(whiskerHigh), 2) + '" y2="' + fixedTrim(whiskerY, 2) + '" stroke="' + whiskerColor + '" stroke-width="1.05"/>' +
       '<line x1="' + fixedTrim(x(whiskerLow), 2) + '" y1="' + fixedTrim(whiskerY - 6, 2) + '" x2="' + fixedTrim(x(whiskerLow), 2) + '" y2="' + fixedTrim(whiskerY + 6, 2) + '" stroke="' + whiskerColor + '" stroke-width="1.05"/>' +
       '<line x1="' + fixedTrim(x(whiskerHigh), 2) + '" y1="' + fixedTrim(whiskerY - 6, 2) + '" x2="' + fixedTrim(x(whiskerHigh), 2) + '" y2="' + fixedTrim(whiskerY + 6, 2) + '" stroke="' + whiskerColor + '" stroke-width="1.05"/>';
@@ -1054,25 +1054,25 @@
     if (Number.isFinite(entry.usl) && !Number.isFinite(entry.lsl)) boxFill = '#6f9eff';
     if (Number.isFinite(entry.lsl) && !Number.isFinite(entry.usl)) boxFill = '#ef7d7d';
     const boxTop = yMid - (boxH / 2);
-    const box = '<rect x="' + fixedTrim(x(q1), 2) + '" y="' + fixedTrim(boxTop, 2) + '" width="' + fixedTrim(Math.max(1, x(q3) - x(q1)), 2) + '" height="' + fixedTrim(boxH, 2) + '" fill="' + boxFill + '" fill-opacity="0.90" stroke="rgba(244,244,244,.98)" stroke-width="1"/>' +
-      '<line x1="' + fixedTrim(x(med), 2) + '" y1="' + fixedTrim(boxTop, 2) + '" x2="' + fixedTrim(x(med), 2) + '" y2="' + fixedTrim(boxTop + boxH, 2) + '" stroke="rgba(248,248,248,.98)" stroke-width="1"/>';
+    const box = '<rect x="' + fixedTrim(x(q1), 2) + '" y="' + fixedTrim(boxTop, 2) + '" width="' + fixedTrim(Math.max(1, x(q3) - x(q1)), 2) + '" height="' + fixedTrim(boxH, 2) + '" fill="' + boxFill + '" fill-opacity="0.90" stroke="rgba(0,0,0,.68)" stroke-width="1"/>' +
+      '<line x1="' + fixedTrim(x(med), 2) + '" y1="' + fixedTrim(boxTop, 2) + '" x2="' + fixedTrim(x(med), 2) + '" y2="' + fixedTrim(boxTop + boxH, 2) + '" stroke="rgba(0,0,0,.72)" stroke-width="1"/>';
 
     const ticks = [-0.5, 0, 0.5].map(v => {
       const xx = x(v);
-      return '<line x1="' + fixedTrim(xx, 2) + '" y1="' + fixedTrim(axisY, 2) + '" x2="' + fixedTrim(xx, 2) + '" y2="' + fixedTrim(axisY + 4, 2) + '" stroke="rgba(255,255,255,.45)"/><text x="' + fixedTrim(xx, 2) + '" y="' + fixedTrim(height - 14, 2) + '" fill="rgba(236,247,240,.92)" font-size="11" text-anchor="middle">' + esc(fmtTargetTick(v)) + '</text>';
+      return '<line x1="' + fixedTrim(xx, 2) + '" y1="' + fixedTrim(plotBottom, 2) + '" x2="' + fixedTrim(xx, 2) + '" y2="' + fixedTrim(tickLineBottom, 2) + '" stroke="rgba(0,0,0,.45)"/><text x="' + fixedTrim(xx, 2) + '" y="' + fixedTrim(tickTextY, 2) + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">' + esc(fmtTargetTick(v)) + '</text>';
     }).join('');
 
     return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
-      '<rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="transparent" stroke="rgba(255,255,255,.12)"/>' +
-      '<line x1="' + fixedTrim(left, 2) + '" y1="' + fixedTrim(axisY, 2) + '" x2="' + fixedTrim(left + plotW, 2) + '" y2="' + fixedTrim(axisY, 2) + '" stroke="rgba(255,255,255,.55)"/>' +
+      '<rect x="' + fixedTrim(left, 2) + '" y="' + fixedTrim(top, 2) + '" width="' + fixedTrim(plotW, 2) + '" height="' + fixedTrim(plotH, 2) + '" fill="#f8f8f8" stroke="#b7b7b7"/>' +
+      '<line x1="' + fixedTrim(left, 2) + '" y1="' + fixedTrim(plotBottom, 2) + '" x2="' + fixedTrim(left + plotW, 2) + '" y2="' + fixedTrim(plotBottom, 2) + '" stroke="rgba(0,0,0,.55)"/>' +
       specLines + points + whisker + box + ticks +
-      '<text x="' + fixedTrim(left + (plotW / 2), 2) + '" y="' + fixedTrim(height - 1, 2) + '" fill="rgba(236,247,240,.92)" font-size="11.5" text-anchor="middle">규격 한계를 사용하여 표준화됨</text>' +
-      '<text x="' + fixedTrim(left + plotW + 12, 2) + '" y="' + fixedTrim(yMid + 4, 2) + '" fill="rgba(236,247,240,.92)" font-size="12">' + esc(entry.label || entry.proc || '') + '</text>' +
+      '<text x="' + fixedTrim(left + (plotW / 2), 2) + '" y="' + fixedTrim(titleY, 2) + '" fill="rgba(17,17,17,.92)" font-size="11.5" text-anchor="middle">규격 한계를 사용하여 표준화됨</text>' +
+      '<text x="' + fixedTrim(left + plotW + 12, 2) + '" y="' + fixedTrim(yMid + 4, 2) + '" fill="rgba(17,17,17,.92)" font-size="12">' + esc(entry.label || entry.proc || '') + '</text>' +
       '</svg>';
   }
 
   function capabilityBoxPlotHtml(entry){
-    return '<div class="qpc-svgbox" style="width:1180px;max-width:100%;">' + capabilityBoxPlotSvg(entry) + '</div>';
+    return '<div class="qpc-svgbox" style="width:700px;max-width:100%;">' + capabilityBoxPlotSvg(entry) + '</div>'; 
   }
 
   function rejectTableHtml(entry){
@@ -1476,30 +1476,30 @@
     const yTicks = [0,0.05,0.10,0.15,0.20,0.25,0.30];
     const hGrid = yTicks.map(v => {
       const yy = y(v);
-      return '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="rgba(255,255,255,.08)"/>';
+      return '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="rgba(0,0,0,.08)"/>';
     }).join('');
-    const xAxisTicks = xTicks.map(v => '<line x1="' + fixedTrim(x(v),2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(x(v),2) + '" y2="' + fixedTrim(top + plotH + 4,2) + '" stroke="rgba(255,255,255,.45)"/><text x="' + fixedTrim(x(v),2) + '" y="' + fixedTrim(top + plotH + 16,2) + '" fill="rgba(236,247,240,.92)" font-size="10" text-anchor="middle">' + esc(fmtTargetTick(v)) + '</text>').join('');
-    const yAxisTicks = yTicks.map(v => '<line x1="' + fixedTrim(left - 4,2) + '" y1="' + fixedTrim(y(v),2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(y(v),2) + '" stroke="rgba(255,255,255,.45)"/><text x="' + fixedTrim(left - 7,2) + '" y="' + fixedTrim(y(v) + 3,2) + '" fill="rgba(236,247,240,.92)" font-size="10" text-anchor="end">' + esc(v === 0 ? '0' : fixedTrim(v,2)) + '</text>').join('');
+    const xAxisTicks = xTicks.map(v => '<line x1="' + fixedTrim(x(v),2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(x(v),2) + '" y2="' + fixedTrim(top + plotH + 4,2) + '" stroke="rgba(0,0,0,.45)"/><text x="' + fixedTrim(x(v),2) + '" y="' + fixedTrim(top + plotH + 16,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="middle">' + esc(fmtTargetTick(v)) + '</text>').join('');
+    const yAxisTicks = yTicks.map(v => '<line x1="' + fixedTrim(left - 4,2) + '" y1="' + fixedTrim(y(v),2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(y(v),2) + '" stroke="rgba(0,0,0,.45)"/><text x="' + fixedTrim(left - 7,2) + '" y="' + fixedTrim(y(v) + 3,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="end">' + esc(v === 0 ? '0' : fixedTrim(v,2)) + '</text>').join('');
     const tri = '<path d="M' + fixedTrim(x(-0.5),2) + ' ' + fixedTrim(y(0),2) + ' L' + fixedTrim(x(0),2) + ' ' + fixedTrim(y(apexY),2) + ' L' + fixedTrim(x(0.5),2) + ' ' + fixedTrim(y(0),2) + '" fill="none" stroke="#ff6672" stroke-width="1.2"/>';
     let marker = '';
     if (Number.isFinite(normX) && Number.isFinite(normY)){
       const px = x(clampNum(normX, xMin, xMax));
       const py = y(clampNum(normY, yMin, yMax));
       const hitType = useOverall ? 'overall' : 'within';
-      marker = '<rect x="' + fixedTrim(px - 2.5,2) + '" y="' + fixedTrim(py - 2.5,2) + '" width="5" height="5" fill="transparent" stroke="rgba(236,247,240,.95)" stroke-width="1.1"/>' +
+      marker = '<rect x="' + fixedTrim(px - 2.5,2) + '" y="' + fixedTrim(py - 2.5,2) + '" width="5" height="5" fill="transparent" stroke="rgba(17,17,17,.95)" stroke-width="1.1"/>' +
         '<rect x="' + fixedTrim(px - 8,2) + '" y="' + fixedTrim(py - 8,2) + '" width="16" height="16" fill="transparent" stroke="transparent" data-role="target-marker-hit" data-hit-type="' + hitType + '"/>';
     }
     const empty = (!hasSpecs || !Number.isFinite(normX) || !Number.isFinite(normY))
-      ? '<text x="' + fixedTrim(left + plotW/2,2) + '" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(236,247,240,.55)" text-anchor="middle" font-size="11">규격 한계와 데이터가 있어야 표시됩니다.</text>'
+      ? '<text x="' + fixedTrim(left + plotW/2,2) + '" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(0,0,0,.45)" text-anchor="middle" font-size="11">규격 한계와 데이터가 있어야 표시됩니다.</text>'
       : '';
     return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
-      '<rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="transparent" stroke="rgba(255,255,255,.12)"/>' +
+      '<rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="#f8f8f8" stroke="#b7b7b7"/>' +
       hGrid +
-      '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(255,255,255,.55)"/>' +
-      '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(255,255,255,.55)"/>' +
+      '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(0,0,0,.55)"/>' +
+      '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(0,0,0,.55)"/>' +
       tri + marker + xAxisTicks + yAxisTicks + empty +
-      '<text x="' + fixedTrim(left + plotW/2,2) + '" y="' + (height - 6) + '" fill="rgba(236,247,240,.96)" font-size="11" text-anchor="middle">규격으로 표준화된 평균</text>' +
-      '<text x="14" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(236,247,240,.96)" font-size="11" text-anchor="middle" transform="rotate(-90 14 ' + fixedTrim(top + plotH/2,2) + ')">규격으로 표준화된 표준편차</text>' +
+      '<text x="' + fixedTrim(left + plotW/2,2) + '" y="' + (height - 6) + '" fill="rgba(17,17,17,.96)" font-size="11" text-anchor="middle">규격으로 표준화된 평균</text>' +
+      '<text x="14" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(17,17,17,.96)" font-size="11" text-anchor="middle" transform="rotate(-90 14 ' + fixedTrim(top + plotH/2,2) + ')">규격으로 표준화된 표준편차</text>' +
       '</svg>';
   }
 
@@ -1539,8 +1539,8 @@
   }
 
   function capabilityIndexPlotSvg(entry, opts){
-    const width = 440, height = 392;
-    const left = 38, right = 24, top = 12, bottom = 50;
+    const width = 440, height = 320;
+    const left = 38, right = 24, top = 12, bottom = 42;
     const plotW = width - left - right;
     const plotH = height - top - bottom;
     const refVal = clampNum(Number.isFinite(parseNum(opts && opts.refPpk)) ? parseNum(opts && opts.refPpk) : 1, 0.20, 2.50);
@@ -1559,31 +1559,31 @@
     const yAxisTicks = yTicks.map(v => {
       const yy = y(v);
       const label = Math.abs(v - Math.round(v)) < 1e-9 ? String(Math.round(v)) : '';
-      return '<line x1="' + fixedTrim(left - 4,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="rgba(255,255,255,.45)"/>' +
-        (label ? '<text x="' + fixedTrim(left - 7,2) + '" y="' + fixedTrim(yy + 3,2) + '" fill="rgba(236,247,240,.92)" font-size="10" text-anchor="end">' + esc(label) + '</text>' : '');
+      return '<line x1="' + fixedTrim(left - 4,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="rgba(0,0,0,.45)"/>' +
+        (label ? '<text x="' + fixedTrim(left - 7,2) + '" y="' + fixedTrim(yy + 3,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="end">' + esc(label) + '</text>' : '');
     }).join('');
-    const xAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(255,255,255,.55)"/>';
-    const yAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(255,255,255,.55)"/>';
+    const xAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(0,0,0,.55)"/>';
+    const yAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(0,0,0,.55)"/>';
     const refLine = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(y(refVal),2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(y(refVal),2) + '" stroke="#ff6672" stroke-width="1.15"/>';
     let marker = '';
     if (Number.isFinite(rawPpk)){
       const py = y(clampNum(rawPpk, 0, yMax));
-      marker = '<rect x="' + fixedTrim(xMid - 3,2) + '" y="' + fixedTrim(py - 3,2) + '" width="6" height="6" fill="transparent" stroke="rgba(236,247,240,.95)" stroke-width="1.1"/>';
+      marker = '<rect x="' + fixedTrim(xMid - 3,2) + '" y="' + fixedTrim(py - 3,2) + '" width="6" height="6" fill="transparent" stroke="rgba(17,17,17,.95)" stroke-width="1.1"/>';
     }
     const labelText = esc(entry && (entry.label || entry.proc) || '-');
     return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
-      '<rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="transparent" stroke="rgba(255,255,255,.12)"/>' +
+      '<rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="#f8f8f8" stroke="#b7b7b7"/>' +
       hGrid + xAxis + yAxis + refLine + marker + yAxisTicks +
-      '<text x="' + fixedTrim(xMid,2) + '" y="' + fixedTrim(top + plotH + 18,2) + '" fill="rgba(236,247,240,.92)" font-size="10" text-anchor="middle" transform="rotate(-90 ' + fixedTrim(xMid,2) + ' ' + fixedTrim(top + plotH + 18,2) + ')">' + labelText + '</text>' +
-      '<text x="' + fixedTrim(xMid,2) + '" y="' + (height - 4) + '" fill="rgba(236,247,240,.92)" font-size="11" text-anchor="middle">공정</text>' +
-      '<text x="14" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(236,247,240,.96)" font-size="11" text-anchor="middle" transform="rotate(-90 14 ' + fixedTrim(top + plotH/2,2) + ')">Ppk</text>' +
+      '<text x="' + fixedTrim(xMid,2) + '" y="' + fixedTrim(top + plotH + 18,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="middle" transform="rotate(-90 ' + fixedTrim(xMid,2) + ' ' + fixedTrim(top + plotH + 18,2) + ')">' + labelText + '</text>' +
+      '<text x="' + fixedTrim(xMid,2) + '" y="' + (height - 4) + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">공정</text>' +
+      '<text x="14" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(17,17,17,.96)" font-size="11" text-anchor="middle" transform="rotate(-90 14 ' + fixedTrim(top + plotH/2,2) + ')">Ppk</text>' +
       '</svg>';
   }
 
   function capabilityIndexLegendSideHtml(){
-    return '<div style="font-size:11px;line-height:1.5;color:rgba(236,247,240,.96);">' +
+    return '<div style="font-size:11px;line-height:1.5;color:#111;">' +
       '<div style="font-weight:700;margin-bottom:6px;">범례</div>' +
-      '<div style="display:flex;align-items:center;gap:6px;"><span style="display:inline-block;width:8px;height:8px;border:1px solid rgba(236,247,240,.9);background:transparent;box-sizing:border-box;"></span><span>전체 Ppk</span></div>' +
+      '<div style="display:flex;align-items:center;gap:6px;"><span style="display:inline-block;width:8px;height:8px;border:1px solid rgba(17,17,17,.82);background:transparent;box-sizing:border-box;"></span><span>전체 Ppk</span></div>' +
     '</div>';
   }
 
@@ -1593,8 +1593,8 @@
       '<div class="qpc-index-main" style="width:100%;max-width:440px;"><div class="qpc-svgbox" data-role="index-svg" style="width:100%;max-width:440px;">' + capabilityIndexPlotSvg(entry, { refPpk: 1 }) + '</div></div>' +
       '<div class="qpc-index-side" style="width:106px;">' + capabilityIndexLegendSideHtml() +
         '<div style="height:10px;"></div>' +
-        '<div style="font-size:11px;font-weight:700;color:rgba(236,247,240,.96);margin-bottom:4px;">Ppk</div>' +
-        '<div style="display:flex;align-items:center;gap:4px;margin-bottom:6px;"><span style="display:inline-block;min-width:34px;padding:2px 6px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.03);font-size:11px;font-weight:700;text-align:center;color:rgba(236,247,240,.96);">Ppk</span><input type="text" class="qpc-index-ppk-input" data-role="index-ppk-text" value="' + refDefault + '" style="width:38px;height:20px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.03);color:rgba(236,247,240,.96);font-size:11px;text-align:center;padding:0 4px;"></div>' +
+        '<div style="font-size:11px;font-weight:700;color:#111;margin-bottom:4px;">Ppk</div>' +
+        '<div style="display:flex;align-items:center;gap:4px;margin-bottom:6px;"><span style="display:inline-block;min-width:34px;padding:2px 6px;border:1px solid rgba(0,0,0,.18);background:#f7f7f7;font-size:11px;font-weight:700;text-align:center;color:#111;">Ppk</span><input type="text" class="qpc-index-ppk-input" data-role="index-ppk-text" value="' + refDefault + '" style="width:38px;height:20px;border:1px solid rgba(0,0,0,.18);background:#f7f7f7;color:#111;font-size:11px;text-align:center;padding:0 4px;"></div>' +
         '<input type="range" class="qpc-index-range" data-role="index-ppk-range" min="0.20" max="2.50" step="0.01" value="' + refDefault + '" style="width:100%;">' +
       '</div>' +
     '</div>';
