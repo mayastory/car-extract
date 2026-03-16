@@ -851,8 +851,9 @@
       bins[i]++;
     });
 
-    const axisMin = binStart;
-    const axisMax = binEnd;
+    const axisPadBins = 1;
+    const axisMin = binStart - (binW * axisPadBins);
+    const axisMax = binEnd + (binW * axisPadBins);
     const range = Math.max(1e-9, axisMax - axisMin);
     const x = v => left + ((v - axisMin) / range) * plotW;
     const clampPlotX = v => Math.max(0, Math.min(plotSvgW, x(v)));
