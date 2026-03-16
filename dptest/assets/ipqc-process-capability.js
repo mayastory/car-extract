@@ -994,15 +994,15 @@
 
   function capabilityBoxPlotSvg(entry){
     const values = standardizedBySpecValues(entry);
-    const width = 1180, height = 224;
-    const left = 58, right = 198, top = 18, bottom = 54;
+    const width = 760, height = 128;
+    const left = 40, right = 112, top = 10, bottom = 30;
     const plotW = width - left - right;
     const plotH = height - top - bottom;
     const axisY = top + plotH;
-    const yMid = top + 66;
-    const boxH = 28;
+    const yMid = top + (plotH / 2);
+    const boxH = 18;
     if (!values.length){
-      return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true"><rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="#f8f8f8" stroke="#b7b7b7"/><text x="' + fixedTrim(width / 2, 2) + '" y="' + fixedTrim(height / 2, 2) + '" fill="rgba(0,0,0,.45)" text-anchor="middle" font-size="11">규격 한계가 있어야 표시됩니다.</text></svg>';
+      return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true"><rect x="' + fixedTrim(left,2) + '" y="' + fixedTrim(top,2) + '" width="' + fixedTrim(plotW,2) + '" height="' + fixedTrim(plotH,2) + '" fill="#f8f8f8" stroke="#b7b7b7" stroke-width="1"/><text x="' + fixedTrim(left + (plotW / 2), 2) + '" y="' + fixedTrim(top + (plotH / 2) + 4, 2) + '" fill="#444" text-anchor="middle" font-size="11">규격 한계가 있어야 표시됩니다.</text></svg>';
     }
     const sorted = sortedNums(values);
     const q1 = quantileSorted(sorted, 0.25);
@@ -1072,7 +1072,7 @@
   }
 
   function capabilityBoxPlotHtml(entry){
-    return '<div class="qpc-svgbox" style="width:1180px;max-width:100%;">' + capabilityBoxPlotSvg(entry) + '</div>';
+    return '<div class="qpc-svgbox" style="width:760px;max-width:100%;">' + capabilityBoxPlotSvg(entry) + '</div>';
   }
 
   function rejectTableHtml(entry){

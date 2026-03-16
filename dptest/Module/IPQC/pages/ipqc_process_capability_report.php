@@ -24,8 +24,8 @@ $key = isset($_GET['key']) ? trim((string)$_GET['key']) : '';
 <title>공정 능력 결과</title>
 <style>
 :root{
- --qpc-bg:#e9e9e9;
- --qpc-panel:#efefef;
+ --qpc-bg:#f8f8f8;
+ --qpc-panel:#f8f8f8;
  --qpc-border:rgba(0,0,0,.18);
  --qpc-border-soft:rgba(0,0,0,.10);
  --qpc-text:#111;
@@ -40,10 +40,10 @@ body{min-width:980px;}
 .qpc-report-shell{min-height:100%;}
 .qpc-report-tree,
 .qpc-report-group,
-.qpc-report-sub{display:inline-block;width:auto;max-width:100%;border:1px solid var(--qpc-border);background:var(--qpc-panel);border-radius:0;overflow:hidden;margin:0 0 4px;box-shadow:none;}
+.qpc-report-sub{display:inline-block;width:auto;max-width:100%;border:0;background:transparent;border-radius:0;overflow:visible;margin:0 0 4px;box-shadow:none;}
 .qpc-report-tree > summary,
 .qpc-report-group > summary,
-.qpc-report-sub > summary{list-style:none;cursor:pointer;padding:2px 8px;font-size:12px;line-height:1.35;font-weight:700;color:var(--qpc-text);background:linear-gradient(180deg, #efefef, #dddddd);}
+.qpc-report-sub > summary{list-style:none;cursor:pointer;padding:2px 8px;font-size:12px;line-height:1.35;font-weight:700;color:rgba(236,247,240,.96);background:linear-gradient(180deg, rgba(34,78,53,.86), rgba(13,28,19,.98));}
 .qpc-report-sub-top.qpc-report-sub-hist > summary{padding:1px 6px;}
 .qpc-report-tree > summary::-webkit-details-marker,
 .qpc-report-group > summary::-webkit-details-marker,
@@ -52,14 +52,14 @@ body{min-width:980px;}
 .qpc-report-tree > summary:before,
 .qpc-report-group > summary:before,
 .qpc-report-sub > summary:before,
-.qpc-report-top-summary > summary:before{content:'▸ ';color:rgba(0,0,0,.60);}
+.qpc-report-top-summary > summary:before{content:'▸ ';color:rgba(236,247,240,.78);}
 .qpc-report-tree[open] > summary:before,
 .qpc-report-group[open] > summary:before,
 .qpc-report-sub[open] > summary:before,
 .qpc-report-top-summary[open] > summary:before{content:'▾ ';}
 .qpc-report-body,
 .qpc-report-group-body,
-.qpc-report-sub-body{padding:4px 6px 6px;border-top:1px solid var(--qpc-border-soft);background:var(--qpc-panel);}
+.qpc-report-sub-body{padding:4px 6px 6px;border-top:0;background:transparent;}
 .qpc-report-body,
 .qpc-report-group-body{display:flex;flex-direction:column;align-items:flex-start;gap:4px;}
 .qpc-report-note{padding:14px 10px;color:var(--qpc-muted);font-size:12px;}
@@ -69,11 +69,11 @@ body{min-width:980px;}
 .qpc-summary-box{padding:4px 6px;}
 .qpc-report-top-grid{max-width:100%;width:max-content;grid-template-columns:minmax(0,428px) 156px;gap:12px;align-items:start;justify-content:start;}
 .qpc-report-sub-top{margin-bottom:0;}
-.qpc-report-sub-top > summary{background:linear-gradient(180deg, #f2f2f2, #dfdfdf);}
+.qpc-report-sub-top > summary{background:linear-gradient(180deg, rgba(44,92,62,.88), rgba(14,29,20,.98));}
 .qpc-report-sub-top.qpc-report-sub-hist{width:444px;max-width:100%;}
 .qpc-report-sub-hist > .qpc-report-sub-body{padding:2px 3px 3px;background:#fff;}
 .qpc-hist-wrap--top{padding:0;position:relative;background:#fff;}
-.qpc-svgbox{width:100%;overflow:auto;}
+.qpc-svgbox{width:100%;overflow:visible;}
 .qpc-svgbox svg{width:100%;height:auto;display:block;}
 .qpc-svgbox--hist{width:428px;max-width:100%;position:relative;display:block;background:transparent;overflow:visible;}
 .qpc-svgbox--hist svg{width:428px;max-width:100%;height:auto;display:block;}
@@ -135,7 +135,7 @@ body{min-width:980px;}
 .qpc-summary-report-table td.is-bad{background:rgba(240,188,188,.96);color:#341111;}
 .qpc-report-empty{text-align:center !important;color:var(--qpc-muted);}
 .qpc-target-grid{display:grid;grid-template-columns:minmax(0, 620px) 240px;gap:12px;align-items:start;max-width:872px;}
-.qpc-target-main,.qpc-target-side{border:1px solid var(--qpc-box-border);background:#fff;border-radius:0;}
+.qpc-target-main,.qpc-target-side{border:0;background:transparent;border-radius:0;}
 .qpc-target-main{position:relative;padding:6px 6px 4px;overflow:visible;max-width:620px;}
 .qpc-target-side{padding:8px 14px;min-width:240px;width:auto;box-sizing:border-box;}
 .qpc-target-side-title{font-size:11px;font-weight:700;margin-bottom:8px;}
@@ -159,6 +159,7 @@ body{min-width:980px;}
 .qpc-target-tip-meta{font-size:12px;line-height:1.35;margin-bottom:2px;color:#333;}
 .qpc-target-tip-svg{margin-top:6px;}
 .qpc-target-tip-svg svg{width:250px;height:auto;display:block;}
+.qpc-index-main,.qpc-index-side{border:0;background:transparent;border-radius:0;}
 @media print{
  body{background:#fff;color:#000;}
  .qpc-page{padding:0;}
