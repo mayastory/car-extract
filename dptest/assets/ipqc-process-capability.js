@@ -994,13 +994,13 @@
 
   function capabilityBoxPlotSvg(entry){
     const values = standardizedBySpecValues(entry);
-    const width = 980, height = 170;
-    const left = 52, right = 156, top = 14, bottom = 40;
+    const width = 900, height = 150;
+    const left = 46, right = 136, top = 12, bottom = 34;
     const plotW = width - left - right;
     const plotH = height - top - bottom;
     const axisY = top + plotH;
-    const yMid = top + 44;
-    const boxH = 22;
+    const yMid = top + 38;
+    const boxH = 20;
     if (!values.length){
       return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true"><rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="transparent" stroke="rgba(255,255,255,.12)"/><text x="' + fixedTrim(width / 2, 2) + '" y="' + fixedTrim(height / 2, 2) + '" fill="rgba(236,247,240,.55)" text-anchor="middle" font-size="11">규격 한계가 있어야 표시됩니다.</text></svg>';
     }
@@ -1059,20 +1059,20 @@
 
     const ticks = [-0.5, 0, 0.5].map(v => {
       const xx = x(v);
-      return '<line x1="' + fixedTrim(xx, 2) + '" y1="' + fixedTrim(axisY, 2) + '" x2="' + fixedTrim(xx, 2) + '" y2="' + fixedTrim(axisY + 4, 2) + '" stroke="rgba(255,255,255,.45)"/><text x="' + fixedTrim(xx, 2) + '" y="' + fixedTrim(height - 14, 2) + '" fill="rgba(236,247,240,.92)" font-size="11" text-anchor="middle">' + esc(fmtTargetTick(v)) + '</text>';
+      return '<line x1="' + fixedTrim(xx, 2) + '" y1="' + fixedTrim(axisY, 2) + '" x2="' + fixedTrim(xx, 2) + '" y2="' + fixedTrim(axisY + 4, 2) + '" stroke="rgba(255,255,255,.45)"/><text x="' + fixedTrim(xx, 2) + '" y="' + fixedTrim(axisY + 18, 2) + '" fill="rgba(236,247,240,.92)" font-size="11" text-anchor="middle">' + esc(fmtTargetTick(v)) + '</text>';
     }).join('');
 
     return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
       '<rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="transparent" stroke="rgba(255,255,255,.12)"/>' +
       '<line x1="' + fixedTrim(left, 2) + '" y1="' + fixedTrim(axisY, 2) + '" x2="' + fixedTrim(left + plotW, 2) + '" y2="' + fixedTrim(axisY, 2) + '" stroke="rgba(255,255,255,.55)"/>' +
       specLines + points + whisker + box + ticks +
-      '<text x="' + fixedTrim(left + (plotW / 2), 2) + '" y="' + fixedTrim(height - 1, 2) + '" fill="rgba(236,247,240,.92)" font-size="11.5" text-anchor="middle">규격 한계를 사용하여 표준화됨</text>' +
+      '<text x="' + fixedTrim(left + (plotW / 2), 2) + '" y="' + fixedTrim(height - 5, 2) + '" fill="rgba(236,247,240,.92)" font-size="11.5" text-anchor="middle">규격 한계를 사용하여 표준화됨</text>' +
       '<text x="' + fixedTrim(left + plotW + 12, 2) + '" y="' + fixedTrim(yMid + 4, 2) + '" fill="rgba(236,247,240,.92)" font-size="12">' + esc(entry.label || entry.proc || '') + '</text>' +
       '</svg>';
   }
 
   function capabilityBoxPlotHtml(entry){
-    return '<div class="qpc-svgbox" style="width:980px;max-width:100%;">' + capabilityBoxPlotSvg(entry) + '</div>';
+    return '<div class="qpc-svgbox" style="width:900px;max-width:100%;">' + capabilityBoxPlotSvg(entry) + '</div>';
   }
 
   function rejectTableHtml(entry){
