@@ -134,21 +134,21 @@ body{min-width:980px;}
 .qpc-summary-report-table td.is-warn{background:rgba(245,229,176,.96);color:#3a2a06;}
 .qpc-summary-report-table td.is-bad{background:rgba(240,188,188,.96);color:#341111;}
 .qpc-report-empty{text-align:center !important;color:var(--qpc-muted);}
-.qpc-target-grid{display:grid;grid-template-columns:minmax(0, 580px) 118px;gap:12px;align-items:start;max-width:710px;}
+.qpc-target-grid{display:grid;grid-template-columns:minmax(0, 620px) 148px;gap:12px;align-items:start;max-width:780px;}
 .qpc-target-main,.qpc-target-side{border:1px solid var(--qpc-box-border);background:transparent;border-radius:0;}
-.qpc-target-main{position:relative;padding:6px 6px 4px;overflow:visible;max-width:580px;}
-.qpc-target-side{padding:6px 8px;width:118px;}
+.qpc-target-main{position:relative;padding:6px 6px 4px;overflow:visible;max-width:620px;}
+.qpc-target-side{padding:6px 10px;width:148px;}
 .qpc-target-side-title{font-size:11px;font-weight:700;margin-bottom:8px;}
 .qpc-target-check{display:flex;align-items:center;gap:6px;font-size:11px;margin:0 0 10px;}
 .qpc-target-check input{margin:0;}
 .qpc-target-ppk-label{font-size:11px;font-weight:700;margin-bottom:4px;}
 .qpc-target-ppk-line{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
-.qpc-target-ppk-badge{min-width:32px;height:18px;padding:0 6px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.04);font-size:11px;font-weight:700;}
-.qpc-target-ppk-input{width:44px;height:20px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.03);color:var(--qpc-text);padding:0 4px;font-size:11px;text-align:center;box-sizing:border-box;}
+.qpc-target-ppk-badge{min-width:36px;height:18px;padding:0 8px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.04);font-size:11px;font-weight:700;}
+.qpc-target-ppk-input{width:48px;height:20px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.03);color:var(--qpc-text);padding:0 4px;font-size:11px;text-align:center;box-sizing:border-box;}
 .qpc-target-range{width:100%;accent-color:#b9d8ff;}
 .qpc-target-side-head{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:8px;}
 .qpc-target-legend-link{padding:0;border:0;background:transparent;color:var(--qpc-text);font-size:11px;font-weight:700;cursor:pointer;user-select:none;}
-.qpc-target-side-preview{min-height:42px;margin-bottom:10px;}
+.qpc-target-side-preview{min-height:48px;margin-bottom:10px;}
 .qpc-target-side-item{display:flex;align-items:center;gap:6px;font-size:11px;margin:4px 0;padding:0;border:0;background:transparent;color:var(--qpc-text);cursor:pointer;text-align:left;width:100%;user-select:none;}
 .qpc-target-side-empty{font-size:11px;color:var(--qpc-muted);}
 .qpc-target-marker{width:9px;height:9px;display:inline-block;box-sizing:border-box;flex:0 0 9px;}
@@ -304,7 +304,7 @@ body{min-width:980px;}
   return true;
  }
  function targetPlotSvg(entry, opts){
-  var width = 580, height = 404;
+  var width = 620, height = 430;
   var left = 44, right = 18, top = 10, bottom = 34;
   var plotW = width - left - right;
   var plotH = height - top - bottom;
