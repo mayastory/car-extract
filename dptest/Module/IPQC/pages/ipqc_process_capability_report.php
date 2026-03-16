@@ -24,14 +24,14 @@ $key = isset($_GET['key']) ? trim((string)$_GET['key']) : '';
 <title>공정 능력 결과</title>
 <style>
 :root{
- --qpc-bg:#f8f8f8;
- --qpc-panel:#f8f8f8;
- --qpc-border:rgba(0,0,0,.18);
- --qpc-border-soft:rgba(0,0,0,.10);
- --qpc-text:#111;
- --qpc-muted:#666;
- --qpc-box-border:rgba(0,0,0,.16);
- --qpc-box-border-soft:rgba(0,0,0,.10);
+ --qpc-bg:#08110c;
+ --qpc-panel:#0b1710;
+ --qpc-border:rgba(92,164,118,.24);
+ --qpc-border-soft:rgba(92,164,118,.18);
+ --qpc-text:rgba(236,247,240,.96);
+ --qpc-muted:rgba(210,225,215,.72);
+ --qpc-box-border:rgba(255,255,255,.12);
+ --qpc-box-border-soft:rgba(255,255,255,.10);
 }
 html,body{margin:0;padding:0;background:var(--qpc-bg);color:var(--qpc-text);font-family:Segoe UI, Arial, "Malgun Gothic", sans-serif;}
 body{min-width:980px;}
@@ -40,10 +40,10 @@ body{min-width:980px;}
 .qpc-report-shell{min-height:100%;}
 .qpc-report-tree,
 .qpc-report-group,
-.qpc-report-sub{display:inline-block;width:auto;max-width:100%;border:0;background:transparent;border-radius:0;overflow:visible;margin:0 0 4px;box-shadow:none;}
+.qpc-report-sub{display:inline-block;width:auto;max-width:100%;border:1px solid var(--qpc-border);background:transparent;border-radius:0;overflow:hidden;margin:0 0 4px;box-shadow:none;}
 .qpc-report-tree > summary,
 .qpc-report-group > summary,
-.qpc-report-sub > summary{list-style:none;cursor:pointer;padding:2px 8px;font-size:12px;line-height:1.35;font-weight:700;color:rgba(236,247,240,.96);background:linear-gradient(180deg, rgba(34,78,53,.86), rgba(13,28,19,.98));}
+.qpc-report-sub > summary{list-style:none;cursor:pointer;padding:2px 8px;font-size:12px;line-height:1.35;font-weight:700;color:var(--qpc-text);background:linear-gradient(180deg, rgba(34,78,53,.86), rgba(13,28,19,.98));}
 .qpc-report-sub-top.qpc-report-sub-hist > summary{padding:1px 6px;}
 .qpc-report-tree > summary::-webkit-details-marker,
 .qpc-report-group > summary::-webkit-details-marker,
@@ -59,52 +59,52 @@ body{min-width:980px;}
 .qpc-report-top-summary[open] > summary:before{content:'▾ ';}
 .qpc-report-body,
 .qpc-report-group-body,
-.qpc-report-sub-body{padding:4px 6px 6px;border-top:0;background:transparent;}
+.qpc-report-sub-body{padding:4px 6px 6px;border-top:1px solid var(--qpc-border-soft);}
 .qpc-report-body,
 .qpc-report-group-body{display:flex;flex-direction:column;align-items:flex-start;gap:4px;}
 .qpc-report-note{padding:14px 10px;color:var(--qpc-muted);font-size:12px;}
 .qpc-report-hist-grid{display:grid;grid-template-columns:minmax(0,428px) 156px;gap:12px;align-items:start;justify-content:start;width:max-content;max-width:100%;}
-.qpc-hist-wrap,.qpc-summary-box,.qpc-stat-box,.qpc-reject-box{border:1px solid var(--qpc-box-border);background:#fff;border-radius:0;}
-.qpc-hist-wrap{padding:0;border:none;background:#fff;}
+.qpc-hist-wrap,.qpc-summary-box,.qpc-stat-box,.qpc-reject-box{border:1px solid var(--qpc-box-border);background:transparent;border-radius:0;}
+.qpc-hist-wrap{padding:0;border:none;background:transparent;}
 .qpc-summary-box{padding:4px 6px;}
 .qpc-report-top-grid{max-width:100%;width:max-content;grid-template-columns:minmax(0,428px) 156px;gap:12px;align-items:start;justify-content:start;}
 .qpc-report-sub-top{margin-bottom:0;}
 .qpc-report-sub-top > summary{background:linear-gradient(180deg, rgba(44,92,62,.88), rgba(14,29,20,.98));}
 .qpc-report-sub-top.qpc-report-sub-hist{width:444px;max-width:100%;}
-.qpc-report-sub-hist > .qpc-report-sub-body{padding:2px 3px 3px;background:#fff;}
-.qpc-hist-wrap--top{padding:0;position:relative;background:#fff;}
-.qpc-svgbox{width:100%;overflow:visible;}
+.qpc-report-sub-hist > .qpc-report-sub-body{padding:2px 3px 3px;background:transparent;}
+.qpc-hist-wrap--top{padding:0;position:relative;background:transparent;}
+.qpc-svgbox{width:100%;overflow:auto;}
 .qpc-svgbox svg{width:100%;height:auto;display:block;}
 .qpc-svgbox--hist{width:428px;max-width:100%;position:relative;display:block;background:transparent;overflow:visible;}
 .qpc-svgbox--hist svg{width:428px;max-width:100%;height:auto;display:block;}
-.qpc-hist-card{display:flex;flex-direction:column;gap:0;width:428px;max-width:100%;background:#fff;}
-.qpc-hist-topline{display:flex;align-items:flex-end;min-height:15px;width:344px;padding:0;background:#fff;}
+.qpc-hist-card{display:flex;flex-direction:column;gap:0;width:428px;max-width:100%;background:transparent;}
+.qpc-hist-topline{display:flex;align-items:flex-end;min-height:15px;width:344px;padding:0;background:transparent;}
 .qpc-hist-toplabels{position:relative;height:15px;flex:0 0 auto;width:344px;}
-.qpc-hist-limit{position:absolute;top:1px;transform:translateX(-50%);font-size:12px;line-height:1;color:#111;font-weight:400;white-space:nowrap;}
-.qpc-hist-main{display:grid;grid-template-columns:344px max-content;column-gap:12px;align-items:start;justify-content:start;width:max-content;max-width:100%;background:#fff;}
+.qpc-hist-limit{position:absolute;top:1px;transform:translateX(-50%);font-size:12px;line-height:1;color:rgba(236,247,240,.96);font-weight:400;white-space:nowrap;}
+.qpc-hist-main{display:grid;grid-template-columns:344px max-content;column-gap:12px;align-items:start;justify-content:start;width:max-content;max-width:100%;background:transparent;}
 .qpc-hist-plot{display:block;background:transparent;}
 .qpc-hist-plot svg{width:344px;max-width:100%;height:auto;display:block;background:transparent;}
-.qpc-hist-side{display:flex;align-items:flex-start;justify-content:flex-start;padding-top:6px;background:#fff;}
-.qpc-hist-legend{display:flex;flex-direction:column;gap:6px;color:#111;font-size:12px;line-height:1.2;background:#fff;}
+.qpc-hist-side{display:flex;align-items:flex-start;justify-content:flex-start;padding-top:6px;background:transparent;}
+.qpc-hist-legend{display:flex;flex-direction:column;gap:6px;color:rgba(236,247,240,.96);font-size:12px;line-height:1.2;background:transparent;}
 .qpc-hist-legend-title{font-weight:700;}
 .qpc-hist-legend-item{display:flex;align-items:center;gap:6px;white-space:nowrap;}
-.qpc-hist-legend-line{display:inline-block;width:16px;height:0;border-top:1.15px solid rgba(0,0,0,.78);box-sizing:border-box;}
+.qpc-hist-legend-line{display:inline-block;width:16px;height:0;border-top:1.15px solid rgba(236,247,240,.96);box-sizing:border-box;}
 .qpc-hist-legend-line--overall{border-top-style:dashed;}
 .qpc-hist-legend-line--within{border-top:1.65px solid #2d74ff;}
-.qpc-hist-foot{display:flex;justify-content:flex-start;width:344px;padding-top:1px;background:#fff;}
-.qpc-hist-caption{width:344px;text-align:center;color:#111;font-size:13px;line-height:1;}
+.qpc-hist-foot{display:flex;justify-content:flex-start;width:344px;padding-top:1px;background:transparent;}
+.qpc-hist-caption{width:344px;text-align:center;color:rgba(236,247,240,.96);font-size:13px;line-height:1;}
 .qpc-hist-wrap--top .qpc-svgbox--hist::after{display:none;}
 .qpc-report-top-summary{margin:0;width:156px;max-width:156px;border:0;background:transparent;overflow:visible;align-self:start;}
-.qpc-report-top-summary > summary{list-style:none;cursor:pointer;padding:1px 6px;font-size:12px;line-height:1.3;font-weight:700;color:var(--qpc-text);background:linear-gradient(180deg, #f2f2f2, #dfdfdf);border:1px solid var(--qpc-border);}
+.qpc-report-top-summary > summary{list-style:none;cursor:pointer;padding:1px 6px;font-size:12px;line-height:1.3;font-weight:700;color:var(--qpc-text);background:linear-gradient(180deg, rgba(44,92,62,.88), rgba(14,29,20,.98));border:1px solid var(--qpc-border);}
 .qpc-report-top-summary-body{padding:4px 0 0;}
-.qpc-report-top-summary .qpc-summary-box{width:156px;max-width:156px;border:none;padding:0;background:#fff;}
+.qpc-report-top-summary .qpc-summary-box{width:156px;max-width:156px;border:none;padding:0;background:transparent;}
 .qpc-report-top-summary .qpc-summary-grid{gap:2px 6px;}
 .qpc-report-top-summary .qpc-summary-sep{margin:4px 0;}
 .qpc-summary-title{font-size:12px;font-weight:700;margin-bottom:6px;}
 .qpc-summary-grid{display:grid;grid-template-columns:1fr auto;gap:2px 8px;font-size:12px;}
 .qpc-summary-grid .k{color:var(--qpc-text);} 
 .qpc-summary-grid .v{color:var(--qpc-text);text-align:right;font-variant-numeric:tabular-nums;}
-.qpc-summary-sep{height:1px;background:rgba(0,0,0,.10);margin:6px 0;}
+.qpc-summary-sep{height:1px;background:rgba(255,255,255,.10);margin:6px 0;}
 .qpc-report-two{display:grid;grid-template-columns:repeat(2, minmax(0, max-content));gap:8px;align-items:start;justify-content:start;width:max-content;max-width:100%;}
 .qpc-report-two-tight{max-width:706px;gap:8px;}
 .qpc-stat-box,.qpc-reject-box{padding:6px 8px;}
@@ -122,11 +122,11 @@ body{min-width:980px;}
 .qpc-report-placeholder{padding:8px 10px;color:var(--qpc-muted);font-size:11px;}
 .qpc-report-sub-summary > summary{padding:2px 8px;}
 .qpc-report-sub-summary > .qpc-report-sub-body{padding:4px 6px 6px;}
-.qpc-summary-report-wrap{overflow:auto;border:1px solid var(--qpc-box-border-soft);background:#fff;}
+.qpc-summary-report-wrap{overflow:auto;border:1px solid var(--qpc-box-border-soft);background:rgba(255,255,255,.015);}
 .qpc-summary-report-table{width:max-content;min-width:100%;border-collapse:collapse;font-size:11.5px;line-height:1.24;}
 .qpc-summary-report-table th,.qpc-summary-report-table td{border:1px solid var(--qpc-box-border-soft);padding:1px 5px;white-space:nowrap;font-variant-numeric:tabular-nums;}
-.qpc-summary-report-table thead th{background:rgba(0,0,0,.04);font-weight:700;text-align:center;color:#111;}
-.qpc-summary-report-table tbody th{background:rgba(0,0,0,.025);font-weight:700;text-align:left;color:#111;} 
+.qpc-summary-report-table thead th{background:rgba(255,255,255,.055);font-weight:700;text-align:center;color:rgba(236,247,240,.97);}
+.qpc-summary-report-table tbody th{background:rgba(255,255,255,.028);font-weight:700;text-align:left;color:rgba(236,247,240,.97);} 
 .qpc-summary-report-table tbody td{text-align:right;background:transparent;}
 .qpc-summary-report-table td.kind-stability{min-width:62px;}
 .qpc-summary-report-table td.kind-capability{min-width:48px;}
@@ -134,32 +134,31 @@ body{min-width:980px;}
 .qpc-summary-report-table td.is-warn{background:rgba(245,229,176,.96);color:#3a2a06;}
 .qpc-summary-report-table td.is-bad{background:rgba(240,188,188,.96);color:#341111;}
 .qpc-report-empty{text-align:center !important;color:var(--qpc-muted);}
-.qpc-target-grid{display:grid;grid-template-columns:minmax(0, 620px) 240px;gap:12px;align-items:start;max-width:872px;}
-.qpc-target-main,.qpc-target-side{border:0;background:transparent;border-radius:0;}
-.qpc-target-main{position:relative;padding:6px 6px 4px;overflow:visible;max-width:620px;}
-.qpc-target-side{padding:8px 14px;min-width:240px;width:auto;box-sizing:border-box;}
+.qpc-target-grid{display:grid;grid-template-columns:minmax(0, 540px) 118px;gap:12px;align-items:start;max-width:670px;}
+.qpc-target-main,.qpc-target-side{border:1px solid var(--qpc-box-border);background:transparent;border-radius:0;}
+.qpc-target-main{position:relative;padding:6px 6px 4px;overflow:visible;max-width:540px;}
+.qpc-target-side{padding:6px 8px;width:118px;}
 .qpc-target-side-title{font-size:11px;font-weight:700;margin-bottom:8px;}
-.qpc-target-check{display:flex;align-items:center;gap:6px;font-size:11px;margin:0 0 12px;white-space:nowrap;}
+.qpc-target-check{display:flex;align-items:center;gap:6px;font-size:11px;margin:0 0 10px;}
 .qpc-target-check input{margin:0;}
 .qpc-target-ppk-label{font-size:11px;font-weight:700;margin-bottom:4px;}
-.qpc-target-ppk-line{display:grid;grid-template-columns:auto 48px minmax(120px,1fr);align-items:center;column-gap:8px;margin-bottom:6px;}
-.qpc-target-ppk-badge{min-width:36px;height:18px;padding:0 8px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(0,0,0,.18);background:#f7f7f7;font-size:11px;font-weight:700;}
-.qpc-target-ppk-input{width:48px;height:20px;border:1px solid rgba(0,0,0,.18);background:#f7f7f7;color:var(--qpc-text);padding:0 4px;font-size:11px;text-align:center;box-sizing:border-box;}
-.qpc-target-range{display:block;width:100%;min-width:120px;accent-color:#b9d8ff;}
+.qpc-target-ppk-line{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+.qpc-target-ppk-badge{min-width:32px;height:18px;padding:0 6px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.04);font-size:11px;font-weight:700;}
+.qpc-target-ppk-input{width:44px;height:20px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.03);color:var(--qpc-text);padding:0 4px;font-size:11px;text-align:center;box-sizing:border-box;}
+.qpc-target-range{width:100%;accent-color:#b9d8ff;}
 .qpc-target-side-head{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:8px;}
 .qpc-target-legend-link{padding:0;border:0;background:transparent;color:var(--qpc-text);font-size:11px;font-weight:700;cursor:pointer;user-select:none;}
-.qpc-target-side-preview{min-height:48px;margin-bottom:10px;}
+.qpc-target-side-preview{min-height:42px;margin-bottom:10px;}
 .qpc-target-side-item{display:flex;align-items:center;gap:6px;font-size:11px;margin:4px 0;padding:0;border:0;background:transparent;color:var(--qpc-text);cursor:pointer;text-align:left;width:100%;user-select:none;}
 .qpc-target-side-empty{font-size:11px;color:var(--qpc-muted);}
 .qpc-target-marker{width:9px;height:9px;display:inline-block;box-sizing:border-box;flex:0 0 9px;}
-.qpc-target-marker--overall{border:1px solid rgba(0,0,0,.82);background:transparent;}
-.qpc-target-marker--within{border:1px solid rgba(0,0,0,.82);background:#7c7c7c;}
+.qpc-target-marker--overall{border:1px solid rgba(255,255,255,.88);background:transparent;}
+.qpc-target-marker--within{border:1px solid rgba(255,255,255,.88);background:#7c7c7c;}
 .qpc-target-hover-tip{position:absolute;z-index:12;min-width:270px;max-width:290px;pointer-events:none;background:#ececec;color:#111;border:1px solid #a6a6a6;border-radius:6px;box-shadow:0 6px 14px rgba(0,0,0,.35);padding:8px 10px 10px;}
 .qpc-target-tip-card{font-family:Arial, "Malgun Gothic", "Noto Sans KR", sans-serif;}
 .qpc-target-tip-meta{font-size:12px;line-height:1.35;margin-bottom:2px;color:#333;}
 .qpc-target-tip-svg{margin-top:6px;}
 .qpc-target-tip-svg svg{width:250px;height:auto;display:block;}
-.qpc-index-main,.qpc-index-side{border:0;background:transparent;border-radius:0;}
 @media print{
  body{background:#fff;color:#000;}
  .qpc-page{padding:0;}
@@ -305,8 +304,8 @@ body{min-width:980px;}
   return true;
  }
  function targetPlotSvg(entry, opts){
-  var width = 620, height = 470;
-  var left = 44, right = 18, top = 10, bottom = 38;
+  var width = 540, height = 380;
+  var left = 44, right = 18, top = 10, bottom = 34;
   var plotW = width - left - right;
   var plotH = height - top - bottom;
   var xMin = -0.6, xMax = 0.6;
@@ -328,28 +327,28 @@ body{min-width:980px;}
   var yTicks = [0,0.05,0.10,0.15,0.20,0.25,0.30];
   var hGrid = yTicks.map(function(v){
    var yy = y(v);
-   return '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="rgba(0,0,0,.08)"/>';
+   return '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="rgba(255,255,255,.08)"/>';
   }).join('');
-  var xAxisTicks = xTicks.map(function(v){ return '<line x1="' + fixedTrim(x(v),2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(x(v),2) + '" y2="' + fixedTrim(top + plotH + 4,2) + '" stroke="rgba(0,0,0,.45)"/><text x="' + fixedTrim(x(v),2) + '" y="' + fixedTrim(top + plotH + 16,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="middle">' + esc(fmtTargetTick(v)) + '</text>'; }).join('');
-  var yAxisTicks = yTicks.map(function(v){ return '<line x1="' + fixedTrim(left - 4,2) + '" y1="' + fixedTrim(y(v),2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(y(v),2) + '" stroke="rgba(0,0,0,.45)"/><text x="' + fixedTrim(left - 7,2) + '" y="' + fixedTrim(y(v) + 3,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="end">' + esc(v === 0 ? '0' : fixedTrim(v,2)) + '</text>'; }).join('');
+  var xAxisTicks = xTicks.map(function(v){ return '<line x1="' + fixedTrim(x(v),2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(x(v),2) + '" y2="' + fixedTrim(top + plotH + 4,2) + '" stroke="rgba(255,255,255,.45)"/><text x="' + fixedTrim(x(v),2) + '" y="' + fixedTrim(top + plotH + 16,2) + '" fill="rgba(236,247,240,.92)" font-size="10" text-anchor="middle">' + esc(fmtTargetTick(v)) + '</text>'; }).join('');
+  var yAxisTicks = yTicks.map(function(v){ return '<line x1="' + fixedTrim(left - 4,2) + '" y1="' + fixedTrim(y(v),2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(y(v),2) + '" stroke="rgba(255,255,255,.45)"/><text x="' + fixedTrim(left - 7,2) + '" y="' + fixedTrim(y(v) + 3,2) + '" fill="rgba(236,247,240,.92)" font-size="10" text-anchor="end">' + esc(v === 0 ? '0' : fixedTrim(v,2)) + '</text>'; }).join('');
   var tri = '<path d="M' + fixedTrim(x(-0.5),2) + ' ' + fixedTrim(y(0),2) + ' L' + fixedTrim(x(0),2) + ' ' + fixedTrim(y(apexY),2) + ' L' + fixedTrim(x(0.5),2) + ' ' + fixedTrim(y(0),2) + '" fill="none" stroke="#ff6672" stroke-width="1.2"/>';
   var marker = '';
   if (isFinite(normX) && isFinite(normY)){
    var px = x(clampNum(normX, xMin, xMax));
    var py = y(clampNum(normY, yMin, yMax));
    var hitType = useOverall ? 'overall' : 'within';
-   marker = '<rect x="' + fixedTrim(px - 2.5,2) + '" y="' + fixedTrim(py - 2.5,2) + '" width="5" height="5" fill="transparent" stroke="rgba(17,17,17,.95)" stroke-width="1.1"/>' +
+   marker = '<rect x="' + fixedTrim(px - 2.5,2) + '" y="' + fixedTrim(py - 2.5,2) + '" width="5" height="5" fill="transparent" stroke="rgba(236,247,240,.95)" stroke-width="1.1"/>' +
     '<rect x="' + fixedTrim(px - 8,2) + '" y="' + fixedTrim(py - 8,2) + '" width="16" height="16" fill="transparent" stroke="transparent" data-role="target-marker-hit" data-hit-type="' + hitType + '"/>';
   }
-  var empty = (!hasSpecs || !isFinite(normX) || !isFinite(normY)) ? '<text x="' + fixedTrim(left + plotW/2,2) + '" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(0,0,0,.45)" text-anchor="middle" font-size="11">규격 한계와 데이터가 있어야 표시됩니다.</text>' : '';
+  var empty = (!hasSpecs || !isFinite(normX) || !isFinite(normY)) ? '<text x="' + fixedTrim(left + plotW/2,2) + '" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(236,247,240,.55)" text-anchor="middle" font-size="11">규격 한계와 데이터가 있어야 표시됩니다.</text>' : '';
   return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
-   '<rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="#f8f8f8" stroke="#b7b7b7"/>' +
+   '<rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="transparent" stroke="rgba(255,255,255,.12)"/>' +
    hGrid +
-   '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(0,0,0,.55)"/>' +
-   '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(0,0,0,.55)"/>' +
+   '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(255,255,255,.55)"/>' +
+   '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(255,255,255,.55)"/>' +
    tri + marker + xAxisTicks + yAxisTicks + empty +
-   '<text x="' + fixedTrim(left + plotW/2,2) + '" y="' + (height - 6) + '" fill="rgba(17,17,17,.96)" font-size="11" text-anchor="middle">규격으로 표준화된 평균</text>' +
-   '<text x="14" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(17,17,17,.96)" font-size="11" text-anchor="middle" transform="rotate(-90 14 ' + fixedTrim(top + plotH/2,2) + ')">규격으로 표준화된 표준편차</text>' +
+   '<text x="' + fixedTrim(left + plotW/2,2) + '" y="' + (height - 6) + '" fill="rgba(236,247,240,.96)" font-size="11" text-anchor="middle">규격으로 표준화된 평균</text>' +
+   '<text x="14" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(236,247,240,.96)" font-size="11" text-anchor="middle" transform="rotate(-90 14 ' + fixedTrim(top + plotH/2,2) + ')">규격으로 표준화된 표준편차</text>' +
    '</svg>';
  }
  function renderTargetPlotBox(box){
@@ -397,8 +396,8 @@ body{min-width:980px;}
   tip.style.top = fixedTrim(top,2) + 'px';
  }
  function capabilityIndexPlotSvg(entry, refPpk){
-  var width = 360, height = 262;
-  var left = 32, right = 18, top = 10, bottom = 36;
+  var width = 360, height = 320;
+  var left = 32, right = 18, top = 10, bottom = 44;
   var plotW = width - left - right;
   var plotH = height - top - bottom;
   var refVal = clampNum(parseNum(refPpk), 0.20, 2.50);
@@ -417,23 +416,23 @@ body{min-width:980px;}
   var yAxisTicks = yTicks.map(function(v){
    var yy = y(v);
    var label = Math.abs(v - Math.round(v)) < 1e-9 ? String(Math.round(v)) : '';
-   return '<line x1="' + fixedTrim(left - 3,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="rgba(0,0,0,.45)"/>' + (label ? '<text x="' + fixedTrim(left - 6,2) + '" y="' + fixedTrim(yy + 3,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="end">' + esc(label) + '</text>' : '');
+   return '<line x1="' + fixedTrim(left - 3,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="rgba(236,247,240,.85)"/>' + (label ? '<text x="' + fixedTrim(left - 6,2) + '" y="' + fixedTrim(yy + 3,2) + '" fill="rgba(236,247,240,.9)" font-size="10" text-anchor="end">' + esc(label) + '</text>' : '');
   }).join('');
-  var xAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(0,0,0,.45)"/>';
-  var yAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(0,0,0,.45)"/>';
+  var xAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(236,247,240,.85)"/>';
+  var yAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(236,247,240,.85)"/>';
   var refLine = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(y(refVal),2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(y(refVal),2) + '" stroke="#ff6672" stroke-width="1.15"/>';
   var marker = '';
   if (isFinite(rawPpk)){
    var py = y(clampNum(rawPpk, 0, yMax));
-   marker = '<rect x="' + fixedTrim(xMid - 3,2) + '" y="' + fixedTrim(py - 3,2) + '" width="6" height="6" fill="transparent" stroke="rgba(17,17,17,.95)" stroke-width="1.1"/>';
+   marker = '<rect x="' + fixedTrim(xMid - 3,2) + '" y="' + fixedTrim(py - 3,2) + '" width="6" height="6" fill="transparent" stroke="rgba(236,247,240,.95)" stroke-width="1.1"/>';
   }
   var labelText = esc(entry && (entry.label || entry.proc) || '-');
   return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
-   '<rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="#f8f8f8" stroke="#b7b7b7"/>' +
+   '<rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="transparent" stroke="rgba(255,255,255,.12)"/>' +
    hGrid + xAxis + yAxis + refLine + marker + yAxisTicks +
-   '<text x="' + fixedTrim(xMid,2) + '" y="' + fixedTrim(top + plotH + 18,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="middle" transform="rotate(-90 ' + fixedTrim(xMid,2) + ' ' + fixedTrim(top + plotH + 18,2) + ')">' + labelText + '</text>' +
-   '<text x="' + fixedTrim(xMid,2) + '" y="' + (height - 4) + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">공정</text>' +
-   '<text x="14" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(17,17,17,.96)" font-size="11" text-anchor="middle" transform="rotate(-90 14 ' + fixedTrim(top + plotH/2,2) + ')">Ppk</text>' +
+   '<text x="' + fixedTrim(xMid,2) + '" y="' + fixedTrim(top + plotH + 18,2) + '" fill="rgba(236,247,240,.92)" font-size="10" text-anchor="middle" transform="rotate(-90 ' + fixedTrim(xMid,2) + ' ' + fixedTrim(top + plotH + 18,2) + ')">' + labelText + '</text>' +
+   '<text x="' + fixedTrim(xMid,2) + '" y="' + (height - 4) + '" fill="rgba(236,247,240,.92)" font-size="11" text-anchor="middle">공정</text>' +
+   '<text x="14" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(236,247,240,.96)" font-size="11" text-anchor="middle" transform="rotate(-90 14 ' + fixedTrim(top + plotH/2,2) + ')">Ppk</text>' +
    '</svg>';
  }
  function renderCapabilityIndexPlotBox(box){
