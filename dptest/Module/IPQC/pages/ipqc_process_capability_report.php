@@ -397,8 +397,8 @@ body{min-width:980px;}
   tip.style.top = fixedTrim(top,2) + 'px';
  }
  function capabilityIndexPlotSvg(entry, refPpk){
-  var width = 470, height = 578;
-  var left = 48, right = 16, top = 10, bottom = 156;
+  var width = 470, height = 620;
+  var left = 48, right = 72, top = 10, bottom = 134;
   var plotW = width - left - right;
   var plotH = height - top - bottom;
   var plotBottom = top + plotH;
@@ -407,9 +407,9 @@ body{min-width:980px;}
   var yMaxBase = Math.ceil((Math.max(refVal, isFinite(rawPpk) ? rawPpk : 0) + 0.25) * 2) / 2;
   var yMax = Math.max(2.2, yMaxBase);
   var xMid = left + plotW / 2;
-  var labelY = plotBottom + 40;
-  var axisTitleX = xMid + 12;
-  var axisTitleY = height - 34;
+  var labelY = plotBottom + 28;
+  var axisTitleX = xMid + 9;
+  var axisTitleY = height - 26;
   function y(v){ return top + plotH - ((v - 0) / (yMax - 0)) * plotH; }
   var yTicks = [];
   for (var v = 0; v <= yMax + 1e-9; v += 0.5) yTicks.push(Number(v.toFixed(1)));
@@ -431,7 +431,8 @@ body{min-width:980px;}
   var marker = '';
   if (isFinite(rawPpk)){
    var py = y(clampNum(rawPpk, 0, yMax));
-   marker = '<rect x="' + fixedTrim(xMid - 2.5,2) + '" y="' + fixedTrim(py - 2.5,2) + '" width="5" height="5" fill="transparent" stroke="rgba(17,17,17,.95)" stroke-width="1.05"/>';
+   var markerCx = xMid - 2;
+   marker = '<rect x="' + fixedTrim(markerCx - 2.5,2) + '" y="' + fixedTrim(py - 2.5,2) + '" width="5" height="5" fill="transparent" stroke="rgba(17,17,17,.95)" stroke-width="1.05"/>';
   }
   var labelText = esc(entry && (entry.label || entry.proc) || '-');
   return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
