@@ -740,9 +740,15 @@ function ipqc_output_pivot_csv_stream(
         }
     } else { // cmm
         foreach ($colKeys as $i => $p) {
-            $pn = (string)($p['point_no'] ?? '');
-            $headers[] = $pn;
-            $keyToIdx[$pn] = (int)$i;
+            if (is_array($p)) {
+                $pn = (string)($p['point_no'] ?? '');
+                $disp = trim((string)($p['label'] ?? ''));
+            } else {
+                $pn = (string)$p;
+                $disp = '';
+            }
+            $headers[] = ($disp !== '' ? $disp : $pn);
+            if ($pn !== '') $keyToIdx[$pn] = (int)$i;
         }
     }
 
