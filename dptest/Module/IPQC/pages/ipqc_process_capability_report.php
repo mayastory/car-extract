@@ -397,8 +397,8 @@ body{min-width:980px;}
   tip.style.top = fixedTrim(top,2) + 'px';
  }
  function capabilityIndexPlotSvg(entry, refPpk){
-  var width = 392, height = 586;
-  var left = 42, right = 18, top = 10, bottom = 150;
+  var width = 470, height = 578;
+  var left = 48, right = 16, top = 10, bottom = 156;
   var plotW = width - left - right;
   var plotH = height - top - bottom;
   var plotBottom = top + plotH;
@@ -407,25 +407,26 @@ body{min-width:980px;}
   var yMaxBase = Math.ceil((Math.max(refVal, isFinite(rawPpk) ? rawPpk : 0) + 0.25) * 2) / 2;
   var yMax = Math.max(2.2, yMaxBase);
   var xMid = left + plotW / 2;
-  var labelY = plotBottom + 68;
-  var axisTitleY = height - 42;
-  var axisTitleX = xMid + 24;
+  var labelY = plotBottom + 40;
+  var axisTitleX = xMid + 12;
+  var axisTitleY = height - 34;
   function y(v){ return top + plotH - ((v - 0) / (yMax - 0)) * plotH; }
   var yTicks = [];
   for (var v = 0; v <= yMax + 1e-9; v += 0.5) yTicks.push(Number(v.toFixed(1)));
   var hGrid = yTicks.map(function(v){
    var yy = y(v);
-   var stroke = Math.abs(v - Math.round(v)) < 1e-9 ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.05)';
+   var stroke = Math.abs(v - Math.round(v)) < 1e-9 ? 'rgba(0,0,0,.08)' : 'rgba(0,0,0,.05)';
    return '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="' + stroke + '"/>';
   }).join('');
   var yAxisTicks = yTicks.map(function(v){
    var yy = y(v);
-   var label = v === 0 ? '0' : Number(v).toFixed(1);
-   return '<line x1="' + fixedTrim(left - 4,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="rgba(0,0,0,.45)"/><text x="' + fixedTrim(left - 8,2) + '" y="' + fixedTrim(yy + 3,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="end">' + esc(label) + '</text>';
+   var label = Math.abs(v) < 1e-9 ? '0' : Number(v).toFixed(1);
+   return '<line x1="' + fixedTrim(left - 4,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="rgba(0,0,0,.45)"/>' + '<text x="' + fixedTrim(left - 8,2) + '" y="' + fixedTrim(yy + 3,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="end">' + esc(label) + '</text>';
   }).join('');
   var xAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(plotBottom,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(plotBottom,2) + '" stroke="rgba(0,0,0,.45)"/>';
   var xAxisMidTick = '<line x1="' + fixedTrim(xMid,2) + '" y1="' + fixedTrim(plotBottom,2) + '" x2="' + fixedTrim(xMid,2) + '" y2="' + fixedTrim(plotBottom + 6,2) + '" stroke="rgba(0,0,0,.45)"/>';
   var yAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(plotBottom,2) + '" stroke="rgba(0,0,0,.45)"/>';
+  var frame = '<rect x="' + fixedTrim(left,2) + '" y="' + fixedTrim(top,2) + '" width="' + fixedTrim(plotW,2) + '" height="' + fixedTrim(plotH,2) + '" fill="#f8f8f8" stroke="#b7b7b7"/>';
   var refLine = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(y(refVal),2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(y(refVal),2) + '" stroke="#ff6672" stroke-width="1.15"/>';
   var marker = '';
   if (isFinite(rawPpk)){
@@ -434,41 +435,11 @@ body{min-width:980px;}
   }
   var labelText = esc(entry && (entry.label || entry.proc) || '-');
   return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
-   '<rect x="' + fixedTrim(left,2) + '" y="' + fixedTrim(top,2) + '" width="' + fixedTrim(plotW,2) + '" height="' + fixedTrim(plotH,2) + '" fill="transparent" stroke="#b7b7b7"/>' +
-   hGrid + xAxis + xAxisMidTick + yAxis + refLine + marker + yAxisTicks +
+   frame + hGrid + xAxis + xAxisMidTick + yAxis + refLine + marker + yAxisTicks +
    '<text x="' + fixedTrim(xMid,2) + '" y="' + fixedTrim(labelY,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="middle" transform="rotate(-90 ' + fixedTrim(xMid,2) + ' ' + fixedTrim(labelY,2) + ')">' + labelText + '</text>' +
    '<text x="' + fixedTrim(axisTitleX,2) + '" y="' + axisTitleY + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">공정</text>' +
    '<text x="14" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(17,17,17,.96)" font-size="11" text-anchor="middle" transform="rotate(-90 14 ' + fixedTrim(top + plotH/2,2) + ')">Ppk</text>' +
    '</svg>';
- }
- 
-function normalizeCapabilityIndexBox(box){
-  if (!box) return;
-  box.style.display = 'grid';
-  box.style.gridTemplateColumns = 'minmax(0,392px) 128px';
-  box.style.gap = '12px';
-  box.style.alignItems = 'start';
-  box.style.maxWidth = '532px';
-  var main = box.querySelector('.qpc-index-main');
-  if (main){
-   main.style.width = '100%';
-   main.style.maxWidth = '392px';
-  }
-  var host = box.querySelector('[data-role="index-svg"]');
-  if (host){
-   host.style.width = '100%';
-   host.style.maxWidth = '392px';
-  }
-  var side = box.querySelector('.qpc-index-side');
-  if (!side) return;
-  side.style.width = '128px';
-  var textEl = side.querySelector('[data-role="index-ppk-text"]');
-  var line = textEl && textEl.parentElement ? textEl.parentElement : null;
-  if (line){
-   line.style.marginBottom = '6px';
-   var label = line.previousElementSibling;
-   if (label && label.tagName === 'DIV' && String(label.textContent || '').trim() === 'Ppk') label.remove();
-  }
  }
  function renderCapabilityIndexPlotBox(box){
   if (!box || !payload || !payload.entries) return;
@@ -487,7 +458,6 @@ function normalizeCapabilityIndexBox(box){
  }
  document.title = payload.title ? String(payload.title) : titleBase;
  if (root) root.innerHTML = String(payload.html || '');
- Array.prototype.forEach.call(document.querySelectorAll('.qpc-index-grid'), function(box){ normalizeCapabilityIndexBox(box); });
  Array.prototype.forEach.call(document.querySelectorAll('.qpc-target-grid'), function(box){ renderTargetPlotBox(box); });
  Array.prototype.forEach.call(document.querySelectorAll('.qpc-index-grid'), function(box){ renderCapabilityIndexPlotBox(box); });
  document.addEventListener('mousemove', function(ev){
