@@ -136,7 +136,8 @@
     varLineSeq: 1,
     axisByCol: {}, // {colKey:{yMin:null|number,yMax:null|number}}
     gridHidden: true, // grid hide toggle (default: hidden)
-    oocSpecPct: 85, // OOC SPEC percentage baseline; 85 keeps current USL/LSL values, 100 expands to full spec
+    oocSpecByCol: {}, // {colKey: pct} per-FAI OOC SPEC percentage (85 keeps current displayed USL/LSL)
+    limitBaseByCol: {}, // {colKey:{baseUsl,baseLsl}} per-FAI base limits before OOC scaling
     editingOocSpec: false,
     plotElems: { points:true, line:true, box:true }, // toolbar elements (Shift multi-select)
     captionByColKey: {}, // {colKey:{enabled,stats:[...],xPos,yPos}} (display only)
@@ -3090,9 +3091,23 @@ function getBase(){
       const th = ths[i];
       const label = (th.textContent||'').trim();
       const key = (th.dataset && th.dataset.colkey) ? String(th.dataset.colkey) : label;
-      const usl = (th.dataset && th.dataset.usl !== undefined) ? num(th.dataset.usl) : null;
-      const lsl = (th.dataset && th.dataset.lsl !== undefined) ? num(th.dataset.lsl) : null;
-      cols.push({ idx:i, key, label, usl, lsl, th });
+      const rawUsl = (th.dataset && th.dataset.usl !== undefined) ? num(th.dataset.usl) : null;
+      const rawLsl = (th.dataset && th.dataset.lsl !== undefined) ? num(th.dataset.lsl) : null;
+      const savedBase = (QG.limitBaseByCol && QG.limitBaseByCol[key]) ? QG.limitBaseByCol[key] : null;
+      const baseUsl = (savedBase && savedBase.baseUsl !== undefined) ? savedBase.baseUsl : rawUsl;
+      const baseLsl = (savedBase && savedBase.baseLsl !== undefined) ? savedBase.baseLsl : rawLsl;
+      const savedPct = (QG.oocSpecByCol && QG.oocSpecByCol[key] !== undefined) ? QG.oocSpecByCol[key] : 85;
+      cols.push({
+        idx:i,
+        key,
+        label,
+        usl: baseUsl,
+        lsl: baseLsl,
+        baseUsl,
+        baseLsl,
+        oocSpecPct: qgClampOocSpecPct(savedPct),
+        th,
+      });
     }
     return cols;
   }
@@ -5384,6 +5399,7 @@ try{
       const specPct = qs('#qgOocSpecPct');
       const onSpecInput = (src)=>{
         applyOocSpecInputsToState(src);
+        syncLimitInputs(true);
         renderGrid();
       };
       const onSpecFocus = ()=>{ QG.editingOocSpec = true; };
@@ -5391,6 +5407,7 @@ try{
         QG.editingOocSpec = false;
         applyOocSpecInputsToState(src);
         syncOocSpecInputs(true);
+        syncLimitInputs(true);
         renderGrid();
       };
       if (specRange && !specRange._qg){
@@ -5786,10 +5803,58 @@ function renderFacetList(rootId, items, selSet){
     return Math.max(1, Math.min(100, n));
   }
 
+  function qgGetColByKey(colKey){
+    const k = String(colKey || '');
+    if (!k) return null;
+    return (QG.cols || []).find(c => String(c && c.key || '') === k) || null;
+  }
+
+  function qgEnsureColSpecState(col){
+    if (!col) return null;
+    if (!QG.oocSpecByCol) QG.oocSpecByCol = {};
+    if (!QG.limitBaseByCol) QG.limitBaseByCol = {};
+    const key = String(col.key || '');
+    const savedPct = (QG.oocSpecByCol[key] !== undefined) ? QG.oocSpecByCol[key] : ((col.oocSpecPct !== undefined) ? col.oocSpecPct : 85);
+    col.oocSpecPct = qgClampOocSpecPct(savedPct);
+    const savedBase = QG.limitBaseByCol[key] || null;
+    if (savedBase){
+      col.baseUsl = (savedBase.baseUsl !== undefined) ? savedBase.baseUsl : (col.baseUsl !== undefined ? col.baseUsl : col.usl);
+      col.baseLsl = (savedBase.baseLsl !== undefined) ? savedBase.baseLsl : (col.baseLsl !== undefined ? col.baseLsl : col.lsl);
+    }else{
+      if (col.baseUsl === undefined) col.baseUsl = col.usl;
+      if (col.baseLsl === undefined) col.baseLsl = col.lsl;
+      QG.limitBaseByCol[key] = { baseUsl: col.baseUsl, baseLsl: col.baseLsl };
+    }
+    QG.oocSpecByCol[key] = col.oocSpecPct;
+    return col;
+  }
+
+  function qgGetColOocSpecPct(col){
+    const st = qgEnsureColSpecState(col);
+    return st ? qgClampOocSpecPct(st.oocSpecPct) : 85;
+  }
+
+  function qgScaleSpecValueForCol(col, val){
+    const v = Number(val);
+    if (!isFinite(v)) return val;
+    const pct = qgGetColOocSpecPct(col);
+    const ratio = pct / 85;
+    return v * ratio;
+  }
+
+  function qgUnscaleSpecValueForCol(col, val){
+    const v = Number(val);
+    if (!isFinite(v)) return val;
+    const pct = qgGetColOocSpecPct(col);
+    const ratio = pct / 85;
+    if (!isFinite(ratio) || ratio === 0) return v;
+    return v / ratio;
+  }
+
   function syncOocSpecInputs(force){
     if (!force && QG.editingOocSpec) return;
-    const pct = qgClampOocSpecPct(QG.oocSpecPct);
-    QG.oocSpecPct = pct;
+    const col = qgEnsureColSpecState(qgGetColByKey(QG.sel.primaryColKey));
+    const pct = qgGetColOocSpecPct(col);
     const rangeEl = qs('#qgOocSpecRange');
     const inputEl = qs('#qgOocSpecPct');
     if (rangeEl) rangeEl.value = String(pct);
@@ -5797,32 +5862,30 @@ function renderFacetList(rootId, items, selSet){
   }
 
   function applyOocSpecInputsToState(src){
+    const col = qgEnsureColSpecState(qgGetColByKey(QG.sel.primaryColKey));
+    if (!col) return;
     const rangeEl = qs('#qgOocSpecRange');
     const inputEl = qs('#qgOocSpecPct');
     const raw = (src === 'input')
       ? ((inputEl && inputEl.value !== undefined) ? inputEl.value : '')
       : ((rangeEl && rangeEl.value !== undefined) ? rangeEl.value : '');
     const pct = qgClampOocSpecPct(raw);
-    QG.oocSpecPct = pct;
+    col.oocSpecPct = pct;
+    if (!QG.oocSpecByCol) QG.oocSpecByCol = {};
+    QG.oocSpecByCol[String(col.key || '')] = pct;
     if (rangeEl && src !== 'range') rangeEl.value = String(pct);
     if (inputEl && src !== 'input') inputEl.value = String(pct);
   }
 
-  function qgScaleSpecValue(val){
-    const v = Number(val);
-    if (!isFinite(v)) return val;
-    const pct = qgClampOocSpecPct(QG.oocSpecPct);
-    const ratio = pct / 85;
-    return v * ratio;
-  }
-
   function syncLimitInputs(force){
     if (!force && QG.editingLimits) return;
-    const col = QG.cols.find(c => c.key === QG.sel.primaryColKey) || null;
+    const col = qgEnsureColSpecState(qgGetColByKey(QG.sel.primaryColKey));
     const uslEl = qs('#qgUSL');
     const lslEl = qs('#qgLSL');
-    if (uslEl) uslEl.value = (col && col.usl !== null) ? fmt(col.usl) : '';
-    if (lslEl) lslEl.value = (col && col.lsl !== null) ? fmt(col.lsl) : '';
+    const uslV = col ? qgScaleSpecValueForCol(col, col.baseUsl) : null;
+    const lslV = col ? qgScaleSpecValueForCol(col, col.baseLsl) : null;
+    if (uslEl) uslEl.value = (uslV !== null && uslV !== undefined) ? fmt(uslV) : '';
+    if (lslEl) lslEl.value = (lslV !== null && lslV !== undefined) ? fmt(lslV) : '';
   }
 
   function getAxisState(colKey){
@@ -5854,16 +5917,22 @@ function renderFacetList(rootId, items, selSet){
   }
 
   function applyLimitInputsToState(){
-    const col = QG.cols.find(c => c.key === QG.sel.primaryColKey) || null;
+    const col = qgEnsureColSpecState(qgGetColByKey(QG.sel.primaryColKey));
     if (!col) return;
     const uslRaw = (qs('#qgUSL')?.value || '').toString();
     const lslRaw = (qs('#qgLSL')?.value || '').toString();
-    col.usl = num(uslRaw);
-    col.lsl = num(lslRaw);
+    const dispUsl = num(uslRaw);
+    const dispLsl = num(lslRaw);
+    col.baseUsl = (dispUsl === null) ? null : qgUnscaleSpecValueForCol(col, dispUsl);
+    col.baseLsl = (dispLsl === null) ? null : qgUnscaleSpecValueForCol(col, dispLsl);
+    col.usl = col.baseUsl;
+    col.lsl = col.baseLsl;
+    if (!QG.limitBaseByCol) QG.limitBaseByCol = {};
+    QG.limitBaseByCol[String(col.key || '')] = { baseUsl: col.baseUsl, baseLsl: col.baseLsl };
     try{
       if (col.th && col.th.dataset){
-        col.th.dataset.usl = (col.usl === null ? '' : String(col.usl));
-        col.th.dataset.lsl = (col.lsl === null ? '' : String(col.lsl));
+        col.th.dataset.usl = (col.baseUsl === null ? '' : String(col.baseUsl));
+        col.th.dataset.lsl = (col.baseLsl === null ? '' : String(col.baseLsl));
       }
     }catch(e){}
   }
@@ -6125,13 +6194,13 @@ function renderFacetList(rootId, items, selSet){
       let _lslTxt = 'LSL';
 
       try{
-        const _u = _col ? _col.usl : null;
+        const _u = _col ? qgScaleSpecValueForCol(_col, _col.baseUsl) : null;
         const _uf = qgFmtCaptionNum(_u, _numFmt);
         if (_uf) _uslTxt = 'USL(' + _uf + ')';
       }catch(e){}
 
       try{
-        const _l = _col ? _col.lsl : null;
+        const _l = _col ? qgScaleSpecValueForCol(_col, _col.baseLsl) : null;
         const _lf = qgFmtCaptionNum(_l, _numFmt);
         if (_lf) _lslTxt = 'LSL(' + _lf + ')';
       }catch(e){}
@@ -6339,8 +6408,8 @@ function renderGrid(){
       if (!series) continue;
 
       const col = QG.cols.find(c => c.key === colKey) || null;
-      const usl = col ? col.usl : null;
-      const lsl = col ? col.lsl : null;
+      const usl = col ? qgScaleSpecValueForCol(col, col.baseUsl) : null;
+      const lsl = col ? qgScaleSpecValueForCol(col, col.baseLsl) : null;
 
       // Union dates across the entire (Tool x Cavity) matrix in this tool-row block
       const dateMap = new Map();
@@ -7762,7 +7831,7 @@ const clip = (el)=>{ try{ el.setAttribute('clip-path', clipUrl); }catch(e){} };
       // NOTE: USL/LSL is identical across cavities for the same FAI,
       // so draw the dashed line in every cavity panel but draw the label only once (rightmost panel)
       function hLine(val, label){
-        const scaledVal = qgScaleSpecValue(val);
+        const scaledVal = val;
         const y = yAt(scaledVal);
         const ln = document.createElementNS(ns,'line');
         ln.setAttribute('x1', String(left)); ln.setAttribute('x2', String(right));
