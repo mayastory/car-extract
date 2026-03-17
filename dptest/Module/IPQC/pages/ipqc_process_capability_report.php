@@ -552,6 +552,92 @@ body{min-width:980px;}
    '<div class="qpc-performance-side">' + processPerformanceLegendSideHtml(refPpk, refStability) + '</div>' +
    '</div>';
  }
+
+ function standardizedBySigmaValues(entry, isWithin){
+  if (!entry || !Array.isArray(entry.values)) return [];
+  var sigma = isWithin ? Number(entry.sigmaWithin) : Number(entry.sigmaOverall);
+  var avg = Number(entry.avg);
+  if (!(isFinite(avg) && isFinite(sigma) && sigma > 0)) return [];
+  return entry.values.filter(function(v){ return isFinite(v); }).map(function(v){ return (v - avg) / sigma; });
+ }
+ function normalizedSigmaBoxPlotSvg(entry, isWithin){
+  var values = standardizedBySigmaValues(entry, isWithin);
+  var sigma = isWithin ? Number(entry.sigmaWithin) : Number(entry.sigmaOverall);
+  var avg = Number(entry.avg);
+  var width = 700, height = 122;
+  var left = 30, right = 96, top = 8;
+  var plotW = width - left - right;
+  var plotH = 64;
+  var plotBottom = top + plotH;
+  var tickLineBottom = plotBottom + 4;
+  var tickTextY = plotBottom + 16;
+  var titleY = height - 2;
+  var yMid = top + (plotH / 2);
+  var boxH = 16;
+  var caption = isWithin ? '평균 및 군내 표준편차를 사용하여 표준화됨' : '평균 및 전체 표준편차를 사용하여 표준화됨';
+  if (!(isFinite(avg) && isFinite(sigma) && sigma > 0) || !values.length){
+   return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true"><rect x="' + fixedTrim(left,2) + '" y="' + fixedTrim(top,2) + '" width="' + fixedTrim(plotW,2) + '" height="' + fixedTrim(plotH,2) + '" fill="#f8f8f8" stroke="#b7b7b7" stroke-width="1"/><text x="' + fixedTrim(left + (plotW / 2), 2) + '" y="' + fixedTrim(top + (plotH / 2) + 4, 2) + '" fill="#444" text-anchor="middle" font-size="11">표준화에 필요한 값이 없습니다.</text></svg>';
+  }
+  var sorted = values.slice().sort(function(a,b){ return a - b; });
+  function q(arr, p){
+   if (!arr.length) return NaN;
+   var pos = (arr.length - 1) * p;
+   var lo = Math.floor(pos), hi = Math.ceil(pos);
+   if (lo === hi) return arr[lo];
+   return arr[lo] + (arr[hi] - arr[lo]) * (pos - lo);
+  }
+  var q1 = q(sorted, 0.25);
+  var med = q(sorted, 0.50);
+  var q3 = q(sorted, 0.75);
+  var iqr = Math.max(0, q3 - q1);
+  var lowFence = q1 - (1.5 * iqr);
+  var highFence = q3 + (1.5 * iqr);
+  var nonOutliers = sorted.filter(function(v){ return v >= lowFence && v <= highFence; });
+  var whiskerLow = nonOutliers.length ? nonOutliers[0] : sorted[0];
+  var whiskerHigh = nonOutliers.length ? nonOutliers[nonOutliers.length - 1] : sorted[sorted.length - 1];
+  var marks = [];
+  if (isFinite(entry.lsl)) marks.push((Number(entry.lsl) - avg) / sigma);
+  marks.push(0);
+  if (isFinite(entry.target)) marks.push((Number(entry.target) - avg) / sigma);
+  if (isFinite(entry.usl)) marks.push((Number(entry.usl) - avg) / sigma);
+  var rangeAbs = 2;
+  sorted.forEach(function(v){ if (isFinite(v)) rangeAbs = Math.max(rangeAbs, Math.abs(v)); });
+  marks.forEach(function(v){ if (isFinite(v)) rangeAbs = Math.max(rangeAbs, Math.abs(v)); });
+  var axisAbs = Math.max(2, Math.ceil(rangeAbs + 0.25));
+  var xMin = -axisAbs, xMax = axisAbs;
+  function x(v){ return left + ((v - xMin) / Math.max(1e-9, xMax - xMin)) * plotW; }
+  var specDefs = [];
+  if (isFinite(entry.lsl)) specDefs.push({ v:(Number(entry.lsl) - avg) / sigma, dash:'', color:'#67d46f', width:'1.05' });
+  specDefs.push({ v:0, dash:'', color:'#67d46f', width:'1.05' });
+  if (isFinite(entry.target)) specDefs.push({ v:(Number(entry.target) - avg) / sigma, dash:'', color:'#67d46f', width:'1.05' });
+  if (isFinite(entry.usl)) specDefs.push({ v:(Number(entry.usl) - avg) / sigma, dash:'', color:'#67d46f', width:'1.05' });
+  var specLines = specDefs.filter(function(line){ return isFinite(line.v) && line.v >= xMin && line.v <= xMax; }).map(function(line){
+   var xx = x(line.v);
+   return '<line x1="' + fixedTrim(xx,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(xx,2) + '" y2="' + fixedTrim(plotBottom,2) + '" stroke="' + line.color + '" stroke-width="' + line.width + '"' + (line.dash ? ' stroke-dasharray="' + line.dash + '"' : '') + '/>';
+  }).join('');
+  var whiskerColor = 'rgba(0,0,0,.72)';
+  var whisker = '<line x1="' + fixedTrim(x(whiskerLow), 2) + '" y1="' + fixedTrim(yMid, 2) + '" x2="' + fixedTrim(x(whiskerHigh), 2) + '" y2="' + fixedTrim(yMid, 2) + '" stroke="' + whiskerColor + '" stroke-width="1.05"/>' +
+   '<line x1="' + fixedTrim(x(whiskerLow), 2) + '" y1="' + fixedTrim(yMid - 6, 2) + '" x2="' + fixedTrim(x(whiskerLow), 2) + '" y2="' + fixedTrim(yMid + 6, 2) + '" stroke="' + whiskerColor + '" stroke-width="1.05"/>' +
+   '<line x1="' + fixedTrim(x(whiskerHigh), 2) + '" y1="' + fixedTrim(yMid - 6, 2) + '" x2="' + fixedTrim(x(whiskerHigh), 2) + '" y2="' + fixedTrim(yMid + 6, 2) + '" stroke="' + whiskerColor + '" stroke-width="1.05"/>';
+  var boxTop = yMid - (boxH / 2);
+  var box = '<rect x="' + fixedTrim(x(q1), 2) + '" y="' + fixedTrim(boxTop, 2) + '" width="' + fixedTrim(Math.max(1, x(q3) - x(q1)), 2) + '" height="' + fixedTrim(boxH, 2) + '" fill="#d6d6d6" fill-opacity="0.90" stroke="rgba(0,0,0,.68)" stroke-width="1"/>' +
+   '<line x1="' + fixedTrim(x(med), 2) + '" y1="' + fixedTrim(boxTop, 2) + '" x2="' + fixedTrim(x(med), 2) + '" y2="' + fixedTrim(boxTop + boxH, 2) + '" stroke="rgba(0,0,0,.72)" stroke-width="1"/>';
+  var ticks = [];
+  for (var tv = -axisAbs; tv <= axisAbs + 1e-9; tv += 1){
+   var xx = x(tv);
+   ticks.push('<line x1="' + fixedTrim(xx, 2) + '" y1="' + fixedTrim(plotBottom, 2) + '" x2="' + fixedTrim(xx, 2) + '" y2="' + fixedTrim(tickLineBottom, 2) + '" stroke="rgba(0,0,0,.45)"/><text x="' + fixedTrim(xx, 2) + '" y="' + fixedTrim(tickTextY, 2) + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">' + esc(String(tv)) + '</text>');
+  }
+  return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
+   '<rect x="' + fixedTrim(left, 2) + '" y="' + fixedTrim(top, 2) + '" width="' + fixedTrim(plotW, 2) + '" height="' + fixedTrim(plotH, 2) + '" fill="#f8f8f8" stroke="#b7b7b7"/>' +
+   '<line x1="' + fixedTrim(left, 2) + '" y1="' + fixedTrim(plotBottom, 2) + '" x2="' + fixedTrim(left + plotW, 2) + '" y2="' + fixedTrim(plotBottom, 2) + '" stroke="rgba(0,0,0,.55)"/>' +
+   specLines + whisker + box + ticks.join('') +
+   '<text x="' + fixedTrim(left + (plotW / 2), 2) + '" y="' + fixedTrim(titleY, 2) + '" fill="rgba(17,17,17,.92)" font-size="11.5" text-anchor="middle">' + caption + '</text>' +
+   '<text x="' + fixedTrim(left + plotW + 12, 2) + '" y="' + fixedTrim(yMid + 4, 2) + '" fill="rgba(17,17,17,.92)" font-size="12">' + esc(entry.label || entry.proc || '') + '</text>' +
+   '</svg>';
+ }
+ function normalizedSigmaBoxPlotHtml(entry, isWithin){
+  return '<div class="qpc-svgbox" style="width:700px;max-width:100%;">' + normalizedSigmaBoxPlotSvg(entry, isWithin) + '</div>';
+ }
  function renderProcessPerformancePlotBox(box){
   if (!box || !payload || !payload.entries) return;
   var idx = parseInt(box.getAttribute('data-entry-index') || '-1', 10);
@@ -579,18 +665,51 @@ body{min-width:980px;}
   var perfIdx = 0;
   Array.prototype.forEach.call(summaries, function(summary){
    if (String(summary.textContent || '').trim() !== '공정 성능 그림') return;
+   var details = summary.parentElement;
    var body = summary.nextElementSibling;
    if (!body) return;
    var entry = payload && payload.entries && payload.entries[perfIdx];
    if (!entry) return;
+   if (details && !details.hasAttribute('open')) details.setAttribute('open', 'open');
    body.className = 'qpc-report-sub-body';
    body.innerHTML = processPerformancePlotHtml(entry, perfIdx);
    perfIdx += 1;
   });
  }
+ function injectNormalizedSigmaSections(){
+  var summaries = document.querySelectorAll('summary');
+  var normIdx = 0;
+  Array.prototype.forEach.call(summaries, function(summary){
+   if (String(summary.textContent || '').trim() !== '공정 성능 그림') return;
+   var perfDetails = summary.parentElement;
+   var groupBody = perfDetails ? perfDetails.parentElement : null;
+   var entry = payload && payload.entries && payload.entries[normIdx];
+   if (!groupBody || !entry) return;
+   if (groupBody.querySelector('[data-role="within-normalized-box"]') || groupBody.querySelector('[data-role="overall-normalized-box"]')){
+    normIdx += 1;
+    return;
+   }
+   var withinDetails = document.createElement('details');
+   withinDetails.className = 'qpc-report-sub';
+   withinDetails.setAttribute('open', 'open');
+   withinDetails.setAttribute('data-role', 'within-normalized-box');
+   withinDetails.innerHTML = '<summary>군내 표준편차 정규화된 상자 그림</summary><div class="qpc-report-sub-body">' + normalizedSigmaBoxPlotHtml(entry, true) + '</div>';
+   var overallDetails = document.createElement('details');
+   overallDetails.className = 'qpc-report-sub';
+   overallDetails.setAttribute('open', 'open');
+   overallDetails.setAttribute('data-role', 'overall-normalized-box');
+   overallDetails.innerHTML = '<summary>전체 표준편차 정규화된 상자 그림</summary><div class="qpc-report-sub-body">' + normalizedSigmaBoxPlotHtml(entry, false) + '</div>';
+   if (perfDetails.nextSibling) groupBody.insertBefore(withinDetails, perfDetails.nextSibling);
+   else groupBody.appendChild(withinDetails);
+   if (withinDetails.nextSibling) groupBody.insertBefore(overallDetails, withinDetails.nextSibling);
+   else groupBody.appendChild(overallDetails);
+   normIdx += 1;
+  });
+ }
  document.title = payload.title ? String(payload.title) : titleBase;
  if (root) root.innerHTML = String(payload.html || '');
  injectProcessPerformanceSections();
+ injectNormalizedSigmaSections();
  Array.prototype.forEach.call(document.querySelectorAll('.qpc-target-grid'), function(box){ renderTargetPlotBox(box); });
  Array.prototype.forEach.call(document.querySelectorAll('.qpc-index-grid'), function(box){ renderCapabilityIndexPlotBox(box); });
  Array.prototype.forEach.call(document.querySelectorAll('.qpc-performance-grid'), function(box){ renderProcessPerformancePlotBox(box); });
