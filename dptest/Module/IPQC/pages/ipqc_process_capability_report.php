@@ -407,10 +407,11 @@ body{min-width:980px;}
   var yMaxBase = Math.ceil((Math.max(refVal, isFinite(rawPpk) ? rawPpk : 0) + 0.25) * 2) / 2;
   var yMax = Math.max(2.2, yMaxBase);
   var xMid = left + plotW / 2;
-  var categoryX = left + (plotW * 0.43);
-  var labelY = plotBottom + 28;
-  var axisTitleX = xMid + 9;
-  var axisTitleY = height - 26;
+  var categoryX = left + (plotW * 0.335);
+  var tickBottomY = plotBottom + 7;
+  var labelY = plotBottom + 40;
+  var axisTitleX = xMid;
+  var axisTitleY = plotBottom + 84;
   function y(v){ return top + plotH - ((v - 0) / (yMax - 0)) * plotH; }
   var yTicks = [];
   for (var v = 0; v <= yMax + 1e-9; v += 0.5) yTicks.push(Number(v.toFixed(1)));
@@ -425,7 +426,7 @@ body{min-width:980px;}
    return '<line x1="' + fixedTrim(left - 4,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="rgba(0,0,0,.45)"/>' + '<text x="' + fixedTrim(left - 8,2) + '" y="' + fixedTrim(yy + 3,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="end">' + esc(label) + '</text>';
   }).join('');
   var xAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(plotBottom,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(plotBottom,2) + '" stroke="rgba(0,0,0,.45)"/>';
-  var xAxisMidTick = '<line x1="' + fixedTrim(categoryX,2) + '" y1="' + fixedTrim(plotBottom,2) + '" x2="' + fixedTrim(categoryX,2) + '" y2="' + fixedTrim(plotBottom + 6,2) + '" stroke="rgba(0,0,0,.45)"/>';
+  var xAxisMidTick = '<line x1="' + fixedTrim(categoryX,2) + '" y1="' + fixedTrim(plotBottom,2) + '" x2="' + fixedTrim(categoryX,2) + '" y2="' + fixedTrim(tickBottomY,2) + '" stroke="rgba(0,0,0,.45)"/>';
   var yAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(plotBottom,2) + '" stroke="rgba(0,0,0,.45)"/>';
   var frame = '<rect x="' + fixedTrim(left,2) + '" y="' + fixedTrim(top,2) + '" width="' + fixedTrim(plotW,2) + '" height="' + fixedTrim(plotH,2) + '" fill="#f8f8f8" stroke="#b7b7b7"/>';
   var refLine = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(y(refVal),2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(y(refVal),2) + '" stroke="#ff6672" stroke-width="1.15"/>';
@@ -439,7 +440,7 @@ body{min-width:980px;}
   return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
    frame + hGrid + xAxis + xAxisMidTick + yAxis + refLine + marker + yAxisTicks +
    '<text x="' + fixedTrim(categoryX,2) + '" y="' + fixedTrim(labelY,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="middle" transform="rotate(-90 ' + fixedTrim(categoryX,2) + ' ' + fixedTrim(labelY,2) + ')">' + labelText + '</text>' +
-   '<text x="' + fixedTrim(axisTitleX,2) + '" y="' + axisTitleY + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">공정</text>' +
+   '<text x="' + fixedTrim(axisTitleX,2) + '" y="' + fixedTrim(axisTitleY,2) + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">공정</text>' +
    '<text x="14" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(17,17,17,.96)" font-size="11" text-anchor="middle" transform="rotate(-90 14 ' + fixedTrim(top + plotH/2,2) + ')">Ppk</text>' +
    '</svg>';
  }
