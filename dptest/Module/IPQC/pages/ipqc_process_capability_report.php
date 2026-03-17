@@ -407,8 +407,8 @@ body{min-width:980px;}
   var yMaxBase = Math.ceil((Math.max(refVal, isFinite(rawPpk) ? rawPpk : 0) + 0.25) * 2) / 2;
   var yMax = Math.max(2.2, yMaxBase);
   var xMid = left + plotW / 2;
-  var labelY = plotBottom + 50;
-  var axisTitleY = height - 18;
+  var labelY = plotBottom + 60;
+  var axisTitleY = height - 28;
   var axisTitleX = xMid + 24;
   function y(v){ return top + plotH - ((v - 0) / (yMax - 0)) * plotH; }
   var yTicks = [];
