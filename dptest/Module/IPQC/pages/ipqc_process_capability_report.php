@@ -597,6 +597,7 @@ body{min-width:980px;}
   var whiskerHigh = nonOutliers.length ? nonOutliers[nonOutliers.length - 1] : sorted[sorted.length - 1];
   var specDefs = [];
   if (isFinite(entry.lsl)) specDefs.push({ v:(Number(entry.lsl) - avg) / sigma, color:'#67d46f', width:'1.05' });
+  specDefs.push({ v:0, color:'#67d46f', width:'1.05' });
   if (isFinite(entry.target)) specDefs.push({ v:(Number(entry.target) - avg) / sigma, color:'#67d46f', width:'1.05' });
   if (isFinite(entry.usl)) specDefs.push({ v:(Number(entry.usl) - avg) / sigma, color:'#67d46f', width:'1.05' });
   var refDefs = [
