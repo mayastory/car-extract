@@ -397,8 +397,8 @@ body{min-width:980px;}
   tip.style.top = fixedTrim(top,2) + 'px';
  }
  function capabilityIndexPlotSvg(entry, refPpk){
-  var width = 470, height = 570;
-  var left = 48, right = 16, top = 10, bottom = 150;
+  var width = 442, height = 586;
+  var left = 42, right = 18, top = 10, bottom = 150;
   var plotW = width - left - right;
   var plotH = height - top - bottom;
   var refVal = clampNum(parseNum(refPpk), 0.20, 2.50);
@@ -431,27 +431,27 @@ body{min-width:980px;}
   return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
    '<rect x="' + fixedTrim(left,2) + '" y="' + fixedTrim(top,2) + '" width="' + fixedTrim(plotW,2) + '" height="' + fixedTrim(plotH,2) + '" fill="transparent" stroke="#b7b7b7"/>' +
    hGrid + xAxis + yAxis + refLine + marker + yAxisTicks +
-   '<text x="' + fixedTrim(xMid,2) + '" y="' + fixedTrim(top + plotH + 52,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="middle" transform="rotate(-90 ' + fixedTrim(xMid,2) + ' ' + fixedTrim(top + plotH + 52,2) + ')">' + labelText + '</text>' +
-   '<text x="' + fixedTrim(xMid,2) + '" y="' + (height - 14) + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">공정</text>' +
+   '<text x="' + fixedTrim(xMid,2) + '" y="' + fixedTrim(top + plotH + 50,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="middle" transform="rotate(-90 ' + fixedTrim(xMid,2) + ' ' + fixedTrim(top + plotH + 50,2) + ')">' + labelText + '</text>' +
+   '<text x="' + fixedTrim(xMid,2) + '" y="' + (height - 18) + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">공정</text>' +
    '<text x="14" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(17,17,17,.96)" font-size="11" text-anchor="middle" transform="rotate(-90 14 ' + fixedTrim(top + plotH/2,2) + ')">Ppk</text>' +
    '</svg>';
  }
  function normalizeCapabilityIndexBox(box){
   if (!box) return;
   box.style.display = 'grid';
-  box.style.gridTemplateColumns = 'minmax(0,470px) 128px';
+  box.style.gridTemplateColumns = 'minmax(0,442px) 128px';
   box.style.gap = '12px';
   box.style.alignItems = 'start';
-  box.style.maxWidth = '610px';
+  box.style.maxWidth = '582px';
   var main = box.querySelector('.qpc-index-main');
   if (main){
    main.style.width = '100%';
-   main.style.maxWidth = '470px';
+   main.style.maxWidth = '442px';
   }
   var host = box.querySelector('[data-role="index-svg"]');
   if (host){
    host.style.width = '100%';
-   host.style.maxWidth = '470px';
+   host.style.maxWidth = '442px';
   }
   var side = box.querySelector('.qpc-index-side');
   if (!side) return;
