@@ -595,25 +595,28 @@ body{min-width:980px;}
   var nonOutliers = sorted.filter(function(v){ return v >= lowFence && v <= highFence; });
   var whiskerLow = nonOutliers.length ? nonOutliers[0] : sorted[0];
   var whiskerHigh = nonOutliers.length ? nonOutliers[nonOutliers.length - 1] : sorted[sorted.length - 1];
-  var marks = [];
-  if (isFinite(entry.lsl)) marks.push((Number(entry.lsl) - avg) / sigma);
-  marks.push(0);
-  if (isFinite(entry.target)) marks.push((Number(entry.target) - avg) / sigma);
-  if (isFinite(entry.usl)) marks.push((Number(entry.usl) - avg) / sigma);
+  var specDefs = [];
+  if (isFinite(entry.lsl)) specDefs.push({ v:(Number(entry.lsl) - avg) / sigma, color:'#67d46f', width:'1.05' });
+  if (isFinite(entry.target)) specDefs.push({ v:(Number(entry.target) - avg) / sigma, color:'#67d46f', width:'1.05' });
+  if (isFinite(entry.usl)) specDefs.push({ v:(Number(entry.usl) - avg) / sigma, color:'#67d46f', width:'1.05' });
+  var refDefs = [
+   { v:-0.5, color:'rgba(120,120,120,.92)', width:'1', dash:'3 3' },
+   { v:0.5, color:'rgba(120,120,120,.92)', width:'1', dash:'3 3' }
+  ];
   var rangeAbs = 2;
   sorted.forEach(function(v){ if (isFinite(v)) rangeAbs = Math.max(rangeAbs, Math.abs(v)); });
-  marks.forEach(function(v){ if (isFinite(v)) rangeAbs = Math.max(rangeAbs, Math.abs(v)); });
+  specDefs.forEach(function(line){ if (isFinite(line.v)) rangeAbs = Math.max(rangeAbs, Math.abs(line.v)); });
+  refDefs.forEach(function(line){ rangeAbs = Math.max(rangeAbs, Math.abs(line.v)); });
   var axisAbs = Math.max(2, Math.ceil(rangeAbs + 0.25));
   var xMin = -axisAbs, xMax = axisAbs;
   function x(v){ return left + ((v - xMin) / Math.max(1e-9, xMax - xMin)) * plotW; }
-  var specDefs = [];
-  if (isFinite(entry.lsl)) specDefs.push({ v:(Number(entry.lsl) - avg) / sigma, dash:'', color:'#67d46f', width:'1.05' });
-  specDefs.push({ v:0, dash:'', color:'#67d46f', width:'1.05' });
-  if (isFinite(entry.target)) specDefs.push({ v:(Number(entry.target) - avg) / sigma, dash:'', color:'#67d46f', width:'1.05' });
-  if (isFinite(entry.usl)) specDefs.push({ v:(Number(entry.usl) - avg) / sigma, dash:'', color:'#67d46f', width:'1.05' });
+  var refLines = refDefs.filter(function(line){ return line.v >= xMin && line.v <= xMax; }).map(function(line){
+   var xx = x(line.v);
+   return '<line x1="' + fixedTrim(xx,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(xx,2) + '" y2="' + fixedTrim(plotBottom,2) + '" stroke="' + line.color + '" stroke-width="' + line.width + '" stroke-dasharray="' + line.dash + '"/>';
+  }).join('');
   var specLines = specDefs.filter(function(line){ return isFinite(line.v) && line.v >= xMin && line.v <= xMax; }).map(function(line){
    var xx = x(line.v);
-   return '<line x1="' + fixedTrim(xx,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(xx,2) + '" y2="' + fixedTrim(plotBottom,2) + '" stroke="' + line.color + '" stroke-width="' + line.width + '"' + (line.dash ? ' stroke-dasharray="' + line.dash + '"' : '') + '/>';
+   return '<line x1="' + fixedTrim(xx,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(xx,2) + '" y2="' + fixedTrim(plotBottom,2) + '" stroke="' + line.color + '" stroke-width="' + line.width + '"/>';
   }).join('');
   var whiskerColor = 'rgba(0,0,0,.72)';
   var whisker = '<line x1="' + fixedTrim(x(whiskerLow), 2) + '" y1="' + fixedTrim(yMid, 2) + '" x2="' + fixedTrim(x(whiskerHigh), 2) + '" y2="' + fixedTrim(yMid, 2) + '" stroke="' + whiskerColor + '" stroke-width="1.05"/>' +
@@ -630,7 +633,7 @@ body{min-width:980px;}
   return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
    '<rect x="' + fixedTrim(left, 2) + '" y="' + fixedTrim(top, 2) + '" width="' + fixedTrim(plotW, 2) + '" height="' + fixedTrim(plotH, 2) + '" fill="#f8f8f8" stroke="#b7b7b7"/>' +
    '<line x1="' + fixedTrim(left, 2) + '" y1="' + fixedTrim(plotBottom, 2) + '" x2="' + fixedTrim(left + plotW, 2) + '" y2="' + fixedTrim(plotBottom, 2) + '" stroke="rgba(0,0,0,.55)"/>' +
-   specLines + whisker + box + ticks.join('') +
+   refLines + specLines + whisker + box + ticks.join('') +
    '<text x="' + fixedTrim(left + (plotW / 2), 2) + '" y="' + fixedTrim(titleY, 2) + '" fill="rgba(17,17,17,.92)" font-size="11.5" text-anchor="middle">' + caption + '</text>' +
    '<text x="' + fixedTrim(left + plotW + 12, 2) + '" y="' + fixedTrim(yMid + 4, 2) + '" fill="rgba(17,17,17,.92)" font-size="12">' + esc(entry.label || entry.proc || '') + '</text>' +
    '</svg>';
