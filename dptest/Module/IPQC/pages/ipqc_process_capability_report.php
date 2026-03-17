@@ -1,6 +1,6 @@
 <?php
 if (!defined('JTMES_ROOT')) {
-    define('JTMES_ROOT', realpath(dirname(__DIR__, 3)) ?: dirname(__DIR__, 3));
+ define('JTMES_ROOT', realpath(dirname(__DIR__, 3)) ?: dirname(__DIR__, 3));
 }
 
 session_start();
@@ -10,9 +10,9 @@ require_once $ROOT . '/config/dp_config.php';
 require_once $ROOT . '/lib/auth_guard.php';
 
 if (function_exists('dp_auth_guard')) {
-    dp_auth_guard();
+ dp_auth_guard();
 } elseif (function_exists('require_login')) {
-    require_login();
+ require_login();
 }
 
 $key = isset($_GET['key']) ? trim((string)$_GET['key']) : '';
@@ -35,17 +35,33 @@ $key = isset($_GET['key']) ? trim((string)$_GET['key']) : '';
 }
 html,body{margin:0;padding:0;background:var(--qpc-bg);color:var(--qpc-text);font-family:Segoe UI, Arial, "Malgun Gothic", sans-serif;}
 body{min-width:980px;}
-.qpc-page{padding:8px 10px 14px;box-sizing:border-box;}
+.qpc-page{padding:8px 10px 14px; box-sizing:border-box;}
 .qpc-page-head{font-size:16px;font-weight:700;line-height:1.15;margin:1px 0 6px;}
 .qpc-report-shell{min-height:100%;}
-.qpc-report-tree,.qpc-report-group,.qpc-report-sub{display:inline-block;width:auto;max-width:100%;border:0;background:transparent;border-radius:0;overflow:visible;margin:0 0 4px;box-shadow:none;}
-.qpc-report-tree > summary,.qpc-report-group > summary,.qpc-report-sub > summary{list-style:none;cursor:pointer;padding:2px 8px;font-size:12px;line-height:1.35;font-weight:700;color:rgba(236,247,240,.96);background:linear-gradient(180deg, rgba(34,78,53,.86), rgba(13,28,19,.98));}
+.qpc-report-tree,
+.qpc-report-group,
+.qpc-report-sub{display:inline-block;width:auto;max-width:100%;border:0;background:transparent;border-radius:0;overflow:visible;margin:0 0 4px;box-shadow:none;}
+.qpc-report-tree > summary,
+.qpc-report-group > summary,
+.qpc-report-sub > summary{list-style:none;cursor:pointer;padding:2px 8px;font-size:12px;line-height:1.35;font-weight:700;color:rgba(236,247,240,.96);background:linear-gradient(180deg, rgba(34,78,53,.86), rgba(13,28,19,.98));}
 .qpc-report-sub-top.qpc-report-sub-hist > summary{padding:1px 6px;}
-.qpc-report-tree > summary::-webkit-details-marker,.qpc-report-group > summary::-webkit-details-marker,.qpc-report-sub > summary::-webkit-details-marker,.qpc-report-top-summary > summary::-webkit-details-marker{display:none;}
-.qpc-report-tree > summary:before,.qpc-report-group > summary:before,.qpc-report-sub > summary:before,.qpc-report-top-summary > summary:before{content:'▸ ';color:rgba(236,247,240,.78);}
-.qpc-report-tree[open] > summary:before,.qpc-report-group[open] > summary:before,.qpc-report-sub[open] > summary:before,.qpc-report-top-summary[open] > summary:before{content:'▾ ';}
-.qpc-report-body,.qpc-report-group-body,.qpc-report-sub-body{padding:4px 6px 6px;border-top:0;background:transparent;}
-.qpc-report-body,.qpc-report-group-body{display:flex;flex-direction:column;align-items:flex-start;gap:4px;}
+.qpc-report-tree > summary::-webkit-details-marker,
+.qpc-report-group > summary::-webkit-details-marker,
+.qpc-report-sub > summary::-webkit-details-marker,
+.qpc-report-top-summary > summary::-webkit-details-marker{display:none;}
+.qpc-report-tree > summary:before,
+.qpc-report-group > summary:before,
+.qpc-report-sub > summary:before,
+.qpc-report-top-summary > summary:before{content:'▸ ';color:rgba(236,247,240,.78);}
+.qpc-report-tree[open] > summary:before,
+.qpc-report-group[open] > summary:before,
+.qpc-report-sub[open] > summary:before,
+.qpc-report-top-summary[open] > summary:before{content:'▾ ';}
+.qpc-report-body,
+.qpc-report-group-body,
+.qpc-report-sub-body{padding:4px 6px 6px;border-top:0;background:transparent;}
+.qpc-report-body,
+.qpc-report-group-body{display:flex;flex-direction:column;align-items:flex-start;gap:4px;}
 .qpc-report-note{padding:14px 10px;color:var(--qpc-muted);font-size:12px;}
 .qpc-report-hist-grid{display:grid;grid-template-columns:minmax(0,428px) 156px;gap:12px;align-items:start;justify-content:start;width:max-content;max-width:100%;}
 .qpc-hist-wrap,.qpc-summary-box,.qpc-stat-box,.qpc-reject-box{border:1px solid var(--qpc-box-border);background:#fff;border-radius:0;}
@@ -86,7 +102,7 @@ body{min-width:980px;}
 .qpc-report-top-summary .qpc-summary-sep{margin:4px 0;}
 .qpc-summary-title{font-size:12px;font-weight:700;margin-bottom:6px;}
 .qpc-summary-grid{display:grid;grid-template-columns:1fr auto;gap:2px 8px;font-size:12px;}
-.qpc-summary-grid .k{color:var(--qpc-text);}
+.qpc-summary-grid .k{color:var(--qpc-text);} 
 .qpc-summary-grid .v{color:var(--qpc-text);text-align:right;font-variant-numeric:tabular-nums;}
 .qpc-summary-sep{height:1px;background:rgba(0,0,0,.10);margin:6px 0;}
 .qpc-report-two{display:grid;grid-template-columns:repeat(2, minmax(0, max-content));gap:8px;align-items:start;justify-content:start;width:max-content;max-width:100%;}
@@ -110,7 +126,7 @@ body{min-width:980px;}
 .qpc-summary-report-table{width:max-content;min-width:100%;border-collapse:collapse;font-size:11.5px;line-height:1.24;}
 .qpc-summary-report-table th,.qpc-summary-report-table td{border:1px solid var(--qpc-box-border-soft);padding:1px 5px;white-space:nowrap;font-variant-numeric:tabular-nums;}
 .qpc-summary-report-table thead th{background:rgba(0,0,0,.04);font-weight:700;text-align:center;color:#111;}
-.qpc-summary-report-table tbody th{background:rgba(0,0,0,.025);font-weight:700;text-align:left;color:#111;}
+.qpc-summary-report-table tbody th{background:rgba(0,0,0,.025);font-weight:700;text-align:left;color:#111;} 
 .qpc-summary-report-table tbody td{text-align:right;background:transparent;}
 .qpc-summary-report-table td.kind-stability{min-width:62px;}
 .qpc-summary-report-table td.kind-capability{min-width:48px;}
@@ -119,17 +135,17 @@ body{min-width:980px;}
 .qpc-summary-report-table td.is-bad{background:rgba(240,188,188,.96);color:#341111;}
 .qpc-report-empty{text-align:center !important;color:var(--qpc-muted);}
 .qpc-target-grid{display:grid;grid-template-columns:minmax(0, 620px) 240px;gap:12px;align-items:start;max-width:872px;}
-.qpc-target-main,.qpc-target-side,.qpc-index-main,.qpc-index-side,.qpc-performance-main,.qpc-performance-side{border:0;background:transparent;border-radius:0;}
+.qpc-target-main,.qpc-target-side{border:0;background:transparent;border-radius:0;}
 .qpc-target-main{position:relative;padding:6px 6px 4px;overflow:visible;max-width:620px;}
 .qpc-target-side{padding:8px 14px;min-width:240px;width:auto;box-sizing:border-box;}
-.qpc-target-side-title,.qpc-index-side-title,.qpc-performance-side-title{font-size:11px;font-weight:700;margin-bottom:8px;}
-.qpc-target-check,.qpc-index-check{display:flex;align-items:center;gap:6px;font-size:11px;margin:0 0 12px;white-space:nowrap;}
-.qpc-target-check input,.qpc-index-check input{margin:0;}
-.qpc-target-ppk-label,.qpc-index-ppk-label,.qpc-performance-ppk-label,.qpc-performance-stability-label{font-size:11px;font-weight:700;margin-bottom:4px;}
-.qpc-target-ppk-line,.qpc-index-ppk-line,.qpc-performance-ppk-line,.qpc-performance-stability-line{display:grid;grid-template-columns:auto 48px minmax(120px,1fr);align-items:center;column-gap:8px;margin-bottom:6px;}
-.qpc-target-ppk-badge,.qpc-index-ppk-badge,.qpc-performance-ppk-badge,.qpc-performance-stability-badge{min-width:36px;height:18px;padding:0 8px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(0,0,0,.18);background:#f7f7f7;font-size:11px;font-weight:700;box-sizing:border-box;}
-.qpc-target-ppk-input,.qpc-index-ppk-input,.qpc-performance-ppk-input,.qpc-performance-stability-input{width:48px;height:20px;border:1px solid rgba(0,0,0,.18);background:#f7f7f7;color:var(--qpc-text);padding:0 4px;font-size:11px;text-align:center;box-sizing:border-box;}
-.qpc-target-range,.qpc-index-range,.qpc-performance-ppk-range,.qpc-performance-stability-range{display:block;width:100%;min-width:120px;accent-color:#b9d8ff;}
+.qpc-target-side-title{font-size:11px;font-weight:700;margin-bottom:8px;}
+.qpc-target-check{display:flex;align-items:center;gap:6px;font-size:11px;margin:0 0 12px;white-space:nowrap;}
+.qpc-target-check input{margin:0;}
+.qpc-target-ppk-label{font-size:11px;font-weight:700;margin-bottom:4px;}
+.qpc-target-ppk-line{display:grid;grid-template-columns:auto 48px minmax(120px,1fr);align-items:center;column-gap:8px;margin-bottom:6px;}
+.qpc-target-ppk-badge{min-width:36px;height:18px;padding:0 8px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(0,0,0,.18);background:#f7f7f7;font-size:11px;font-weight:700;}
+.qpc-target-ppk-input{width:48px;height:20px;border:1px solid rgba(0,0,0,.18);background:#f7f7f7;color:var(--qpc-text);padding:0 4px;font-size:11px;text-align:center;box-sizing:border-box;}
+.qpc-target-range{display:block;width:100%;min-width:120px;accent-color:#b9d8ff;}
 .qpc-target-side-head{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:8px;}
 .qpc-target-legend-link{padding:0;border:0;background:transparent;color:var(--qpc-text);font-size:11px;font-weight:700;cursor:pointer;user-select:none;}
 .qpc-target-side-preview{min-height:48px;margin-bottom:10px;}
@@ -143,17 +159,7 @@ body{min-width:980px;}
 .qpc-target-tip-meta{font-size:12px;line-height:1.35;margin-bottom:2px;color:#333;}
 .qpc-target-tip-svg{margin-top:6px;}
 .qpc-target-tip-svg svg{width:250px;height:auto;display:block;}
-.qpc-index-grid{display:grid;grid-template-columns:minmax(0, 470px) 184px;gap:12px;align-items:start;max-width:666px;}
-.qpc-index-main{padding:6px 6px 2px;max-width:470px;}
-.qpc-index-side{padding:8px 10px 0;min-width:184px;width:auto;box-sizing:border-box;}
-.qpc-performance-grid{display:grid;grid-template-columns:minmax(0, 620px) 186px;gap:12px;align-items:start;max-width:818px;}
-.qpc-performance-main{padding:6px 6px 2px;max-width:620px;}
-.qpc-performance-side{padding:8px 10px 0;min-width:186px;width:auto;box-sizing:border-box;}
-.qpc-performance-legend{display:flex;flex-direction:column;gap:4px;font-size:11px;line-height:1.22;margin-bottom:14px;}
-.qpc-performance-legend-item{display:flex;align-items:center;gap:6px;white-space:nowrap;}
-.qpc-performance-swatch{width:16px;height:8px;display:inline-block;flex:0 0 16px;border:1px solid rgba(0,0,0,.06);}
-.qpc-performance-line{width:16px;height:0;display:inline-block;border-top:1.6px solid #ff6672;box-sizing:border-box;flex:0 0 16px;}
-.qpc-performance-note{font-size:11px;color:var(--qpc-muted);margin-top:4px;}
+.qpc-index-main,.qpc-index-side{border:0;background:transparent;border-radius:0;}
 @media print{
  body{background:#fff;color:#000;}
  .qpc-page{padding:0;}
@@ -164,12 +170,12 @@ body{min-width:980px;}
 <div class="qpc-page">
  <div class="qpc-page-head">공정 능력 결과</div>
  <div class="qpc-report-shell">
-  <details class="qpc-report-tree" open>
-   <summary>개별 상세 정보 보고서</summary>
-   <div class="qpc-report-body" id="qpcReportBody">
-    <div class="qpc-report-note">결과를 불러오는 중...</div>
-   </div>
-  </details>
+ <details class="qpc-report-tree" open>
+ <summary>개별 상세 정보 보고서</summary>
+ <div class="qpc-report-body" id="qpcReportBody">
+ <div class="qpc-report-note">결과를 불러오는 중...</div>
+ </div>
+ </details>
  </div>
 </div>
 <script>
@@ -177,20 +183,56 @@ body{min-width:980px;}
  var key = <?php echo json_encode($key, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
  var root = document.getElementById('qpcReportBody');
  var titleBase = '공정 능력 결과';
- function setMessage(msg){ if (!root) return; root.innerHTML = '<div class="qpc-report-note">' + msg + '</div>'; }
- if (!key){ setMessage('잘못된 접근입니다. 결과 키가 없습니다.'); return; }
+ function setMessage(msg){
+  if (!root) return;
+  root.innerHTML = '<div class="qpc-report-note">' + msg + '</div>';
+ }
+ if (!key){
+  setMessage('잘못된 접근입니다. 결과 키가 없습니다.');
+  return;
+ }
  var storageKey = '__qpc_report_payload__:' + key;
  var payload = null;
- try { payload = JSON.parse(localStorage.getItem(storageKey) || 'null'); } catch (err) { payload = null; }
- if (!payload || !payload.html){ setMessage('결과 데이터를 찾지 못했습니다. 이전 창에서 다시 확인을 눌러 주세요.'); return; }
-
+ try {
+  payload = JSON.parse(localStorage.getItem(storageKey) || 'null');
+ } catch (err) {
+  payload = null;
+ }
+ if (!payload || !payload.html){
+  setMessage('결과 데이터를 찾지 못했습니다. 이전 창에서 다시 확인을 눌러 주세요.');
+  return;
+ }
  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(ch){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]; }); }
- function parseNum(v){ var raw = String(v == null ? '' : v).replace(/,/g, '').trim(); if (!raw) return NaN; var cleaned = raw.replace(/[^0-9eE+\-.]/g, ''); var n = parseFloat(cleaned); return isFinite(n) ? n : NaN; }
- function clampNum(v, min, max){ var n = Number(v); if (!isFinite(n)) n = min; if (n < min) n = min; if (n > max) n = max; return n; }
- function fixedTrim(n, d){ var v = Number(n); if (!isFinite(v)) return ''; var mul = Math.pow(10, d); v = Math.round((v + Number.EPSILON) * mul) / mul; return v.toFixed(d).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1'); }
- function fmtTargetTick(v){ if (!isFinite(v)) return ''; if (Math.abs(v) < 1e-9) return '0'; return fixedTrim(v, 1); }
- function targetStdTypeLabel(useOverall){ return useOverall ? '전체' : '군내'; }
+ function parseNum(v){
+  var raw = String(v == null ? '' : v).replace(/,/g, '').trim();
+  if (!raw) return NaN;
+  var cleaned = raw.replace(/[^0-9eE+\-.]/g, '');
+  var n = parseFloat(cleaned);
+  return isFinite(n) ? n : NaN;
+ }
+ function clampNum(v, min, max){
+  var n = Number(v);
+  if (!isFinite(n)) n = min;
+  if (n < min) n = min;
+  if (n > max) n = max;
+  return n;
+ }
+ function fixedTrim(n, d){
+  var v = Number(n);
+  if (!isFinite(v)) return '';
+  var mul = Math.pow(10, d);
+  v = Math.round((v + Number.EPSILON) * mul) / mul;
+  return v.toFixed(d).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
+ }
 
+ function fmtTargetTick(v){
+  if (!isFinite(v)) return '';
+  if (Math.abs(v) < 1e-9) return '0';
+  return fixedTrim(v, 1);
+ }
+ function targetStdTypeLabel(useOverall){
+  return useOverall ? '전체' : '군내';
+ }
  function targetPlotTooltipSvg(entry, useOverall){
   var values = Array.isArray(entry && entry.values) ? entry.values.filter(function(v){ return isFinite(v); }) : [];
   var width = 250, height = 150;
@@ -217,7 +259,11 @@ body{min-width:980px;}
   for (var i = step; i < values.length - 1; i += step) tickIdx.push(i);
   if (values.length > 1) tickIdx.push(values.length - 1);
   var uniq = Array.from(new Set(tickIdx));
-  var xTicks = uniq.map(function(i){ var xx = x(i); var label = i === 0 ? '0' : String(i + 1); return '<line x1="' + fixedTrim(xx,2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(xx,2) + '" y2="' + fixedTrim(top + plotH + 3,2) + '" stroke="#7e7e7e"/><text x="' + fixedTrim(xx,2) + '" y="' + fixedTrim(top + plotH + 16,2) + '" fill="#111" font-size="10" text-anchor="middle">' + esc(label) + '</text>'; }).join('');
+  var xTicks = uniq.map(function(i){
+   var xx = x(i);
+   var label = i === 0 ? '0' : String(i + 1);
+   return '<line x1="' + fixedTrim(xx,2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(xx,2) + '" y2="' + fixedTrim(top + plotH + 3,2) + '" stroke="#7e7e7e"/><text x="' + fixedTrim(xx,2) + '" y="' + fixedTrim(top + plotH + 16,2) + '" fill="#111" font-size="10" text-anchor="middle">' + esc(label) + '</text>';
+  }).join('');
   var path = values.map(function(v, i){ return (i ? 'L' : 'M') + fixedTrim(x(i),2) + ' ' + fixedTrim(y(v),2); }).join(' ');
   var line = '<path d="' + path + '" fill="none" stroke="#b8b8b8" stroke-width="1.2"/>';
   var dots = values.map(function(v, i){ return '<circle cx="' + fixedTrim(x(i),2) + '" cy="' + fixedTrim(y(v),2) + '" r="1.35" fill="#b8b8b8" stroke="#9a9a9a" stroke-width="0.4"/>'; }).join('');
@@ -238,7 +284,6 @@ body{min-width:980px;}
    '<text x="15" y="' + fixedTrim(top + plotH/2,2) + '" fill="#111" font-size="11" text-anchor="middle" transform="rotate(-90 15 ' + fixedTrim(top + plotH/2,2) + ')">' + yLabel + '</text>' +
    '</svg>';
  }
-
  function targetPlotTooltipHtml(entry, useOverall){
   return '<div class="qpc-target-tip-card">' +
    '<div class="qpc-target-tip-meta">공정: ' + esc(entry.label || entry.proc || '-') + '</div>' +
@@ -246,7 +291,6 @@ body{min-width:980px;}
    '<div class="qpc-target-tip-svg">' + targetPlotTooltipSvg(entry, useOverall) + '</div>' +
    '</div>';
  }
-
  function targetPlotUseOverallBox(box){
   var raw = box ? String(box.getAttribute('data-use-overall') || '').trim() : '';
   if (raw === '1') return true;
@@ -260,7 +304,6 @@ body{min-width:980px;}
   if (txt.indexOf('군내') >= 0 && txt.indexOf('전체') < 0) return false;
   return true;
  }
-
  function targetPlotSvg(entry, opts){
   var width = 620, height = 470;
   var left = 44, right = 18, top = 10, bottom = 38;
@@ -283,7 +326,10 @@ body{min-width:980px;}
   function y(v){ return top + plotH - ((v - yMin) / (yMax - yMin)) * plotH; }
   var xTicks = [-0.6,-0.4,-0.2,0,0.2,0.4,0.6];
   var yTicks = [0,0.05,0.10,0.15,0.20,0.25,0.30];
-  var hGrid = yTicks.map(function(v){ var yy = y(v); return '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="rgba(0,0,0,.08)"/>'; }).join('');
+  var hGrid = yTicks.map(function(v){
+   var yy = y(v);
+   return '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="rgba(0,0,0,.08)"/>';
+  }).join('');
   var xAxisTicks = xTicks.map(function(v){ return '<line x1="' + fixedTrim(x(v),2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(x(v),2) + '" y2="' + fixedTrim(top + plotH + 4,2) + '" stroke="rgba(0,0,0,.45)"/><text x="' + fixedTrim(x(v),2) + '" y="' + fixedTrim(top + plotH + 16,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="middle">' + esc(fmtTargetTick(v)) + '</text>'; }).join('');
   var yAxisTicks = yTicks.map(function(v){ return '<line x1="' + fixedTrim(left - 4,2) + '" y1="' + fixedTrim(y(v),2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(y(v),2) + '" stroke="rgba(0,0,0,.45)"/><text x="' + fixedTrim(left - 7,2) + '" y="' + fixedTrim(y(v) + 3,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="end">' + esc(v === 0 ? '0' : fixedTrim(v,2)) + '</text>'; }).join('');
   var tri = '<path d="M' + fixedTrim(x(-0.5),2) + ' ' + fixedTrim(y(0),2) + ' L' + fixedTrim(x(0),2) + ' ' + fixedTrim(y(apexY),2) + ' L' + fixedTrim(x(0.5),2) + ' ' + fixedTrim(y(0),2) + '" fill="none" stroke="#ff6672" stroke-width="1.2"/>';
@@ -306,7 +352,6 @@ body{min-width:980px;}
    '<text x="14" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(17,17,17,.96)" font-size="11" text-anchor="middle" transform="rotate(-90 14 ' + fixedTrim(top + plotH/2,2) + ')">규격으로 표준화된 표준편차</text>' +
    '</svg>';
  }
-
  function renderTargetPlotBox(box){
   if (!box || !payload || !payload.entries) return;
   var idx = parseInt(box.getAttribute('data-entry-index') || '-1', 10);
@@ -326,8 +371,9 @@ body{min-width:980px;}
   var tip = box.querySelector('[data-role="target-hover-tip"]');
   if (tip){ tip.hidden = true; tip.innerHTML = ''; }
  }
-
- function hideAllTargetHoverTips(){ Array.prototype.forEach.call(document.querySelectorAll('[data-role="target-hover-tip"]'), function(el){ el.hidden = true; el.innerHTML = ''; }); }
+ function hideAllTargetHoverTips(){
+  Array.prototype.forEach.call(document.querySelectorAll('[data-role="target-hover-tip"]'), function(el){ el.hidden = true; el.innerHTML = ''; });
+ }
  function showTargetHoverTip(hitEl, clientX, clientY){
   var box = hitEl && hitEl.closest ? hitEl.closest('.qpc-target-grid') : null;
   if (!box || !payload || !payload.entries) return;
@@ -350,40 +396,54 @@ body{min-width:980px;}
   tip.style.left = fixedTrim(left,2) + 'px';
   tip.style.top = fixedTrim(top,2) + 'px';
  }
-
  function capabilityIndexPlotSvg(entry, refPpk){
-  var width = 470, height = 520;
-  var left = 48, right = 16, top = 12, bottom = 148;
+  var width = 470, height = 620;
+  var left = 48, right = 72, top = 10, bottom = 134;
   var plotW = width - left - right;
   var plotH = height - top - bottom;
+  var plotBottom = top + plotH;
   var refVal = clampNum(parseNum(refPpk), 0.20, 2.50);
   var rawPpk = Number(entry && entry.ppk);
   var yMaxBase = Math.ceil((Math.max(refVal, isFinite(rawPpk) ? rawPpk : 0) + 0.25) * 2) / 2;
   var yMax = Math.max(2.2, yMaxBase);
   var xMid = left + plotW / 2;
+  var categoryX = left + (plotW * 0.335);
+  var tickBottomY = plotBottom + 7;
+  var labelY = plotBottom + 40;
+  var axisTitleX = xMid;
+  var axisTitleY = plotBottom + 84;
   function y(v){ return top + plotH - ((v - 0) / (yMax - 0)) * plotH; }
   var yTicks = [];
   for (var v = 0; v <= yMax + 1e-9; v += 0.5) yTicks.push(Number(v.toFixed(1)));
-  var hGrid = yTicks.map(function(v){ var yy = y(v); var stroke = Math.abs(v - Math.round(v)) < 1e-9 ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.05)'; return '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="' + stroke + '"/>'; }).join('');
-  var yAxisTicks = yTicks.map(function(v){ var yy = y(v); var label = Math.abs(v - Math.round(v)) < 1e-9 ? String(Math.round(v)) : ''; return '<line x1="' + fixedTrim(left - 4,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="rgba(0,0,0,.45)"/>' + (label ? '<text x="' + fixedTrim(left - 8,2) + '" y="' + fixedTrim(yy + 3,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="end">' + esc(label) + '</text>' : ''); }).join('');
-  var xAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(0,0,0,.45)"/>';
-  var yAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(0,0,0,.45)"/>';
+  var hGrid = yTicks.map(function(v){
+   var yy = y(v);
+   var stroke = Math.abs(v - Math.round(v)) < 1e-9 ? 'rgba(0,0,0,.08)' : 'rgba(0,0,0,.05)';
+   return '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="' + stroke + '"/>';
+  }).join('');
+  var yAxisTicks = yTicks.map(function(v){
+   var yy = y(v);
+   var label = Math.abs(v) < 1e-9 ? '0' : Number(v).toFixed(1);
+   return '<line x1="' + fixedTrim(left - 4,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="rgba(0,0,0,.45)"/>' + '<text x="' + fixedTrim(left - 8,2) + '" y="' + fixedTrim(yy + 3,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="end">' + esc(label) + '</text>';
+  }).join('');
+  var xAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(plotBottom,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(plotBottom,2) + '" stroke="rgba(0,0,0,.45)"/>';
+  var xAxisMidTick = '<line x1="' + fixedTrim(categoryX,2) + '" y1="' + fixedTrim(plotBottom,2) + '" x2="' + fixedTrim(categoryX,2) + '" y2="' + fixedTrim(tickBottomY,2) + '" stroke="rgba(0,0,0,.45)"/>';
+  var yAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(plotBottom,2) + '" stroke="rgba(0,0,0,.45)"/>';
+  var frame = '<rect x="' + fixedTrim(left,2) + '" y="' + fixedTrim(top,2) + '" width="' + fixedTrim(plotW,2) + '" height="' + fixedTrim(plotH,2) + '" fill="#f8f8f8" stroke="#b7b7b7"/>';
   var refLine = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(y(refVal),2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(y(refVal),2) + '" stroke="#ff6672" stroke-width="1.15"/>';
   var marker = '';
   if (isFinite(rawPpk)){
    var py = y(clampNum(rawPpk, 0, yMax));
-   marker = '<rect x="' + fixedTrim(xMid - 3,2) + '" y="' + fixedTrim(py - 3,2) + '" width="6" height="6" fill="transparent" stroke="rgba(17,17,17,.95)" stroke-width="1.1"/>';
+   var markerCx = categoryX;
+   marker = '<rect x="' + fixedTrim(markerCx - 2.5,2) + '" y="' + fixedTrim(py - 2.5,2) + '" width="5" height="5" fill="transparent" stroke="rgba(17,17,17,.95)" stroke-width="1.05"/>';
   }
   var labelText = esc(entry && (entry.label || entry.proc) || '-');
   return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
-   '<rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="#f8f8f8" stroke="#b7b7b7"/>' +
-   hGrid + xAxis + yAxis + refLine + marker + yAxisTicks +
-   '<text x="' + fixedTrim(xMid,2) + '" y="' + fixedTrim(top + plotH + 52,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="middle" transform="rotate(-90 ' + fixedTrim(xMid,2) + ' ' + fixedTrim(top + plotH + 52,2) + ')">' + labelText + '</text>' +
-   '<text x="' + fixedTrim(xMid,2) + '" y="' + (height - 14) + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">공정</text>' +
+   frame + hGrid + xAxis + xAxisMidTick + yAxis + refLine + marker + yAxisTicks +
+   '<text x="' + fixedTrim(categoryX,2) + '" y="' + fixedTrim(labelY,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="middle" transform="rotate(-90 ' + fixedTrim(categoryX,2) + ' ' + fixedTrim(labelY,2) + ')">' + labelText + '</text>' +
+   '<text x="' + fixedTrim(axisTitleX,2) + '" y="' + fixedTrim(axisTitleY,2) + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">공정</text>' +
    '<text x="14" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(17,17,17,.96)" font-size="11" text-anchor="middle" transform="rotate(-90 14 ' + fixedTrim(top + plotH/2,2) + ')">Ppk</text>' +
    '</svg>';
  }
-
  function renderCapabilityIndexPlotBox(box){
   if (!box || !payload || !payload.entries) return;
   var idx = parseInt(box.getAttribute('data-entry-index') || '-1', 10);
@@ -399,146 +459,15 @@ body{min-width:980px;}
   var host = box.querySelector('[data-role="index-svg"]');
   if (host) host.innerHTML = capabilityIndexPlotSvg(entry, ref);
  }
-
- function processPerformanceLegendSideHtml(refPpk, refStability){
-  return '<div class="qpc-performance-side-title">범례</div>' +
-   '<div class="qpc-performance-legend">' +
-    '<div class="qpc-performance-legend-item"><span class="qpc-performance-swatch" style="background:#b6ddb2"></span><span>공정 능력이 있고 안정적</span></div>' +
-    '<div class="qpc-performance-legend-item"><span class="qpc-performance-swatch" style="background:#e4e1a8"></span><span>공정 능력이 있지만 불안정</span></div>' +
-    '<div class="qpc-performance-legend-item"><span class="qpc-performance-swatch" style="background:#e7ccb1"></span><span>공정 능력이 없지만 안정적</span></div>' +
-    '<div class="qpc-performance-legend-item"><span class="qpc-performance-swatch" style="background:#efc0c8"></span><span>공정 능력이 없고 불안정</span></div>' +
-    '<div class="qpc-performance-legend-item"><span class="qpc-performance-line"></span><span>군내 Cpk=1</span></div>' +
-   '</div>' +
-   '<div class="qpc-performance-ppk-label">전체 Ppk</div>' +
-   '<div class="qpc-performance-ppk-line"><span class="qpc-performance-ppk-badge">전체 Ppk</span><input class="qpc-performance-ppk-input" type="text" value="' + esc(fixedTrim(refPpk, 2)) + '" data-role="performance-ppk-text"><input class="qpc-performance-ppk-range" type="range" min="0.20" max="2.50" step="0.05" value="' + esc(String(refPpk)) + '" data-role="performance-ppk-range"></div>' +
-   '<div class="qpc-performance-stability-label">안정성 지수</div>' +
-   '<div class="qpc-performance-stability-line"><span class="qpc-performance-stability-badge">안정성</span><input class="qpc-performance-stability-input" type="text" value="' + esc(fixedTrim(refStability, 2)) + '" data-role="performance-stability-text"><input class="qpc-performance-stability-range" type="range" min="0.50" max="3.00" step="0.05" value="' + esc(String(refStability)) + '" data-role="performance-stability-range"></div>';
- }
-
- function processPerformancePlotSvg(entry, opts){
-  var width = 620, height = 470;
-  var left = 58, right = 18, top = 10, bottom = 42;
-  var plotW = width - left - right;
-  var plotH = height - top - bottom;
-  var refPpk = clampNum(parseNum(opts && opts.refPpk), 0.20, 2.50);
-  var refStability = clampNum(parseNum(opts && opts.refStability), 0.50, 3.00);
-  var xMax = Math.max(2.15, Math.ceil(Math.max(refStability, Number(entry && entry.stability) || 0, 2.0) * 20) / 20 + 0.05);
-  var yMin = -0.10;
-  var yMax = Math.max(3.10, Math.ceil(Math.max(refPpk, Number(entry && entry.ppk) || 0, 3.0) * 10) / 10 + 0.10);
-  function x(v){ return left + ((v - 0) / Math.max(1e-9, xMax)) * plotW; }
-  function y(v){ return top + plotH - ((v - yMin) / Math.max(1e-9, yMax - yMin)) * plotH; }
-
-  var bg = '' +
-   '<rect x="' + fixedTrim(left,2) + '" y="' + fixedTrim(top,2) + '" width="' + fixedTrim(Math.max(0, x(refStability) - left),2) + '" height="' + fixedTrim(Math.max(0, y(refPpk) - top),2) + '" fill="#b6ddb2"/>' +
-   '<rect x="' + fixedTrim(x(refStability),2) + '" y="' + fixedTrim(top,2) + '" width="' + fixedTrim(Math.max(0, left + plotW - x(refStability)),2) + '" height="' + fixedTrim(Math.max(0, y(refPpk) - top),2) + '" fill="#e4e1a8"/>' +
-   '<rect x="' + fixedTrim(left,2) + '" y="' + fixedTrim(y(refPpk),2) + '" width="' + fixedTrim(Math.max(0, x(refStability) - left),2) + '" height="' + fixedTrim(Math.max(0, top + plotH - y(refPpk)),2) + '" fill="#e7ccb1"/>' +
-   '<rect x="' + fixedTrim(x(refStability),2) + '" y="' + fixedTrim(y(refPpk),2) + '" width="' + fixedTrim(Math.max(0, left + plotW - x(refStability)),2) + '" height="' + fixedTrim(Math.max(0, top + plotH - y(refPpk)),2) + '" fill="#efc0c8"/>';
-
-  var xTicks = [];
-  for (var xv = 0; xv <= xMax + 1e-9; xv += 0.25) xTicks.push(Number(xv.toFixed(2)));
-  var yTicks = [];
-  for (var yv = -1; yv <= yMax + 1e-9; yv += 0.5) if (yv >= yMin - 1e-9) yTicks.push(Number(yv.toFixed(1)));
-  var xAxisTicks = xTicks.map(function(v){
-   var xx = x(v);
-   var major = Math.abs((v * 100) % 50) < 1e-9;
-   var label = major ? fixedTrim(v, v % 1 === 0 ? 0 : 1) : '';
-   return '<line x1="' + fixedTrim(xx,2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(xx,2) + '" y2="' + fixedTrim(top + plotH + (major ? 4 : 2),2) + '" stroke="rgba(0,0,0,.45)"/>' +
-    (label ? '<text x="' + fixedTrim(xx,2) + '" y="' + fixedTrim(top + plotH + 18,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="middle">' + esc(label) + '</text>' : '');
-  }).join('');
-  var yAxisTicks = yTicks.map(function(v){
-   var yy = y(v);
-   var label = Math.abs((v * 10) % 10) < 1e-9 ? fixedTrim(v, 0) : '';
-   return '<line x1="' + fixedTrim(left - 4,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="rgba(0,0,0,.45)"/>' +
-    (label ? '<text x="' + fixedTrim(left - 8,2) + '" y="' + fixedTrim(yy + 3,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="end">' + esc(label) + '</text>' : '');
-  }).join('');
-
-  var curveParts = [];
-  for (var cx = 1.0; cx <= xMax + 1e-9; cx += 0.02){
-   var cy = 1 / cx;
-   if (cy < yMin || cy > yMax) continue;
-   curveParts.push((curveParts.length ? 'L' : 'M') + fixedTrim(x(cx),2) + ' ' + fixedTrim(y(cy),2));
-  }
-  var curve = curveParts.length ? '<path d="' + curveParts.join(' ') + '" fill="none" stroke="#ff6672" stroke-width="2.1"/>' : '';
-
-  var point = '';
-  var rawStability = Number(entry && entry.stability);
-  var rawPpk = Number(entry && entry.ppk);
-  if (isFinite(rawStability) && isFinite(rawPpk)){
-   var px = x(clampNum(rawStability, 0, xMax));
-   var py = y(clampNum(rawPpk, yMin, yMax));
-   point = '<rect x="' + fixedTrim(px - 3,2) + '" y="' + fixedTrim(py - 3,2) + '" width="6" height="6" fill="transparent" stroke="rgba(17,17,17,.95)" stroke-width="1.1"/>';
-  }
-
-  return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
-   '<rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="#f8f8f8" stroke="#b7b7b7"/>' +
-   bg +
-   '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(0,0,0,.55)"/>' +
-   '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(0,0,0,.55)"/>' +
-   curve + point + xAxisTicks + yAxisTicks +
-   '<text x="' + fixedTrim(left + plotW/2,2) + '" y="' + (height - 6) + '" fill="rgba(17,17,17,.96)" font-size="11" text-anchor="middle">안정성 지수</text>' +
-   '<text x="14" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(17,17,17,.96)" font-size="11" text-anchor="middle" transform="rotate(-90 14 ' + fixedTrim(top + plotH/2,2) + ')">공정 능력 전체 Ppk</text>' +
-   '</svg>';
- }
-
- function processPerformancePlotHtml(entry, idx){
-  var refPpk = 1;
-  var refStability = 1.25;
-  return '<div class="qpc-performance-grid" data-entry-index="' + idx + '">' +
-   '<div class="qpc-performance-main"><div class="qpc-svgbox" data-role="performance-svg">' + processPerformancePlotSvg(entry, { refPpk: refPpk, refStability: refStability }) + '</div></div>' +
-   '<div class="qpc-performance-side">' + processPerformanceLegendSideHtml(refPpk, refStability) + '</div>' +
-   '</div>';
- }
-
- function renderProcessPerformancePlotBox(box){
-  if (!box || !payload || !payload.entries) return;
-  var idx = parseInt(box.getAttribute('data-entry-index') || '-1', 10);
-  if (!(idx >= 0) || !payload.entries[idx]) return;
-  var entry = payload.entries[idx];
-  var ppkText = box.querySelector('[data-role="performance-ppk-text"]');
-  var ppkRange = box.querySelector('[data-role="performance-ppk-range"]');
-  var stabilityText = box.querySelector('[data-role="performance-stability-text"]');
-  var stabilityRange = box.querySelector('[data-role="performance-stability-range"]');
-  var refPpk = parseNum(ppkText ? ppkText.value : '1');
-  if (!isFinite(refPpk)) refPpk = parseNum(ppkRange ? ppkRange.value : '1');
-  refPpk = clampNum(isFinite(refPpk) ? refPpk : 1, 0.20, 2.50);
-  var refStability = parseNum(stabilityText ? stabilityText.value : '1.25');
-  if (!isFinite(refStability)) refStability = parseNum(stabilityRange ? stabilityRange.value : '1.25');
-  refStability = clampNum(isFinite(refStability) ? refStability : 1.25, 0.50, 3.00);
-  if (ppkText) ppkText.value = fixedTrim(refPpk, 2);
-  if (ppkRange) ppkRange.value = String(refPpk);
-  if (stabilityText) stabilityText.value = fixedTrim(refStability, 2);
-  if (stabilityRange) stabilityRange.value = String(refStability);
-  var host = box.querySelector('[data-role="performance-svg"]');
-  if (host) host.innerHTML = processPerformancePlotSvg(entry, { refPpk: refPpk, refStability: refStability });
- }
-
- function injectProcessPerformanceSections(){
-  var summaries = document.querySelectorAll('summary');
-  var perfIdx = 0;
-  Array.prototype.forEach.call(summaries, function(summary){
-   if (String(summary.textContent || '').trim() !== '공정 성능 그림') return;
-   var body = summary.nextElementSibling;
-   if (!body) return;
-   var entry = payload && payload.entries && payload.entries[perfIdx];
-   if (!entry) return;
-   body.innerHTML = processPerformancePlotHtml(entry, perfIdx);
-   perfIdx += 1;
-  });
- }
-
  document.title = payload.title ? String(payload.title) : titleBase;
  if (root) root.innerHTML = String(payload.html || '');
- injectProcessPerformanceSections();
  Array.prototype.forEach.call(document.querySelectorAll('.qpc-target-grid'), function(box){ renderTargetPlotBox(box); });
  Array.prototype.forEach.call(document.querySelectorAll('.qpc-index-grid'), function(box){ renderCapabilityIndexPlotBox(box); });
- Array.prototype.forEach.call(document.querySelectorAll('.qpc-performance-grid'), function(box){ renderProcessPerformancePlotBox(box); });
-
  document.addEventListener('mousemove', function(ev){
   var hit = ev.target && ev.target.closest ? ev.target.closest('[data-role="target-marker-hit"]') : null;
   if (hit) showTargetHoverTip(hit, ev.clientX, ev.clientY);
   else hideAllTargetHoverTips();
  });
-
  document.addEventListener('input', function(ev){
   if (ev.target && ev.target.matches && ev.target.matches('.qpc-target-ppk-input')){
    var tbox = ev.target.closest('.qpc-target-grid');
@@ -565,32 +494,6 @@ body{min-width:980px;}
    var text2 = box2 ? box2.querySelector('[data-role="index-ppk-text"]') : null;
    if (text2) text2.value = fixedTrim(parseNum(ev.target.value), 2);
    renderCapabilityIndexPlotBox(box2);
-  }
-  if (ev.target && ev.target.matches && ev.target.matches('.qpc-performance-ppk-input')){
-   var pbox = ev.target.closest('.qpc-performance-grid');
-   var prange = pbox ? pbox.querySelector('[data-role="performance-ppk-range"]') : null;
-   var pv = clampNum(isFinite(parseNum(ev.target.value)) ? parseNum(ev.target.value) : 1, 0.20, 2.50);
-   if (prange) prange.value = String(pv);
-   renderProcessPerformancePlotBox(pbox);
-  }
-  if (ev.target && ev.target.matches && ev.target.matches('.qpc-performance-ppk-range')){
-   var pbox2 = ev.target.closest('.qpc-performance-grid');
-   var ptext = pbox2 ? pbox2.querySelector('[data-role="performance-ppk-text"]') : null;
-   if (ptext) ptext.value = fixedTrim(parseNum(ev.target.value), 2);
-   renderProcessPerformancePlotBox(pbox2);
-  }
-  if (ev.target && ev.target.matches && ev.target.matches('.qpc-performance-stability-input')){
-   var sbox = ev.target.closest('.qpc-performance-grid');
-   var srange = sbox ? sbox.querySelector('[data-role="performance-stability-range"]') : null;
-   var sv = clampNum(isFinite(parseNum(ev.target.value)) ? parseNum(ev.target.value) : 1.25, 0.50, 3.00);
-   if (srange) srange.value = String(sv);
-   renderProcessPerformancePlotBox(sbox);
-  }
-  if (ev.target && ev.target.matches && ev.target.matches('.qpc-performance-stability-range')){
-   var sbox2 = ev.target.closest('.qpc-performance-grid');
-   var stext = sbox2 ? sbox2.querySelector('[data-role="performance-stability-text"]') : null;
-   if (stext) stext.value = fixedTrim(parseNum(ev.target.value), 2);
-   renderProcessPerformancePlotBox(sbox2);
   }
  });
 })();
