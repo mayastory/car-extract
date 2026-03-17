@@ -55,6 +55,96 @@ function ipqc_default_tools(): array {
   // JMP Assist 기준(현장 Tool set): I/O 없음
   return ['A','B','C','D','E','F','G','H','J','K','L','M','N','P','Q'];
 }
+
+function ipqc_fetch_tools_for_type_model(PDO $pdo, string $type, string $model, array $TYPE_MAP, ?array $oqcSchema = null): array {
+  $type = strtoupper(trim($type));
+  $model = trim($model);
+  $tools = ipqc_default_tools();
+
+  if ($type === 'OQC') {
+    $schema = (is_array($oqcSchema) && !empty($oqcSchema)) ? $oqcSchema : oqc_detect_schema($pdo);
+    if (!is_array($schema) || empty($schema['ok'])) return $tools;
+
+    $hT = $schema['headerTable'];
+    $partCol = $schema['partCol'];
+    $srcCol = $schema['sourceCol'];
+    $cacheKey = 'ipqc_tools|OQC|' . ($model !== '' ? $model : '__ALL__');
+
+    try {
+      $where = "{$srcCol} IS NOT NULL AND {$srcCol} <> ''";
+      $params = [];
+      if ($model !== '') {
+        $where .= " AND {$partCol} = ?";
+        $params[] = $model;
+      }
+
+      $toolsTmp = null;
+      if (!empty($schema['toolCol'])) {
+        $toolCol = $schema['toolCol'];
+        $stmt = $pdo->prepare("SELECT DISTINCT {$toolCol} AS t FROM {$hT} WHERE {$where} ORDER BY t");
+        $stmt->execute($params);
+        $toolsTmp = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
+      } else {
+        $tcCol = $schema['tcCol'];
+        $stmt = $pdo->prepare("SELECT DISTINCT {$tcCol} AS tc FROM {$hT} WHERE {$where}");
+        $stmt->execute($params);
+        $tmap = [];
+        $rows = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
+        foreach ($rows as $tc) {
+          [$t, $c] = oqc_parse_tool_cavity_from_tc($tc);
+          if ($t !== '') $tmap[$t] = 1;
+        }
+        $toolsTmp = array_keys($tmap);
+      }
+
+      $toolsTmp = ipqc_norm_str_list($toolsTmp);
+      if (!empty($toolsTmp)) {
+        $tools = $toolsTmp;
+        ipqc_sess_cache_set($cacheKey, $tools);
+      } else {
+        $cached = ipqc_sess_cache_get($cacheKey, 3600);
+        if (is_array($cached) && !empty($cached)) $tools = $cached;
+      }
+    } catch (Throwable $e) {
+      $cached = ipqc_sess_cache_get($cacheKey, 3600);
+      if (is_array($cached) && !empty($cached)) $tools = $cached;
+    }
+
+    return $tools;
+  }
+
+  if (!isset($TYPE_MAP[$type]) || !is_array($TYPE_MAP[$type])) return $tools;
+  $headerTable = (string)($TYPE_MAP[$type]['header'] ?? '');
+  if ($headerTable === '') return $tools;
+
+  $cacheKey = 'ipqc_tools|' . $type . '|' . ($model !== '' ? $model : '__ALL__');
+  try {
+    $where = "meas_date IS NOT NULL";
+    $params = [];
+    if ($model !== '') {
+      $where .= " AND part_name = :p";
+      $params[':p'] = $model;
+    }
+
+    $stmt = $pdo->prepare("SELECT DISTINCT tool FROM {$headerTable} WHERE {$where} ORDER BY tool");
+    $stmt->execute($params);
+    $toolsTmp = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
+    $toolsTmp = ipqc_norm_str_list($toolsTmp);
+
+    if (!empty($toolsTmp)) {
+      $tools = $toolsTmp;
+      ipqc_sess_cache_set($cacheKey, $tools);
+    } else {
+      $cached = ipqc_sess_cache_get($cacheKey, 3600);
+      if (is_array($cached) && !empty($cached)) $tools = $cached;
+    }
+  } catch (Throwable $e) {
+    $cached = ipqc_sess_cache_get($cacheKey, 3600);
+    if (is_array($cached) && !empty($cached)) $tools = $cached;
+  }
+
+  return $tools;
+}
 // ---------------------------------------------------------------
 
 
@@ -577,14 +667,47 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'oqc_points') {
   exit;
 }
 
-
-
 $TYPE_MAP = [
   'AOI' => ['label' => 'AOI',     'header' => 'ipqc_aoi_header', 'meas' => 'ipqc_aoi_measurements', 'res' => 'ipqc_aoi_result', 'key_col' => 'fai',      'has_spc' => true,  'data_cols' => 16],
   'OMM' => ['label' => 'OMM', 'header' => 'ipqc_omm_header', 'meas' => 'ipqc_omm_measurements', 'res' => 'ipqc_omm_result', 'key_col' => 'fai',      'has_spc' => false,  'data_cols' => 3],
   'CMM' => ['label' => 'CMM', 'header' => 'ipqc_cmm_header', 'meas' => 'ipqc_cmm_measurements', 'res' => 'ipqc_cmm_result', 'key_col' => 'point_no', 'has_spc' => false, 'data_cols' => 3],
   'OQC' => ['label' => 'OQC', 'header' => '__OQC__', 'meas' => '__OQC__', 'res' => '', 'key_col' => 'point_no', 'has_spc' => false, 'data_cols' => 200],
 ];
+
+
+// ---------- AJAX: Tool list (for ms-tools realtime refresh) ----------
+if (isset($_GET['ajax']) && $_GET['ajax'] === 'tools') {
+  header('Content-Type: application/json; charset=utf-8');
+
+  $uiType = strtoupper(trim((string)($_GET['type'] ?? '')));
+  $uiModel = (string)($_GET['model'] ?? '');
+  $items = [];
+  $err = null;
+
+  try {
+    if ($uiType === 'OQC') {
+      $schema = oqc_detect_schema($pdo);
+      if (!is_array($schema) || empty($schema['ok'])) {
+        $err = is_array($schema) ? (string)($schema['error'] ?? 'OQC schema detect failed') : 'OQC schema detect failed';
+      } else {
+        $items = ipqc_fetch_tools_for_type_model($pdo, $uiType, $uiModel, $TYPE_MAP, $schema);
+      }
+    } elseif (isset($TYPE_MAP[$uiType])) {
+      $items = ipqc_fetch_tools_for_type_model($pdo, $uiType, $uiModel, $TYPE_MAP, null);
+    }
+  } catch (Throwable $e) {
+    $err = $e->getMessage();
+  }
+
+  echo json_encode([
+    'ok' => true,
+    'type' => $uiType,
+    'model' => $uiModel,
+    'items' => array_values(is_array($items) ? $items : []),
+    'error' => $err,
+  ], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+  exit;
+}
 
 $type = strtoupper($_GET['type'] ?? 'OMM');
 if (!isset($TYPE_MAP[$type])) $type = 'OMM';
@@ -787,44 +910,7 @@ if ($type === 'OQC') {
     }
 
     // tools (Tool only; cavity is displayed separately)
-    $tools = ipqc_default_tools();
-    $cacheKey = 'ipqc_tools|OQC|' . ($model !== '' ? $model : '__ALL__');
-    try {
-      $where = "{$srcCol} IS NOT NULL AND {$srcCol} <> ''";
-      $params = [];
-      if ($model !== '') { $where .= " AND {$partCol} = ?"; $params[] = $model; }
-
-      $toolsTmp = null;
-      if (!empty($OQC_SCHEMA['toolCol'])) {
-        $toolCol = $OQC_SCHEMA['toolCol'];
-        $stmt = $pdo->prepare("SELECT DISTINCT {$toolCol} AS t FROM {$hT} WHERE {$where} ORDER BY t");
-        $stmt->execute($params);
-        $toolsTmp = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
-      } else {
-        $tcCol = $OQC_SCHEMA['tcCol'];
-        $stmt = $pdo->prepare("SELECT DISTINCT {$tcCol} AS tc FROM {$hT} WHERE {$where}");
-        $stmt->execute($params);
-        $tmap = [];
-        $rows = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
-        foreach ($rows as $tc) {
-          [$t, $c] = oqc_parse_tool_cavity_from_tc($tc);
-          if ($t !== '') $tmap[$t] = 1;
-        }
-        $toolsTmp = array_keys($tmap);
-      }
-
-      $toolsTmp = ipqc_norm_str_list($toolsTmp);
-      if (!empty($toolsTmp)) {
-        $tools = $toolsTmp;
-        ipqc_sess_cache_set($cacheKey, $tools);
-      } else {
-        $cached = ipqc_sess_cache_get($cacheKey, 3600);
-        if (is_array($cached) && !empty($cached)) $tools = $cached;
-      }
-    } catch (Throwable $e) {
-      $cached = ipqc_sess_cache_get($cacheKey, 3600);
-      if (is_array($cached) && !empty($cached)) $tools = $cached;
-    }
+    $tools = ipqc_fetch_tools_for_type_model($pdo, 'OQC', $model, $TYPE_MAP, $OQC_SCHEMA);
 
     // years available from source_file
     try {
@@ -956,29 +1042,7 @@ if ($type === 'AOI') {
   }
 
   // options: tool list (dynamic, + '전체')
-  $tools = ipqc_default_tools();
-  $cacheKey = 'ipqc_tools|' . $type . '|' . ($model !== '' ? $model : '__ALL__');
-  try {
-    $where = "meas_date IS NOT NULL";
-    $params = [];
-    if ($model !== '') { $where .= " AND part_name = :p"; $params[':p'] = $model; }
-
-    $stmt = $pdo->prepare("SELECT DISTINCT tool FROM {$headerTable} WHERE {$where} ORDER BY tool");
-    $stmt->execute($params);
-    $toolsTmp = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
-    $toolsTmp = ipqc_norm_str_list($toolsTmp);
-
-    if (!empty($toolsTmp)) {
-      $tools = $toolsTmp;
-      ipqc_sess_cache_set($cacheKey, $tools);
-    } else {
-      $cached = ipqc_sess_cache_get($cacheKey, 3600);
-      if (is_array($cached) && !empty($cached)) $tools = $cached;
-    }
-  } catch (Throwable $e) {
-    $cached = ipqc_sess_cache_get($cacheKey, 3600);
-    if (is_array($cached) && !empty($cached)) $tools = $cached;
-  }
+  $tools = ipqc_fetch_tools_for_type_model($pdo, $type, $model, $TYPE_MAP, null);
 
   // options: year list (dynamic)
   $yearsAvail = [];
@@ -2966,7 +3030,7 @@ main, .content, .content-area, .main, .main-content{
             </div>
 <div class="f">
   <label>Tool (복수 선택)</label>
-  <div class="ms" id="ms-tools" data-group="tools">
+  <div class="ms" id="ms-tools" data-group="tools" data-type="<?= h($type) ?>" data-model="<?= h($model) ?>">
     <button type="button" class="ms-toggle" onclick="toggleMs('ms-tools')">
       <span class="ms-summary" id="ms-tools-summary"></span>
       <span class="ms-caret">▾</span>
@@ -2976,15 +3040,8 @@ main, .content, .content-area, .main, .main-content{
         <button type="button" class="mini" onclick="checkAllIn('ms-tools', true); syncMs('ms-tools');">전체</button>
         <button type="button" class="mini" onclick="checkAllIn('ms-tools', false); syncMs('ms-tools');">해제</button>
       </div>
-      <div class="ms-list ms-grid-tools">
-        <?php if (empty($tools)): ?>
-          <div class="ms-empty" style="grid-column:1/-1; padding:10px; opacity:0.85;">
-            툴 목록이 비어있습니다. (데이터 없음 또는 DB 조회 실패)
-            <div style="margin-top:8px;">
-              <button type="button" class="mini" onclick="location.reload()">새로고침</button>
-            </div>
-          </div>
-        <?php else: ?>
+      <div class="ms-list ms-grid-tools" id="ms-tools-list" style="<?= empty($tools) ? 'display:none;' : '' ?>">
+        <?php if (!empty($tools)): ?>
           <?php foreach($tools as $t): ?>
             <label class="ms-item">
               <input type="checkbox" name="tools[]" value="<?= h($t) ?>"
@@ -2994,6 +3051,12 @@ main, .content, .content-area, .main, .main-content{
             </label>
           <?php endforeach; ?>
         <?php endif; ?>
+      </div>
+      <div class="ms-empty" id="ms-tools-empty" style="grid-column:1/-1; padding:10px; opacity:0.85; <?= empty($tools) ? '' : 'display:none;' ?>">
+        툴 목록이 비어있습니다. (데이터 없음 또는 DB 조회 실패)
+        <div style="margin-top:8px;">
+          <button type="button" class="mini" onclick="location.reload()">새로고침</button>
+        </div>
       </div>
     </div>
   </div>
@@ -3317,6 +3380,9 @@ function setupGraphDnD(){
           faiBuildListForModel(modelSel ? (modelSel.value||'') : '', false);
         }catch(e){}
       }
+      if(id === 'ms-tools' && el.classList.contains('open')){
+        try{ ipqcRefreshToolsForCurrentFilter(false); }catch(e){}
+      }
     }
 
 
@@ -3403,6 +3469,7 @@ function setupGraphDnD(){
     function syncMs(id){
       const el = document.getElementById(id);
       if(!el) return;
+      if(id === 'ms-tools') ipqcRememberToolSelection();
       msRefreshActive(id);
       const group = el.getAttribute('data-group');
       const checked = Array.from(el.querySelectorAll('input[name="'+group+'[]"]:checked')).map(x=>x.value);
@@ -3524,6 +3591,11 @@ const IPQC_FAI_MAP = <?= json_encode($IPQC_FAI_MAP, JSON_UNESCAPED_UNICODE|JSON_
 const IPQC_AOI_FAI_MAP = <?= json_encode($IPQC_AOI_MAP, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
 const IPQC_AOI_FAI_MODEL_MAP = <?= json_encode($IPQC_AOI_MODEL_MAP, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
 const IPQC_OQC_POINT_MODEL_MAP = <?= json_encode($IPQC_OQC_POINT_MODEL_MAP, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
+const IPQC_TOOL_MODEL_MAP = <?= json_encode([strtoupper((string)$type) . '|' . (string)$model => array_values($tools)], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
+const IPQC_TOOL_SELECTION_MAP = <?= json_encode([strtoupper((string)$type) . '|' . (string)$model => array_values($toolsSel)], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
+const __TOOLS_LOADED = {};
+const __TOOLS_PROMISE = {};
+Object.keys(IPQC_TOOL_MODEL_MAP || {}).forEach(function(k){ __TOOLS_LOADED[k] = true; });
 
     // OQC point_no list: lazy fetch fallback (mapping 없는 모델도 즉시 표시)
     const __OQC_POINTS_LOADED = {};
@@ -3553,6 +3625,170 @@ const IPQC_OQC_POINT_MODEL_MAP = <?= json_encode($IPQC_OQC_POINT_MODEL_MAP, JSON
       return __OQC_POINTS_PROMISE[m];
     }
 
+
+    function ipqcToolKey(type, model){
+      return String(type || '').trim().toUpperCase() + '|' + String(model || '');
+    }
+
+    function ipqcGetSelectedTools(){
+      const root = document.getElementById('ms-tools');
+      if(!root) return [];
+      return Array.from(root.querySelectorAll('input[name="tools[]"]:checked')).map(function(cb){
+        return String(cb.value || '');
+      });
+    }
+
+    function ipqcRememberToolSelection(){
+      const root = document.getElementById('ms-tools');
+      if(!root) return;
+      const type = String(root.dataset.type || (document.getElementById('type') ? (document.getElementById('type').value || '') : '')).trim().toUpperCase();
+      const model = String(root.dataset.model || (document.getElementById('model') ? (document.getElementById('model').value || '') : ''));
+      IPQC_TOOL_SELECTION_MAP[ipqcToolKey(type, model)] = ipqcGetSelectedTools();
+    }
+
+    function ipqcSetToolsLoading(msg){
+      const list = document.getElementById('ms-tools-list');
+      const empty = document.getElementById('ms-tools-empty');
+      if(list){
+        list.innerHTML = '';
+        list.style.display = 'none';
+      }
+      if(empty){
+        empty.style.display = 'block';
+        empty.innerHTML = String(msg || '툴 목록 불러오는 중...');
+      }
+      syncMs('ms-tools');
+    }
+
+    function ipqcRenderTools(items, selected){
+      const root = document.getElementById('ms-tools');
+      const list = document.getElementById('ms-tools-list');
+      const empty = document.getElementById('ms-tools-empty');
+      if(!root || !list || !empty) return;
+
+      const seen = new Set();
+      const arr = [];
+      (Array.isArray(items) ? items : []).forEach(function(v){
+        const s = String(v || '').trim();
+        if(!s || seen.has(s)) return;
+        seen.add(s);
+        arr.push(s);
+      });
+
+      const selectedSet = new Set((Array.isArray(selected) ? selected : []).map(function(v){ return String(v || ''); }));
+      const hasSelected = arr.some(function(v){ return selectedSet.has(v); });
+      if(!hasSelected && arr.length){
+        selectedSet.clear();
+        selectedSet.add(arr[0]);
+      }
+
+      list.innerHTML = '';
+      if(!arr.length){
+        list.style.display = 'none';
+        empty.style.display = 'block';
+        empty.innerHTML = '툴 목록이 비어있습니다. (데이터 없음 또는 DB 조회 실패)<div style="margin-top:8px;"><button type="button" class="mini" onclick="location.reload()">새로고침</button></div>';
+        IPQC_TOOL_SELECTION_MAP[ipqcToolKey(root.dataset.type || '', root.dataset.model || '')] = [];
+        syncMs('ms-tools');
+        return;
+      }
+
+      arr.forEach(function(t){
+        const lab = document.createElement('label');
+        lab.className = 'ms-item';
+
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.name = 'tools[]';
+        cb.value = t;
+        cb.checked = selectedSet.has(t);
+        cb.addEventListener('change', function(){ syncMs('ms-tools'); });
+
+        const sp = document.createElement('span');
+        sp.textContent = t;
+
+        lab.appendChild(cb);
+        lab.appendChild(sp);
+        list.appendChild(lab);
+      });
+
+      empty.style.display = 'none';
+      empty.innerHTML = '';
+      list.style.display = 'grid';
+      syncMs('ms-tools');
+      ipqcRememberToolSelection();
+    }
+
+    function ipqcFetchTools(type, model, opts){
+      opts = opts || {};
+      const t = String(type || '').trim().toUpperCase();
+      const m = String(model || '');
+      const key = ipqcToolKey(t, m);
+
+      if(!t || !m){
+        IPQC_TOOL_MODEL_MAP[key] = [];
+        __TOOLS_LOADED[key] = true;
+        return Promise.resolve([]);
+      }
+      if(!opts.force && Array.isArray(IPQC_TOOL_MODEL_MAP[key])){
+        __TOOLS_LOADED[key] = true;
+        return Promise.resolve(IPQC_TOOL_MODEL_MAP[key]);
+      }
+      if(!opts.force && __TOOLS_PROMISE[key]) return __TOOLS_PROMISE[key];
+
+      const url = new URL(window.location.href);
+      url.searchParams.set('ajax', 'tools');
+      url.searchParams.set('type', t);
+      url.searchParams.set('model', m);
+
+      __TOOLS_PROMISE[key] = fetch(url.toString(), {credentials:'same-origin'})
+        .then(function(r){ return r.json(); })
+        .then(function(j){
+          const arr = (j && Array.isArray(j.items)) ? j.items : [];
+          IPQC_TOOL_MODEL_MAP[key] = arr;
+          __TOOLS_LOADED[key] = true;
+          delete __TOOLS_PROMISE[key];
+          return arr;
+        })
+        .catch(function(){
+          __TOOLS_LOADED[key] = true;
+          delete __TOOLS_PROMISE[key];
+          if(!Array.isArray(IPQC_TOOL_MODEL_MAP[key])) IPQC_TOOL_MODEL_MAP[key] = [];
+          return IPQC_TOOL_MODEL_MAP[key];
+        });
+
+      return __TOOLS_PROMISE[key];
+    }
+
+    function ipqcRefreshToolsForCurrentFilter(force){
+      const root = document.getElementById('ms-tools');
+      const typeEl = document.getElementById('type');
+      const modelEl = document.getElementById('model');
+      if(!root || !typeEl || !modelEl) return Promise.resolve([]);
+
+      ipqcRememberToolSelection();
+
+      const type = String(typeEl.value || '').trim().toUpperCase();
+      const model = String(modelEl.value || '');
+      const key = ipqcToolKey(type, model);
+      const preferred = Array.isArray(IPQC_TOOL_SELECTION_MAP[key]) ? IPQC_TOOL_SELECTION_MAP[key] : ipqcGetSelectedTools();
+
+      root.dataset.type = type;
+      root.dataset.model = model;
+
+      if(Array.isArray(IPQC_TOOL_MODEL_MAP[key]) && !force){
+        ipqcRenderTools(IPQC_TOOL_MODEL_MAP[key], preferred);
+        return Promise.resolve(IPQC_TOOL_MODEL_MAP[key]);
+      }
+
+      ipqcSetToolsLoading('툴 목록 불러오는 중...');
+      return ipqcFetchTools(type, model, {force: !!force}).then(function(arr){
+        const curType = String(typeEl.value || '').trim().toUpperCase();
+        const curModel = String(modelEl.value || '');
+        if(curType !== type || curModel !== model) return arr;
+        ipqcRenderTools(arr, preferred);
+        return arr;
+      });
+    }
 
     function ipqcModelToMapKeyJs(model){
       const m = String(model || '').toLowerCase();
@@ -4051,6 +4287,7 @@ window.addEventListener('load', function(){
         document.querySelectorAll('.ms.open').forEach(function(o){ o.classList.remove('open'); });
         __ipqcResetPageDatesMulti();
         __ipqcRebuildFaiUI(true);
+        ipqcRefreshToolsForCurrentFilter(true);
         ipqcMarkDirty();
       }
 
@@ -4089,6 +4326,7 @@ window.addEventListener('load', function(){
       // 초기 로드에서는 stale overlay 숨김 + FAI UI 최초 구성
       ipqcClearDirty();
       __ipqcRebuildFaiUI(false);
+      ipqcRefreshToolsForCurrentFilter(false);
 });
 // 날짜 페이지 선택 (page_date)
     const PAGE_DATES = <?= json_encode($pageDates, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
