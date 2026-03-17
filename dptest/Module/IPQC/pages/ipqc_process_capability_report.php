@@ -608,8 +608,11 @@ body{min-width:980px;}
   sorted.forEach(function(v){ if (isFinite(v)) rangeAbs = Math.max(rangeAbs, Math.abs(v)); });
   specDefs.forEach(function(line){ if (isFinite(line.v)) rangeAbs = Math.max(rangeAbs, Math.abs(line.v)); });
   refDefs.forEach(function(line){ rangeAbs = Math.max(rangeAbs, Math.abs(line.v)); });
-  var axisAbs = Math.max(2, Math.ceil(rangeAbs + 0.25));
+  var axisAbs = Math.max(2, Math.ceil(rangeAbs));
+  if (axisAbs > 4) axisAbs = Math.ceil(axisAbs / 2) * 2;
   var xMin = -axisAbs, xMax = axisAbs;
+  var majorStep = axisAbs > 4 ? 2 : 1;
+  var minorStep = axisAbs > 4 ? 1 : 0.5;
   function x(v){ return left + ((v - xMin) / Math.max(1e-9, xMax - xMin)) * plotW; }
   var refLines = refDefs.filter(function(line){ return line.v >= xMin && line.v <= xMax; }).map(function(line){
    var xx = x(line.v);
@@ -627,9 +630,16 @@ body{min-width:980px;}
   var box = '<rect x="' + fixedTrim(x(q1), 2) + '" y="' + fixedTrim(boxTop, 2) + '" width="' + fixedTrim(Math.max(1, x(q3) - x(q1)), 2) + '" height="' + fixedTrim(boxH, 2) + '" fill="none" stroke="rgba(0,0,0,.68)" stroke-width="1"/>' +
    '<line x1="' + fixedTrim(x(med), 2) + '" y1="' + fixedTrim(boxTop, 2) + '" x2="' + fixedTrim(x(med), 2) + '" y2="' + fixedTrim(boxTop + boxH, 2) + '" stroke="rgba(0,0,0,.72)" stroke-width="1"/>';
   var ticks = [];
-  for (var tv = -axisAbs; tv <= axisAbs + 1e-9; tv += 1){
-   var xx = x(tv);
-   ticks.push('<line x1="' + fixedTrim(xx, 2) + '" y1="' + fixedTrim(plotBottom, 2) + '" x2="' + fixedTrim(xx, 2) + '" y2="' + fixedTrim(tickLineBottom, 2) + '" stroke="rgba(0,0,0,.45)"/><text x="' + fixedTrim(xx, 2) + '" y="' + fixedTrim(tickTextY, 2) + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">' + esc(String(tv)) + '</text>');
+  for (var mv = xMin; mv <= xMax + 1e-9; mv += minorStep){
+   var mm = Math.round(mv * 1000) / 1000;
+   var xMinor = x(mm);
+   ticks.push('<line x1="' + fixedTrim(xMinor, 2) + '" y1="' + fixedTrim(plotBottom, 2) + '" x2="' + fixedTrim(xMinor, 2) + '" y2="' + fixedTrim(plotBottom + 3, 2) + '" stroke="rgba(0,0,0,.35)"/>');
+  }
+  for (var tv = xMin; tv <= xMax + 1e-9; tv += majorStep){
+   var major = Math.round(tv * 1000) / 1000;
+   var xx = x(major);
+   var label = Math.abs(major - Math.round(major)) < 1e-9 ? String(Math.round(major)) : fixedTrim(major, 1);
+   ticks.push('<line x1="' + fixedTrim(xx, 2) + '" y1="' + fixedTrim(plotBottom, 2) + '" x2="' + fixedTrim(xx, 2) + '" y2="' + fixedTrim(tickLineBottom, 2) + '" stroke="rgba(0,0,0,.45)"/><text x="' + fixedTrim(xx, 2) + '" y="' + fixedTrim(tickTextY, 2) + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">' + esc(label) + '</text>');
   }
   return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
    '<rect x="' + fixedTrim(left, 2) + '" y="' + fixedTrim(top, 2) + '" width="' + fixedTrim(plotW, 2) + '" height="' + fixedTrim(plotH, 2) + '" fill="#f8f8f8" stroke="#b7b7b7"/>' +
