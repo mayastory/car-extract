@@ -136,7 +136,7 @@
     varLineSeq: 1,
     axisByCol: {}, // {colKey:{yMin:null|number,yMax:null|number}}
     gridHidden: true, // grid hide toggle (default: hidden)
-    oocSpecByCol: {}, // {colKey: pct} per-FAI OOC SPEC percentage (85 keeps current displayed USL/LSL)
+    oocSpecByCol: {}, // {colKey: pct} per-FAI OOC SPEC percentage (85 keeps current base/input USL/LSL)
     limitBaseByCol: {}, // {colKey:{baseUsl,baseLsl}} per-FAI base limits before OOC scaling
     editingOocSpec: false,
     plotElems: { points:true, line:true, box:true }, // toolbar elements (Shift multi-select)
@@ -5393,7 +5393,7 @@ try{
       }
     }catch(e){}
 
-    // OOC SPEC value control (1~100%, 85 = current displayed USL/LSL)
+    // OOC SPEC value control (1~100%, 85 = current base/input USL/LSL)
     try{
       const specRange = qs('#qgOocSpecRange');
       const specPct = qs('#qgOocSpecPct');
@@ -5844,15 +5844,6 @@ function renderFacetList(rootId, items, selSet){
     return v * ratio;
   }
 
-  function qgUnscaleSpecValueForCol(col, val){
-    const v = Number(val);
-    if (!isFinite(v)) return val;
-    const pct = qgGetColOocSpecPct(col);
-    const ratio = pct / 85;
-    if (!isFinite(ratio) || ratio === 0) return v;
-    return v / ratio;
-  }
-
   function syncOocSpecInputs(force){
     if (!force && QG.editingOocSpec) return;
     const col = qgEnsureColSpecState(qgGetColByKey(QG.sel.primaryColKey));
@@ -5884,8 +5875,8 @@ function renderFacetList(rootId, items, selSet){
     const col = qgEnsureColSpecState(qgGetColByKey(QG.sel.primaryColKey));
     const uslEl = qs('#qgUSL');
     const lslEl = qs('#qgLSL');
-    const uslV = col ? qgScaleSpecValueForCol(col, col.baseUsl) : null;
-    const lslV = col ? qgScaleSpecValueForCol(col, col.baseLsl) : null;
+    const uslV = col ? col.baseUsl : null;
+    const lslV = col ? col.baseLsl : null;
     if (uslEl) uslEl.value = (uslV !== null && uslV !== undefined) ? fmt(uslV) : '';
     if (lslEl) lslEl.value = (lslV !== null && lslV !== undefined) ? fmt(lslV) : '';
   }
@@ -5925,8 +5916,8 @@ function renderFacetList(rootId, items, selSet){
     const lslRaw = (qs('#qgLSL')?.value || '').toString();
     const dispUsl = num(uslRaw);
     const dispLsl = num(lslRaw);
-    col.baseUsl = (dispUsl === null) ? null : qgUnscaleSpecValueForCol(col, dispUsl);
-    col.baseLsl = (dispLsl === null) ? null : qgUnscaleSpecValueForCol(col, dispLsl);
+    col.baseUsl = (dispUsl === null) ? null : dispUsl;
+    col.baseLsl = (dispLsl === null) ? null : dispLsl;
     col.usl = col.baseUsl;
     col.lsl = col.baseLsl;
     if (!QG.limitBaseByCol) QG.limitBaseByCol = {};
