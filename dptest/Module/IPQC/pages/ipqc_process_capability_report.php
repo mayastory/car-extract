@@ -407,8 +407,9 @@ body{min-width:980px;}
   var yMaxBase = Math.ceil((Math.max(refVal, isFinite(rawPpk) ? rawPpk : 0) + 0.25) * 2) / 2;
   var yMax = Math.max(2.2, yMaxBase);
   var xMid = left + plotW / 2;
-  var labelY = plotBottom + 64;
+  var labelY = plotBottom + 50;
   var axisTitleY = height - 18;
+  var axisTitleX = xMid + 24;
   function y(v){ return top + plotH - ((v - 0) / (yMax - 0)) * plotH; }
   var yTicks = [];
   for (var v = 0; v <= yMax + 1e-9; v += 0.5) yTicks.push(Number(v.toFixed(1)));
@@ -435,7 +436,7 @@ body{min-width:980px;}
    '<rect x="' + fixedTrim(left,2) + '" y="' + fixedTrim(top,2) + '" width="' + fixedTrim(plotW,2) + '" height="' + fixedTrim(plotH,2) + '" fill="transparent" stroke="#b7b7b7"/>' +
    hGrid + xAxis + yAxis + refLine + marker + yAxisTicks +
    '<text x="' + fixedTrim(xMid,2) + '" y="' + fixedTrim(labelY,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="middle" transform="rotate(-90 ' + fixedTrim(xMid,2) + ' ' + fixedTrim(labelY,2) + ')">' + labelText + '</text>' +
-   '<text x="' + fixedTrim(xMid,2) + '" y="' + axisTitleY + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">공정</text>' +
+   '<text x="' + fixedTrim(axisTitleX,2) + '" y="' + axisTitleY + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">공정</text>' +
    '<text x="14" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(17,17,17,.96)" font-size="11" text-anchor="middle" transform="rotate(-90 14 ' + fixedTrim(top + plotH/2,2) + ')">Ppk</text>' +
    '</svg>';
  }
