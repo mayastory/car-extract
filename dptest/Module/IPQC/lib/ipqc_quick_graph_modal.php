@@ -1033,6 +1033,13 @@ if (!function_exists('h')) {
               <input id="qgLSL" class="qg-input" placeholder="LSL (빈칸=NULL)">
             </div>
 
+            <div class="qg-hint" style="margin-top:10px; margin-bottom:8px;">· OOC SPEC</div>
+            <div class="qg-row" style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+              <input id="qgOocSpecRange" type="range" min="1" max="100" step="1" value="85" style="flex:1; min-width:0;">
+              <input id="qgOocSpecPct" type="number" min="1" max="100" step="1" value="85" class="qg-input" style="width:74px; text-align:right;">
+              <span style="min-width:16px; text-align:left;">%</span>
+            </div>
+
             <div class="qg-row" style="margin-top:10px;">
               <label class="qg-chkline">
                 <input id="qgHideUSLLSLLabel" type="checkbox" class="qg-chk">

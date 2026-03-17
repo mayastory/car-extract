@@ -136,6 +136,8 @@
     varLineSeq: 1,
     axisByCol: {}, // {colKey:{yMin:null|number,yMax:null|number}}
     gridHidden: true, // grid hide toggle (default: hidden)
+    uslLslLabelPct: 85, // horizontal position of USL/LSL label inside the last visible panel (1~100)
+    editingSpecLabel: false,
     plotElems: { points:true, line:true, box:true }, // toolbar elements (Shift multi-select)
     captionByColKey: {}, // {colKey:{enabled,stats:[...],xPos,yPos}} (display only)
     displayNameByColKey: {}, // {colKey:display} (legend/user-define/graph label only)
@@ -3951,6 +3953,7 @@ function getBase(){
     QG.editingAxis = false;
     syncLimitInputs(true);
     syncAxisInputs(true);
+    syncSpecLabelInputs(true);
   
     try{ qgSyncCaptionUi(); }catch(e){}
   }
@@ -5375,6 +5378,36 @@ try{
       }
     }catch(e){}
 
+    // OOC SPEC label position control (1~100%)
+    try{
+      const specRange = qs('#qgOocSpecRange');
+      const specPct = qs('#qgOocSpecPct');
+      const onSpecInput = (src)=>{
+        applySpecLabelInputsToState(src);
+        renderGrid();
+      };
+      const onSpecFocus = ()=>{ QG.editingSpecLabel = true; };
+      const onSpecBlur = (src)=>{
+        QG.editingSpecLabel = false;
+        applySpecLabelInputsToState(src);
+        syncSpecLabelInputs(true);
+        renderGrid();
+      };
+      if (specRange && !specRange._qg){
+        specRange._qg = true;
+        specRange.addEventListener('input', ()=>onSpecInput('range'));
+        specRange.addEventListener('focus', onSpecFocus);
+        specRange.addEventListener('blur', ()=>onSpecBlur('range'));
+      }
+      if (specPct && !specPct._qg){
+        specPct._qg = true;
+        specPct.addEventListener('input', ()=>onSpecInput('input'));
+        specPct.addEventListener('focus', onSpecFocus);
+        specPct.addEventListener('blur', ()=>onSpecBlur('input'));
+      }
+      syncSpecLabelInputs(true);
+    }catch(e){}
+
     // USL/LSL label (right-side text) hide toggle - hide only the value labels, keep dashed lines
     try{
       const hll = qs('#qgHideUSLLSLLabel');
@@ -5650,6 +5683,8 @@ try{
         syncLimitInputs(true);
         QG.editingAxis = false;
         syncAxisInputs(true);
+        QG.editingSpecLabel = false;
+        syncSpecLabelInputs(true);
 
         refresh();
       });
@@ -5745,6 +5780,34 @@ function renderFacetList(rootId, items, selSet){
     return n;
   }
 
+  function qgClampSpecLabelPct(v){
+    const n = Math.round(Number(v));
+    if (!isFinite(n)) return 85;
+    return Math.max(1, Math.min(100, n));
+  }
+
+  function syncSpecLabelInputs(force){
+    if (!force && QG.editingSpecLabel) return;
+    const pct = qgClampSpecLabelPct(QG.uslLslLabelPct);
+    QG.uslLslLabelPct = pct;
+    const rangeEl = qs('#qgOocSpecRange');
+    const inputEl = qs('#qgOocSpecPct');
+    if (rangeEl) rangeEl.value = String(pct);
+    if (inputEl) inputEl.value = String(pct);
+  }
+
+  function applySpecLabelInputsToState(src){
+    const rangeEl = qs('#qgOocSpecRange');
+    const inputEl = qs('#qgOocSpecPct');
+    const raw = (src === 'input')
+      ? ((inputEl && inputEl.value !== undefined) ? inputEl.value : '')
+      : ((rangeEl && rangeEl.value !== undefined) ? rangeEl.value : '');
+    const pct = qgClampSpecLabelPct(raw);
+    QG.uslLslLabelPct = pct;
+    if (rangeEl && src !== 'range') rangeEl.value = String(pct);
+    if (inputEl && src !== 'input') inputEl.value = String(pct);
+  }
+
   function syncLimitInputs(force){
     if (!force && QG.editingLimits) return;
     const col = QG.cols.find(c => c.key === QG.sel.primaryColKey) || null;
@@ -5813,6 +5876,7 @@ function renderFacetList(rootId, items, selSet){
 
     syncLimitInputs(false);
     syncAxisInputs(false);
+    syncSpecLabelInputs(false);
     renderGrid();
   }
 
@@ -6699,9 +6763,11 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       if (pi !== nP - 1) return;
       if (QG.hideUslLslLabel) return;
       const tx = document.createElementNS(ns,'text');
-      tx.setAttribute('x', String(right - 2));
+      const _specPct = qgClampSpecLabelPct(QG.uslLslLabelPct);
+      const _specX = left + (panelW * (_specPct / 100));
+      tx.setAttribute('x', String(_specX));
       tx.setAttribute('y', String(y - 2));
-      tx.setAttribute('text-anchor','end');
+      tx.setAttribute('text-anchor', (_specPct >= 97 ? 'end' : (_specPct <= 3 ? 'start' : 'middle')));
       tx.setAttribute('font-size','10');
       tx.setAttribute('fill','rgba(0,0,0,0.70)');
           try{ tx.setAttribute('opacity', String(_vOpacity)); }catch(e){}
@@ -7702,9 +7768,11 @@ const clip = (el)=>{ try{ el.setAttribute('clip-path', clipUrl); }catch(e){} };
         if (QG.hideUslLslLabel) return;
 
         const tx = document.createElementNS(ns,'text');
-        tx.setAttribute('x', String(right - 2));
+        const _specPct = qgClampSpecLabelPct(QG.uslLslLabelPct);
+        const _specX = left + (panelW * (_specPct / 100));
+        tx.setAttribute('x', String(_specX));
         tx.setAttribute('y', String(y - 2));
-        tx.setAttribute('text-anchor','end');
+        tx.setAttribute('text-anchor', (_specPct >= 97 ? 'end' : (_specPct <= 3 ? 'start' : 'middle')));
         tx.setAttribute('font-size','10');
         tx.setAttribute('fill','rgba(0,0,0,0.70)');
           try{ tx.setAttribute('opacity', String(_vOpacity)); }catch(e){}
@@ -7844,6 +7912,7 @@ const clip = (el)=>{ try{ el.setAttribute('clip-path', clipUrl); }catch(e){} };
       try{ renderFaiList && renderFaiList(); }catch(e){}
       try{ QG.editingLimits = false; syncLimitInputs && syncLimitInputs(true); }catch(e){}
       try{ QG.editingAxis = false; syncAxisInputs && syncAxisInputs(true); }catch(e){}
+      try{ QG.editingSpecLabel = false; syncSpecLabelInputs && syncSpecLabelInputs(true); }catch(e){}
 
       // Close browser menu + show our own JMP-like menu
       try{ qgHideCtxMenu(); }catch(e){}
