@@ -2115,14 +2115,25 @@ function ipqc2_export_pivot_csv(PDO $pdo, string $type, string $model, array $to
     if ($typeU === 'CMM') {
         foreach ($colLabels as $i => $lb) {
             if (is_array($lb)) {
-                $raw = (string)($lb['point_no'] ?? '');
-                $disp = (string)($lb['label'] ?? $raw);
+                $raw = trim((string)($lb['point_no'] ?? ''));
+                $disp = trim((string)($lb['label'] ?? ''));
+                if ($raw === '' && $disp !== '') {
+                    $raw = cmm_unmap_fai_name($model, $disp);
+                }
+                if ($disp === '' && $raw !== '') {
+                    $disp = cmm_map_fai_name($model, $raw);
+                }
             } else {
-                $raw = (string)$lb;
-                $disp = (string)$lb;
+                $src = trim((string)$lb);
+                $raw = cmm_unmap_fai_name($model, $src);
+                if ($raw === '') $raw = $src;
+                $disp = cmm_map_fai_name($model, $raw, $src);
+                if ($disp === '') $disp = $src;
             }
+            if ($disp === '') $disp = $raw;
             $headers[] = $disp;
             if ($raw !== '') $colIndex[$raw] = $i;
+            if ($disp !== '') $colIndex[$disp] = $i;
         }
     } else {
         foreach ($colLabels as $i => $lb) {
@@ -2158,12 +2169,17 @@ function ipqc2_export_pivot_csv(PDO $pdo, string $type, string $model, array $to
 
         if ($typeU === 'OMM') {
             $lb = ipqc2_omm_col_label((string)$r['fai'], (string)$r['spc']);
+            if ($lb !== '' && isset($colIndex[$lb])) {
+                $curRow[5 + $colIndex[$lb]] = $r['value'];
+            }
         } else {
-            $lb = (string)$r['point_no'];
-        }
-
-        if ($lb !== '' && isset($colIndex[$lb])) {
-            $curRow[5 + $colIndex[$lb]] = $r['value'];
+            $rawPoint = trim((string)$r['point_no']);
+            $dispPoint = ($rawPoint !== '') ? cmm_map_fai_name($model, $rawPoint) : '';
+            if ($rawPoint !== '' && isset($colIndex[$rawPoint])) {
+                $curRow[5 + $colIndex[$rawPoint]] = $r['value'];
+            } elseif ($dispPoint !== '' && isset($colIndex[$dispPoint])) {
+                $curRow[5 + $colIndex[$dispPoint]] = $r['value'];
+            }
         }
     }
     if ($curRow !== null) fputcsv($out, $curRow);

@@ -605,14 +605,13 @@ body{min-width:980px;}
    { v:0.5, color:'rgba(120,120,120,.92)', width:'1', dash:'3 3' }
   ];
   var rangeAbs = 2;
-  sorted.forEach(function(v){ if (isFinite(v)) rangeAbs = Math.max(rangeAbs, Math.abs(v)); });
+  [whiskerLow, whiskerHigh, q1, med, q3].forEach(function(v){ if (isFinite(v)) rangeAbs = Math.max(rangeAbs, Math.abs(v)); });
   specDefs.forEach(function(line){ if (isFinite(line.v)) rangeAbs = Math.max(rangeAbs, Math.abs(line.v)); });
   refDefs.forEach(function(line){ rangeAbs = Math.max(rangeAbs, Math.abs(line.v)); });
-  var axisAbs = Math.max(2, Math.ceil(rangeAbs));
-  if (axisAbs > 4) axisAbs = Math.ceil(axisAbs / 2) * 2;
+  var majorStep = isWithin ? 2 : 1;
+  var minorStep = isWithin ? 1 : 0.5;
+  var axisAbs = isWithin ? Math.max(4, Math.ceil(rangeAbs / 2) * 2) : Math.max(2, Math.ceil(rangeAbs));
   var xMin = -axisAbs, xMax = axisAbs;
-  var majorStep = axisAbs > 4 ? 2 : 1;
-  var minorStep = axisAbs > 4 ? 1 : 0.5;
   function x(v){ return left + ((v - xMin) / Math.max(1e-9, xMax - xMin)) * plotW; }
   var refLines = refDefs.filter(function(line){ return line.v >= xMin && line.v <= xMax; }).map(function(line){
    var xx = x(line.v);
