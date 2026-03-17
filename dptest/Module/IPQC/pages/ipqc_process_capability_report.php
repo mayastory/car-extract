@@ -407,8 +407,8 @@ body{min-width:980px;}
   var yMaxBase = Math.ceil((Math.max(refVal, isFinite(rawPpk) ? rawPpk : 0) + 0.25) * 2) / 2;
   var yMax = Math.max(2.2, yMaxBase);
   var xMid = left + plotW / 2;
-  var labelY = plotBottom + 60;
-  var axisTitleY = height - 28;
+  var labelY = plotBottom + 68;
+  var axisTitleY = height - 42;
   var axisTitleX = xMid + 24;
   function y(v){ return top + plotH - ((v - 0) / (yMax - 0)) * plotH; }
   var yTicks = [];
@@ -424,23 +424,25 @@ body{min-width:980px;}
    return '<line x1="' + fixedTrim(left - 4,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="rgba(0,0,0,.45)"/><text x="' + fixedTrim(left - 8,2) + '" y="' + fixedTrim(yy + 3,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="end">' + esc(label) + '</text>';
   }).join('');
   var xAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(plotBottom,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(plotBottom,2) + '" stroke="rgba(0,0,0,.45)"/>';
+  var xAxisMidTick = '<line x1="' + fixedTrim(xMid,2) + '" y1="' + fixedTrim(plotBottom,2) + '" x2="' + fixedTrim(xMid,2) + '" y2="' + fixedTrim(plotBottom + 6,2) + '" stroke="rgba(0,0,0,.45)"/>';
   var yAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(plotBottom,2) + '" stroke="rgba(0,0,0,.45)"/>';
   var refLine = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(y(refVal),2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(y(refVal),2) + '" stroke="#ff6672" stroke-width="1.15"/>';
   var marker = '';
   if (isFinite(rawPpk)){
    var py = y(clampNum(rawPpk, 0, yMax));
-   marker = '<rect x="' + fixedTrim(xMid - 3,2) + '" y="' + fixedTrim(py - 3,2) + '" width="6" height="6" fill="transparent" stroke="rgba(17,17,17,.95)" stroke-width="1.1"/>';
+   marker = '<rect x="' + fixedTrim(xMid - 2.5,2) + '" y="' + fixedTrim(py - 2.5,2) + '" width="5" height="5" fill="transparent" stroke="rgba(17,17,17,.95)" stroke-width="1.05"/>';
   }
   var labelText = esc(entry && (entry.label || entry.proc) || '-');
   return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
    '<rect x="' + fixedTrim(left,2) + '" y="' + fixedTrim(top,2) + '" width="' + fixedTrim(plotW,2) + '" height="' + fixedTrim(plotH,2) + '" fill="transparent" stroke="#b7b7b7"/>' +
-   hGrid + xAxis + yAxis + refLine + marker + yAxisTicks +
+   hGrid + xAxis + xAxisMidTick + yAxis + refLine + marker + yAxisTicks +
    '<text x="' + fixedTrim(xMid,2) + '" y="' + fixedTrim(labelY,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="middle" transform="rotate(-90 ' + fixedTrim(xMid,2) + ' ' + fixedTrim(labelY,2) + ')">' + labelText + '</text>' +
    '<text x="' + fixedTrim(axisTitleX,2) + '" y="' + axisTitleY + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">공정</text>' +
    '<text x="14" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(17,17,17,.96)" font-size="11" text-anchor="middle" transform="rotate(-90 14 ' + fixedTrim(top + plotH/2,2) + ')">Ppk</text>' +
    '</svg>';
  }
- function normalizeCapabilityIndexBox(box){
+ 
+function normalizeCapabilityIndexBox(box){
   if (!box) return;
   box.style.display = 'grid';
   box.style.gridTemplateColumns = 'minmax(0,392px) 128px';
