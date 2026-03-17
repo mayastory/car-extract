@@ -397,15 +397,18 @@ body{min-width:980px;}
   tip.style.top = fixedTrim(top,2) + 'px';
  }
  function capabilityIndexPlotSvg(entry, refPpk){
-  var width = 408, height = 600;
-  var left = 42, right = 18, top = 10, bottom = 132;
+  var width = 392, height = 586;
+  var left = 42, right = 18, top = 10, bottom = 150;
   var plotW = width - left - right;
   var plotH = height - top - bottom;
+  var plotBottom = top + plotH;
   var refVal = clampNum(parseNum(refPpk), 0.20, 2.50);
   var rawPpk = Number(entry && entry.ppk);
   var yMaxBase = Math.ceil((Math.max(refVal, isFinite(rawPpk) ? rawPpk : 0) + 0.25) * 2) / 2;
   var yMax = Math.max(2.2, yMaxBase);
   var xMid = left + plotW / 2;
+  var labelY = plotBottom + 64;
+  var axisTitleY = height - 18;
   function y(v){ return top + plotH - ((v - 0) / (yMax - 0)) * plotH; }
   var yTicks = [];
   for (var v = 0; v <= yMax + 1e-9; v += 0.5) yTicks.push(Number(v.toFixed(1)));
@@ -419,8 +422,8 @@ body{min-width:980px;}
    var label = Math.abs(v - Math.round(v)) < 1e-9 ? String(Math.round(v)) : '';
    return '<line x1="' + fixedTrim(left - 4,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="rgba(0,0,0,.45)"/>' + (label ? '<text x="' + fixedTrim(left - 8,2) + '" y="' + fixedTrim(yy + 3,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="end">' + esc(label) + '</text>' : '');
   }).join('');
-  var xAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(0,0,0,.45)"/>';
-  var yAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(0,0,0,.45)"/>';
+  var xAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(plotBottom,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(plotBottom,2) + '" stroke="rgba(0,0,0,.45)"/>';
+  var yAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(plotBottom,2) + '" stroke="rgba(0,0,0,.45)"/>';
   var refLine = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(y(refVal),2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(y(refVal),2) + '" stroke="#ff6672" stroke-width="1.15"/>';
   var marker = '';
   if (isFinite(rawPpk)){
@@ -431,27 +434,27 @@ body{min-width:980px;}
   return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
    '<rect x="' + fixedTrim(left,2) + '" y="' + fixedTrim(top,2) + '" width="' + fixedTrim(plotW,2) + '" height="' + fixedTrim(plotH,2) + '" fill="transparent" stroke="#b7b7b7"/>' +
    hGrid + xAxis + yAxis + refLine + marker + yAxisTicks +
-   '<text x="' + fixedTrim(xMid,2) + '" y="' + fixedTrim(height - 76,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="middle" transform="rotate(-90 ' + fixedTrim(xMid,2) + ' ' + fixedTrim(height - 76,2) + ')">' + labelText + '</text>' +
-   '<text x="' + fixedTrim(xMid,2) + '" y="' + (height - 20) + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">공정</text>' +
+   '<text x="' + fixedTrim(xMid,2) + '" y="' + fixedTrim(labelY,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="middle" transform="rotate(-90 ' + fixedTrim(xMid,2) + ' ' + fixedTrim(labelY,2) + ')">' + labelText + '</text>' +
+   '<text x="' + fixedTrim(xMid,2) + '" y="' + axisTitleY + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">공정</text>' +
    '<text x="14" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(17,17,17,.96)" font-size="11" text-anchor="middle" transform="rotate(-90 14 ' + fixedTrim(top + plotH/2,2) + ')">Ppk</text>' +
    '</svg>';
  }
  function normalizeCapabilityIndexBox(box){
   if (!box) return;
   box.style.display = 'grid';
-  box.style.gridTemplateColumns = 'minmax(0,408px) 128px';
+  box.style.gridTemplateColumns = 'minmax(0,392px) 128px';
   box.style.gap = '12px';
   box.style.alignItems = 'start';
-  box.style.maxWidth = '548px';
+  box.style.maxWidth = '532px';
   var main = box.querySelector('.qpc-index-main');
   if (main){
    main.style.width = '100%';
-   main.style.maxWidth = '408px';
+   main.style.maxWidth = '392px';
   }
   var host = box.querySelector('[data-role="index-svg"]');
   if (host){
    host.style.width = '100%';
-   host.style.maxWidth = '408px';
+   host.style.maxWidth = '392px';
   }
   var side = box.querySelector('.qpc-index-side');
   if (!side) return;
