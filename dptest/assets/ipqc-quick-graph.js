@@ -5400,7 +5400,7 @@ try{
       const onSpecInput = (src)=>{
         applyOocSpecInputsToState(src);
         syncLimitInputs(true);
-        try{ renderLegend(); }catch(e){}
+        renderLegend();
         renderGrid();
       };
       const onSpecFocus = ()=>{ QG.editingOocSpec = true; };
@@ -5409,7 +5409,7 @@ try{
         applyOocSpecInputsToState(src);
         syncOocSpecInputs(true);
         syncLimitInputs(true);
-        try{ renderLegend(); }catch(e){}
+        renderLegend();
         renderGrid();
       };
       if (specRange && !specRange._qg){
