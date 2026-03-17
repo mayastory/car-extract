@@ -6827,7 +6827,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
 
     // USL/LSL per panel (same value); label only at far right-most panel
     function hLine(val, label){
-      const scaledVal = qgScaleSpecValue(val);
+      const scaledVal = qgScaleSpecValueForCol(col, val);
       const y = yAt(scaledVal);
       const ln = document.createElementNS(ns,'line');
       ln.setAttribute('x1', String(left)); ln.setAttribute('x2', String(right));
