@@ -160,6 +160,21 @@ body{min-width:980px;}
 .qpc-target-tip-svg{margin-top:6px;}
 .qpc-target-tip-svg svg{width:250px;height:auto;display:block;}
 .qpc-index-main,.qpc-index-side{border:0;background:transparent;border-radius:0;}
+.qpc-perf-grid{display:grid;grid-template-columns:minmax(0,560px) 176px;gap:12px;align-items:start;max-width:748px;}
+.qpc-perf-main,.qpc-perf-side{border:0;background:transparent;border-radius:0;}
+.qpc-perf-main{position:relative;padding:6px 6px 4px;overflow:visible;max-width:560px;}
+.qpc-perf-side{padding:8px 8px 0 0;min-width:176px;width:auto;box-sizing:border-box;}
+.qpc-perf-side-title{font-size:11px;font-weight:700;margin-bottom:8px;}
+.qpc-perf-legend{display:flex;flex-direction:column;gap:4px;font-size:11px;line-height:1.25;color:#111;}
+.qpc-perf-legend-item{display:flex;align-items:center;gap:6px;white-space:nowrap;}
+.qpc-perf-swatch{width:14px;height:14px;display:inline-block;flex:0 0 14px;box-sizing:border-box;}
+.qpc-perf-line{display:inline-block;width:18px;height:0;border-top:2px solid #ff6672;box-sizing:border-box;flex:0 0 18px;}
+.qpc-perf-control{margin-top:14px;}
+.qpc-perf-control-label{font-size:11px;font-weight:700;color:#111;margin-bottom:4px;}
+.qpc-perf-control-line{display:grid;grid-template-columns:auto 54px minmax(88px,1fr);align-items:center;column-gap:8px;margin-bottom:8px;}
+.qpc-perf-badge{min-width:52px;height:18px;padding:0 8px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(0,0,0,.18);background:#f7f7f7;font-size:11px;font-weight:700;color:#111;box-sizing:border-box;}
+.qpc-perf-input{width:54px;height:20px;border:1px solid rgba(0,0,0,.18);background:#f7f7f7;color:var(--qpc-text);padding:0 4px;font-size:11px;text-align:center;box-sizing:border-box;}
+.qpc-perf-range{display:block;width:100%;min-width:88px;accent-color:#b9d8ff;}
 @media print{
  body{background:#fff;color:#000;}
  .qpc-page{padding:0;}
@@ -371,6 +386,125 @@ body{min-width:980px;}
   var tip = box.querySelector('[data-role="target-hover-tip"]');
   if (tip){ tip.hidden = true; tip.innerHTML = ''; }
  }
+
+ function processPerformancePlotSvg(entry, ppkCut, stabilityCut){
+  var width = 560, height = 430;
+  var left = 52, right = 14, top = 10, bottom = 42;
+  var plotW = width - left - right;
+  var plotH = height - top - bottom;
+  var xMin = 0, xMax = 2.15;
+  var yMin = 0, yMax = 3.10;
+  var ppkRef = clampNum(parseNum(ppkCut), 0.20, 3.00);
+  var stabilityRef = clampNum(parseNum(stabilityCut), 0.50, 3.00);
+  var rawX = Number(entry && entry.stability);
+  var rawY = Number(entry && entry.ppk);
+  function x(v){ return left + ((v - xMin) / (xMax - xMin)) * plotW; }
+  function y(v){ return top + plotH - ((v - yMin) / (yMax - yMin)) * plotH; }
+  var xTicks = [0,0.5,1.0,1.5,2.0];
+  var yTicks = [0,0.5,1.0,1.5,2.0,2.5,3.0];
+  var xStable = x(stabilityRef);
+  var yCapable = y(ppkRef);
+  var bg = [
+   '<rect x="' + fixedTrim(x(xMin),2) + '" y="' + fixedTrim(y(yMax),2) + '" width="' + fixedTrim(Math.max(0, xStable - x(xMin)),2) + '" height="' + fixedTrim(Math.max(0, yCapable - y(yMax)),2) + '" fill="#b8ddb3"/>',
+   '<rect x="' + fixedTrim(xStable,2) + '" y="' + fixedTrim(y(yMax),2) + '" width="' + fixedTrim(Math.max(0, x(xMax) - xStable),2) + '" height="' + fixedTrim(Math.max(0, yCapable - y(yMax)),2) + '" fill="#e4e0a7"/>',
+   '<rect x="' + fixedTrim(x(xMin),2) + '" y="' + fixedTrim(yCapable,2) + '" width="' + fixedTrim(Math.max(0, xStable - x(xMin)),2) + '" height="' + fixedTrim(Math.max(0, y(yMin) - yCapable),2) + '" fill="#e7ccb0"/>',
+   '<rect x="' + fixedTrim(xStable,2) + '" y="' + fixedTrim(yCapable,2) + '" width="' + fixedTrim(Math.max(0, x(xMax) - xStable),2) + '" height="' + fixedTrim(Math.max(0, y(yMin) - yCapable),2) + '" fill="#efb7c0"/>'
+  ].join('');
+  var xAxisTicks = xTicks.map(function(v){
+   return '<line x1="' + fixedTrim(x(v),2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(x(v),2) + '" y2="' + fixedTrim(top + plotH + 4,2) + '" stroke="rgba(0,0,0,.42)"/>' +
+    '<text x="' + fixedTrim(x(v),2) + '" y="' + fixedTrim(top + plotH + 18,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="middle">' + esc(fmtTargetTick(v)) + '</text>';
+  }).join('');
+  var yAxisTicks = yTicks.map(function(v){
+   var yy = y(v);
+   return '<line x1="' + fixedTrim(left - 4,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="rgba(0,0,0,.42)"/>' +
+    '<text x="' + fixedTrim(left - 8,2) + '" y="' + fixedTrim(yy + 3,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="end">' + esc(v === 0 ? '0' : fixedTrim(v,1)) + '</text>';
+  }).join('');
+  var curvePts = [];
+  var curveStart = Math.max(1, xMin);
+  for (var i = 0; i <= 120; i += 1){
+   var vx = curveStart + ((xMax - curveStart) * i / 120);
+   var vy = 1 / Math.max(vx, 1e-9);
+   if (vy < yMin || vy > yMax) continue;
+   curvePts.push((curvePts.length ? 'L' : 'M') + fixedTrim(x(vx),2) + ' ' + fixedTrim(y(vy),2));
+  }
+  var cpkCurve = curvePts.length ? '<path d="' + curvePts.join(' ') + '" fill="none" stroke="#ff6672" stroke-width="1.2"/>' : '';
+  var marker = '';
+  if (isFinite(rawX) && isFinite(rawY)){
+   var px = x(clampNum(rawX, xMin, xMax));
+   var py = y(clampNum(rawY, yMin, yMax));
+   marker = '<rect x="' + fixedTrim(px - 3,2) + '" y="' + fixedTrim(py - 3,2) + '" width="6" height="6" fill="transparent" stroke="rgba(17,17,17,.95)" stroke-width="1.05"/>';
+  }
+  var empty = (!isFinite(rawX) || !isFinite(rawY)) ? '<text x="' + fixedTrim(left + plotW/2,2) + '" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(0,0,0,.45)" text-anchor="middle" font-size="11">규격 한계와 데이터가 있어야 표시됩니다.</text>' : '';
+  return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
+   bg +
+   '<rect x="' + fixedTrim(left,2) + '" y="' + fixedTrim(top,2) + '" width="' + fixedTrim(plotW,2) + '" height="' + fixedTrim(plotH,2) + '" fill="transparent" stroke="#b7b7b7"/>' +
+   '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top + plotH,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(0,0,0,.45)"/>' +
+   '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(top + plotH,2) + '" stroke="rgba(0,0,0,.45)"/>' +
+   xAxisTicks + yAxisTicks + cpkCurve + marker + empty +
+   '<text x="' + fixedTrim(left + plotW/2,2) + '" y="' + (height - 6) + '" fill="rgba(17,17,17,.96)" font-size="11" text-anchor="middle">안정성 지수</text>' +
+   '<text x="16" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(17,17,17,.96)" font-size="11" text-anchor="middle" transform="rotate(-90 16 ' + fixedTrim(top + plotH/2,2) + ')">공정 능력 전체 Ppk</text>' +
+   '</svg>';
+ }
+ function processPerformancePlotHtml(entry, idx){
+  var ppkRef = '1';
+  var stabilityRef = '1.25';
+  return '<div class="qpc-perf-grid" data-entry-index="' + idx + '">' +
+   '<div class="qpc-perf-main"><div class="qpc-svgbox" data-role="perf-svg" style="width:100%;max-width:560px;">' + processPerformancePlotSvg(entry, ppkRef, stabilityRef) + '</div></div>' +
+   '<div class="qpc-perf-side">' +
+    '<div class="qpc-perf-side-title">범례</div>' +
+    '<div class="qpc-perf-legend">' +
+     '<div class="qpc-perf-legend-item"><span class="qpc-perf-swatch" style="background:#b8ddb3;"></span><span>공정 능력이 있고 안정적</span></div>' +
+     '<div class="qpc-perf-legend-item"><span class="qpc-perf-swatch" style="background:#e4e0a7;"></span><span>공정 능력이 있지만 불안정</span></div>' +
+     '<div class="qpc-perf-legend-item"><span class="qpc-perf-swatch" style="background:#e7ccb0;"></span><span>공정 능력이 없지만 안정적</span></div>' +
+     '<div class="qpc-perf-legend-item"><span class="qpc-perf-swatch" style="background:#efb7c0;"></span><span>공정 능력이 없고 불안정</span></div>' +
+     '<div class="qpc-perf-legend-item"><span class="qpc-perf-line"></span><span>군내 Cpk=1</span></div>' +
+    '</div>' +
+    '<div class="qpc-perf-control">' +
+     '<div class="qpc-perf-control-label">전체 Ppk</div>' +
+     '<div class="qpc-perf-control-line"><span class="qpc-perf-badge">전체 Ppk</span><input type="text" class="qpc-perf-input qpc-perf-ppk-input" data-role="perf-ppk-text" value="' + ppkRef + '"><input type="range" class="qpc-perf-range qpc-perf-ppk-range" data-role="perf-ppk-range" min="0.20" max="3.00" step="0.01" value="' + ppkRef + '"></div>' +
+     '<div class="qpc-perf-control-label">안정성 지수</div>' +
+     '<div class="qpc-perf-control-line"><span class="qpc-perf-badge">안정성 지수</span><input type="text" class="qpc-perf-input qpc-perf-stability-input" data-role="perf-stability-text" value="' + stabilityRef + '"><input type="range" class="qpc-perf-range qpc-perf-stability-range" data-role="perf-stability-range" min="0.50" max="3.00" step="0.01" value="' + stabilityRef + '"></div>' +
+    '</div>' +
+   '</div>' +
+  '</div>';
+ }
+ function renderProcessPerformancePlotBox(box){
+  if (!box || !payload || !payload.entries) return;
+  var idx = parseInt(box.getAttribute('data-entry-index') || '-1', 10);
+  if (!(idx >= 0) || !payload.entries[idx]) return;
+  var entry = payload.entries[idx];
+  var ppkText = box.querySelector('[data-role="perf-ppk-text"]');
+  var ppkRange = box.querySelector('[data-role="perf-ppk-range"]');
+  var stabilityText = box.querySelector('[data-role="perf-stability-text"]');
+  var stabilityRange = box.querySelector('[data-role="perf-stability-range"]');
+  var ppkRef = parseNum(ppkText ? ppkText.value : '1');
+  if (!isFinite(ppkRef)) ppkRef = parseNum(ppkRange ? ppkRange.value : '1');
+  ppkRef = clampNum(isFinite(ppkRef) ? ppkRef : 1, 0.20, 3.00);
+  var stabilityRef = parseNum(stabilityText ? stabilityText.value : '1.25');
+  if (!isFinite(stabilityRef)) stabilityRef = parseNum(stabilityRange ? stabilityRange.value : '1.25');
+  stabilityRef = clampNum(isFinite(stabilityRef) ? stabilityRef : 1.25, 0.50, 3.00);
+  if (ppkText) ppkText.value = fixedTrim(ppkRef, 2);
+  if (ppkRange) ppkRange.value = String(ppkRef);
+  if (stabilityText) stabilityText.value = fixedTrim(stabilityRef, 2);
+  if (stabilityRange) stabilityRange.value = String(stabilityRef);
+  var host = box.querySelector('[data-role="perf-svg"]');
+  if (host) host.innerHTML = processPerformancePlotSvg(entry, ppkRef, stabilityRef);
+ }
+ function mountProcessPerformancePlots(){
+  if (!root || !payload || !payload.entries) return;
+  var groups = root.querySelectorAll('.qpc-report-group');
+  Array.prototype.forEach.call(groups, function(group, idx){
+   if (!payload.entries[idx]) return;
+   var perfDetail = Array.prototype.find.call(group.querySelectorAll('.qpc-report-sub'), function(detail){
+    var summary = detail.querySelector('summary');
+    return summary && String(summary.textContent || '').replace(/\s+/g, ' ').trim() === '공정 성능 그림';
+   });
+   if (!perfDetail) return;
+   var body = perfDetail.querySelector('.qpc-report-sub-body');
+   if (!body) return;
+   body.innerHTML = processPerformancePlotHtml(payload.entries[idx], idx);
+  });
+ }
  function hideAllTargetHoverTips(){
   Array.prototype.forEach.call(document.querySelectorAll('[data-role="target-hover-tip"]'), function(el){ el.hidden = true; el.innerHTML = ''; });
  }
@@ -407,11 +541,10 @@ body{min-width:980px;}
   var yMaxBase = Math.ceil((Math.max(refVal, isFinite(rawPpk) ? rawPpk : 0) + 0.25) * 2) / 2;
   var yMax = Math.max(2.2, yMaxBase);
   var xMid = left + plotW / 2;
-  var categoryX = left + (plotW * 0.335);
-  var tickBottomY = plotBottom + 7;
-  var labelY = plotBottom + 40;
-  var axisTitleX = xMid;
-  var axisTitleY = plotBottom + 84;
+  var categoryX = left + (plotW * 0.43);
+  var labelY = plotBottom + 28;
+  var axisTitleX = xMid + 9;
+  var axisTitleY = height - 26;
   function y(v){ return top + plotH - ((v - 0) / (yMax - 0)) * plotH; }
   var yTicks = [];
   for (var v = 0; v <= yMax + 1e-9; v += 0.5) yTicks.push(Number(v.toFixed(1)));
@@ -426,7 +559,7 @@ body{min-width:980px;}
    return '<line x1="' + fixedTrim(left - 4,2) + '" y1="' + fixedTrim(yy,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(yy,2) + '" stroke="rgba(0,0,0,.45)"/>' + '<text x="' + fixedTrim(left - 8,2) + '" y="' + fixedTrim(yy + 3,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="end">' + esc(label) + '</text>';
   }).join('');
   var xAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(plotBottom,2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(plotBottom,2) + '" stroke="rgba(0,0,0,.45)"/>';
-  var xAxisMidTick = '<line x1="' + fixedTrim(categoryX,2) + '" y1="' + fixedTrim(plotBottom,2) + '" x2="' + fixedTrim(categoryX,2) + '" y2="' + fixedTrim(tickBottomY,2) + '" stroke="rgba(0,0,0,.45)"/>';
+  var xAxisMidTick = '<line x1="' + fixedTrim(categoryX,2) + '" y1="' + fixedTrim(plotBottom,2) + '" x2="' + fixedTrim(categoryX,2) + '" y2="' + fixedTrim(plotBottom + 6,2) + '" stroke="rgba(0,0,0,.45)"/>';
   var yAxis = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(left,2) + '" y2="' + fixedTrim(plotBottom,2) + '" stroke="rgba(0,0,0,.45)"/>';
   var frame = '<rect x="' + fixedTrim(left,2) + '" y="' + fixedTrim(top,2) + '" width="' + fixedTrim(plotW,2) + '" height="' + fixedTrim(plotH,2) + '" fill="#f8f8f8" stroke="#b7b7b7"/>';
   var refLine = '<line x1="' + fixedTrim(left,2) + '" y1="' + fixedTrim(y(refVal),2) + '" x2="' + fixedTrim(left + plotW,2) + '" y2="' + fixedTrim(y(refVal),2) + '" stroke="#ff6672" stroke-width="1.15"/>';
@@ -440,7 +573,7 @@ body{min-width:980px;}
   return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
    frame + hGrid + xAxis + xAxisMidTick + yAxis + refLine + marker + yAxisTicks +
    '<text x="' + fixedTrim(categoryX,2) + '" y="' + fixedTrim(labelY,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="middle" transform="rotate(-90 ' + fixedTrim(categoryX,2) + ' ' + fixedTrim(labelY,2) + ')">' + labelText + '</text>' +
-   '<text x="' + fixedTrim(axisTitleX,2) + '" y="' + fixedTrim(axisTitleY,2) + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">공정</text>' +
+   '<text x="' + fixedTrim(axisTitleX,2) + '" y="' + axisTitleY + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">공정</text>' +
    '<text x="14" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(17,17,17,.96)" font-size="11" text-anchor="middle" transform="rotate(-90 14 ' + fixedTrim(top + plotH/2,2) + ')">Ppk</text>' +
    '</svg>';
  }
@@ -461,8 +594,10 @@ body{min-width:980px;}
  }
  document.title = payload.title ? String(payload.title) : titleBase;
  if (root) root.innerHTML = String(payload.html || '');
+ mountProcessPerformancePlots();
  Array.prototype.forEach.call(document.querySelectorAll('.qpc-target-grid'), function(box){ renderTargetPlotBox(box); });
  Array.prototype.forEach.call(document.querySelectorAll('.qpc-index-grid'), function(box){ renderCapabilityIndexPlotBox(box); });
+ Array.prototype.forEach.call(document.querySelectorAll('.qpc-perf-grid'), function(box){ renderProcessPerformancePlotBox(box); });
  document.addEventListener('mousemove', function(ev){
   var hit = ev.target && ev.target.closest ? ev.target.closest('[data-role="target-marker-hit"]') : null;
   if (hit) showTargetHoverTip(hit, ev.clientX, ev.clientY);
@@ -494,6 +629,32 @@ body{min-width:980px;}
    var text2 = box2 ? box2.querySelector('[data-role="index-ppk-text"]') : null;
    if (text2) text2.value = fixedTrim(parseNum(ev.target.value), 2);
    renderCapabilityIndexPlotBox(box2);
+  }
+  if (ev.target && ev.target.matches && ev.target.matches('.qpc-perf-ppk-input')){
+   var pbox = ev.target.closest('.qpc-perf-grid');
+   var prange = pbox ? pbox.querySelector('[data-role="perf-ppk-range"]') : null;
+   var pv = clampNum(isFinite(parseNum(ev.target.value)) ? parseNum(ev.target.value) : 1, 0.20, 3.00);
+   if (prange) prange.value = String(pv);
+   renderProcessPerformancePlotBox(pbox);
+  }
+  if (ev.target && ev.target.matches && ev.target.matches('.qpc-perf-ppk-range')){
+   var pbox2 = ev.target.closest('.qpc-perf-grid');
+   var ptext = pbox2 ? pbox2.querySelector('[data-role="perf-ppk-text"]') : null;
+   if (ptext) ptext.value = fixedTrim(parseNum(ev.target.value), 2);
+   renderProcessPerformancePlotBox(pbox2);
+  }
+  if (ev.target && ev.target.matches && ev.target.matches('.qpc-perf-stability-input')){
+   var sbox = ev.target.closest('.qpc-perf-grid');
+   var srange = sbox ? sbox.querySelector('[data-role="perf-stability-range"]') : null;
+   var sv = clampNum(isFinite(parseNum(ev.target.value)) ? parseNum(ev.target.value) : 1.25, 0.50, 3.00);
+   if (srange) srange.value = String(sv);
+   renderProcessPerformancePlotBox(sbox);
+  }
+  if (ev.target && ev.target.matches && ev.target.matches('.qpc-perf-stability-range')){
+   var sbox2 = ev.target.closest('.qpc-perf-grid');
+   var stext = sbox2 ? sbox2.querySelector('[data-role="perf-stability-text"]') : null;
+   if (stext) stext.value = fixedTrim(parseNum(ev.target.value), 2);
+   renderProcessPerformancePlotBox(sbox2);
   }
  });
 })();
