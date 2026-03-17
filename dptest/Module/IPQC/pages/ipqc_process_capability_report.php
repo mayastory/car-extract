@@ -397,8 +397,8 @@ body{min-width:980px;}
   tip.style.top = fixedTrim(top,2) + 'px';
  }
  function capabilityIndexPlotSvg(entry, refPpk){
-  var width = 470, height = 520;
-  var left = 48, right = 16, top = 12, bottom = 148;
+  var width = 470, height = 570;
+  var left = 48, right = 16, top = 10, bottom = 150;
   var plotW = width - left - right;
   var plotH = height - top - bottom;
   var refVal = clampNum(parseNum(refPpk), 0.20, 2.50);
@@ -436,6 +436,34 @@ body{min-width:980px;}
    '<text x="14" y="' + fixedTrim(top + plotH/2,2) + '" fill="rgba(17,17,17,.96)" font-size="11" text-anchor="middle" transform="rotate(-90 14 ' + fixedTrim(top + plotH/2,2) + ')">Ppk</text>' +
    '</svg>';
  }
+ function normalizeCapabilityIndexBox(box){
+  if (!box) return;
+  box.style.display = 'grid';
+  box.style.gridTemplateColumns = 'minmax(0,470px) 128px';
+  box.style.gap = '12px';
+  box.style.alignItems = 'start';
+  box.style.maxWidth = '610px';
+  var main = box.querySelector('.qpc-index-main');
+  if (main){
+   main.style.width = '100%';
+   main.style.maxWidth = '470px';
+  }
+  var host = box.querySelector('[data-role="index-svg"]');
+  if (host){
+   host.style.width = '100%';
+   host.style.maxWidth = '470px';
+  }
+  var side = box.querySelector('.qpc-index-side');
+  if (!side) return;
+  side.style.width = '128px';
+  var textEl = side.querySelector('[data-role="index-ppk-text"]');
+  var line = textEl && textEl.parentElement ? textEl.parentElement : null;
+  if (line){
+   line.style.marginBottom = '6px';
+   var label = line.previousElementSibling;
+   if (label && label.tagName === 'DIV' && String(label.textContent || '').trim() === 'Ppk') label.remove();
+  }
+ }
  function renderCapabilityIndexPlotBox(box){
   if (!box || !payload || !payload.entries) return;
   var idx = parseInt(box.getAttribute('data-entry-index') || '-1', 10);
@@ -453,6 +481,7 @@ body{min-width:980px;}
  }
  document.title = payload.title ? String(payload.title) : titleBase;
  if (root) root.innerHTML = String(payload.html || '');
+ Array.prototype.forEach.call(document.querySelectorAll('.qpc-index-grid'), function(box){ normalizeCapabilityIndexBox(box); });
  Array.prototype.forEach.call(document.querySelectorAll('.qpc-target-grid'), function(box){ renderTargetPlotBox(box); });
  Array.prototype.forEach.call(document.querySelectorAll('.qpc-index-grid'), function(box){ renderCapabilityIndexPlotBox(box); });
  document.addEventListener('mousemove', function(ev){
