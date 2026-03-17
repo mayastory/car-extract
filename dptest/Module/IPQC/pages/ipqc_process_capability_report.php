@@ -429,7 +429,7 @@ body{min-width:980px;}
   }
   var labelText = esc(entry && (entry.label || entry.proc) || '-');
   return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
-   '<rect x="0.5" y="0.5" width="' + (width - 1) + '" height="' + (height - 1) + '" fill="#f8f8f8" stroke="#b7b7b7"/>' +
+   '<rect x="' + fixedTrim(left,2) + '" y="' + fixedTrim(top,2) + '" width="' + fixedTrim(plotW,2) + '" height="' + fixedTrim(plotH,2) + '" fill="transparent" stroke="#b7b7b7"/>' +
    hGrid + xAxis + yAxis + refLine + marker + yAxisTicks +
    '<text x="' + fixedTrim(xMid,2) + '" y="' + fixedTrim(top + plotH + 52,2) + '" fill="rgba(17,17,17,.92)" font-size="10" text-anchor="middle" transform="rotate(-90 ' + fixedTrim(xMid,2) + ' ' + fixedTrim(top + plotH + 52,2) + ')">' + labelText + '</text>' +
    '<text x="' + fixedTrim(xMid,2) + '" y="' + (height - 14) + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">공정</text>' +
