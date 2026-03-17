@@ -5837,10 +5837,30 @@ function renderFacetList(rootId, items, selSet){
   }
 
   function qgScaleSpecValueForCol(col, val){
+    const st = qgEnsureColSpecState(col);
     const v = Number(val);
     if (!isFinite(v)) return val;
-    const pct = qgGetColOocSpecPct(col);
+    const pct = qgGetColOocSpecPct(st);
     const ratio = pct / 85;
+
+    const baseU = Number(st && st.baseUsl);
+    const baseL = Number(st && st.baseLsl);
+    const hasU = isFinite(baseU);
+    const hasLRaw = isFinite(baseL);
+    const eps0 = 1e-12;
+
+    // In this graph builder, LSL=0 is treated as NULL/hidden.
+    if (hasLRaw && Math.abs(baseL) <= eps0 && Math.abs(v - baseL) <= eps0) return null;
+
+    const hasL = hasLRaw && Math.abs(baseL) > eps0;
+    if (hasU && hasL){
+      const center = (baseU + baseL) / 2;
+      const halfRange = Math.abs(baseU - baseL) / 2;
+      const eps = Math.max(1e-12, Math.abs(baseU - baseL) * 1e-12);
+      if (Math.abs(v - baseU) <= eps) return center + (halfRange * ratio);
+      if (Math.abs(v - baseL) <= eps) return center - (halfRange * ratio);
+    }
+
     return v * ratio;
   }
 
