@@ -1057,15 +1057,40 @@
     const box = '<rect x="' + fixedTrim(x(q1), 2) + '" y="' + fixedTrim(boxTop, 2) + '" width="' + fixedTrim(Math.max(1, x(q3) - x(q1)), 2) + '" height="' + fixedTrim(boxH, 2) + '" fill="' + boxFill + '" fill-opacity="0" stroke="rgba(0,0,0,.68)" stroke-width="1"/>' +
       '<line x1="' + fixedTrim(x(med), 2) + '" y1="' + fixedTrim(boxTop, 2) + '" x2="' + fixedTrim(x(med), 2) + '" y2="' + fixedTrim(boxTop + boxH, 2) + '" stroke="rgba(0,0,0,.72)" stroke-width="1"/>';
 
-    const ticks = [-0.5, 0, 0.5].map(v => {
-      const xx = x(v);
-      return '<line x1="' + fixedTrim(xx, 2) + '" y1="' + fixedTrim(plotBottom, 2) + '" x2="' + fixedTrim(xx, 2) + '" y2="' + fixedTrim(tickLineBottom, 2) + '" stroke="rgba(0,0,0,.45)"/><text x="' + fixedTrim(xx, 2) + '" y="' + fixedTrim(tickTextY, 2) + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">' + esc(fmtTargetTick(v)) + '</text>';
-    }).join('');
+    function niceTickStep(v){
+      if (!(v > 0) || !Number.isFinite(v)) return 1;
+      const exponent = Math.floor(Math.log10(v));
+      const fraction = v / Math.pow(10, exponent);
+      let niceFraction;
+      if (fraction <= 1) niceFraction = 1;
+      else if (fraction <= 2) niceFraction = 2;
+      else if (fraction <= 2.5) niceFraction = 2.5;
+      else if (fraction <= 5) niceFraction = 5;
+      else niceFraction = 10;
+      return niceFraction * Math.pow(10, exponent);
+    }
+    function formatAxisTick(v, step){
+      const safe = Math.abs(v) < Math.max(1e-9, step / 1000) ? 0 : v;
+      if (step >= 1) return fixedTrim(safe, 0);
+      if (step >= 0.1) return fixedTrim(safe, 1);
+      if (step >= 0.01) return fixedTrim(safe, 2);
+      return fixedTrim(safe, 3);
+    }
+    const tickStep = Math.max(niceTickStep((xMax - xMin) / 6), 1e-9);
+    const tickStart = Math.ceil(xMin / tickStep) * tickStep;
+    const ticks = [];
+    for (let v = tickStart; v <= xMax + tickStep * 0.25; v += tickStep){
+      if (v < xMin - 1e-9 || v > xMax + 1e-9) continue;
+      const safeV = Math.abs(v) < Math.max(1e-9, tickStep / 1000) ? 0 : v;
+      const xx = x(safeV);
+      ticks.push('<line x1="' + fixedTrim(xx, 2) + '" y1="' + fixedTrim(plotBottom, 2) + '" x2="' + fixedTrim(xx, 2) + '" y2="' + fixedTrim(tickLineBottom, 2) + '" stroke="rgba(0,0,0,.45)"/><text x="' + fixedTrim(xx, 2) + '" y="' + fixedTrim(tickTextY, 2) + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">' + esc(formatAxisTick(safeV, tickStep)) + '</text>');
+    }
+    const tickMarkup = ticks.join('');
 
     return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
       '<rect x="' + fixedTrim(left, 2) + '" y="' + fixedTrim(top, 2) + '" width="' + fixedTrim(plotW, 2) + '" height="' + fixedTrim(plotH, 2) + '" fill="#f8f8f8" stroke="#b7b7b7"/>' +
       '<line x1="' + fixedTrim(left, 2) + '" y1="' + fixedTrim(plotBottom, 2) + '" x2="' + fixedTrim(left + plotW, 2) + '" y2="' + fixedTrim(plotBottom, 2) + '" stroke="rgba(0,0,0,.55)"/>' +
-      specLines + points + whisker + box + ticks +
+      specLines + points + whisker + box + tickMarkup +
       '<text x="' + fixedTrim(left + (plotW / 2), 2) + '" y="' + fixedTrim(titleY, 2) + '" fill="rgba(17,17,17,.92)" font-size="11.5" text-anchor="middle">규격 한계를 사용하여 표준화됨</text>' +
       '<text x="' + fixedTrim(left + plotW + 12, 2) + '" y="' + fixedTrim(yMid + 4, 2) + '" fill="rgba(17,17,17,.92)" font-size="12">' + esc(entry.label || entry.proc || '') + '</text>' +
       '</svg>';
