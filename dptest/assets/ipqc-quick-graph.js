@@ -3113,10 +3113,12 @@ function getBase(){
       const key = (th.dataset && th.dataset.colkey) ? String(th.dataset.colkey) : label;
       const rawUsl = (th.dataset && th.dataset.usl !== undefined) ? num(th.dataset.usl) : null;
       const rawLsl = (th.dataset && th.dataset.lsl !== undefined) ? num(th.dataset.lsl) : null;
-      const savedBase = (QG.limitBaseByCol && QG.limitBaseByCol[key]) ? QG.limitBaseByCol[key] : null;
+      const savedBaseRaw = (QG.limitBaseByCol && QG.limitBaseByCol[key]) ? QG.limitBaseByCol[key] : null;
+      const savedPct = (QG.oocSpecByCol && QG.oocSpecByCol[key] !== undefined) ? QG.oocSpecByCol[key] : 85;
+      const savedBase = qgNormalizeLegacyBaseLimits(rawUsl, rawLsl, savedBaseRaw, savedPct);
+      if (QG.limitBaseByCol) QG.limitBaseByCol[key] = { baseUsl: savedBase.baseUsl, baseLsl: savedBase.baseLsl };
       const baseUsl = (savedBase && savedBase.baseUsl !== undefined) ? savedBase.baseUsl : rawUsl;
       const baseLsl = (savedBase && savedBase.baseLsl !== undefined) ? savedBase.baseLsl : rawLsl;
-      const savedPct = (QG.oocSpecByCol && QG.oocSpecByCol[key] !== undefined) ? QG.oocSpecByCol[key] : 85;
       cols.push({
         idx:i,
         key,
@@ -5924,10 +5926,14 @@ function renderFacetList(rootId, items, selSet){
     const savedLineVisible = (QG.oocLineVisibleByCol[key] !== undefined) ? !!QG.oocLineVisibleByCol[key] : ((col.oocLineVisible !== undefined) ? !!col.oocLineVisible : false);
     col.oocSpecPct = qgClampOocSpecPct(savedPct);
     col.oocLineVisible = savedLineVisible;
-    const savedBase = QG.limitBaseByCol[key] || null;
+    const savedBaseRaw = QG.limitBaseByCol[key] || null;
+    const rawUsl = (col.th && col.th.dataset && col.th.dataset.usl !== undefined) ? num(col.th.dataset.usl) : ((col.baseUsl !== undefined) ? col.baseUsl : col.usl);
+    const rawLsl = (col.th && col.th.dataset && col.th.dataset.lsl !== undefined) ? num(col.th.dataset.lsl) : ((col.baseLsl !== undefined) ? col.baseLsl : col.lsl);
+    const savedBase = qgNormalizeLegacyBaseLimits(rawUsl, rawLsl, savedBaseRaw, col.oocSpecPct);
     if (savedBase){
       col.baseUsl = (savedBase.baseUsl !== undefined) ? savedBase.baseUsl : (col.baseUsl !== undefined ? col.baseUsl : col.usl);
       col.baseLsl = (savedBase.baseLsl !== undefined) ? savedBase.baseLsl : (col.baseLsl !== undefined ? col.baseLsl : col.lsl);
+      QG.limitBaseByCol[key] = { baseUsl: col.baseUsl, baseLsl: col.baseLsl };
     }else{
       if (col.baseUsl === undefined) col.baseUsl = col.usl;
       if (col.baseLsl === undefined) col.baseLsl = col.lsl;
@@ -5946,6 +5952,65 @@ function renderFacetList(rootId, items, selSet){
   function qgIsVisibleLimitValue(val){
     const v = Number(val);
     return isFinite(v) && Math.abs(v) > 1e-12;
+  }
+
+  function qgSpecApproxEqual(a, b, eps){
+    const av = Number(a);
+    const bv = Number(b);
+    return isFinite(av) && isFinite(bv) && Math.abs(av - bv) <= Math.max(1e-12, Number(eps) || 0);
+  }
+
+  function qgSpecLegacyScaledEps(a, b){
+    const av = Number(a);
+    const bv = Number(b);
+    return Math.max(1e-9, Math.abs(av || 0) * 1e-9, Math.abs(bv || 0) * 1e-9, Math.abs((av || 0) - (bv || 0)) * 1e-9);
+  }
+
+  function qgCalcScaledOocLimitsFromBase(baseU, baseL, pct){
+    const ratio = qgClampOocSpecPct(pct) / 100;
+    const hasU = qgIsVisibleLimitValue(baseU);
+    const hasL = qgIsVisibleLimitValue(baseL);
+    if (!hasU && !hasL) return { usl: null, lsl: null };
+    if (hasU && hasL){
+      const center = (Number(baseU) + Number(baseL)) / 2;
+      const halfRange = Math.abs(Number(baseU) - Number(baseL)) / 2;
+      return {
+        usl: center + (halfRange * ratio),
+        lsl: center - (halfRange * ratio),
+      };
+    }
+    return {
+      usl: hasU ? (Number(baseU) * ratio) : null,
+      lsl: hasL ? (Number(baseL) * ratio) : null,
+    };
+  }
+
+  function qgNormalizeLegacyBaseLimits(rawU, rawL, savedBase, pct){
+    const src = savedBase || {};
+    const next = {
+      baseUsl: (src.baseUsl !== undefined) ? src.baseUsl : rawU,
+      baseLsl: (src.baseLsl !== undefined) ? src.baseLsl : rawL,
+    };
+
+    const scaled = qgCalcScaledOocLimitsFromBase(rawU, rawL, pct);
+    const epsU = qgSpecLegacyScaledEps(rawU, scaled.usl);
+    const epsL = qgSpecLegacyScaledEps(rawL, scaled.lsl);
+
+    if (qgIsVisibleLimitValue(rawU) && qgSpecApproxEqual(next.baseUsl, scaled.usl, epsU) && !qgSpecApproxEqual(rawU, scaled.usl, epsU)){
+      next.baseUsl = rawU;
+    }
+    if (qgIsVisibleLimitValue(rawL) && qgSpecApproxEqual(next.baseLsl, scaled.lsl, epsL) && !qgSpecApproxEqual(rawL, scaled.lsl, epsL)){
+      next.baseLsl = rawL;
+    }
+
+    if (!qgIsVisibleLimitValue(rawU) && (rawU === null || rawU === undefined || Math.abs(Number(rawU) || 0) <= 1e-12)){
+      next.baseUsl = rawU;
+    }
+    if (!qgIsVisibleLimitValue(rawL) && (rawL === null || rawL === undefined || Math.abs(Number(rawL) || 0) <= 1e-12)){
+      next.baseLsl = rawL;
+    }
+
+    return next;
   }
 
   function qgGetBaseLimitValueForCol(col, kind){
@@ -5991,8 +6056,6 @@ function renderFacetList(rootId, items, selSet){
     const st = qgEnsureColSpecState(col);
     const v = Number(val);
     if (!isFinite(v)) return val;
-    const pct = qgGetColOocSpecPct(st);
-    const ratio = pct / 100;
 
     const baseU = Number(st && st.baseUsl);
     const baseL = Number(st && st.baseLsl);
@@ -6004,17 +6067,9 @@ function renderFacetList(rootId, items, selSet){
     if (hasURaw && !qgIsVisibleLimitValue(baseU) && Math.abs(v - baseU) <= eps0) return null;
     if (hasLRaw && !qgIsVisibleLimitValue(baseL) && Math.abs(v - baseL) <= eps0) return null;
 
-    const hasU = hasURaw && qgIsVisibleLimitValue(baseU);
-    const hasL = hasLRaw && qgIsVisibleLimitValue(baseL);
-    if (hasU && hasL){
-      const center = (baseU + baseL) / 2;
-      const halfRange = Math.abs(baseU - baseL) / 2;
-      const eps = Math.max(1e-12, Math.abs(baseU - baseL) * 1e-12);
-      if (Math.abs(v - baseU) <= eps) return center + (halfRange * ratio);
-      if (Math.abs(v - baseL) <= eps) return center - (halfRange * ratio);
-    }
-
-    return v * ratio;
+    // Base USL/LSL always stays on the 100% input value.
+    // OOC SPEC is drawn separately via qgGetScaledOocLimitsForCol().
+    return v;
   }
 
   function syncOocSpecInputs(force){
