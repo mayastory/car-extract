@@ -6618,8 +6618,9 @@ function renderGrid(){
     grid.appendChild(group);
     const headerH = Math.ceil(head.getBoundingClientRect().height || 0);
 
-    const avail = Math.max(120, (groupCapH - headerH - 16) - (rowsN-1)*gapY);
-    const rowSvgH = Math.max(42, Math.floor(avail / rowsN));
+    const footerH = 56; // reserve date-label space once for the whole tool-row block
+    const availPlot = Math.max(120, (groupCapH - headerH - 16 - footerH) - (rowsN-1)*gapY);
+    const rowPlotH = Math.max(42, Math.floor(availPlot / rowsN));
 
     let groupAdded = 0;
 
@@ -6683,9 +6684,9 @@ function renderGrid(){
       const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
       svg.classList.add('qg-svg');
       try{ svg.dataset.colKey = String(colKey); svg.setAttribute('data-col-key', String(colKey)); }catch(e){}
-      svg.setAttribute('viewBox', `0 0 1200 ${rowSvgH}`);
+      svg.setAttribute('viewBox', '0 0 1200 320');
       svg.setAttribute('preserveAspectRatio','none');
-      svg.style.height = rowSvgH + 'px';
+      svg.style.height = '320px';
       svg.style.pointerEvents = 'all';
 
       // Clicking a chart should switch the axis/limit editor to that FAI (primary selection)
@@ -6703,6 +6704,9 @@ function renderGrid(){
 
       // Dates only once per tool-row block (on the last FAI row)
       const showXLabels = (ki === keys.length - 1);
+      const rowSvgH = rowPlotH + (showXLabels ? footerH : 0);
+      svg.setAttribute('viewBox', `0 0 1200 ${rowSvgH}`);
+      svg.style.height = rowSvgH + 'px';
 
       const prevSeries = QG.series;
       QG.series = series;

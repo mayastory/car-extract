@@ -580,7 +580,7 @@ if (!function_exists('h')) {
 
 
   /* Row content wrapper */
-  #qgOverlay .qg-fai-one{ width:100%; background:#fff; }
+  #qgOverlay .qg-fai-one{ width:100%; }
 /* Grid */
   /* Remove inter-group gaps so the header/FAI panels look like one continuous page (JMP-like) */
   #qgOverlay #qgGrid{ display:grid; gap:0; }
@@ -599,7 +599,7 @@ if (!function_exists('h')) {
 
   /* Make selection text sit nicely inside the pills */
   #qgOverlay .qg-item .k{ max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .qg-svg{ width:100%; height:auto; display:block; background:#fff; }
+  .qg-svg{ width:100%; height:auto; display:block; }
   .qg-empty{ padding:18px 10px; opacity:0.75; text-align:center; }
 
   @media (max-width: 1050px){
@@ -983,7 +983,7 @@ if (!function_exists('h')) {
           </div>
         </details>
 
-        <!-- 대상 FAI (Ctrl/⌘ 멀티) -->
+        <!-- 대상 FAI (Ctrl/⌘ 멀티, 최대 9) -->
         <details class="qg-box" open>
           <summary id="qgFaiSummary">대상 FAI</summary>
           <div class="qg-box-body">
