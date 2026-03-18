@@ -1050,11 +1050,11 @@
       '<line x1="' + fixedTrim(x(whiskerLow), 2) + '" y1="' + fixedTrim(whiskerY - 6, 2) + '" x2="' + fixedTrim(x(whiskerLow), 2) + '" y2="' + fixedTrim(whiskerY + 6, 2) + '" stroke="' + whiskerColor + '" stroke-width="1.05"/>' +
       '<line x1="' + fixedTrim(x(whiskerHigh), 2) + '" y1="' + fixedTrim(whiskerY - 6, 2) + '" x2="' + fixedTrim(x(whiskerHigh), 2) + '" y2="' + fixedTrim(whiskerY + 6, 2) + '" stroke="' + whiskerColor + '" stroke-width="1.05"/>';
 
-    let boxFill = '#d6d6d6';
-    if (Number.isFinite(entry.usl) && !Number.isFinite(entry.lsl)) boxFill = '#6f9eff';
-    if (Number.isFinite(entry.lsl) && !Number.isFinite(entry.usl)) boxFill = '#ef7d7d';
+    let boxFill = 'transparent';
+    if (Number.isFinite(entry.usl) && !Number.isFinite(entry.lsl)) boxFill = 'transparent';
+    if (Number.isFinite(entry.lsl) && !Number.isFinite(entry.usl)) boxFill = 'transparent';
     const boxTop = yMid - (boxH / 2);
-    const box = '<rect x="' + fixedTrim(x(q1), 2) + '" y="' + fixedTrim(boxTop, 2) + '" width="' + fixedTrim(Math.max(1, x(q3) - x(q1)), 2) + '" height="' + fixedTrim(boxH, 2) + '" fill="' + boxFill + '" fill-opacity="0.90" stroke="rgba(0,0,0,.68)" stroke-width="1"/>' +
+    const box = '<rect x="' + fixedTrim(x(q1), 2) + '" y="' + fixedTrim(boxTop, 2) + '" width="' + fixedTrim(Math.max(1, x(q3) - x(q1)), 2) + '" height="' + fixedTrim(boxH, 2) + '" fill="' + boxFill + '" fill-opacity="0" stroke="rgba(0,0,0,.68)" stroke-width="1"/>' +
       '<line x1="' + fixedTrim(x(med), 2) + '" y1="' + fixedTrim(boxTop, 2) + '" x2="' + fixedTrim(x(med), 2) + '" y2="' + fixedTrim(boxTop + boxH, 2) + '" stroke="rgba(0,0,0,.72)" stroke-width="1"/>';
 
     const ticks = [-0.5, 0, 0.5].map(v => {
