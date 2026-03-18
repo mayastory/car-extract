@@ -500,7 +500,7 @@ if (!function_exists('h')) {
   
     /* Tool header band (JMP-like) */
   /* Tighter vertical rhythm so stacked panels visually connect (JMP-like). */
-  #qgOverlay .qg-tool-group{ position:relative; margin-bottom:0; }
+  #qgOverlay .qg-tool-group{ position:relative; margin-bottom:0; background:#ffffff; }
 
   /* Align header with FAI rows: [label 34px] + [gap 6px] + [svg width] */
   #qgOverlay .qg-tophead{
@@ -534,9 +534,9 @@ if (!function_exists('h')) {
     background:#ffffff;
   }
 
-  /* Remove “double borders” between stacked SVG panels (JMP-like continuous page) */
-  #qgOverlay .qg-tool-group .qg-tophead + .qg-fai-row .qg-svg{ margin-top:-1px; }
-  #qgOverlay .qg-tool-group .qg-fai-row + .qg-fai-row .qg-svg{ margin-top:-1px; }
+  /* Stacked FAI rows share one graph box; do not overlap the SVGs themselves. */
+  #qgOverlay .qg-tool-group .qg-tophead + .qg-fai-row .qg-svg{ margin-top:0; }
+  #qgOverlay .qg-tool-group .qg-fai-row + .qg-fai-row .qg-svg{ margin-top:0; }
 
   #qgOverlay .qg-tophead-row{
     text-align:center;

@@ -842,6 +842,8 @@ function qgEnsureCaptionState(colKey){
       const r = (padR && isFinite(padR)) ? Number(padR) : 18;
       ov.style.setProperty('--qg-padL-pct', (l / w * 100).toFixed(3) + '%');
       ov.style.setProperty('--qg-padR-pct', (r / w * 100).toFixed(3) + '%');
+      ov.style.setProperty('--qg-padL-px', l.toFixed(2) + 'px');
+      ov.style.setProperty('--qg-padR-px', r.toFixed(2) + 'px');
     }catch(e){}
   }
 
@@ -6916,8 +6918,9 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
     plot.setAttribute('fill', _bgColor);
     plot.setAttribute('fill-opacity', String(_bgOpacity));
   }
-  plot.setAttribute('stroke','#cfcfcf');
-  plot.setAttribute('stroke-width','1');
+  // Repeating a full rect stroke for every stacked FAI row creates visible double seams.
+  plot.setAttribute('stroke','none');
+  plot.setAttribute('stroke-width','0');
   try{ plot.setAttribute('pointer-events','none'); }catch(e){}
   svg.appendChild(plot);
 
@@ -6982,10 +6985,12 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
 
   const yRange = (yMax - yMin);
   // When many FAIs are stacked, reduce tick density to keep the rows visually connected like JMP.
-  const targetMajorTicks = Math.max(2, Math.min(7, Math.floor(innerH / 18)));
+  const denseRows = rowCount >= 6;
+  const targetMajorTicks = Math.max(2, Math.min(denseRows ? 5 : 7, Math.floor(innerH / (denseRows ? 24 : 18))));
   const major = niceStep(yRange, targetMajorTicks);
   const minor = major / 5;
   const yAxisX = padL;
+  const yTickFontPx = Math.max(8, Math.min(11, Math.floor(innerH / (denseRows ? 6 : 5))));
 
   // minor tick marks (no labels)
   const minorStart = Math.ceil(yMin / minor) * minor;
@@ -7044,11 +7049,13 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
     if (skipTopLabel || skipBottomLabel) continue;
 
     const tx = document.createElementNS(ns,'text');
+    const yLbl = Math.max(padT + yTickFontPx * 0.85, Math.min(padT + innerH - yTickFontPx * 0.35, y));
     tx.setAttribute('x', String(yAxisX - 8));
-    tx.setAttribute('y', String(y + 4));
-    tx.setAttribute('font-size', String(Math.max(9, Math.min(11, Math.floor(innerH / 5)))));
+    tx.setAttribute('y', String(yLbl));
+    tx.setAttribute('font-size', String(yTickFontPx));
     tx.setAttribute('fill','rgba(0,0,0,0.70)');
     tx.setAttribute('text-anchor','end');
+    tx.setAttribute('dominant-baseline','middle');
     tx.textContent = fmtTick(v);
     svg.appendChild(tx);
   }
@@ -7077,6 +7084,45 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
     clip(ln);
     svg.appendChild(ln);
   }
+
+  // Draw only the outer box edges that should remain visible when panels are stacked.
+  const outerStroke = '#cfcfcf';
+  if (rowIndex === 0){
+    const topEdge = document.createElementNS(ns,'line');
+    topEdge.setAttribute('x1', String(padL));
+    topEdge.setAttribute('x2', String(W - padR));
+    topEdge.setAttribute('y1', String(padT));
+    topEdge.setAttribute('y2', String(padT));
+    topEdge.setAttribute('stroke', outerStroke);
+    topEdge.setAttribute('stroke-width', '1');
+    svg.appendChild(topEdge);
+  }
+  if (rowIndex === rowCount - 1){
+    const botEdge = document.createElementNS(ns,'line');
+    botEdge.setAttribute('x1', String(padL));
+    botEdge.setAttribute('x2', String(W - padR));
+    botEdge.setAttribute('y1', String(padT + innerH));
+    botEdge.setAttribute('y2', String(padT + innerH));
+    botEdge.setAttribute('stroke', outerStroke);
+    botEdge.setAttribute('stroke-width', '1');
+    svg.appendChild(botEdge);
+  }
+  const leftEdge = document.createElementNS(ns,'line');
+  leftEdge.setAttribute('x1', String(padL));
+  leftEdge.setAttribute('x2', String(padL));
+  leftEdge.setAttribute('y1', String(padT));
+  leftEdge.setAttribute('y2', String(padT + innerH));
+  leftEdge.setAttribute('stroke', outerStroke);
+  leftEdge.setAttribute('stroke-width', '1');
+  svg.appendChild(leftEdge);
+  const rightEdge = document.createElementNS(ns,'line');
+  rightEdge.setAttribute('x1', String(W - padR));
+  rightEdge.setAttribute('x2', String(W - padR));
+  rightEdge.setAttribute('y1', String(padT));
+  rightEdge.setAttribute('y2', String(padT + innerH));
+  rightEdge.setAttribute('stroke', outerStroke);
+  rightEdge.setAttribute('stroke-width', '1');
+  svg.appendChild(rightEdge);
 
   // panels: tool x cavity
   for (let pi=0; pi<nP; pi++){
@@ -7115,11 +7161,14 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       if (pi !== nP - 1) return;
       if (st.showLabel === false) return;
       const tx = document.createElementNS(ns,'text');
-      const _specX = right - 4;
+      const _fontPx = 10;
+      const _specX = W - Math.max(6, Math.round(padR * 0.12));
+      const _specY = Math.max(_fontPx, Math.min(H - 4, y));
       tx.setAttribute('x', String(_specX));
-      tx.setAttribute('y', String(y - 2));
+      tx.setAttribute('y', String(_specY));
       tx.setAttribute('text-anchor', 'end');
-      tx.setAttribute('font-size','10');
+      tx.setAttribute('dominant-baseline', 'middle');
+      tx.setAttribute('font-size', String(_fontPx));
       tx.setAttribute('fill','rgba(0,0,0,0.70)');
       if (st.labelOpacity !== undefined && st.labelOpacity !== null){
         try{ tx.setAttribute('opacity', String(st.labelOpacity)); }catch(e){}
@@ -7168,15 +7217,18 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
         // Label at the line end (like USL/LSL)
         if (_vLblOn && pi === nP - 1){
           const tx = document.createElementNS(ns,'text');
-          tx.setAttribute('x', String(right - 2));
-          tx.setAttribute('y', String(y - 2));
+          const _fontPx = 10;
+          const _lblX = W - Math.max(6, Math.round(padR * 0.12));
+          const _lblY = Math.max(_fontPx, Math.min(H - 4, y));
+          tx.setAttribute('x', String(_lblX));
+          tx.setAttribute('y', String(_lblY));
           tx.setAttribute('text-anchor','end');
-          tx.setAttribute('font-size','10');
+          tx.setAttribute('dominant-baseline','middle');
+          tx.setAttribute('font-size', String(_fontPx));
           tx.setAttribute('fill','rgba(0,0,0,0.70)');
           try{ tx.setAttribute('opacity', String(_vOpacity)); }catch(e){}
           tx.textContent = _vPref + String(_vi + 1) + ' ' + fmtTick(v);
           try{ tx.setAttribute('data-qg-tip', _vPref + String(_vi + 1) + ': ' + fmtTick(v)); }catch(e){}
-          clip(tx);
           svg.appendChild(tx);
         }
       }
