@@ -5943,15 +5943,18 @@ function renderFacetList(rootId, items, selSet){
     return st ? qgClampOocSpecPct(st.oocSpecPct) : 85;
   }
 
+  function qgIsVisibleLimitValue(val){
+    const v = Number(val);
+    return isFinite(v) && Math.abs(v) > 1e-12;
+  }
+
   function qgGetBaseLimitValueForCol(col, kind){
     const st = qgEnsureColSpecState(col);
     if (!st) return null;
     const isLsl = String(kind || '').toLowerCase() === 'lsl';
     const raw = isLsl ? st.baseLsl : st.baseUsl;
     const v = Number(raw);
-    if (!isFinite(v)) return null;
-    // In Quick Graph, a zero spec line should be treated the same as NULL/hidden.
-    if (Math.abs(v) <= 1e-12) return null;
+    if (!qgIsVisibleLimitValue(v)) return null;
     return v;
   }
 
@@ -5998,11 +6001,11 @@ function renderFacetList(rootId, items, selSet){
     const eps0 = 1e-12;
 
     // In this graph builder, USL/LSL=0 is treated as NULL/hidden.
-    if (hasURaw && Math.abs(baseU) <= eps0 && Math.abs(v - baseU) <= eps0) return null;
-    if (hasLRaw && Math.abs(baseL) <= eps0 && Math.abs(v - baseL) <= eps0) return null;
+    if (hasURaw && !qgIsVisibleLimitValue(baseU) && Math.abs(v - baseU) <= eps0) return null;
+    if (hasLRaw && !qgIsVisibleLimitValue(baseL) && Math.abs(v - baseL) <= eps0) return null;
 
-    const hasU = hasURaw && Math.abs(baseU) > eps0;
-    const hasL = hasLRaw && Math.abs(baseL) > eps0;
+    const hasU = hasURaw && qgIsVisibleLimitValue(baseU);
+    const hasL = hasLRaw && qgIsVisibleLimitValue(baseL);
     if (hasU && hasL){
       const center = (baseU + baseL) / 2;
       const halfRange = Math.abs(baseU - baseL) / 2;
@@ -7231,7 +7234,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
     // USL/LSL per panel (base limits stay fixed); OOC SPEC uses a separate overlay line
     function hLine(val, label, cfg){
       const scaledVal = Number(val);
-      if (!isFinite(scaledVal)) return;
+      if (!qgIsVisibleLimitValue(scaledVal)) return;
       const st = cfg || {};
       const y = yAt(scaledVal);
       const ln = document.createElementNS(ns,'line');
@@ -8292,7 +8295,7 @@ const clip = (el)=>{ try{ el.setAttribute('clip-path', clipUrl); }catch(e){} };
       // so draw the dashed line in every cavity panel but draw the label only once (rightmost panel)
       function hLine(val, label, cfg){
         const scaledVal = Number(val);
-        if (!isFinite(scaledVal)) return;
+        if (!qgIsVisibleLimitValue(scaledVal)) return;
         const st = cfg || {};
         const y = yAt(scaledVal);
         const ln = document.createElementNS(ns,'line');
