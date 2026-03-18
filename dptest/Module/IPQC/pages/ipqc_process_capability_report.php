@@ -637,9 +637,21 @@ body{min-width:980px;}
    xMin = rawMin - 1;
    xMax = rawMax + 1;
   }
+  var nextMajor = Math.ceil((xMax - 1e-9) / majorStep) * majorStep;
+  if (nextMajor > xMax){
+   var rightGap = nextMajor - rawMax;
+   if (rightGap <= (majorStep * 0.35)) xMax = nextMajor + (majorStep * 0.06);
+  }
+  var prevMajor = Math.floor((xMin + 1e-9) / majorStep) * majorStep;
+  if (prevMajor < xMin){
+   var leftGap = rawMin - prevMajor;
+   if (leftGap <= (majorStep * 0.20)) xMin = prevMajor - (majorStep * 0.06);
+  }
   var majorCount = Math.round((xMax - xMin) / majorStep);
   if (majorCount > 8) {
    majorStep = niceStep(xMax - xMin, 5);
+   nextMajor = Math.ceil((xMax - 1e-9) / majorStep) * majorStep;
+   prevMajor = Math.floor((xMin + 1e-9) / majorStep) * majorStep;
   }
   var minorStep = majorStep / 2;
   if (!isFinite(minorStep) || minorStep <= 0) minorStep = majorStep;
