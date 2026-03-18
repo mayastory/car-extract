@@ -153,7 +153,7 @@
     varLineSeq: 1,
     axisByCol: {}, // {colKey:{yMin:null|number,yMax:null|number}}
     gridHidden: true, // grid hide toggle (default: hidden)
-    oocSpecByCol: {}, // {colKey: pct} per-FAI OOC SPEC percentage (85 keeps current base/input USL/LSL)
+    oocSpecByCol: {}, // {colKey: pct} per-FAI OOC SPEC percentage (100 = current base/input USL/LSL, default slider value stays 85)
     oocLineVisibleByCol: {}, // {colKey:boolean} per-FAI OOC reference line visibility
     limitBaseByCol: {}, // {colKey:{baseUsl,baseLsl}} per-FAI base limits before OOC scaling
     editingOocSpec: false,
@@ -5484,7 +5484,7 @@ try{
       }
     }catch(e){}
 
-    // OOC SPEC value control (1~100%, 85 = current base/input USL/LSL)
+    // OOC SPEC value control (1~100%, 100 = current base/input USL/LSL; default slider value stays 85)
     try{
       const specRange = qs('#qgOocSpecRange');
       const specPct = qs('#qgOocSpecPct');
@@ -5971,7 +5971,7 @@ function renderFacetList(rootId, items, selSet){
     const baseL = qgGetBaseLimitValueForCol(st, 'lsl');
     if (baseU === null && baseL === null) return { usl: null, lsl: null };
 
-    const ratio = qgGetColOocSpecPct(st) / 85;
+    const ratio = qgGetColOocSpecPct(st) / 100;
     if (baseU !== null && baseL !== null){
       const center = (baseU + baseL) / 2;
       const halfRange = Math.abs(baseU - baseL) / 2;
@@ -5992,7 +5992,7 @@ function renderFacetList(rootId, items, selSet){
     const v = Number(val);
     if (!isFinite(v)) return val;
     const pct = qgGetColOocSpecPct(st);
-    const ratio = pct / 85;
+    const ratio = pct / 100;
 
     const baseU = Number(st && st.baseUsl);
     const baseL = Number(st && st.baseLsl);
