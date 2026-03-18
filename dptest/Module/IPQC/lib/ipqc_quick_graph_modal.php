@@ -500,7 +500,7 @@ if (!function_exists('h')) {
   
     /* Tool header band (JMP-like) */
   /* Tighter vertical rhythm so stacked panels visually connect (JMP-like). */
-  #qgOverlay .qg-tool-group{ position:relative; margin-bottom:0; background:#ffffff; }
+  #qgOverlay .qg-tool-group{ position:relative; margin-bottom:0; }
 
   /* Align header with FAI rows: [label 34px] + [gap 6px] + [svg width] */
   #qgOverlay .qg-tophead{
@@ -532,11 +532,12 @@ if (!function_exists('h')) {
     border-radius:0;
     overflow:hidden;
     background:#ffffff;
+    box-sizing:border-box;
   }
 
-  /* Stacked FAI rows share one graph box; do not overlap the SVGs themselves. */
-  #qgOverlay .qg-tool-group .qg-tophead + .qg-fai-row .qg-svg{ margin-top:0; }
-  #qgOverlay .qg-tool-group .qg-fai-row + .qg-fai-row .qg-svg{ margin-top:0; }
+  /* Remove “double borders” between stacked SVG panels (JMP-like continuous page) */
+  #qgOverlay .qg-tool-group .qg-tophead + .qg-fai-row .qg-svg{ margin-top:-1px; }
+  #qgOverlay .qg-tool-group .qg-fai-row + .qg-fai-row .qg-svg{ margin-top:-1px; }
 
   #qgOverlay .qg-tophead-row{
     text-align:center;
@@ -553,6 +554,7 @@ if (!function_exists('h')) {
     display:grid;
     background:#f8f8f8;
     border-bottom:1px solid #cfcfcf;
+    box-sizing:border-box;
   }
   #qgOverlay .qg-tophead-tool{
     text-align:center;
@@ -561,11 +563,13 @@ if (!function_exists('h')) {
     font-size:11px;
     color:#000;
     border-left:1px solid #cfcfcf;
+    box-sizing:border-box;
+    min-width:0;
   }
   #qgOverlay .qg-tophead-tool.first{ border-left:none; }
 
   /* Cavity row */
-  #qgOverlay .qg-tophead-cavs{ display:grid; background:#dedbcf; }
+  #qgOverlay .qg-tophead-cavs{ display:grid; background:#dedbcf; box-sizing:border-box; }
   #qgOverlay .qg-tophead-cav{
     text-align:center;
     padding:4px 0;
@@ -573,8 +577,10 @@ if (!function_exists('h')) {
     font-size:11px;
     color:#000;
     border-left:1px solid #cfcfcf;
+    box-sizing:border-box;
+    min-width:0;
   }
-  #qgOverlay .qg-tophead-cav.tool-start{ border-left:2px solid #a9a9a9; }
+  #qgOverlay .qg-tophead-cav.tool-start{ border-left:1px solid #cfcfcf; }
   #qgOverlay .qg-tophead-cav:first-child{ border-left:none; }
 
 

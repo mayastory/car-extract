@@ -4588,7 +4588,7 @@ function qgPanelRectsFromSvg(svg){
 
   const r0 = svg.getBoundingClientRect();
   const W = 1200; // fixed viewBox width (drawMatrixSvg)
-  const padL = 62, padR = 14; // must match drawMatrixSvg()
+  const padL = 72, padR = 14; // must match drawMatrixSvg()
   const innerW = W - padL - padR;
   const panelW = innerW / nP;
 
@@ -6784,17 +6784,10 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
   const W = 1200, H = (opt && opt.h ? opt.h : 320);
   const rowIndex = Math.max(0, Number(opt && opt.rowIndex) || 0);
   const rowCount = Math.max(1, Number(opt && opt.rowCount) || 1);
-  // Use wider dynamic side pads when many FAIs are stacked so Y labels / USL labels never get clipped.
-  const _fmtCandidates = [];
-  try{
-    if (opt && opt.usl !== null && opt.usl !== undefined && isFinite(Number(opt.usl))) _fmtCandidates.push(fmtTick(Number(opt.usl)));
-    if (opt && opt.lsl !== null && opt.lsl !== undefined && isFinite(Number(opt.lsl))) _fmtCandidates.push(fmtTick(Number(opt.lsl)));
-    if (opt && opt.oocUsl !== null && opt.oocUsl !== undefined && isFinite(Number(opt.oocUsl))) _fmtCandidates.push(fmtTick(Number(opt.oocUsl)));
-    if (opt && opt.oocLsl !== null && opt.oocLsl !== undefined && isFinite(Number(opt.oocLsl))) _fmtCandidates.push(fmtTick(Number(opt.oocLsl)));
-  }catch(e){}
-  const _maxNumChars = _fmtCandidates.reduce((m, s)=> Math.max(m, String(s||'').length), 0);
-  const padL = Math.max(62, 28 + (_maxNumChars * 7));
-  const padR = Math.max(46, 22 + (_maxNumChars * 7));
+  // Keep a stable plot box so all FAI rows and the shared cavity header line up exactly.
+  // USL/LSL labels stay inside the last cavity panel instead of stealing extra right margin.
+  const padL = 72;
+  const padR = 14;
   const padT = 0, padB = (opt && opt.showXLabels===false) ? 0 : 56;
   const innerW = W - padL - padR;
   const innerH = H - padT - padB;
@@ -6918,7 +6911,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
     plot.setAttribute('fill', _bgColor);
     plot.setAttribute('fill-opacity', String(_bgOpacity));
   }
-  // Repeating a full rect stroke for every stacked FAI row creates visible double seams.
+  // Avoid double seams between stacked FAI rows; outer box edges are drawn explicitly below.
   plot.setAttribute('stroke','none');
   plot.setAttribute('stroke-width','0');
   try{ plot.setAttribute('pointer-events','none'); }catch(e){}
@@ -7072,20 +7065,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
     svg.appendChild(z);
   }
 
-  // vertical separators (between cavities and between tools)
-  for (let i=1; i<nP; i++){
-    const x = padL + i*panelW;
-    const isToolBoundary = (i % nC) === 0;
-    const ln = document.createElementNS(ns,'line');
-    ln.setAttribute('x1', String(x)); ln.setAttribute('x2', String(x));
-    ln.setAttribute('y1', String(padT)); ln.setAttribute('y2', String(padT + innerH));
-    ln.setAttribute('stroke', isToolBoundary ? '#bdbdbd' : '#d4d4d4');
-    ln.setAttribute('stroke-width', isToolBoundary ? '2' : '1');
-    clip(ln);
-    svg.appendChild(ln);
-  }
-
-  // Draw only the outer box edges that should remain visible when panels are stacked.
+  // Draw only the shared outer box edges that should remain visible when the FAI rows stack.
   const outerStroke = '#cfcfcf';
   if (rowIndex === 0){
     const topEdge = document.createElementNS(ns,'line');
@@ -7123,6 +7103,19 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
   rightEdge.setAttribute('stroke', outerStroke);
   rightEdge.setAttribute('stroke-width', '1');
   svg.appendChild(rightEdge);
+
+  // vertical separators (between cavities and between tools)
+  for (let i=1; i<nP; i++){
+    const x = padL + i*panelW;
+    const isToolBoundary = (i % nC) === 0;
+    const ln = document.createElementNS(ns,'line');
+    ln.setAttribute('x1', String(x)); ln.setAttribute('x2', String(x));
+    ln.setAttribute('y1', String(padT)); ln.setAttribute('y2', String(padT + innerH));
+    ln.setAttribute('stroke', isToolBoundary ? '#bdbdbd' : '#d4d4d4');
+    ln.setAttribute('stroke-width', isToolBoundary ? '2' : '1');
+    clip(ln);
+    svg.appendChild(ln);
+  }
 
   // panels: tool x cavity
   for (let pi=0; pi<nP; pi++){
@@ -7162,8 +7155,8 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       if (st.showLabel === false) return;
       const tx = document.createElementNS(ns,'text');
       const _fontPx = 10;
-      const _specX = W - Math.max(6, Math.round(padR * 0.12));
-      const _specY = Math.max(_fontPx, Math.min(H - 4, y));
+      const _specX = right - 4;
+      const _specY = Math.max(padT + _fontPx, Math.min(padT + innerH - 2, y));
       tx.setAttribute('x', String(_specX));
       tx.setAttribute('y', String(_specY));
       tx.setAttribute('text-anchor', 'end');
@@ -7218,8 +7211,8 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
         if (_vLblOn && pi === nP - 1){
           const tx = document.createElementNS(ns,'text');
           const _fontPx = 10;
-          const _lblX = W - Math.max(6, Math.round(padR * 0.12));
-          const _lblY = Math.max(_fontPx, Math.min(H - 4, y));
+          const _lblX = right - 2;
+          const _lblY = Math.max(padT + _fontPx, Math.min(padT + innerH - 2, y));
           tx.setAttribute('x', String(_lblX));
           tx.setAttribute('y', String(_lblY));
           tx.setAttribute('text-anchor','end');
@@ -7229,6 +7222,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
           try{ tx.setAttribute('opacity', String(_vOpacity)); }catch(e){}
           tx.textContent = _vPref + String(_vi + 1) + ' ' + fmtTick(v);
           try{ tx.setAttribute('data-qg-tip', _vPref + String(_vi + 1) + ': ' + fmtTick(v)); }catch(e){}
+          clip(tx);
           svg.appendChild(tx);
         }
       }
@@ -7910,7 +7904,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
 
     const W = 1200, H = (opt && opt.h ? opt.h : 320);
     // Keep x-axis labels tight to the plot (JMP-like), while still preventing clipping.
-    const padL = 62, padR = 14, padT = 14, padB = (opt && opt.showXLabels===false) ? 26 : 70;
+    const padL = 72, padR = 14, padT = 14, padB = (opt && opt.showXLabels===false) ? 26 : 70;
     const innerW = W - padL - padR;
     const innerH = H - padT - padB;
 
@@ -8128,6 +8122,45 @@ const clip = (el)=>{ try{ el.setAttribute('clip-path', clipUrl); }catch(e){} };
       svg.appendChild(z);
     }
 
+    // Draw only the shared outer box edges that should remain visible when the FAI rows stack.
+    const outerStroke = '#cfcfcf';
+    if (rowIndex === 0){
+      const topEdge = document.createElementNS(ns,'line');
+      topEdge.setAttribute('x1', String(padL));
+      topEdge.setAttribute('x2', String(W - padR));
+      topEdge.setAttribute('y1', String(padT));
+      topEdge.setAttribute('y2', String(padT));
+      topEdge.setAttribute('stroke', outerStroke);
+      topEdge.setAttribute('stroke-width', '1');
+      svg.appendChild(topEdge);
+    }
+    if (rowIndex === rowCount - 1){
+      const botEdge = document.createElementNS(ns,'line');
+      botEdge.setAttribute('x1', String(padL));
+      botEdge.setAttribute('x2', String(W - padR));
+      botEdge.setAttribute('y1', String(padT + innerH));
+      botEdge.setAttribute('y2', String(padT + innerH));
+      botEdge.setAttribute('stroke', outerStroke);
+      botEdge.setAttribute('stroke-width', '1');
+      svg.appendChild(botEdge);
+    }
+    const leftEdge = document.createElementNS(ns,'line');
+    leftEdge.setAttribute('x1', String(padL));
+    leftEdge.setAttribute('x2', String(padL));
+    leftEdge.setAttribute('y1', String(padT));
+    leftEdge.setAttribute('y2', String(padT + innerH));
+    leftEdge.setAttribute('stroke', outerStroke);
+    leftEdge.setAttribute('stroke-width', '1');
+    svg.appendChild(leftEdge);
+    const rightEdge = document.createElementNS(ns,'line');
+    rightEdge.setAttribute('x1', String(W - padR));
+    rightEdge.setAttribute('x2', String(W - padR));
+    rightEdge.setAttribute('y1', String(padT));
+    rightEdge.setAttribute('y2', String(padT + innerH));
+    rightEdge.setAttribute('stroke', outerStroke);
+    rightEdge.setAttribute('stroke-width', '1');
+    svg.appendChild(rightEdge);
+
     // panels
     // vertical separators (JMP-like)
     for (let i=1; i<nC; i++){
@@ -8180,11 +8213,14 @@ const clip = (el)=>{ try{ el.setAttribute('clip-path', clipUrl); }catch(e){} };
         if (st.showLabel === false) return;
 
         const tx = document.createElementNS(ns,'text');
+        const _fontPx = 10;
         const _specX = right - 4;
+        const _specY = Math.max(padT + _fontPx, Math.min(padT + innerH - 2, y));
         tx.setAttribute('x', String(_specX));
-        tx.setAttribute('y', String(y - 2));
+        tx.setAttribute('y', String(_specY));
         tx.setAttribute('text-anchor', 'end');
-        tx.setAttribute('font-size','10');
+        tx.setAttribute('dominant-baseline', 'middle');
+        tx.setAttribute('font-size', String(_fontPx));
         tx.setAttribute('fill','rgba(0,0,0,0.70)');
         if (st.labelOpacity !== undefined && st.labelOpacity !== null){
           try{ tx.setAttribute('opacity', String(st.labelOpacity)); }catch(e){}
