@@ -328,7 +328,7 @@ body{min-width:980px;}
   var sigma = useOverall ? entry.sigmaOverall : entry.sigmaWithin;
   var hasSpecs = isFinite(entry.lsl) && isFinite(entry.usl) && entry.usl > entry.lsl;
   var specWidth = hasSpecs ? (entry.usl - entry.lsl) : NaN;
-  var targetRaw = Number(entry && entry.target);
+  var targetRaw = parseNum(entry && entry.target);
   var targetInsideSpecs = hasSpecs && isFinite(targetRaw) && targetRaw > entry.lsl && targetRaw < entry.usl;
   var center = targetInsideSpecs ? targetRaw : (hasSpecs ? ((entry.lsl + entry.usl) / 2) : (isFinite(targetRaw) ? targetRaw : entry.avg));
   var normX = (hasSpecs && isFinite(entry.avg) && isFinite(center) && isFinite(specWidth) && specWidth > 0) ? ((entry.avg - center) / specWidth) : NaN;
@@ -640,7 +640,8 @@ body{min-width:980px;}
   var whiskerHigh = nonOutliers.length ? nonOutliers[nonOutliers.length - 1] : sorted[sorted.length - 1];
   var specDefs = [];
   if (isFinite(entry.lsl)) specDefs.push({ v:(Number(entry.lsl) - avg) / sigma, color:'#67d46f', width:'1.05' });
-  if (isFinite(entry.target)) specDefs.push({ v:(Number(entry.target) - avg) / sigma, color:'#67d46f', width:'1.05' });
+  var targetNorm = parseNum(entry && entry.target);
+  if (isFinite(targetNorm)) specDefs.push({ v:(targetNorm - avg) / sigma, color:'#67d46f', width:'1.05' });
   if (isFinite(entry.usl)) specDefs.push({ v:(Number(entry.usl) - avg) / sigma, color:'#67d46f', width:'1.05' });
   var refDefs = [
    { v:-0.5, color:'rgba(120,120,120,.92)', width:'1', dash:'3 3' },
