@@ -645,6 +645,7 @@ body{min-width:980px;}
   if (isFinite(entry.usl)) specDefs.push({ v:(Number(entry.usl) - avg) / sigma, color:'#67d46f', width:'1.05' });
   var refDefs = [
    { v:-0.5, color:'rgba(120,120,120,.92)', width:'1', dash:'3 3' },
+   { v:0, color:'#67d46f', width:'1.05', dash:'' },
    { v:0.5, color:'rgba(120,120,120,.92)', width:'1', dash:'3 3' }
   ];
   var domainVals = [whiskerLow, whiskerHigh, q1, med, q3];
