@@ -6734,7 +6734,10 @@ function renderGrid(){
       try{
         row.style.height = rowSvgH + 'px';
         wrap.style.height = rowSvgH + 'px';
-        if (lblEl) lblEl.style.height = rowSvgH + 'px';
+        if (lblEl){
+          lblEl.style.height = rowPlotH + 'px';
+          lblEl.style.alignSelf = 'start';
+        }
       }catch(e){}
 
       const prevSeries = QG.series;
@@ -6785,9 +6788,9 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
   const rowIndex = Math.max(0, Number(opt && opt.rowIndex) || 0);
   const rowCount = Math.max(1, Number(opt && opt.rowCount) || 1);
   // Keep a stable plot box so all FAI rows and the shared cavity header line up exactly.
-  // USL/LSL labels stay inside the last cavity panel instead of stealing extra right margin.
+  // USL/LSL labels must stay inside the last cavity panel without shrinking the usable plot width.
   const padL = 72;
-  const padR = 14;
+  const padR = 2;
   const padT = 0, padB = (opt && opt.showXLabels===false) ? 0 : 56;
   const innerW = W - padL - padR;
   const innerH = H - padT - padB;
@@ -7155,7 +7158,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       if (st.showLabel === false) return;
       const tx = document.createElementNS(ns,'text');
       const _fontPx = 10;
-      const _specX = right - 4;
+      const _specX = right - 2;
       const _specY = Math.max(padT + _fontPx, Math.min(padT + innerH - 2, y));
       tx.setAttribute('x', String(_specX));
       tx.setAttribute('y', String(_specY));
