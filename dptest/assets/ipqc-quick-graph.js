@@ -16,7 +16,24 @@
 
   // Fixed JMP-like series palette (order must be stable):
   // 1) Blue  2) Red  3) Green  4) Purple
-  const QG_SERIES_COLORS = ['#2b5bd7', '#d64545', '#2aa84a', '#8a4dd6'];
+  const QG_SERIES_COLORS = [
+    '#3d6fe3', // 1 blue
+    '#d84b57', // 2 red
+    '#4db556', // 3 green
+    '#9b43df', // 4 purple
+    '#cf7d28', // 5 orange
+    '#34b7aa', // 6 teal
+    '#d43ad1', // 7 magenta
+    '#c6bc31', // 8 olive yellow
+    '#35b7c8', // 9 cyan
+    '#d9419f', // 10 pink
+    '#98b52c', // 11 yellow green
+    '#2fa3d2', // 12 sky blue
+    '#71c0a0', // 13 mint
+    '#1f4f9b', // 14 navy
+    '#2442b5', // 15 deep blue
+    '#b44bd5'  // 16 violet fallback
+  ];
 
   // Tool color palette (stable): re-use QG_SERIES_COLORS order
   function qgGetToolColorByIndex(i){
@@ -5701,9 +5718,6 @@ try{
               QG.sel.primaryColKey = next;
             }
           } else {
-            if (QG.sel.colKeys.size >= 4){
-              return; // max 4
-            }
             QG.sel.colKeys.add(key);
             QG.sel.primaryColKey = key;
           }
@@ -6437,7 +6451,7 @@ function renderGrid(){
   // Layout rule (JMP-like):
   // - Columns: Tool (wrapping to next row when too many to fit)
   // - Sub-columns: Cavity (1CAV~4CAV) under each Tool
-  // - Rows: selected FAI (max 4)
+  // - Rows: selected FAI (no hard limit; distribute within the same graph box)
   const main = qs('.qg-main');
   const mainH = main ? main.clientHeight : 800;
   // Tighten vertical spacing between FAI rows (JMP-like “connected” panels)
@@ -6529,8 +6543,8 @@ function renderGrid(){
     grid.appendChild(group);
     const headerH = Math.ceil(head.getBoundingClientRect().height || 0);
 
-    const avail = Math.max(160, (groupCapH - headerH - 16) - (rowsN-1)*gapY);
-    const rowSvgH = Math.max(160, Math.floor(avail / rowsN));
+    const avail = Math.max(120, (groupCapH - headerH - 16) - (rowsN-1)*gapY);
+    const rowSvgH = Math.max(54, Math.floor(avail / rowsN));
 
     let groupAdded = 0;
 

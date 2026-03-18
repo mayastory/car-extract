@@ -983,7 +983,7 @@ if (!function_exists('h')) {
           </div>
         </details>
 
-        <!-- 대상 FAI (Ctrl/⌘ 멀티, 최대 4) -->
+        <!-- 대상 FAI (Ctrl/⌘ 멀티) -->
         <details class="qg-box" open>
           <summary id="qgFaiSummary">대상 FAI</summary>
           <div class="qg-box-body">
