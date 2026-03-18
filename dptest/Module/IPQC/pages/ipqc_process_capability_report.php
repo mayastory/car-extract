@@ -594,9 +594,9 @@ body{min-width:980px;}
    var exp = Math.floor(Math.log(target) / Math.LN10);
    var frac = target / Math.pow(10, exp);
    var niceFrac;
-   if (frac <= 1) niceFrac = 1;
-   else if (frac <= 2) niceFrac = 2;
-   else if (frac <= 5) niceFrac = 5;
+   if (frac < 1.5) niceFrac = 1;
+   else if (frac < 3) niceFrac = 2;
+   else if (frac < 7) niceFrac = 5;
    else niceFrac = 10;
    return niceFrac * Math.pow(10, exp);
   }
