@@ -7237,12 +7237,13 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       const tx = document.createElementNS(ns,'text');
       const _fontPx = 10;
       const _specX = right - 2;
-      // Keep the label inside the last cavity and lift it slightly above the spec line.
-      const _specY = Math.max(padT + _fontPx, Math.min(padT + innerH - 2, y - 2));
+      // Keep the label inside the last cavity panel and centered on the spec line,
+      // matching the original JMP-like look instead of lifting it away from the line.
+      const _specY = Math.max(padT + _fontPx * 0.6, Math.min(padT + innerH - _fontPx * 0.4, y));
       tx.setAttribute('x', String(_specX));
       tx.setAttribute('y', String(_specY));
       tx.setAttribute('text-anchor', 'end');
-      tx.setAttribute('dominant-baseline', 'alphabetic');
+      tx.setAttribute('dominant-baseline', 'middle');
       tx.setAttribute('font-size', String(_fontPx));
       tx.setAttribute('fill','rgba(0,0,0,0.70)');
       if (st.labelOpacity !== undefined && st.labelOpacity !== null){

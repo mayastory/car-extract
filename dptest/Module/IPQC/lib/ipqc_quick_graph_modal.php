@@ -500,7 +500,7 @@ if (!function_exists('h')) {
   
     /* Tool header band (JMP-like) */
   /* Tighter vertical rhythm so stacked panels visually connect (JMP-like). */
-  #qgOverlay .qg-tool-group{ position:relative; margin-bottom:0; }
+  #qgOverlay .qg-tool-group{ position:relative; margin-bottom:0; background:#ffffff; }
 
   /* Align header with FAI rows: [label 34px] + [gap 6px] + [svg width] */
   #qgOverlay .qg-tophead{
@@ -518,7 +518,7 @@ if (!function_exists('h')) {
   }
   #qgOverlay .qg-tophead-body{
     /* add backdrop only behind the actual header body */
-    background:transparent;
+    background:#ffffff;
     min-width:0;
     overflow:hidden;
     line-height:0;
@@ -627,8 +627,8 @@ if (!function_exists('h')) {
 
   /* FAI rows (override) */
   /* Slightly tighter gap between label and plot to gain width */
-  #qgOverlay .qg-fai-row{ display:grid; grid-template-columns: 34px 1fr; gap:6px; margin-bottom:0; align-items:stretch; min-height:0; overflow:hidden; }
-  #qgOverlay .qg-fai-one{ min-height:0; overflow:hidden; line-height:0; }
+  #qgOverlay .qg-fai-row{ display:grid; grid-template-columns: 34px 1fr; gap:6px; margin-bottom:0; align-items:stretch; min-height:0; overflow:hidden; background:#ffffff; }
+  #qgOverlay .qg-fai-one{ min-height:0; overflow:hidden; line-height:0; background:#ffffff; }
   #qgOverlay .qg-row-label{ display:flex; align-items:center; justify-content:center; align-self:start; border:1px solid rgba(255,255,255,0.08); border-radius:0; background:rgba(0,0,0,0.18); min-height:0; overflow:hidden; }
   #qgOverlay .qg-row-label .vtxt{ writing-mode: vertical-rl; transform: rotate(180deg); font-weight:900; font-size:12px; letter-spacing:0.2px; opacity:0.92; padding:0; }
 
