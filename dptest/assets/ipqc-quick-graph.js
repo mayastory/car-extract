@@ -3856,7 +3856,7 @@ function getBase(){
     QG.data = grouped;
 
     const validKeys = new Set(QG.cols.map(c => String(c.key || '')));
-    const keep = prevColKeys.filter(k => validKeys.has(String(k || ''))).slice(0,4);
+    const keep = prevColKeys.filter(k => validKeys.has(String(k || '')));
     if (!keep.length) keep.push(String(QG.cols[0].key || ''));
     QG.sel.colKeys = new Set(keep.filter(Boolean));
     QG.sel.primaryColKey = validKeys.has(prevPrimary) ? prevPrimary : (keep[0] || '');
@@ -3994,7 +3994,7 @@ function getBase(){
 
   function computeSeriesForSelectedCols(){
     const keys = selectedColKeysInOrder();
-  try{ QG._visibleColKeys = Array.isArray(keys) ? keys.slice(0,4) : []; }catch(e){}
+  try{ QG._visibleColKeys = Array.isArray(keys) ? keys.slice() : []; }catch(e){}
   try{ qgUpdateToolbarSplitOverlays(); }catch(e){}
     const map = Object.create(null);
 
@@ -4041,9 +4041,23 @@ function getBase(){
   function rebuildFacets(){
     const tools = new Set();
     const cavs = new Set();
-    for (const t of Object.keys(QG.series||{})){
-      tools.add(t);
-      for (const c of Object.keys(QG.series[t]||{})) cavs.add(c);
+
+    const seriesMap = (QG.seriesByCol && typeof QG.seriesByCol === 'object') ? QG.seriesByCol : null;
+    const selectedKeys = selectedColKeysInOrder();
+    const maps = [];
+    if (seriesMap){
+      for (const k of selectedKeys){
+        const s = seriesMap[k];
+        if (s && typeof s === 'object') maps.push(s);
+      }
+    }
+    if (!maps.length && QG.series && typeof QG.series === 'object') maps.push(QG.series);
+
+    for (const s of maps){
+      for (const t of Object.keys(s||{})){
+        tools.add(t);
+        for (const c of Object.keys((s && s[t])||{})) cavs.add(c);
+      }
     }
 
     QG.tools = Array.from(tools).sort((a,b)=>a.localeCompare(b, undefined, {numeric:true, sensitivity:'base'}));
@@ -4058,6 +4072,11 @@ function getBase(){
     if (cs) cs.textContent = `Cavity (${QG.cavities.length})`;
     // Cavity group drag handle -> right-side dropdock (중첩/색상/크기/구간)
     if (cs) { try{ qgBindVarDockDragHandle(cs, 'cavity', 'Cavity'); }catch(e){} }
+
+    const prevTools = new Set(QG.sel.tools || []);
+    const prevCavs = new Set(QG.sel.cavities || []);
+    QG.sel.tools = new Set(Array.from(prevTools).filter(t => tools.has(t)));
+    QG.sel.cavities = new Set(Array.from(prevCavs).filter(c => cavs.has(c)));
 
     if (QG.sel.tools.size === 0) QG.tools.forEach(t=>QG.sel.tools.add(t));
     if (QG.sel.cavities.size === 0) QG.cavities.forEach(c=>QG.sel.cavities.add(c));
@@ -4299,7 +4318,7 @@ const statRows = stats.map((sv, i)=>{
 
 // Toolbar split overlay + Ctrl/⌘ partial apply (JMP-like)
 function qgVisibleColKeysForToolbar(maxN){
-  const lim = maxN || 4;
+  const lim = (maxN === undefined || maxN === null) ? Infinity : Math.max(1, Number(maxN) || 1);
   const a = Array.isArray(QG._visibleColKeys) ? QG._visibleColKeys : [];
   const out = [];
   const seen = new Set();
@@ -4319,7 +4338,7 @@ function qgVisibleColKeysForToolbar(maxN){
 }
 
 function qgPickColKeyFromToolBtnEvent(ev, btn){
-  const keys = qgVisibleColKeysForToolbar(4);
+  const keys = qgVisibleColKeysForToolbar();
   if (keys.length <= 1) return (keys[0] || '');
   try{
     const r = btn.getBoundingClientRect();
@@ -4350,7 +4369,7 @@ function qgEnsureToolBtnSplitOverlay(btn){
 }
 
 function qgUpdateToolbarSplitOverlays(){
-  const keys = qgVisibleColKeysForToolbar(4);
+  const keys = qgVisibleColKeysForToolbar();
   const n = Math.max(1, keys.length);
 
   const btns = qsa('.qg-toolbar .qg-toolbtn[data-qg-elem]');
@@ -6067,7 +6086,7 @@ function renderFacetList(rootId, items, selSet){
 
   function selectedSeriesMeta(){
     const keys = selectedColKeysInOrder();
-  try{ QG._visibleColKeys = Array.isArray(keys) ? keys.slice(0,4) : []; }catch(e){}
+  try{ QG._visibleColKeys = Array.isArray(keys) ? keys.slice() : []; }catch(e){}
   try{ qgUpdateToolbarSplitOverlays(); }catch(e){}
     const out = [];
     for (let i=0; i<keys.length; i++){
@@ -6425,7 +6444,7 @@ function renderGrid(){
   grid.innerHTML = '';
 
   const keys = selectedColKeysInOrder();
-  try{ QG._visibleColKeys = Array.isArray(keys) ? keys.slice(0,4) : []; }catch(e){}
+  try{ QG._visibleColKeys = Array.isArray(keys) ? keys.slice() : []; }catch(e){}
   try{ qgUpdateToolbarSplitOverlays(); }catch(e){}
   if (!keys.length || !QG.seriesByCol){
     const e = document.createElement('div');
@@ -6441,6 +6460,13 @@ function renderGrid(){
   const selCavs  = QG.cavities.filter(c => QG.sel.cavities.has(c));
 
   if (!selTools.length || !selCavs.length){
+    if (!selTools.length) QG.tools.forEach(t => QG.sel.tools.add(t));
+    if (!selCavs.length) QG.cavities.forEach(c => QG.sel.cavities.add(c));
+  }
+  const selTools2 = QG.tools.filter(t => QG.sel.tools.has(t));
+  const selCavs2  = QG.cavities.filter(c => QG.sel.cavities.has(c));
+
+  if (!selTools2.length || !selCavs2.length){
     const e = document.createElement('div');
     e.className = 'qg-empty';
     e.textContent = '표시할 데이터가 없습니다.';
@@ -6472,16 +6498,16 @@ function renderGrid(){
   // Decide how many Tool columns can fit in one row (then wrap)
   const gridW = (grid && grid.clientWidth) ? grid.clientWidth : (main ? main.clientWidth : 1200);
   const plotW = Math.max(520, gridW - 44); // subtract label/gap roughly
-  const minToolW = Math.max(220, (selCavs.length * 70) + 40); // tuned to resemble JMP packing
+  const minToolW = Math.max(220, (selCavs2.length * 70) + 40); // tuned to resemble JMP packing
   let toolsPerRow = Math.max(1, Math.floor(plotW / minToolW));
   // Prevent unnecessary wrapping for small Tool counts (JMP-like)
-  if (selTools.length <= 3) toolsPerRow = selTools.length;
-  toolsPerRow = Math.min(selTools.length, toolsPerRow);
+  if (selTools2.length <= 3) toolsPerRow = selTools2.length;
+  toolsPerRow = Math.min(selTools2.length, toolsPerRow);
   if (toolsPerRow < 1) toolsPerRow = 1;
 
   const toolRows = [];
-  for (let i=0; i<selTools.length; i+=toolsPerRow){
-    toolRows.push(selTools.slice(i, i+toolsPerRow));
+  for (let i=0; i<selTools2.length; i+=toolsPerRow){
+    toolRows.push(selTools2.slice(i, i+toolsPerRow));
   }
 
 
@@ -6504,7 +6530,7 @@ function renderGrid(){
     head.className = 'qg-tophead';
 
     const toolCols = toolsRow.length;
-    const cavCols = toolsRow.length * selCavs.length;
+    const cavCols = toolsRow.length * selCavs2.length;
 
     const toolCells = toolsRow.map((t, i)=>{
       const cls = 'qg-tophead-tool' + (i===0 ? ' first' : '');
@@ -6513,8 +6539,8 @@ function renderGrid(){
 
     const cavCells = [];
     for (let ti=0; ti<toolsRow.length; ti++){
-      for (let ci=0; ci<selCavs.length; ci++){
-        const c = selCavs[ci];
+      for (let ci=0; ci<selCavs2.length; ci++){
+        const c = selCavs2[ci];
         const lab = (String(c).toUpperCase().includes('CAV') ? String(c) : (String(c) + 'CAV'));
         const cls = 'qg-tophead-cav' + (ci===0 ? ' tool-start' : '');
         cavCells.push(`<div class="${cls}">${escapeHtml(lab)}</div>`);
@@ -6544,7 +6570,7 @@ function renderGrid(){
     const headerH = Math.ceil(head.getBoundingClientRect().height || 0);
 
     const avail = Math.max(120, (groupCapH - headerH - 16) - (rowsN-1)*gapY);
-    const rowSvgH = Math.max(54, Math.floor(avail / rowsN));
+    const rowSvgH = Math.max(42, Math.floor(avail / rowsN));
 
     let groupAdded = 0;
 
@@ -6561,7 +6587,7 @@ function renderGrid(){
       // Union dates across the entire (Tool x Cavity) matrix in this tool-row block
       const dateMap = new Map();
       for (const tool of toolsRow){
-        for (const cav of selCavs){
+        for (const cav of selCavs2){
           const s = (((series||{}))[tool]||{})[cav]||{};
           for (const d of Object.keys(s)){
             const di = normalizeDateKey(d);
@@ -6633,7 +6659,7 @@ function renderGrid(){
       QG.series = series;
       const seriesColor = QG_SERIES_COLORS[ki % QG_SERIES_COLORS.length];
       const ax = getAxisState(colKey);
-      drawMatrixSvg(svg, toolsRow, selCavs, dates, { usl, lsl, oocUsl: oocLim.usl, oocLsl: oocLim.lsl, yMinO: ax.yMin, yMaxO: ax.yMax, showXLabels, h: rowSvgH, color: seriesColor, colKey: colKey, label: qgGetDisplayLabel(colKey) });
+      drawMatrixSvg(svg, toolsRow, selCavs2, dates, { usl, lsl, oocUsl: oocLim.usl, oocLsl: oocLim.lsl, yMinO: ax.yMin, yMaxO: ax.yMax, showXLabels, h: rowSvgH, color: seriesColor, colKey: colKey, label: qgGetDisplayLabel(colKey) });
       QG.series = prevSeries;
 
       wrap.appendChild(svg);
