@@ -586,19 +586,48 @@ body{min-width:980px;}
    if (lo === hi) return arr[lo];
    return arr[lo] + (arr[hi] - arr[lo]) * (pos - lo);
   }
-  function niceStep(raw, maxTicks){
-   var n = Math.abs(Number(raw));
-   var ticks = Math.max(2, Number(maxTicks) || 6);
-   if (!(n > 0) || !isFinite(n)) return 1;
-   var target = n / Math.max(1, ticks - 1);
-   var exp = Math.floor(Math.log(target) / Math.LN10);
-   var frac = target / Math.pow(10, exp);
-   var niceFrac;
-   if (frac <= 1) niceFrac = 1;
-   else if (frac <= 2) niceFrac = 2;
-   else if (frac <= 5) niceFrac = 5;
-   else niceFrac = 10;
-   return niceFrac * Math.pow(10, exp);
+  function axisLabelCount(minV, maxV, step){
+   if (!(isFinite(minV) && isFinite(maxV) && isFinite(step) && step > 0)) return 0;
+   var start = Math.ceil((minV - 1e-9) / step) * step;
+   var count = 0;
+   for (var v = start; v <= maxV + (step * 0.25); v += step){
+    count += 1;
+    if (count > 100) break;
+   }
+   return count;
+  }
+  function chooseAxisStep(minV, maxV){
+   var span = Math.max(1e-9, maxV - minV);
+   var target = span / 5;
+   var expBase = Math.floor(Math.log(span) / Math.LN10);
+   var bases = [1, 2, 5];
+   var seen = {};
+   var cands = [];
+   for (var ei = expBase - 2; ei <= expBase + 2; ei += 1){
+    var scale = Math.pow(10, ei);
+    bases.forEach(function(base){
+     var step = base * scale;
+     var key = String(step);
+     if (!seen[key] && isFinite(step) && step > 0){
+      seen[key] = true;
+      cands.push(step);
+     }
+    });
+   }
+   cands.sort(function(a, b){ return a - b; });
+   var best = cands.length ? cands[0] : 1;
+   var bestScore = Infinity;
+   cands.forEach(function(step){
+    var labelCount = axisLabelCount(minV, maxV, step);
+    var score = Math.abs(Math.log(step / Math.max(target, 1e-9)));
+    if (labelCount < 4) score += (4 - labelCount) * 3.5;
+    if (labelCount > 6) score += (labelCount - 6) * 4.5;
+    if (score < bestScore){
+     bestScore = score;
+     best = step;
+    }
+   });
+   return best;
   }
   var q1 = q(sorted, 0.25);
   var med = q(sorted, 0.50);
@@ -611,14 +640,15 @@ body{min-width:980px;}
   var whiskerHigh = nonOutliers.length ? nonOutliers[nonOutliers.length - 1] : sorted[sorted.length - 1];
   var specDefs = [];
   if (isFinite(entry.lsl)) specDefs.push({ v:(Number(entry.lsl) - avg) / sigma, color:'#67d46f', width:'1.05' });
-  specDefs.push({ v:0, color:'#67d46f', width:'1.05' });
+  if (isFinite(entry.target)) specDefs.push({ v:(Number(entry.target) - avg) / sigma, color:'#67d46f', width:'1.05' });
   if (isFinite(entry.usl)) specDefs.push({ v:(Number(entry.usl) - avg) / sigma, color:'#67d46f', width:'1.05' });
   var refDefs = [
    { v:-0.5, color:'rgba(120,120,120,.92)', width:'1', dash:'3 3' },
    { v:0.5, color:'rgba(120,120,120,.92)', width:'1', dash:'3 3' }
   ];
-  var domainVals = [whiskerLow, whiskerHigh, q1, med, q3, 0];
+  var domainVals = [whiskerLow, whiskerHigh, q1, med, q3];
   specDefs.forEach(function(line){ if (isFinite(line.v)) domainVals.push(line.v); });
+  refDefs.forEach(function(line){ if (isFinite(line.v)) domainVals.push(line.v); });
   var finiteDomainVals = domainVals.filter(function(v){ return isFinite(v); });
   var rawMin = Math.min.apply(null, finiteDomainVals);
   var rawMax = Math.max.apply(null, finiteDomainVals);
@@ -628,8 +658,8 @@ body{min-width:980px;}
    rawMax += 1;
   }
   var rawRange = rawMax - rawMin;
-  var pad = Math.max(rawRange * 0.015, 0.12);
-  var majorStep = niceStep(rawRange + (pad * 2), 6);
+  var pad = Math.max(rawRange * 0.018, 0.10);
+  var majorStep = chooseAxisStep(rawMin, rawMax);
   if (!(majorStep > 0)) majorStep = 1;
   var xMin = rawMin - pad;
   var xMax = rawMax + pad;
@@ -640,18 +670,17 @@ body{min-width:980px;}
   var nextMajor = Math.ceil((xMax - 1e-9) / majorStep) * majorStep;
   if (nextMajor > xMax){
    var rightGap = nextMajor - rawMax;
-   if (rightGap <= (majorStep * 0.35)) xMax = nextMajor + (majorStep * 0.06);
+   if (rightGap <= (majorStep * 0.36)) xMax = nextMajor + (majorStep * 0.05);
   }
   var prevMajor = Math.floor((xMin + 1e-9) / majorStep) * majorStep;
   if (prevMajor < xMin){
    var leftGap = rawMin - prevMajor;
-   if (leftGap <= (majorStep * 0.20)) xMin = prevMajor - (majorStep * 0.06);
+   if (leftGap <= (majorStep * 0.16)) xMin = prevMajor - (majorStep * 0.04);
   }
-  var majorCount = Math.round((xMax - xMin) / majorStep);
-  if (majorCount > 8) {
-   majorStep = niceStep(xMax - xMin, 5);
-   nextMajor = Math.ceil((xMax - 1e-9) / majorStep) * majorStep;
-   prevMajor = Math.floor((xMin + 1e-9) / majorStep) * majorStep;
+  var majorCount = axisLabelCount(xMin, xMax, majorStep);
+  if (majorCount > 6){
+   var largerStep = chooseAxisStep(xMin, xMax + (majorStep * 0.51));
+   if (largerStep > majorStep) majorStep = largerStep;
   }
   var minorStep = majorStep / 2;
   if (!isFinite(minorStep) || minorStep <= 0) minorStep = majorStep;
