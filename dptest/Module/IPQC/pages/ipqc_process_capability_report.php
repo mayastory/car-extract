@@ -586,15 +586,16 @@ body{min-width:980px;}
    if (lo === hi) return arr[lo];
    return arr[lo] + (arr[hi] - arr[lo]) * (pos - lo);
   }
-  function niceStep(raw){
+  function niceStep(raw, maxTicks){
    var n = Math.abs(Number(raw));
+   var ticks = Math.max(2, Number(maxTicks) || 6);
    if (!(n > 0) || !isFinite(n)) return 1;
-   var exp = Math.floor(Math.log(n) / Math.LN10);
-   var frac = n / Math.pow(10, exp);
+   var target = n / Math.max(1, ticks - 1);
+   var exp = Math.floor(Math.log(target) / Math.LN10);
+   var frac = target / Math.pow(10, exp);
    var niceFrac;
    if (frac <= 1) niceFrac = 1;
    else if (frac <= 2) niceFrac = 2;
-   else if (frac <= 2.5) niceFrac = 2.5;
    else if (frac <= 5) niceFrac = 5;
    else niceFrac = 10;
    return niceFrac * Math.pow(10, exp);
@@ -618,26 +619,30 @@ body{min-width:980px;}
   ];
   var domainVals = [whiskerLow, whiskerHigh, q1, med, q3, 0];
   specDefs.forEach(function(line){ if (isFinite(line.v)) domainVals.push(line.v); });
-  refDefs.forEach(function(line){ if (isFinite(line.v)) domainVals.push(line.v); });
-  var rawMin = Math.min.apply(null, domainVals.filter(function(v){ return isFinite(v); }));
-  var rawMax = Math.max.apply(null, domainVals.filter(function(v){ return isFinite(v); }));
+  var finiteDomainVals = domainVals.filter(function(v){ return isFinite(v); });
+  var rawMin = Math.min.apply(null, finiteDomainVals);
+  var rawMax = Math.max.apply(null, finiteDomainVals);
   if (!(isFinite(rawMin) && isFinite(rawMax))){ rawMin = -2; rawMax = 2; }
   if (!(rawMax > rawMin)){
    rawMin -= 1;
    rawMax += 1;
   }
   var rawRange = rawMax - rawMin;
-  var pad = Math.max(rawRange * 0.05, 0.4);
-  var xMin = rawMin - pad;
-  var xMax = rawMax + pad;
-  if (!(xMax > xMin)){
-   xMin -= 1;
-   xMax += 1;
-  }
-  var majorStep = niceStep((xMax - xMin) / 4.5);
+  var pad = Math.max(rawRange * 0.015, 0.12);
+  var majorStep = niceStep(rawRange + (pad * 2), 6);
   if (!(majorStep > 0)) majorStep = 1;
-  var majorCount = (xMax - xMin) / majorStep;
-  if (majorCount > 7) majorStep = niceStep((xMax - xMin) / 6);
+  var xMin = Math.floor((rawMin - pad) / majorStep) * majorStep;
+  var xMax = Math.ceil((rawMax + pad) / majorStep) * majorStep;
+  if (!(xMax > xMin)){
+   xMin = rawMin - 1;
+   xMax = rawMax + 1;
+  }
+  var majorCount = Math.round((xMax - xMin) / majorStep);
+  if (majorCount > 8) {
+   majorStep = niceStep(xMax - xMin, 5);
+   xMin = Math.floor((rawMin - pad) / majorStep) * majorStep;
+   xMax = Math.ceil((rawMax + pad) / majorStep) * majorStep;
+  }
   var minorStep = majorStep / 2;
   if (!isFinite(minorStep) || minorStep <= 0) minorStep = majorStep;
   function x(v){ return left + ((v - xMin) / Math.max(1e-9, xMax - xMin)) * plotW; }
