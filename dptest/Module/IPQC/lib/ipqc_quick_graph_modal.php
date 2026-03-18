@@ -518,6 +518,15 @@ if (!function_exists('h')) {
   }
   #qgOverlay .qg-tophead-body{
     /* add backdrop only behind the actual header body */
+    background:transparent;
+    min-width:0;
+    overflow:hidden;
+    line-height:0;
+  }
+  #qgOverlay .qg-tophead-svg{
+    display:block;
+    width:100%;
+    height:82px;
     background:#ffffff;
   }
 

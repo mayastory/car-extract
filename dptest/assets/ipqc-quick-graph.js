@@ -6489,6 +6489,110 @@ function renderFacetList(rootId, items, selSet){
     }
 }
 
+
+function qgBuildTopHeaderSvg(toolsRow, cavs){
+  const ns = 'http://www.w3.org/2000/svg';
+  const W = 1200;
+  const padL = 72;
+  const padR = 2;
+  const innerW = W - padL - padR;
+  const nT = Math.max(1, Array.isArray(toolsRow) ? toolsRow.length : 0);
+  const nC = Math.max(1, Array.isArray(cavs) ? cavs.length : 0);
+  const nP = Math.max(1, nT * nC);
+  const panelW = innerW / nP;
+  const toolW = panelW * nC;
+
+  const y0 = 0;
+  const y1 = 20;
+  const y2 = 42;
+  const y3 = 60;
+  const y4 = 82;
+  const H = y4;
+
+  const svg = document.createElementNS(ns, 'svg');
+  svg.classList.add('qg-tophead-svg');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.setAttribute('width', '100%');
+  svg.setAttribute('height', String(H));
+
+  const rect = (x, y, w, h, fill, stroke, sw)=>{
+    const el = document.createElementNS(ns, 'rect');
+    el.setAttribute('x', String(x));
+    el.setAttribute('y', String(y));
+    el.setAttribute('width', String(w));
+    el.setAttribute('height', String(h));
+    el.setAttribute('fill', fill || 'none');
+    if (stroke){
+      el.setAttribute('stroke', stroke);
+      el.setAttribute('stroke-width', String(sw || 1));
+    }
+    svg.appendChild(el);
+    return el;
+  };
+  const line = (x1, y1_, x2, y2_, stroke, sw)=>{
+    const el = document.createElementNS(ns, 'line');
+    el.setAttribute('x1', String(x1));
+    el.setAttribute('y1', String(y1_));
+    el.setAttribute('x2', String(x2));
+    el.setAttribute('y2', String(y2_));
+    el.setAttribute('stroke', stroke || '#cfcfcf');
+    el.setAttribute('stroke-width', String(sw || 1));
+    svg.appendChild(el);
+    return el;
+  };
+  const text = (x, y, value, opt)=>{
+    const el = document.createElementNS(ns, 'text');
+    el.setAttribute('x', String(x));
+    el.setAttribute('y', String(y));
+    el.setAttribute('text-anchor', (opt && opt.anchor) ? String(opt.anchor) : 'middle');
+    el.setAttribute('dominant-baseline', (opt && opt.baseline) ? String(opt.baseline) : 'middle');
+    el.setAttribute('font-size', String((opt && opt.size) || 11));
+    el.setAttribute('font-weight', String((opt && opt.weight) || 700));
+    el.setAttribute('fill', (opt && opt.fill) ? String(opt.fill) : '#000000');
+    el.textContent = String(value == null ? '' : value);
+    svg.appendChild(el);
+    return el;
+  };
+
+  rect(0, 0, W, H, '#ffffff', null, 0);
+  rect(padL, y0, innerW, H, '#ffffff', '#cfcfcf', 1);
+  rect(padL, y0, innerW, y1 - y0, '#dedbcf', null, 0);
+  rect(padL, y1, innerW, y2 - y1, '#f8f8f8', null, 0);
+  rect(padL, y2, innerW, y3 - y2, '#dedbcf', null, 0);
+  rect(padL, y3, innerW, y4 - y3, '#dedbcf', null, 0);
+
+  line(padL, y1, W - padR, y1, '#cfcfcf', 1);
+  line(padL, y2, W - padR, y2, '#cfcfcf', 1);
+  line(padL, y3, W - padR, y3, '#cfcfcf', 1);
+
+  text(padL + innerW / 2, (y0 + y1) / 2, 'Tool', { size:11, weight:700 });
+  text(padL + innerW / 2, (y2 + y3) / 2, 'Cavity', { size:11, weight:700 });
+
+  for (let ti = 0; ti < nT; ti++){
+    const left = padL + ti * toolW;
+    const right = left + toolW;
+    const mid = left + toolW / 2;
+    text(mid, (y1 + y2) / 2, toolsRow[ti], { size:11, weight:700 });
+    if (ti > 0){
+      line(left, y1, left, y4, '#cfcfcf', 1.5);
+    }
+  }
+
+  for (let pi = 0; pi < nP; pi++){
+    const left = padL + pi * panelW;
+    const cav = cavs[pi % nC];
+    const lab0 = String(cav == null ? '' : cav);
+    const lab = lab0.toUpperCase().includes('CAV') ? lab0 : (lab0 + 'CAV');
+    text(left + panelW / 2, (y3 + y4) / 2, lab, { size:11, weight:700 });
+    if (pi > 0 && (pi % nC) !== 0){
+      line(left, y3, left, y4, '#cfcfcf', 1);
+    }
+  }
+
+  return svg;
+}
+
 function renderGrid(){
   const grid = qs('#qgGrid');
   if (!grid) return;
@@ -6579,40 +6683,14 @@ function renderGrid(){
     // Header (once per Tool-row block)
     const head = document.createElement('div');
     head.className = 'qg-tophead';
-
-    const toolCols = toolsRow.length;
-    const cavCols = toolsRow.length * selCavs2.length;
-
-    const toolCells = toolsRow.map((t, i)=>{
-      const cls = 'qg-tophead-tool' + (i===0 ? ' first' : '');
-      return `<div class="${cls}">${escapeHtml(t)}</div>`;
-    }).join('');
-
-    const cavCells = [];
-    for (let ti=0; ti<toolsRow.length; ti++){
-      for (let ci=0; ci<selCavs2.length; ci++){
-        const c = selCavs2[ci];
-        const lab = (String(c).toUpperCase().includes('CAV') ? String(c) : (String(c) + 'CAV'));
-        const cls = 'qg-tophead-cav' + (ci===0 ? ' tool-start' : '');
-        cavCells.push(`<div class="${cls}">${escapeHtml(lab)}</div>`);
-      }
-    }
-
     head.innerHTML = `
       <div class="qg-tophead-stub"></div>
-      <div class="qg-tophead-body">
-        <div class="qg-tophead-band">
-          <div class="qg-tophead-row">Tool</div>
-          <div class="qg-tophead-tools" style="grid-template-columns: repeat(${toolCols}, 1fr);">
-            ${toolCells}
-          </div>
-          <div class="qg-tophead-row">Cavity</div>
-          <div class="qg-tophead-cavs" style="grid-template-columns: repeat(${cavCols}, 1fr);">
-            ${cavCells.join('')}
-          </div>
-        </div>
-      </div>
+      <div class="qg-tophead-body"></div>
     `;
+    try{
+      const body = qs('.qg-tophead-body', head);
+      if (body) body.appendChild(qgBuildTopHeaderSvg(toolsRow, selCavs2));
+    }catch(e){}
 
     group.appendChild(head);
 
