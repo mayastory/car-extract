@@ -5950,7 +5950,8 @@ function renderFacetList(rootId, items, selSet){
     const raw = isLsl ? st.baseLsl : st.baseUsl;
     const v = Number(raw);
     if (!isFinite(v)) return null;
-    if (isLsl && Math.abs(v) <= 1e-12) return null;
+    // In Quick Graph, a zero spec line should be treated the same as NULL/hidden.
+    if (Math.abs(v) <= 1e-12) return null;
     return v;
   }
 
@@ -5992,13 +5993,15 @@ function renderFacetList(rootId, items, selSet){
 
     const baseU = Number(st && st.baseUsl);
     const baseL = Number(st && st.baseLsl);
-    const hasU = isFinite(baseU);
+    const hasURaw = isFinite(baseU);
     const hasLRaw = isFinite(baseL);
     const eps0 = 1e-12;
 
-    // In this graph builder, LSL=0 is treated as NULL/hidden.
+    // In this graph builder, USL/LSL=0 is treated as NULL/hidden.
+    if (hasURaw && Math.abs(baseU) <= eps0 && Math.abs(v - baseU) <= eps0) return null;
     if (hasLRaw && Math.abs(baseL) <= eps0 && Math.abs(v - baseL) <= eps0) return null;
 
+    const hasU = hasURaw && Math.abs(baseU) > eps0;
     const hasL = hasLRaw && Math.abs(baseL) > eps0;
     if (hasU && hasL){
       const center = (baseU + baseL) / 2;
