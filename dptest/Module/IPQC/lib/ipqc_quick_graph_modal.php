@@ -612,9 +612,10 @@ if (!function_exists('h')) {
 
   /* FAI rows (override) */
   /* Slightly tighter gap between label and plot to gain width */
-  #qgOverlay .qg-fai-row{ display:grid; grid-template-columns: 34px 1fr; gap:6px; margin-bottom:0; align-items:stretch; }
-  #qgOverlay .qg-row-label{ display:flex; align-items:center; justify-content:center; border:1px solid rgba(255,255,255,0.08); border-radius:12px; background:rgba(0,0,0,0.18); }
-  #qgOverlay .qg-row-label .vtxt{ writing-mode: vertical-rl; transform: rotate(180deg); font-weight:900; font-size:12px; letter-spacing:0.2px; opacity:0.92; padding:6px 0; }
+  #qgOverlay .qg-fai-row{ display:grid; grid-template-columns: 34px 1fr; gap:6px; margin-bottom:0; align-items:stretch; min-height:0; overflow:hidden; }
+  #qgOverlay .qg-fai-one{ min-height:0; overflow:hidden; line-height:0; }
+  #qgOverlay .qg-row-label{ display:flex; align-items:center; justify-content:center; border:1px solid rgba(255,255,255,0.08); border-radius:0; background:rgba(0,0,0,0.18); min-height:0; overflow:hidden; }
+  #qgOverlay .qg-row-label .vtxt{ writing-mode: vertical-rl; transform: rotate(180deg); font-weight:900; font-size:12px; letter-spacing:0.2px; opacity:0.92; padding:0; }
 
   /* Custom context menu (right-click) */
   #qgOverlay .qg-ctxmenu{

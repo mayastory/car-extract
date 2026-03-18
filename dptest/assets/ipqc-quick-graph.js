@@ -6618,10 +6618,9 @@ function renderGrid(){
     grid.appendChild(group);
     const headerH = Math.ceil(head.getBoundingClientRect().height || 0);
 
-    const avail = Math.max(120, (groupCapH - headerH - 16) - (rowsN-1)*gapY);
-    // Reserve one shared footer band for the last FAI row only so every FAI plot area stays equal.
-    const footerH = 56;
-    const rowPlotH = Math.max(20, Math.floor(Math.max(40, avail - footerH) / rowsN));
+    const footerH = 56; // reserve date-label space once for the whole tool-row block
+    const availPlot = Math.max(120, (groupCapH - headerH - 16 - footerH) - (rowsN-1)*gapY);
+    const rowPlotH = Math.max(42, Math.floor(availPlot / rowsN));
 
     let groupAdded = 0;
 
@@ -6681,11 +6680,34 @@ function renderGrid(){
         }, { passive:false });
       }
 
+      // Lock row wrapper/label height to the SVG height so many stacked FAIs keep a clean seam.
+      try{
+        row.style.margin = '0';
+        row.style.padding = '0';
+        row.style.minHeight = '0';
+        row.style.overflow = 'hidden';
+      }catch(e){}
+      try{
+        wrap.style.margin = '0';
+        wrap.style.padding = '0';
+        wrap.style.minHeight = '0';
+        wrap.style.overflow = 'hidden';
+        wrap.style.lineHeight = '0';
+      }catch(e){}
+      try{
+        if (lblEl){
+          lblEl.style.minHeight = '0';
+          lblEl.style.overflow = 'hidden';
+          lblEl.style.borderRadius = '0';
+        }
+      }catch(e){}
 
       const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
       svg.classList.add('qg-svg');
       try{ svg.dataset.colKey = String(colKey); svg.setAttribute('data-col-key', String(colKey)); }catch(e){}
+      svg.setAttribute('viewBox', '0 0 1200 320');
       svg.setAttribute('preserveAspectRatio','none');
+      svg.style.height = '320px';
       svg.style.pointerEvents = 'all';
 
       // Clicking a chart should switch the axis/limit editor to that FAI (primary selection)
@@ -6703,15 +6725,21 @@ function renderGrid(){
 
       // Dates only once per tool-row block (on the last FAI row)
       const showXLabels = (ki === keys.length - 1);
-      const svgH = rowPlotH + (showXLabels ? footerH : 0);
-      svg.setAttribute('viewBox', `0 0 1200 ${svgH}`);
-      svg.style.height = svgH + 'px';
+      const rowSvgH = rowPlotH + (showXLabels ? footerH : 0);
+      svg.setAttribute('viewBox', `0 0 1200 ${rowSvgH}`);
+      svg.style.height = rowSvgH + 'px';
+      svg.style.display = 'block';
+      try{
+        row.style.height = rowSvgH + 'px';
+        wrap.style.height = rowSvgH + 'px';
+        if (lblEl) lblEl.style.height = rowSvgH + 'px';
+      }catch(e){}
 
       const prevSeries = QG.series;
       QG.series = series;
       const seriesColor = QG_SERIES_COLORS[ki % QG_SERIES_COLORS.length];
       const ax = getAxisState(colKey);
-      drawMatrixSvg(svg, toolsRow, selCavs2, dates, { usl, lsl, oocUsl: oocLim.usl, oocLsl: oocLim.lsl, yMinO: ax.yMin, yMaxO: ax.yMax, showXLabels, h: svgH, footerH, color: seriesColor, colKey: colKey, label: qgGetDisplayLabel(colKey) });
+      drawMatrixSvg(svg, toolsRow, selCavs2, dates, { usl, lsl, oocUsl: oocLim.usl, oocLsl: oocLim.lsl, yMinO: ax.yMin, yMaxO: ax.yMax, showXLabels, h: rowSvgH, color: seriesColor, colKey: colKey, label: qgGetDisplayLabel(colKey), rowIndex: ki, rowCount: rowsN });
       QG.series = prevSeries;
 
       wrap.appendChild(svg);
@@ -6752,9 +6780,20 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
 
 
   const W = 1200, H = (opt && opt.h ? opt.h : 320);
-  // Keep every FAI plot area the same height; the last row alone gets an extra footer band for dates.
-  const footerH = (opt && isFinite(Number(opt.footerH))) ? Math.max(0, Number(opt.footerH)) : 56;
-  const padL = 62, padR = 78, padT = 0, padB = (opt && opt.showXLabels===false) ? 0 : footerH;
+  const rowIndex = Math.max(0, Number(opt && opt.rowIndex) || 0);
+  const rowCount = Math.max(1, Number(opt && opt.rowCount) || 1);
+  // Use wider dynamic side pads when many FAIs are stacked so Y labels / USL labels never get clipped.
+  const _fmtCandidates = [];
+  try{
+    if (opt && opt.usl !== null && opt.usl !== undefined && isFinite(Number(opt.usl))) _fmtCandidates.push(fmtTick(Number(opt.usl)));
+    if (opt && opt.lsl !== null && opt.lsl !== undefined && isFinite(Number(opt.lsl))) _fmtCandidates.push(fmtTick(Number(opt.lsl)));
+    if (opt && opt.oocUsl !== null && opt.oocUsl !== undefined && isFinite(Number(opt.oocUsl))) _fmtCandidates.push(fmtTick(Number(opt.oocUsl)));
+    if (opt && opt.oocLsl !== null && opt.oocLsl !== undefined && isFinite(Number(opt.oocLsl))) _fmtCandidates.push(fmtTick(Number(opt.oocLsl)));
+  }catch(e){}
+  const _maxNumChars = _fmtCandidates.reduce((m, s)=> Math.max(m, String(s||'').length), 0);
+  const padL = Math.max(62, 28 + (_maxNumChars * 7));
+  const padR = Math.max(46, 22 + (_maxNumChars * 7));
+  const padT = 0, padB = (opt && opt.showXLabels===false) ? 0 : 56;
   const innerW = W - padL - padR;
   const innerH = H - padT - padB;
 
@@ -6942,7 +6981,9 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
   }
 
   const yRange = (yMax - yMin);
-  const major = niceStep(yRange, 7);
+  // When many FAIs are stacked, reduce tick density to keep the rows visually connected like JMP.
+  const targetMajorTicks = Math.max(2, Math.min(7, Math.floor(innerH / 18)));
+  const major = niceStep(yRange, targetMajorTicks);
   const minor = major / 5;
   const yAxisX = padL;
 
@@ -6974,8 +7015,8 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
     if (Math.abs(tickVals[tickVals.length - 1] - yMax) > major * 0.25) tickVals.push(yMax);
   }
 
-  for (const v0 of tickVals){
-    const v = Number(v0);
+  for (let _ti=0; _ti<tickVals.length; _ti++){
+    const v = Number(tickVals[_ti]);
     const y = yAt(v);
 
     if (!QG.gridHidden){
@@ -6998,12 +7039,15 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
     tk.setAttribute('stroke-width','1');
     svg.appendChild(tk);
 
+    const skipTopLabel = (rowIndex > 0 && _ti === tickVals.length - 1);
+    const skipBottomLabel = (rowIndex < rowCount - 1 && _ti === 0);
+    if (skipTopLabel || skipBottomLabel) continue;
+
     const tx = document.createElementNS(ns,'text');
     tx.setAttribute('x', String(yAxisX - 8));
     tx.setAttribute('y', String(y + 4));
-    tx.setAttribute('font-size','11');
+    tx.setAttribute('font-size', String(Math.max(9, Math.min(11, Math.floor(innerH / 5)))));
     tx.setAttribute('fill','rgba(0,0,0,0.70)');
-          try{ tx.setAttribute('opacity', String(_vOpacity)); }catch(e){}
     tx.setAttribute('text-anchor','end');
     tx.textContent = fmtTick(v);
     svg.appendChild(tx);
@@ -7071,7 +7115,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       if (pi !== nP - 1) return;
       if (st.showLabel === false) return;
       const tx = document.createElementNS(ns,'text');
-      const _specX = W - 3;
+      const _specX = right - 4;
       tx.setAttribute('x', String(_specX));
       tx.setAttribute('y', String(y - 2));
       tx.setAttribute('text-anchor', 'end');
@@ -7124,7 +7168,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
         // Label at the line end (like USL/LSL)
         if (_vLblOn && pi === nP - 1){
           const tx = document.createElementNS(ns,'text');
-          tx.setAttribute('x', String(W - 3));
+          tx.setAttribute('x', String(right - 2));
           tx.setAttribute('y', String(y - 2));
           tx.setAttribute('text-anchor','end');
           tx.setAttribute('font-size','10');
@@ -7132,6 +7176,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
           try{ tx.setAttribute('opacity', String(_vOpacity)); }catch(e){}
           tx.textContent = _vPref + String(_vi + 1) + ' ' + fmtTick(v);
           try{ tx.setAttribute('data-qg-tip', _vPref + String(_vi + 1) + ': ' + fmtTick(v)); }catch(e){}
+          clip(tx);
           svg.appendChild(tx);
         }
       }
@@ -7813,7 +7858,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
 
     const W = 1200, H = (opt && opt.h ? opt.h : 320);
     // Keep x-axis labels tight to the plot (JMP-like), while still preventing clipping.
-    const padL = 62, padR = 78, padT = 14, padB = (opt && opt.showXLabels===false) ? 26 : 70;
+    const padL = 62, padR = 14, padT = 14, padB = (opt && opt.showXLabels===false) ? 26 : 70;
     const innerW = W - padL - padR;
     const innerH = H - padT - padB;
 
@@ -8083,7 +8128,7 @@ const clip = (el)=>{ try{ el.setAttribute('clip-path', clipUrl); }catch(e){} };
         if (st.showLabel === false) return;
 
         const tx = document.createElementNS(ns,'text');
-        const _specX = W - 3;
+        const _specX = right - 4;
         tx.setAttribute('x', String(_specX));
         tx.setAttribute('y', String(y - 2));
         tx.setAttribute('text-anchor', 'end');
