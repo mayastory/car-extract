@@ -595,24 +595,51 @@ body{min-width:980px;}
   var nonOutliers = sorted.filter(function(v){ return v >= lowFence && v <= highFence; });
   var whiskerLow = nonOutliers.length ? nonOutliers[0] : sorted[0];
   var whiskerHigh = nonOutliers.length ? nonOutliers[nonOutliers.length - 1] : sorted[sorted.length - 1];
+  var hasSpecs = isFinite(entry.lsl) && isFinite(entry.usl) && Number(entry.usl) > Number(entry.lsl);
+  var targetRaw = Number(entry.target);
+  var targetInsideSpecs = hasSpecs && isFinite(targetRaw) && targetRaw > Number(entry.lsl) && targetRaw < Number(entry.usl);
   var specDefs = [];
   if (isFinite(entry.lsl)) specDefs.push({ v:(Number(entry.lsl) - avg) / sigma, color:'#67d46f', width:'1.05' });
   specDefs.push({ v:0, color:'#67d46f', width:'1.05' });
-  if (isFinite(entry.target)) specDefs.push({ v:(Number(entry.target) - avg) / sigma, color:'#67d46f', width:'1.05' });
+  if ((!hasSpecs && isFinite(targetRaw)) || targetInsideSpecs) specDefs.push({ v:(targetRaw - avg) / sigma, color:'#67d46f', width:'1.05' });
   if (isFinite(entry.usl)) specDefs.push({ v:(Number(entry.usl) - avg) / sigma, color:'#67d46f', width:'1.05' });
   var refDefs = [
    { v:-0.5, color:'rgba(120,120,120,.92)', width:'1', dash:'3 3' },
    { v:0.5, color:'rgba(120,120,120,.92)', width:'1', dash:'3 3' }
   ];
-  var rangeAbs = 2;
-  sorted.forEach(function(v){ if (isFinite(v)) rangeAbs = Math.max(rangeAbs, Math.abs(v)); });
-  specDefs.forEach(function(line){ if (isFinite(line.v)) rangeAbs = Math.max(rangeAbs, Math.abs(line.v)); });
-  refDefs.forEach(function(line){ rangeAbs = Math.max(rangeAbs, Math.abs(line.v)); });
-  var axisAbs = Math.max(2, Math.ceil(rangeAbs));
-  if (axisAbs > 4) axisAbs = Math.ceil(axisAbs / 2) * 2;
-  var xMin = -axisAbs, xMax = axisAbs;
-  var majorStep = axisAbs > 4 ? 2 : 1;
-  var minorStep = axisAbs > 4 ? 1 : 0.5;
+  function niceStep(raw){
+   if (!(isFinite(raw) && raw > 0)) return 1;
+   var power = Math.pow(10, Math.floor(Math.log(raw) / Math.LN10));
+   var scaled = raw / power;
+   var base = 1;
+   if (scaled <= 1) base = 1;
+   else if (scaled <= 2) base = 2;
+   else if (scaled <= 2.5) base = 2.5;
+   else if (scaled <= 5) base = 5;
+   else base = 10;
+   return base * power;
+  }
+  var extentVals = [q1, med, q3, whiskerLow, whiskerHigh];
+  specDefs.forEach(function(line){ if (isFinite(line.v)) extentVals.push(line.v); });
+  refDefs.forEach(function(line){ if (isFinite(line.v)) extentVals.push(line.v); });
+  var finiteExtents = extentVals.filter(function(v){ return isFinite(v); });
+  var rawMin = finiteExtents.length ? Math.min.apply(null, finiteExtents) : -2;
+  var rawMax = finiteExtents.length ? Math.max.apply(null, finiteExtents) : 2;
+  if (!(rawMax > rawMin)){
+   rawMin -= 1;
+   rawMax += 1;
+  }
+  var span = rawMax - rawMin;
+  var pad = Math.max(0.6, span * 0.08);
+  var majorStep = niceStep((span + (pad * 2)) / 6);
+  var xMin = Math.floor((rawMin - pad) / majorStep) * majorStep;
+  var xMax = Math.ceil((rawMax + pad) / majorStep) * majorStep;
+  if (!(xMax > xMin)){
+   xMin -= majorStep;
+   xMax += majorStep;
+  }
+  if (xMin > 0) xMin = 0;
+  if (xMax < 0) xMax = 0;
   function x(v){ return left + ((v - xMin) / Math.max(1e-9, xMax - xMin)) * plotW; }
   var refLines = refDefs.filter(function(line){ return line.v >= xMin && line.v <= xMax; }).map(function(line){
    var xx = x(line.v);
@@ -629,17 +656,17 @@ body{min-width:980px;}
   var boxTop = yMid - (boxH / 2);
   var box = '<rect x="' + fixedTrim(x(q1), 2) + '" y="' + fixedTrim(boxTop, 2) + '" width="' + fixedTrim(Math.max(1, x(q3) - x(q1)), 2) + '" height="' + fixedTrim(boxH, 2) + '" fill="none" stroke="rgba(0,0,0,.68)" stroke-width="1"/>' +
    '<line x1="' + fixedTrim(x(med), 2) + '" y1="' + fixedTrim(boxTop, 2) + '" x2="' + fixedTrim(x(med), 2) + '" y2="' + fixedTrim(boxTop + boxH, 2) + '" stroke="rgba(0,0,0,.72)" stroke-width="1"/>';
-  var ticks = [];
-  for (var mv = xMin; mv <= xMax + 1e-9; mv += minorStep){
-   var mm = Math.round(mv * 1000) / 1000;
-   var xMinor = x(mm);
-   ticks.push('<line x1="' + fixedTrim(xMinor, 2) + '" y1="' + fixedTrim(plotBottom, 2) + '" x2="' + fixedTrim(xMinor, 2) + '" y2="' + fixedTrim(plotBottom + 3, 2) + '" stroke="rgba(0,0,0,.35)"/>');
+  function fmtAxisTick(v){
+   var rounded = Math.round(v * 1000) / 1000;
+   if (Math.abs(rounded - Math.round(rounded)) < 1e-9) return String(Math.round(rounded));
+   if (Math.abs((rounded * 2) - Math.round(rounded * 2)) < 1e-9) return fixedTrim(rounded, 1);
+   return fixedTrim(rounded, 2);
   }
+  var ticks = [];
   for (var tv = xMin; tv <= xMax + 1e-9; tv += majorStep){
-   var major = Math.round(tv * 1000) / 1000;
+   var major = Math.round(tv * 1000000) / 1000000;
    var xx = x(major);
-   var label = Math.abs(major - Math.round(major)) < 1e-9 ? String(Math.round(major)) : fixedTrim(major, 1);
-   ticks.push('<line x1="' + fixedTrim(xx, 2) + '" y1="' + fixedTrim(plotBottom, 2) + '" x2="' + fixedTrim(xx, 2) + '" y2="' + fixedTrim(tickLineBottom, 2) + '" stroke="rgba(0,0,0,.45)"/><text x="' + fixedTrim(xx, 2) + '" y="' + fixedTrim(tickTextY, 2) + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">' + esc(label) + '</text>');
+   ticks.push('<line x1="' + fixedTrim(xx, 2) + '" y1="' + fixedTrim(plotBottom, 2) + '" x2="' + fixedTrim(xx, 2) + '" y2="' + fixedTrim(tickLineBottom, 2) + '" stroke="rgba(0,0,0,.45)"/><text x="' + fixedTrim(xx, 2) + '" y="' + fixedTrim(tickTextY, 2) + '" fill="rgba(17,17,17,.92)" font-size="11" text-anchor="middle">' + esc(fmtAxisTick(major)) + '</text>');
   }
   return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
    '<rect x="' + fixedTrim(left, 2) + '" y="' + fixedTrim(top, 2) + '" width="' + fixedTrim(plotW, 2) + '" height="' + fixedTrim(plotH, 2) + '" fill="#f8f8f8" stroke="#b7b7b7"/>' +
