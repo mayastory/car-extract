@@ -6010,6 +6010,24 @@ function renderFacetList(rootId, items, selSet){
       next.baseLsl = rawL;
     }
 
+    const ratio = qgClampOocSpecPct(pct) / 100;
+    const hasU = qgIsVisibleLimitValue(rawU);
+    const hasL = qgIsVisibleLimitValue(rawL);
+    const savedUEqualsRaw = (src.baseUsl === undefined || src.baseUsl === null || qgSpecApproxEqual(Number(src.baseUsl), Number(rawU), qgSpecLegacyScaledEps(src.baseUsl, rawU)));
+    const savedLEqualsRaw = (src.baseLsl === undefined || src.baseLsl === null || qgSpecApproxEqual(Number(src.baseLsl), Number(rawL), qgSpecLegacyScaledEps(src.baseLsl, rawL)));
+
+    // Legacy one-sided specs in the pivot can still arrive pre-scaled by the current OOC percent.
+    // When only one side exists and the saved base is missing (or still equals the legacy raw value),
+    // treat the pivot value as the old scaled display value and restore the true 100% base into the input.
+    if (ratio > 0 && ratio < 1){
+      if (hasU && !hasL && savedUEqualsRaw){
+        next.baseUsl = Number(rawU) / ratio;
+      }
+      if (hasL && !hasU && savedLEqualsRaw){
+        next.baseLsl = Number(rawL) / ratio;
+      }
+    }
+
     return next;
   }
 
