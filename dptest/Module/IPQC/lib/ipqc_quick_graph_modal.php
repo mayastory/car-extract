@@ -1041,7 +1041,7 @@ if (!function_exists('h')) {
             </div>
             <div class="qg-row" style="margin-top:-2px; margin-bottom:10px;">
               <label class="qg-chkline">
-                <input id="qgShowOocSpecLine" type="checkbox" class="qg-chk" checked>
+                <input id="qgShowOocSpecLine" type="checkbox" class="qg-chk">
                 <span>OOC SPEC 선 표시</span>
               </label>
             </div>

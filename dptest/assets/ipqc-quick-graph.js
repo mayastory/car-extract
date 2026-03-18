@@ -5837,7 +5837,7 @@ function renderFacetList(rootId, items, selSet){
     if (!QG.limitBaseByCol) QG.limitBaseByCol = {};
     const key = String(col.key || '');
     const savedPct = (QG.oocSpecByCol[key] !== undefined) ? QG.oocSpecByCol[key] : ((col.oocSpecPct !== undefined) ? col.oocSpecPct : 85);
-    const savedLineVisible = (QG.oocLineVisibleByCol[key] !== undefined) ? !!QG.oocLineVisibleByCol[key] : ((col.oocLineVisible !== undefined) ? !!col.oocLineVisible : true);
+    const savedLineVisible = (QG.oocLineVisibleByCol[key] !== undefined) ? !!QG.oocLineVisibleByCol[key] : ((col.oocLineVisible !== undefined) ? !!col.oocLineVisible : false);
     col.oocSpecPct = qgClampOocSpecPct(savedPct);
     col.oocLineVisible = savedLineVisible;
     const savedBase = QG.limitBaseByCol[key] || null;
@@ -5872,7 +5872,7 @@ function renderFacetList(rootId, items, selSet){
 
   function qgGetColOocLineVisible(col){
     const st = qgEnsureColSpecState(col);
-    return st ? (st.oocLineVisible !== false) : true;
+    return st ? !!st.oocLineVisible : false;
   }
 
   function qgGetScaledOocLimitsForCol(col){
