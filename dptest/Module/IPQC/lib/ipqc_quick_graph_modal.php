@@ -1039,6 +1039,12 @@ if (!function_exists('h')) {
               <input id="qgOocSpecPct" type="number" min="1" max="100" step="1" value="85" class="qg-input" style="width:74px; text-align:right;">
               <span style="min-width:16px; text-align:left;">%</span>
             </div>
+            <div class="qg-row" style="margin-top:-2px; margin-bottom:10px;">
+              <label class="qg-chkline">
+                <input id="qgShowOocSpecLine" type="checkbox" class="qg-chk" checked>
+                <span>OOC SPEC 선 표시</span>
+              </label>
+            </div>
 
             <div class="qg-row" style="margin-top:10px;">
               <label class="qg-chkline">

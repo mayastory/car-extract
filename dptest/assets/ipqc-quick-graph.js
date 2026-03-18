@@ -137,6 +137,7 @@
     axisByCol: {}, // {colKey:{yMin:null|number,yMax:null|number}}
     gridHidden: true, // grid hide toggle (default: hidden)
     oocSpecByCol: {}, // {colKey: pct} per-FAI OOC SPEC percentage (85 keeps current base/input USL/LSL)
+    oocLineVisibleByCol: {}, // {colKey:boolean} per-FAI OOC reference line visibility
     limitBaseByCol: {}, // {colKey:{baseUsl,baseLsl}} per-FAI base limits before OOC scaling
     editingOocSpec: false,
     plotElems: { points:true, line:true, box:true }, // toolbar elements (Shift multi-select)
@@ -3969,6 +3970,7 @@ function getBase(){
     syncLimitInputs(true);
     syncAxisInputs(true);
     syncOocSpecInputs(true);
+    syncOocLineInputs(true);
   
     try{ qgSyncCaptionUi(); }catch(e){}
   }
@@ -5368,12 +5370,14 @@ try{
     // They must NOT be persisted to DB from this UI.
     const onLimitInput = ()=>{
       applyLimitInputsToState();
+      renderLegend();
       renderGrid();
     };
     const onLimitFocus = ()=>{ QG.editingLimits = true; };
     const onLimitBlur = ()=>{
       QG.editingLimits = false;
       applyLimitInputsToState();
+      renderLegend();
       renderGrid();
     };
 
@@ -5425,6 +5429,20 @@ try{
         specPct.addEventListener('blur', ()=>onSpecBlur('input'));
       }
       syncOocSpecInputs(true);
+    }catch(e){}
+
+    // OOC SPEC line visibility toggle (per-FAI)
+    try{
+      const oocLineEl = qs('#qgShowOocSpecLine');
+      if (oocLineEl && !oocLineEl._qg){
+        oocLineEl._qg = true;
+        oocLineEl.addEventListener('change', ()=>{
+          applyOocLineInputsToState();
+          renderLegend();
+          renderGrid();
+        });
+      }
+      syncOocLineInputs(true);
     }catch(e){}
 
     // USL/LSL label (right-side text) hide toggle - hide only the value labels, keep dashed lines
@@ -5704,6 +5722,7 @@ try{
         syncAxisInputs(true);
         QG.editingOocSpec = false;
         syncOocSpecInputs(true);
+        syncOocLineInputs(true);
 
         refresh();
       });
@@ -5814,10 +5833,13 @@ function renderFacetList(rootId, items, selSet){
   function qgEnsureColSpecState(col){
     if (!col) return null;
     if (!QG.oocSpecByCol) QG.oocSpecByCol = {};
+    if (!QG.oocLineVisibleByCol) QG.oocLineVisibleByCol = {};
     if (!QG.limitBaseByCol) QG.limitBaseByCol = {};
     const key = String(col.key || '');
     const savedPct = (QG.oocSpecByCol[key] !== undefined) ? QG.oocSpecByCol[key] : ((col.oocSpecPct !== undefined) ? col.oocSpecPct : 85);
+    const savedLineVisible = (QG.oocLineVisibleByCol[key] !== undefined) ? !!QG.oocLineVisibleByCol[key] : ((col.oocLineVisible !== undefined) ? !!col.oocLineVisible : true);
     col.oocSpecPct = qgClampOocSpecPct(savedPct);
+    col.oocLineVisible = savedLineVisible;
     const savedBase = QG.limitBaseByCol[key] || null;
     if (savedBase){
       col.baseUsl = (savedBase.baseUsl !== undefined) ? savedBase.baseUsl : (col.baseUsl !== undefined ? col.baseUsl : col.usl);
@@ -5828,12 +5850,53 @@ function renderFacetList(rootId, items, selSet){
       QG.limitBaseByCol[key] = { baseUsl: col.baseUsl, baseLsl: col.baseLsl };
     }
     QG.oocSpecByCol[key] = col.oocSpecPct;
+    QG.oocLineVisibleByCol[key] = !!col.oocLineVisible;
     return col;
   }
 
   function qgGetColOocSpecPct(col){
     const st = qgEnsureColSpecState(col);
     return st ? qgClampOocSpecPct(st.oocSpecPct) : 85;
+  }
+
+  function qgGetBaseLimitValueForCol(col, kind){
+    const st = qgEnsureColSpecState(col);
+    if (!st) return null;
+    const isLsl = String(kind || '').toLowerCase() === 'lsl';
+    const raw = isLsl ? st.baseLsl : st.baseUsl;
+    const v = Number(raw);
+    if (!isFinite(v)) return null;
+    if (isLsl && Math.abs(v) <= 1e-12) return null;
+    return v;
+  }
+
+  function qgGetColOocLineVisible(col){
+    const st = qgEnsureColSpecState(col);
+    return st ? (st.oocLineVisible !== false) : true;
+  }
+
+  function qgGetScaledOocLimitsForCol(col){
+    const st = qgEnsureColSpecState(col);
+    if (!st) return { usl: null, lsl: null };
+
+    const baseU = qgGetBaseLimitValueForCol(st, 'usl');
+    const baseL = qgGetBaseLimitValueForCol(st, 'lsl');
+    if (baseU === null && baseL === null) return { usl: null, lsl: null };
+
+    const ratio = qgGetColOocSpecPct(st) / 85;
+    if (baseU !== null && baseL !== null){
+      const center = (baseU + baseL) / 2;
+      const halfRange = Math.abs(baseU - baseL) / 2;
+      return {
+        usl: center + (halfRange * ratio),
+        lsl: center - (halfRange * ratio),
+      };
+    }
+
+    return {
+      usl: (baseU !== null) ? (baseU * ratio) : null,
+      lsl: (baseL !== null) ? (baseL * ratio) : null,
+    };
   }
 
   function qgScaleSpecValueForCol(col, val){
@@ -5872,6 +5935,23 @@ function renderFacetList(rootId, items, selSet){
     const inputEl = qs('#qgOocSpecPct');
     if (rangeEl) rangeEl.value = String(pct);
     if (inputEl) inputEl.value = String(pct);
+  }
+
+  function syncOocLineInputs(force){
+    const chkEl = qs('#qgShowOocSpecLine');
+    if (!chkEl) return;
+    const col = qgEnsureColSpecState(qgGetColByKey(QG.sel.primaryColKey));
+    chkEl.checked = qgGetColOocLineVisible(col);
+  }
+
+  function applyOocLineInputsToState(){
+    const chkEl = qs('#qgShowOocSpecLine');
+    const col = qgEnsureColSpecState(qgGetColByKey(QG.sel.primaryColKey));
+    if (!chkEl || !col) return;
+    const on = !!chkEl.checked;
+    col.oocLineVisible = on;
+    if (!QG.oocLineVisibleByCol) QG.oocLineVisibleByCol = {};
+    QG.oocLineVisibleByCol[String(col.key || '')] = on;
   }
 
   function applyOocSpecInputsToState(src){
@@ -5967,6 +6047,7 @@ function renderFacetList(rootId, items, selSet){
     syncLimitInputs(false);
     syncAxisInputs(false);
     syncOocSpecInputs(false);
+    syncOocLineInputs(false);
     renderGrid();
   }
 
@@ -6197,31 +6278,11 @@ function renderFacetList(rootId, items, selSet){
     _addVarSection(colorVar);
     _addVarSection(shapeVar);
 
-// 3) USL/LSL dashed per selected FAI (match plot style/color; show values if available)
+// 3) USL/LSL dashed per selected FAI (base limits stay fixed; OOC SPEC is a separate overlay line)
     for (const m of meta){
       const _col = (QG.cols && Array.isArray(QG.cols)) ? (QG.cols.find(c => c && c.key === m.key) || null) : null;
       const _cap = (QG.captionByColKey && QG.captionByColKey[m.key]) ? QG.captionByColKey[m.key] : null;
       const _numFmt = (_cap && _cap.numFmt) ? _cap.numFmt : 'auto';
-
-      let _uslTxt = 'USL';
-      let _lslTxt = 'LSL';
-
-      try{
-        const _u = _col ? qgScaleSpecValueForCol(_col, _col.baseUsl) : null;
-        const _uf = qgFmtCaptionNum(_u, _numFmt);
-        if (_uf) _uslTxt = 'USL(' + _uf + ')';
-      }catch(e){}
-
-      try{
-        const _l = _col ? qgScaleSpecValueForCol(_col, _col.baseLsl) : null;
-        const _lf = qgFmtCaptionNum(_l, _numFmt);
-        if (_lf) _lslTxt = 'LSL(' + _lf + ')';
-      }catch(e){}
-
-      const lim = document.createElement('div');
-      lim.className = 'qg-legend-item';
-      // colorize icon per series; keep label text black
-      try{ lim.style.setProperty('--qg-c', String(m.color||'#2b5bd7')); }catch(e){}
       const _srcLab = String(m.label||'');
       const _shortLab = (function(s){
         try{ s = (s||'').toString(); }catch(e){ s=''; }
@@ -6229,17 +6290,75 @@ function renderFacetList(rootId, items, selSet){
         if (s.length <= max) return s;
         return s.slice(0, Math.max(0, max-3)) + '...';
       })(_srcLab);
-      const _labFull = _uslTxt + ' / ' + _lslTxt + (_srcLab ? (' (' + _srcLab + ')') : '');
-      const _lab = _uslTxt + ' / ' + _lslTxt + (_shortLab ? (' (' + _shortLab + ')') : '');
-      lim.innerHTML = `
-        <span class="qg-lg-mean qg-lg-limit" aria-hidden="true">
-          <svg viewBox="0 0 14 12" xmlns="http://www.w3.org/2000/svg">
-            <line x1="1" y1="6" x2="13" y2="6" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3" stroke-linecap="butt" />
-          </svg>
-        </span>
-        <span class="qg-lg-label" title="${escapeHtml(_labFull)}">${escapeHtml(_lab)}</span>
-      `;
-      root.appendChild(lim);
+
+      const _baseParts = [];
+      try{
+        const _u = _col ? qgGetBaseLimitValueForCol(_col, 'usl') : null;
+        if (_u !== null){
+          const _uf = qgFmtCaptionNum(_u, _numFmt);
+          _baseParts.push(_uf ? ('USL(' + _uf + ')') : 'USL');
+        }
+      }catch(e){}
+      try{
+        const _l = _col ? qgGetBaseLimitValueForCol(_col, 'lsl') : null;
+        if (_l !== null){
+          const _lf = qgFmtCaptionNum(_l, _numFmt);
+          _baseParts.push(_lf ? ('LSL(' + _lf + ')') : 'LSL');
+        }
+      }catch(e){}
+
+      if (_baseParts.length){
+        const lim = document.createElement('div');
+        lim.className = 'qg-legend-item';
+        try{ lim.style.setProperty('--qg-c', String(m.color||'#2b5bd7')); }catch(e){}
+        const _baseTxt = _baseParts.join(' / ');
+        const _labFull = _baseTxt + (_srcLab ? (' (' + _srcLab + ')') : '');
+        const _lab = _baseTxt + (_shortLab ? (' (' + _shortLab + ')') : '');
+        lim.innerHTML = `
+          <span class="qg-lg-mean qg-lg-limit" aria-hidden="true">
+            <svg viewBox="0 0 14 12" xmlns="http://www.w3.org/2000/svg">
+              <line x1="1" y1="6" x2="13" y2="6" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3" stroke-linecap="butt" />
+            </svg>
+          </span>
+          <span class="qg-lg-label" title="${escapeHtml(_labFull)}">${escapeHtml(_lab)}</span>
+        `;
+        root.appendChild(lim);
+      }
+
+      if (_col && qgGetColOocLineVisible(_col)){
+        const _ooc = qgGetScaledOocLimitsForCol(_col);
+        const _oocParts = [];
+        try{
+          if (_ooc && _ooc.usl !== null && _ooc.usl !== undefined){
+            const _uf = qgFmtCaptionNum(_ooc.usl, _numFmt);
+            _oocParts.push(_uf ? ('OOC USL(' + _uf + ')') : 'OOC USL');
+          }
+        }catch(e){}
+        try{
+          if (_ooc && _ooc.lsl !== null && _ooc.lsl !== undefined){
+            const _lf = qgFmtCaptionNum(_ooc.lsl, _numFmt);
+            _oocParts.push(_lf ? ('OOC LSL(' + _lf + ')') : 'OOC LSL');
+          }
+        }catch(e){}
+
+        if (_oocParts.length){
+          const lim = document.createElement('div');
+          lim.className = 'qg-legend-item';
+          try{ lim.style.setProperty('--qg-c', String(m.color||'#2b5bd7')); }catch(e){}
+          const _oocTxt = _oocParts.join(' / ');
+          const _labFull = _oocTxt + (_srcLab ? (' (' + _srcLab + ')') : '');
+          const _lab = _oocTxt + (_shortLab ? (' (' + _shortLab + ')') : '');
+          lim.innerHTML = `
+            <span class="qg-lg-mean qg-lg-limit" aria-hidden="true">
+              <svg viewBox="0 0 18 12" xmlns="http://www.w3.org/2000/svg">
+                <line x1="1" y1="6" x2="17" y2="6" stroke="currentColor" stroke-width="2" stroke-dasharray="8 3 2 3" stroke-linecap="butt" />
+              </svg>
+            </span>
+            <span class="qg-lg-label" title="${escapeHtml(_labFull)}">${escapeHtml(_lab)}</span>
+          `;
+          root.appendChild(lim);
+        }
+      }
     }
 
     // 4) Variable lines (가변선) per selected FAI (added by right-click on plot)
@@ -6421,8 +6540,9 @@ function renderGrid(){
       if (!series) continue;
 
       const col = QG.cols.find(c => c.key === colKey) || null;
-      const usl = col ? qgScaleSpecValueForCol(col, col.baseUsl) : null;
-      const lsl = col ? qgScaleSpecValueForCol(col, col.baseLsl) : null;
+      const usl = col ? qgGetBaseLimitValueForCol(col, 'usl') : null;
+      const lsl = col ? qgGetBaseLimitValueForCol(col, 'lsl') : null;
+      const oocLim = (col && qgGetColOocLineVisible(col)) ? qgGetScaledOocLimitsForCol(col) : { usl: null, lsl: null };
 
       // Union dates across the entire (Tool x Cavity) matrix in this tool-row block
       const dateMap = new Map();
@@ -6499,7 +6619,7 @@ function renderGrid(){
       QG.series = series;
       const seriesColor = QG_SERIES_COLORS[ki % QG_SERIES_COLORS.length];
       const ax = getAxisState(colKey);
-      drawMatrixSvg(svg, toolsRow, selCavs, dates, { usl, lsl, yMinO: ax.yMin, yMaxO: ax.yMax, showXLabels, h: rowSvgH, color: seriesColor, colKey: colKey, label: qgGetDisplayLabel(colKey) });
+      drawMatrixSvg(svg, toolsRow, selCavs, dates, { usl, lsl, oocUsl: oocLim.usl, oocLsl: oocLim.lsl, yMinO: ax.yMin, yMaxO: ax.yMax, showXLabels, h: rowSvgH, color: seriesColor, colKey: colKey, label: qgGetDisplayLabel(colKey) });
       QG.series = prevSeries;
 
       wrap.appendChild(svg);
@@ -6570,6 +6690,8 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
   }
   if (opt && opt.lsl !== null) yMin = Math.min(yMin, opt.lsl);
   if (opt && opt.usl !== null) yMax = Math.max(yMax, opt.usl);
+  if (opt && opt.oocLsl !== null && opt.oocLsl !== undefined) yMin = Math.min(yMin, opt.oocLsl);
+  if (opt && opt.oocUsl !== null && opt.oocUsl !== undefined) yMax = Math.max(yMax, opt.oocUsl);
 
   const hasYMinO = !!(opt && opt.yMinO !== null && opt.yMinO !== undefined && isFinite(opt.yMinO));
   const hasYMaxO = !!(opt && opt.yMaxO !== null && opt.yMaxO !== undefined && isFinite(opt.yMaxO));
@@ -6838,21 +6960,24 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
     const left = padL + pi*(panelW + gap);
     const right = left + panelW;
 
-    // USL/LSL per panel (same value); label only at far right-most panel
-    function hLine(val, label){
-      const scaledVal = val;
+    // USL/LSL per panel (base limits stay fixed); OOC SPEC uses a separate overlay line
+    function hLine(val, label, cfg){
+      const scaledVal = Number(val);
+      if (!isFinite(scaledVal)) return;
+      const st = cfg || {};
       const y = yAt(scaledVal);
       const ln = document.createElementNS(ns,'line');
       ln.setAttribute('x1', String(left)); ln.setAttribute('x2', String(right));
       ln.setAttribute('y1', String(y)); ln.setAttribute('y2', String(y));
-      ln.setAttribute('stroke', seriesColor);
-      ln.setAttribute('stroke-width','1');
-      ln.setAttribute('stroke-dasharray','4 3');
+      ln.setAttribute('stroke', st.stroke ? String(st.stroke) : seriesColor);
+      ln.setAttribute('stroke-width', String(st.width || 1));
+      if (st.opacity !== undefined && st.opacity !== null) ln.setAttribute('stroke-opacity', String(st.opacity));
+      if (st.dash) ln.setAttribute('stroke-dasharray', String(st.dash));
       clip(ln);
       svg.appendChild(ln);
 
       if (pi !== nP - 1) return;
-      if (QG.hideUslLslLabel) return;
+      if (st.showLabel === false) return;
       const tx = document.createElementNS(ns,'text');
       const _specX = right - 4;
       tx.setAttribute('x', String(_specX));
@@ -6860,13 +6985,17 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       tx.setAttribute('text-anchor', 'end');
       tx.setAttribute('font-size','10');
       tx.setAttribute('fill','rgba(0,0,0,0.70)');
-          try{ tx.setAttribute('opacity', String(_vOpacity)); }catch(e){}
+      if (st.labelOpacity !== undefined && st.labelOpacity !== null){
+        try{ tx.setAttribute('opacity', String(st.labelOpacity)); }catch(e){}
+      }
       tx.textContent = label + ' ' + fmtTick(scaledVal);
       clip(tx);
       svg.appendChild(tx);
     }
-    if (opt && opt.usl !== null) hLine(opt.usl, 'USL');
-    if (opt && opt.lsl !== null) hLine(opt.lsl, 'LSL');
+    if (opt && opt.usl !== null) hLine(opt.usl, 'USL', { dash:'4 3', showLabel: !QG.hideUslLslLabel });
+    if (opt && opt.lsl !== null) hLine(opt.lsl, 'LSL', { dash:'4 3', showLabel: !QG.hideUslLslLabel });
+    if (opt && opt.oocUsl !== null && opt.oocUsl !== undefined) hLine(opt.oocUsl, 'OOC USL', { dash:'8 3 2 3', width:1.2, showLabel:true });
+    if (opt && opt.oocLsl !== null && opt.oocLsl !== undefined) hLine(opt.oocLsl, 'OOC LSL', { dash:'8 3 2 3', width:1.2, showLabel:true });
 
     // Variable lines (가변선) - per FAI row (colKey)
     const _vArr = (_colKey && QG.varLines && QG.varLines[_colKey]) ? QG.varLines[_colKey] : [];
@@ -7618,6 +7747,8 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
     }
     if (opt && opt.lsl !== null) yMin = Math.min(yMin, opt.lsl);
     if (opt && opt.usl !== null) yMax = Math.max(yMax, opt.usl);
+    if (opt && opt.oocLsl !== null && opt.oocLsl !== undefined) yMin = Math.min(yMin, opt.oocLsl);
+    if (opt && opt.oocUsl !== null && opt.oocUsl !== undefined) yMax = Math.max(yMax, opt.oocUsl);
 
     const hasYMinO = !!(opt && opt.yMinO !== null && opt.yMinO !== undefined && isFinite(opt.yMinO));
     const hasYMaxO = !!(opt && opt.yMaxO !== null && opt.yMaxO !== undefined && isFinite(opt.yMaxO));
@@ -7840,23 +7971,26 @@ const clip = (el)=>{ try{ el.setAttribute('clip-path', clipUrl); }catch(e){} };
       pr.setAttribute('stroke-width','0');
       svg.appendChild(pr);
 
-      // usl/lsl lines per panel
+      // usl/lsl lines per panel (base limits stay fixed); OOC SPEC is drawn as a separate overlay
       // NOTE: USL/LSL is identical across cavities for the same FAI,
       // so draw the dashed line in every cavity panel but draw the label only once (rightmost panel)
-      function hLine(val, label){
-        const scaledVal = val;
+      function hLine(val, label, cfg){
+        const scaledVal = Number(val);
+        if (!isFinite(scaledVal)) return;
+        const st = cfg || {};
         const y = yAt(scaledVal);
         const ln = document.createElementNS(ns,'line');
         ln.setAttribute('x1', String(left)); ln.setAttribute('x2', String(right));
         ln.setAttribute('y1', String(y)); ln.setAttribute('y2', String(y));
-        ln.setAttribute('stroke','#2b5bd7');
-        ln.setAttribute('stroke-width','1');
-        ln.setAttribute('stroke-dasharray','4 3');
+        ln.setAttribute('stroke', st.stroke ? String(st.stroke) : '#2b5bd7');
+        ln.setAttribute('stroke-width', String(st.width || 1));
+        if (st.opacity !== undefined && st.opacity !== null) ln.setAttribute('stroke-opacity', String(st.opacity));
+        if (st.dash) ln.setAttribute('stroke-dasharray', String(st.dash));
         clip(ln);
         svg.appendChild(ln);
         // Label only on the last visible cavity panel (JMP-like: one label at the far right)
         if (ci !== cavs.length - 1) return;
-        if (QG.hideUslLslLabel) return;
+        if (st.showLabel === false) return;
 
         const tx = document.createElementNS(ns,'text');
         const _specX = right - 4;
@@ -7865,13 +7999,17 @@ const clip = (el)=>{ try{ el.setAttribute('clip-path', clipUrl); }catch(e){} };
         tx.setAttribute('text-anchor', 'end');
         tx.setAttribute('font-size','10');
         tx.setAttribute('fill','rgba(0,0,0,0.70)');
-          try{ tx.setAttribute('opacity', String(_vOpacity)); }catch(e){}
+        if (st.labelOpacity !== undefined && st.labelOpacity !== null){
+          try{ tx.setAttribute('opacity', String(st.labelOpacity)); }catch(e){}
+        }
         tx.textContent = label + ' ' + fmtTick(scaledVal);
         clip(tx);
         svg.appendChild(tx);
       }
-      if (opt && opt.usl !== null) hLine(opt.usl, 'USL');
-      if (opt && opt.lsl !== null) hLine(opt.lsl, 'LSL');
+      if (opt && opt.usl !== null) hLine(opt.usl, 'USL', { dash:'4 3', showLabel: !QG.hideUslLslLabel });
+      if (opt && opt.lsl !== null) hLine(opt.lsl, 'LSL', { dash:'4 3', showLabel: !QG.hideUslLslLabel });
+      if (opt && opt.oocUsl !== null && opt.oocUsl !== undefined) hLine(opt.oocUsl, 'OOC USL', { dash:'8 3 2 3', width:1.2, showLabel:true });
+      if (opt && opt.oocLsl !== null && opt.oocLsl !== undefined) hLine(opt.oocLsl, 'OOC LSL', { dash:'8 3 2 3', width:1.2, showLabel:true });
 
       // data
       const s = ((QG.series||{})[tool]||{})[cav]||{};
