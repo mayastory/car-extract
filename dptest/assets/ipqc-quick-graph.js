@@ -6618,9 +6618,10 @@ function renderGrid(){
     grid.appendChild(group);
     const headerH = Math.ceil(head.getBoundingClientRect().height || 0);
 
-    const footerH = 56; // reserve date-label space once for the whole tool-row block
-    const availPlot = Math.max(120, (groupCapH - headerH - 16 - footerH) - (rowsN-1)*gapY);
-    const rowPlotH = Math.max(42, Math.floor(availPlot / rowsN));
+    const avail = Math.max(120, (groupCapH - headerH - 16) - (rowsN-1)*gapY);
+    // Reserve one shared footer band for the last FAI row only so every FAI plot area stays equal.
+    const footerH = 56;
+    const rowPlotH = Math.max(20, Math.floor(Math.max(40, avail - footerH) / rowsN));
 
     let groupAdded = 0;
 
@@ -6684,9 +6685,7 @@ function renderGrid(){
       const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
       svg.classList.add('qg-svg');
       try{ svg.dataset.colKey = String(colKey); svg.setAttribute('data-col-key', String(colKey)); }catch(e){}
-      svg.setAttribute('viewBox', '0 0 1200 320');
       svg.setAttribute('preserveAspectRatio','none');
-      svg.style.height = '320px';
       svg.style.pointerEvents = 'all';
 
       // Clicking a chart should switch the axis/limit editor to that FAI (primary selection)
@@ -6704,15 +6703,15 @@ function renderGrid(){
 
       // Dates only once per tool-row block (on the last FAI row)
       const showXLabels = (ki === keys.length - 1);
-      const rowSvgH = rowPlotH + (showXLabels ? footerH : 0);
-      svg.setAttribute('viewBox', `0 0 1200 ${rowSvgH}`);
-      svg.style.height = rowSvgH + 'px';
+      const svgH = rowPlotH + (showXLabels ? footerH : 0);
+      svg.setAttribute('viewBox', `0 0 1200 ${svgH}`);
+      svg.style.height = svgH + 'px';
 
       const prevSeries = QG.series;
       QG.series = series;
       const seriesColor = QG_SERIES_COLORS[ki % QG_SERIES_COLORS.length];
       const ax = getAxisState(colKey);
-      drawMatrixSvg(svg, toolsRow, selCavs2, dates, { usl, lsl, oocUsl: oocLim.usl, oocLsl: oocLim.lsl, yMinO: ax.yMin, yMaxO: ax.yMax, showXLabels, h: rowSvgH, color: seriesColor, colKey: colKey, label: qgGetDisplayLabel(colKey) });
+      drawMatrixSvg(svg, toolsRow, selCavs2, dates, { usl, lsl, oocUsl: oocLim.usl, oocLsl: oocLim.lsl, yMinO: ax.yMin, yMaxO: ax.yMax, showXLabels, h: svgH, footerH, color: seriesColor, colKey: colKey, label: qgGetDisplayLabel(colKey) });
       QG.series = prevSeries;
 
       wrap.appendChild(svg);
@@ -6753,9 +6752,9 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
 
 
   const W = 1200, H = (opt && opt.h ? opt.h : 320);
-  // JMP-like “one page”: remove top/bottom padding so FAI panels can touch with no gaps.
-  // Only the last row keeps bottom space for date labels.
-  const padL = 62, padR = 14, padT = 0, padB = (opt && opt.showXLabels===false) ? 0 : 56;
+  // Keep every FAI plot area the same height; the last row alone gets an extra footer band for dates.
+  const footerH = (opt && isFinite(Number(opt.footerH))) ? Math.max(0, Number(opt.footerH)) : 56;
+  const padL = 62, padR = 78, padT = 0, padB = (opt && opt.showXLabels===false) ? 0 : footerH;
   const innerW = W - padL - padR;
   const innerH = H - padT - padB;
 
@@ -7072,7 +7071,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       if (pi !== nP - 1) return;
       if (st.showLabel === false) return;
       const tx = document.createElementNS(ns,'text');
-      const _specX = right - 4;
+      const _specX = W - 3;
       tx.setAttribute('x', String(_specX));
       tx.setAttribute('y', String(y - 2));
       tx.setAttribute('text-anchor', 'end');
@@ -7082,7 +7081,6 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
         try{ tx.setAttribute('opacity', String(st.labelOpacity)); }catch(e){}
       }
       tx.textContent = label + ' ' + fmtTick(scaledVal);
-      clip(tx);
       svg.appendChild(tx);
     }
     if (opt && opt.usl !== null) hLine(opt.usl, 'USL', { dash:'4 3', showLabel: !QG.hideUslLslLabel });
@@ -7126,7 +7124,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
         // Label at the line end (like USL/LSL)
         if (_vLblOn && pi === nP - 1){
           const tx = document.createElementNS(ns,'text');
-          tx.setAttribute('x', String(right - 2));
+          tx.setAttribute('x', String(W - 3));
           tx.setAttribute('y', String(y - 2));
           tx.setAttribute('text-anchor','end');
           tx.setAttribute('font-size','10');
@@ -7134,7 +7132,6 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
           try{ tx.setAttribute('opacity', String(_vOpacity)); }catch(e){}
           tx.textContent = _vPref + String(_vi + 1) + ' ' + fmtTick(v);
           try{ tx.setAttribute('data-qg-tip', _vPref + String(_vi + 1) + ': ' + fmtTick(v)); }catch(e){}
-          clip(tx);
           svg.appendChild(tx);
         }
       }
@@ -7816,7 +7813,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
 
     const W = 1200, H = (opt && opt.h ? opt.h : 320);
     // Keep x-axis labels tight to the plot (JMP-like), while still preventing clipping.
-    const padL = 62, padR = 14, padT = 14, padB = (opt && opt.showXLabels===false) ? 26 : 70;
+    const padL = 62, padR = 78, padT = 14, padB = (opt && opt.showXLabels===false) ? 26 : 70;
     const innerW = W - padL - padR;
     const innerH = H - padT - padB;
 
@@ -8086,7 +8083,7 @@ const clip = (el)=>{ try{ el.setAttribute('clip-path', clipUrl); }catch(e){} };
         if (st.showLabel === false) return;
 
         const tx = document.createElementNS(ns,'text');
-        const _specX = right - 4;
+        const _specX = W - 3;
         tx.setAttribute('x', String(_specX));
         tx.setAttribute('y', String(y - 2));
         tx.setAttribute('text-anchor', 'end');
