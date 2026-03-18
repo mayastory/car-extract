@@ -6672,7 +6672,7 @@ function renderGrid(){
   const gridGapY = 0;    // matches CSS: #qgGrid gap
   const groupMB = 0;     // matches CSS: .qg-tool-group margin-bottom
   const outer = (groupCount - 1) * gridGapY + groupCount * groupMB;
-  const groupCapH = Math.max(220, Math.floor((mainH - mainPad - outer - 16) / groupCount));
+  const groupCapH = Math.max(220, Math.floor((mainH - mainPad - outer - 4) / groupCount));
 
   let anyAdded = 0;
 
@@ -6698,8 +6698,8 @@ function renderGrid(){
     grid.appendChild(group);
     const headerH = Math.ceil(head.getBoundingClientRect().height || 0);
 
-    const footerH = 56; // reserve date-label space once for the whole tool-row block
-    const availPlot = Math.max(120, (groupCapH - headerH - 16 - footerH) - (rowsN-1)*gapY);
+    const footerH = 52; // reserve date-label space once for the whole tool-row block
+    const availPlot = Math.max(120, (groupCapH - headerH - 6 - footerH) - (rowsN-1)*gapY);
     const rowPlotH = Math.max(42, Math.floor(availPlot / rowsN));
 
     let groupAdded = 0;
@@ -7148,9 +7148,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
 
   // Draw only the shared outer box edges that should remain visible when the FAI rows stack.
   const outerStroke = '#cfcfcf';
-  // Draw a single shared separator line at the top of every stacked FAI row so
-  // adjacent rows meet with the same light-gray divider used by the cavity columns.
-  {
+  if (rowIndex === 0){
     const topEdge = document.createElementNS(ns,'line');
     topEdge.setAttribute('x1', String(padL));
     topEdge.setAttribute('x2', String(W - padR));
@@ -7160,7 +7158,16 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
     topEdge.setAttribute('stroke-width', '1');
     svg.appendChild(topEdge);
   }
-  if (rowIndex === rowCount - 1){
+  if (rowIndex < rowCount - 1){
+    const rowSep = document.createElementNS(ns,'line');
+    rowSep.setAttribute('x1', String(padL));
+    rowSep.setAttribute('x2', String(W - padR));
+    rowSep.setAttribute('y1', String(padT + innerH - 1));
+    rowSep.setAttribute('y2', String(padT + innerH - 1));
+    rowSep.setAttribute('stroke', '#c7c7c7');
+    rowSep.setAttribute('stroke-width', '1');
+    svg.appendChild(rowSep);
+  }else{
     const botEdge = document.createElementNS(ns,'line');
     botEdge.setAttribute('x1', String(padL));
     botEdge.setAttribute('x2', String(W - padR));
@@ -7241,8 +7248,8 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       const _specX = right - 2;
       // Keep the label inside the last cavity panel, but sit it just above the spec line
       // so the text does not overlap the dashed line or stick to the bottom edge.
-      const _labelGap = 2;
-      const _specY = Math.max(padT + _fontPx, Math.min(padT + innerH - 2, y - _labelGap));
+      const _labelGap = 4;
+      const _specY = Math.max(padT + _fontPx + 1, Math.min(padT + innerH - 4, y - _labelGap));
       tx.setAttribute('x', String(_specX));
       tx.setAttribute('y', String(_specY));
       tx.setAttribute('text-anchor', 'end');
