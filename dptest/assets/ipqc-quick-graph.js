@@ -7148,7 +7148,9 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
 
   // Draw only the shared outer box edges that should remain visible when the FAI rows stack.
   const outerStroke = '#cfcfcf';
-  if (rowIndex === 0){
+  // Draw a single shared separator line at the top of every stacked FAI row so
+  // adjacent rows meet with the same light-gray divider used by the cavity columns.
+  {
     const topEdge = document.createElementNS(ns,'line');
     topEdge.setAttribute('x1', String(padL));
     topEdge.setAttribute('x2', String(W - padR));
@@ -7237,13 +7239,14 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       const tx = document.createElementNS(ns,'text');
       const _fontPx = 10;
       const _specX = right - 2;
-      // Keep the label inside the last cavity panel and centered on the spec line,
-      // matching the original JMP-like look instead of lifting it away from the line.
-      const _specY = Math.max(padT + _fontPx * 0.6, Math.min(padT + innerH - _fontPx * 0.4, y));
+      // Keep the label inside the last cavity panel, but sit it just above the spec line
+      // so the text does not overlap the dashed line or stick to the bottom edge.
+      const _labelGap = 2;
+      const _specY = Math.max(padT + _fontPx, Math.min(padT + innerH - 2, y - _labelGap));
       tx.setAttribute('x', String(_specX));
       tx.setAttribute('y', String(_specY));
       tx.setAttribute('text-anchor', 'end');
-      tx.setAttribute('dominant-baseline', 'middle');
+      tx.setAttribute('dominant-baseline', 'alphabetic');
       tx.setAttribute('font-size', String(_fontPx));
       tx.setAttribute('fill','rgba(0,0,0,0.70)');
       if (st.labelOpacity !== undefined && st.labelOpacity !== null){
