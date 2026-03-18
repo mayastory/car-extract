@@ -3992,6 +3992,53 @@ function getBase(){
     try{ qgSyncCaptionUi(); }catch(e){}
   }
 
+  function qgSeriesHasAnyData(series){
+    if (!series || typeof series !== 'object') return false;
+    for (const t of Object.keys(series)){
+      const cavMap = series[t] || {};
+      for (const c of Object.keys(cavMap)){
+        const dateMap = cavMap[c] || {};
+        for (const d of Object.keys(dateMap)){
+          const p = dateMap[d] || null;
+          if (!p) continue;
+          if (Array.isArray(p.vals) && p.vals.length) return true;
+          if (isFinite(p.mean) || isFinite(p.min) || isFinite(p.max)) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  function qgEnsureSelectedColsHaveData(map){
+    const cols = Array.isArray(QG.cols) ? QG.cols : [];
+    if (!QG.sel.colKeys || !(QG.sel.colKeys instanceof Set)) QG.sel.colKeys = new Set();
+
+    const orderedSelected = [];
+    for (const c of cols){
+      const k = String(c && c.key != null ? c.key : '');
+      if (k && QG.sel.colKeys.has(k)) orderedSelected.push(k);
+    }
+
+    const keep = orderedSelected.filter(k => qgSeriesHasAnyData(map && map[k]));
+    if (keep.length){
+      QG.sel.colKeys = new Set(keep);
+      if (!keep.includes(String(QG.sel.primaryColKey || ''))) QG.sel.primaryColKey = keep[0] || '';
+      if (QG.sel.primaryColKey && !QG.sel.colKeys.has(QG.sel.primaryColKey)) QG.sel.colKeys.add(QG.sel.primaryColKey);
+      return;
+    }
+
+    let fallback = '';
+    for (const c of cols){
+      const k = String(c && c.key != null ? c.key : '');
+      if (!k) continue;
+      if (!map[k]) map[k] = computeSeriesForColKey(k);
+      if (qgSeriesHasAnyData(map[k])){ fallback = k; break; }
+    }
+
+    QG.sel.colKeys = fallback ? new Set([fallback]) : new Set();
+    QG.sel.primaryColKey = fallback;
+  }
+
   function computeSeriesForSelectedCols(){
     const keys = selectedColKeysInOrder();
   try{ QG._visibleColKeys = Array.isArray(keys) ? keys.slice() : []; }catch(e){}
@@ -4002,6 +4049,8 @@ function getBase(){
       const s = computeSeriesForColKey(k);
       if (s) map[k] = s;
     }
+
+    qgEnsureSelectedColsHaveData(map);
 
     QG.seriesByCol = map;
     QG.series = map[QG.sel.primaryColKey] || null;
@@ -6702,7 +6751,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
   const W = 1200, H = (opt && opt.h ? opt.h : 320);
   // JMP-like “one page”: remove top/bottom padding so FAI panels can touch with no gaps.
   // Only the last row keeps bottom space for date labels.
-  const padL = 62, padR = 14, padT = 14, padB = (opt && opt.showXLabels===false) ? 0 : 56;
+  const padL = 62, padR = 14, padT = 0, padB = (opt && opt.showXLabels===false) ? 0 : 56;
   const innerW = W - padL - padR;
   const innerH = H - padT - padB;
 
