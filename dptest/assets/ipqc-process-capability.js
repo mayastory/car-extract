@@ -1025,7 +1025,7 @@
     const xMax = axisAbs;
     const x = v => left + ((v - xMin) / Math.max(1e-9, xMax - xMin)) * plotW;
 
-    const points = '';
+    const points = sorted.filter(v => v < lowFence || v > highFence).map(v => '<circle cx="' + fixedTrim(x(v), 2) + '" cy="' + fixedTrim(yMid, 2) + '" r="2.6" fill="rgba(17,17,17,.78)"/>').join('');
 
     const specLineDefs = [];
     if (Number.isFinite(entry.lsl) && Number.isFinite(entry.usl)){

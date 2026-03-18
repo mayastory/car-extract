@@ -694,6 +694,9 @@ body{min-width:980px;}
    var xx = x(line.v);
    return '<line x1="' + fixedTrim(xx,2) + '" y1="' + fixedTrim(top,2) + '" x2="' + fixedTrim(xx,2) + '" y2="' + fixedTrim(plotBottom,2) + '" stroke="' + line.color + '" stroke-width="' + line.width + '"/>';
   }).join('');
+  var outlierPoints = sorted.filter(function(v){ return v < lowFence || v > highFence; }).map(function(v){
+   return '<circle cx="' + fixedTrim(x(v), 2) + '" cy="' + fixedTrim(yMid, 2) + '" r="2.6" fill="rgba(17,17,17,.78)"/>';
+  }).join('');
   var whiskerColor = 'rgba(0,0,0,.72)';
   var whisker = '<line x1="' + fixedTrim(x(whiskerLow), 2) + '" y1="' + fixedTrim(yMid, 2) + '" x2="' + fixedTrim(x(whiskerHigh), 2) + '" y2="' + fixedTrim(yMid, 2) + '" stroke="' + whiskerColor + '" stroke-width="1.05"/>' +
    '<line x1="' + fixedTrim(x(whiskerLow), 2) + '" y1="' + fixedTrim(yMid - 6, 2) + '" x2="' + fixedTrim(x(whiskerLow), 2) + '" y2="' + fixedTrim(yMid + 6, 2) + '" stroke="' + whiskerColor + '" stroke-width="1.05"/>' +
@@ -719,7 +722,7 @@ body{min-width:980px;}
   return '<svg viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">' +
    '<rect x="' + fixedTrim(left, 2) + '" y="' + fixedTrim(top, 2) + '" width="' + fixedTrim(plotW, 2) + '" height="' + fixedTrim(plotH, 2) + '" fill="#f8f8f8" stroke="#b7b7b7"/>' +
    '<line x1="' + fixedTrim(left, 2) + '" y1="' + fixedTrim(plotBottom, 2) + '" x2="' + fixedTrim(left + plotW, 2) + '" y2="' + fixedTrim(plotBottom, 2) + '" stroke="rgba(0,0,0,.55)"/>' +
-   refLines + specLines + whisker + box + ticks.join('') +
+   refLines + specLines + outlierPoints + whisker + box + ticks.join('') +
    '<text x="' + fixedTrim(left + (plotW / 2), 2) + '" y="' + fixedTrim(titleY, 2) + '" fill="rgba(17,17,17,.92)" font-size="11.5" text-anchor="middle">' + caption + '</text>' +
    '<text x="' + fixedTrim(left + plotW + 12, 2) + '" y="' + fixedTrim(yMid + 4, 2) + '" fill="rgba(17,17,17,.92)" font-size="12">' + esc(entry.label || entry.proc || '') + '</text>' +
    '</svg>';
