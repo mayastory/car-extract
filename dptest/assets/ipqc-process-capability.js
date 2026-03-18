@@ -1076,7 +1076,8 @@
       if (step >= 0.01) return fixedTrim(safe, 2);
       return fixedTrim(safe, 3);
     }
-    const tickStep = Math.max(niceTickStep((xMax - xMin) / 6), 1e-9);
+    const normalizedTickStep = Math.max(0.5, niceTickStep((xMax - xMin) / 8));
+    const tickStep = Math.max(normalizedTickStep, 1e-9);
     const tickStart = Math.ceil(xMin / tickStep) * tickStep;
     const ticks = [];
     for (let v = tickStart; v <= xMax + tickStep * 0.25; v += tickStep){
