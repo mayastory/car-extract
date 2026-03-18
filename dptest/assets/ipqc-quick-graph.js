@@ -7159,11 +7159,12 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       const tx = document.createElementNS(ns,'text');
       const _fontPx = 10;
       const _specX = right - 2;
-      const _specY = Math.max(padT + _fontPx, Math.min(padT + innerH - 2, y));
+      // Keep the label inside the last cavity and lift it slightly above the spec line.
+      const _specY = Math.max(padT + _fontPx, Math.min(padT + innerH - 2, y - 2));
       tx.setAttribute('x', String(_specX));
       tx.setAttribute('y', String(_specY));
       tx.setAttribute('text-anchor', 'end');
-      tx.setAttribute('dominant-baseline', 'middle');
+      tx.setAttribute('dominant-baseline', 'alphabetic');
       tx.setAttribute('font-size', String(_fontPx));
       tx.setAttribute('fill','rgba(0,0,0,0.70)');
       if (st.labelOpacity !== undefined && st.labelOpacity !== null){
