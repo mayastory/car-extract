@@ -6903,8 +6903,14 @@ function renderGrid(){
     e.textContent = '표시할 데이터가 없습니다.';
     grid.appendChild(e);
   }
+  try{ qgSyncRightSideChrome(); }catch(e){}
+  try{ requestAnimationFrame(()=>{ try{ qgSyncRightSideChrome(); }catch(e2){} }); }catch(e){}
+}
+
+
+function qgSyncRightSideChrome(){
   try{ qgSyncGroupYBox(); }catch(e){}
-  try{ requestAnimationFrame(()=>{ try{ qgSyncGroupYBox(); }catch(e2){} }); }catch(e){}
+  try{ qgSyncRightDock(); }catch(e){}
 }
 
 
@@ -6919,8 +6925,8 @@ function qgSyncGroupYBox(){
       box.style.display = 'none';
       return;
     }
-    const firstPlot = qs('.qg-fai-one', rows[0]) || qs('.qg-row-label', rows[0]) || rows[0];
-    const lastPlot = qs('.qg-fai-one', rows[rows.length - 1]) || qs('.qg-row-label', rows[rows.length - 1]) || rows[rows.length - 1];
+    const firstPlot = qs('.qg-row-label', rows[0]) || qs('.qg-fai-one', rows[0]) || rows[0];
+    const lastPlot = qs('.qg-row-label', rows[rows.length - 1]) || qs('.qg-fai-one', rows[rows.length - 1]) || rows[rows.length - 1];
     const mainRect = main.getBoundingClientRect();
     const topRect = firstPlot.getBoundingClientRect();
     const botRect = lastPlot.getBoundingClientRect();
@@ -6931,21 +6937,54 @@ function qgSyncGroupYBox(){
     if (!isFinite(top)) top = 0;
     if (!isFinite(height) || height < 48) height = 48;
     box.style.display = 'flex';
-    box.style.right = '-1px';
+    box.style.right = '0px';
     box.style.top = Math.max(0, top) + 'px';
     box.style.bottom = 'auto';
     box.style.height = height + 'px';
-    box.style.width = '30px';
+    box.style.width = '28px';
     box.style.pointerEvents = 'none';
     const txt = qs('.qg-group-y-text', box);
     if (txt){
-      txt.style.transform = 'rotate(-90deg)';
+      txt.style.writingMode = 'vertical-rl';
+      txt.style.textOrientation = 'mixed';
+      txt.style.transform = 'none';
       txt.style.transformOrigin = 'center center';
     }
     if (!QG._groupYResizeBound){
       QG._groupYResizeBound = true;
-      window.addEventListener('resize', ()=>{ try{ qgSyncGroupYBox(); }catch(e){} }, { passive:true });
+      const sync = ()=>{ try{ qgSyncRightSideChrome(); }catch(e){} };
+      window.addEventListener('resize', sync, { passive:true });
+      main.addEventListener('scroll', sync, { passive:true });
     }
+  }catch(e){}
+}
+
+
+function qgSyncRightDock(){
+  try{
+    const dock = qs('#qgOverlay .qg-dropdock-float');
+    const legend = qs('#qgOverlay .qg-legend');
+    const grid = qs('#qgGrid');
+    if (!dock || !legend || !grid) return;
+    const rows = qsa('.qg-fai-row', grid).filter(Boolean);
+    if (!rows.length){
+      dock.style.display = 'none';
+      return;
+    }
+    const firstPlot = qs('.qg-row-label', rows[0]) || qs('.qg-fai-one', rows[0]) || rows[0];
+    const legendRect = legend.getBoundingClientRect();
+    const topRect = firstPlot.getBoundingClientRect();
+    const dockRect = dock.getBoundingClientRect();
+    const dockH = Math.round(dockRect.height || dock.offsetHeight || 0);
+    let top = Math.round(topRect.top - legendRect.top + 2);
+    const minTop = 6;
+    const maxTop = Math.max(minTop, Math.round(legendRect.height - dockH - 6));
+    if (!isFinite(top)) top = minTop;
+    top = Math.max(minTop, Math.min(maxTop, top));
+    dock.style.display = 'flex';
+    dock.style.left = 'auto';
+    dock.style.right = '6px';
+    dock.style.top = top + 'px';
   }catch(e){}
 }
 
