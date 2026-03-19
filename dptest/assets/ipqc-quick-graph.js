@@ -6967,7 +6967,7 @@ function qgSyncGroupYBox(){
     box.style.pointerEvents = 'none';
     const txt = qs('.qg-group-y-text', box);
     if (txt){
-      txt.style.transform = 'rotate(-90deg)';
+      txt.style.transform = 'rotate(90deg)';
       txt.style.transformOrigin = 'center center';
     }
     if (!QG._groupYResizeBound){
