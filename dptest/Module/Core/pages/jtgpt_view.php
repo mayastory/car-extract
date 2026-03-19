@@ -497,17 +497,11 @@ body{
 .msg.assistant .bubble{background:#1e232d}
 .cursor{display:inline-block; width:8px; height:1.1em; vertical-align:-2px; background:#cfd6df; margin-left:2px; animation:blink 1s step-end infinite}
 @keyframes blink{50%{opacity:0}}
-.actions,.suggestions{display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 0 0}
-.chip{appearance:none; border:1px solid rgba(255,255,255,.12); background:var(--chip); color:#eef2f6; border-radius:999px; padding:10px 14px; font-size:14px; cursor:pointer}
 .composer{position:sticky; bottom:0; padding-top:14px; background:linear-gradient(180deg, rgba(10,20,18,0), rgba(10,20,18,.88) 22%, rgba(10,20,18,.98) 100%)}
 .composer-box{background:var(--panel2); border:1px solid rgba(255,255,255,.10); border-radius:28px; padding:16px 18px 14px; box-shadow:0 16px 40px rgba(0,0,0,.28)}
 .textarea{width:100%; min-height:96px; resize:none; border:none; outline:none; background:transparent; color:var(--text); font-size:18px; line-height:1.5}
-.toolbar{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:10px}
-.left-tools{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
-.icon-btn,.send-btn{appearance:none; border:none; cursor:pointer}
-.icon-btn{width:40px; height:40px; border-radius:999px; background:rgba(255,255,255,.05); color:#e9eef5; font-size:24px}
-.send-btn{width:44px; height:44px; border-radius:999px; background:#eef2f6; color:#15181d; font-size:20px}
-.helper-chip{padding:9px 12px; border-radius:999px; border:1px solid rgba(255,255,255,.10); background:rgba(255,255,255,.03); color:var(--muted); font-size:14px}
+.toolbar{display:flex; align-items:center; justify-content:flex-end; gap:12px; margin-top:10px}
+.send-btn{appearance:none; border:none; cursor:pointer; width:44px; height:44px; border-radius:999px; background:#eef2f6; color:#15181d; font-size:20px}
 @media (max-width: 760px){
   .jtgpt-wrap{padding:10px 12px 20px}
   .msg-inner{max-width:92%}
@@ -523,12 +517,6 @@ body{
     <div class="composer-box">
       <textarea id="messageInput" class="textarea" placeholder="무엇이든 물어보세요"></textarea>
       <div class="toolbar">
-        <div class="left-tools">
-          <button type="button" class="icon-btn" aria-label="추가">＋</button>
-          <span class="helper-chip">타이핑 응답</span>
-          <button type="button" class="helper-chip" data-fill="오늘 출하수량 알려줘">출하 수량</button>
-          <button type="button" class="helper-chip" data-fill="자화전자 제일 최근 출하일은?">최근 출하일</button>
-        </div>
         <button id="sendBtn" type="button" class="send-btn" aria-label="전송">↑</button>
       </div>
     </div>
@@ -565,35 +553,7 @@ body{
     return {msg, inner, bubble};
   }
   function appendChips(container, items, kind){
-    if (!Array.isArray(items) || !items.length) return;
-    const wrap = document.createElement('div');
-    wrap.className = kind;
-    items.forEach(item => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'chip';
-      if (kind === 'actions') {
-        btn.textContent = item.label || '열기';
-        btn.addEventListener('click', () => {
-          const href = item.href || '';
-          if (!href) return;
-          try {
-            window.top.location.href = href;
-          } catch (_) {
-            window.location.href = href;
-          }
-        });
-      } else {
-        btn.textContent = String(item);
-        btn.addEventListener('click', () => {
-          inputEl.value = String(item);
-          inputEl.focus();
-        });
-      }
-      wrap.appendChild(btn);
-    });
-    container.appendChild(wrap);
-    scrollBottom();
+    return;
   }
   function typeText(target, text, done){
     const chars = Array.from(String(text || ''));
@@ -616,12 +576,6 @@ body{
       setTimeout(step, 14);
     }
     step();
-  }
-  function showWelcome(){
-    const m = createMessage('assistant', '');
-    typeText(m.bubble, '이번 패치는 두 가지만 먼저 고쳤어요.\n- 답변이 한 번에 팡 뜨지 않고 타이핑처럼 보이게\n- "오늘 출하수량"과 "오늘까지 누적"을 헷갈리면 되묻기\n예: 오늘 출하수량 알려줘, 자화전자 제일 최근 출하일은?, 오늘까지 누적 출하수량', () => {
-      appendChips(m.inner, ['오늘 출하수량 알려줘', '자화전자 제일 최근 출하일은?', '오늘까지 누적 출하수량'], 'suggestions');
-    });
   }
   async function sendMessage(prefill){
     const text = (typeof prefill === 'string' ? prefill : inputEl.value).trim();
@@ -662,13 +616,6 @@ body{
       sendMessage();
     }
   });
-  document.querySelectorAll('[data-fill]').forEach(el => {
-    el.addEventListener('click', () => {
-      inputEl.value = el.getAttribute('data-fill') || '';
-      inputEl.focus();
-    });
-  });
-  showWelcome();
 })();
 </script>
 </body>
