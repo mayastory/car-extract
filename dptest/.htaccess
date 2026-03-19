@@ -16,6 +16,7 @@ RewriteRule ^index/?$ public/index.php [L,QSA]
 RewriteRule ^logout/?$ public/legacy/logout.php [L,QSA]
 RewriteRule ^app/?$ public/legacy/app.php [L,QSA]
 
+RewriteRule ^jtgpt/?$ public/legacy/app.php?view=jtgpt [L,QSA]
 RewriteRule ^shipinglist/?$ public/legacy/app.php?view=shipinglist [L,QSA]
 RewriteRule ^rma/?$ public/legacy/app.php?view=rma [L,QSA]
 RewriteRule ^oqc/?$ public/legacy/app.php?view=oqc [L,QSA]

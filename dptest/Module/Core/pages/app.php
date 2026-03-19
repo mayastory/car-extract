@@ -25,20 +25,22 @@ if (function_exists('dp_auth_guard')) {
 $view = $_GET['view'] ?? '';
 $uri  = $_SERVER['REQUEST_URI'] ?? '';
 if ($view === '') {
-    if (preg_match('#/shipinglist/?(\?|$)#', $uri)) $view = 'shipinglist';
+    if (preg_match('#/jtgpt/?(\?|$)#', $uri)) $view = 'jtgpt';
+    elseif (preg_match('#/shipinglist/?(\?|$)#', $uri)) $view = 'shipinglist';
     elseif (preg_match('#/rma/?(\?|$)#', $uri)) $view = 'rma';
     elseif (preg_match('#/oqc/?(\?|$)#', $uri)) $view = 'oqc';
     elseif (preg_match('#/ipqc/?(\?|$)#', $uri)) $view = 'ipqc';
-    else $view = 'shipinglist';
+    else $view = 'jtgpt';
 }
 
 $views = [
+  'jtgpt'      => ['src' => 'jtgpt_view.php'],
   'shipinglist' => ['src' => 'shipinglist_list.php'],
   'rma'         => ['src' => 'RMAlist_list.php'],
   'oqc'         => ['src' => 'oqc_view.php'],
   'ipqc'        => ['src' => 'ipqc_view.php'],
 ];
-if (!isset($views[$view])) $view = 'shipinglist';
+if (!isset($views[$view])) $view = 'jtgpt';
 
 // iframe에 넘길 쿼리(현재 querystring 그대로 전달하되 view 제거 + embed=1 추가)
 $q = $_GET;
@@ -85,6 +87,7 @@ if (!$unifiedCssV) $unifiedCssV = time();
     // ✅ SHELL 모드 플래그
     window.DP_SHELL = true;
     window.DP_SHELL_VIEW_MAP = {
+      jtgpt: 'jtgpt_view.php',
       shipinglist: 'shipinglist_list.php',
       rma: 'RMAlist_list.php',
       oqc: 'oqc_view.php',

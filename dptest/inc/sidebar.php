@@ -20,6 +20,13 @@ function dp_sidebar_render(string $active = ''): string
     // 지금은 QA 출하내역 1개만
 	$items = [
 		[
+			'key'   => 'jtgpt',
+			'title' => 'JTGPT',
+			'href'  => dp_url('jtgpt'),
+			'nav'   => '/jtgpt',
+			'icon'  => '✦',
+		],
+		[
 			'key'   => 'shipinglist',
 			'title' => 'QA 출하내역',
 			'href'  => dp_url('shipinglist'),   // pretty url (fallback)

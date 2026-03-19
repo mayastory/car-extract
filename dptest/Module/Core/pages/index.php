@@ -145,7 +145,7 @@ if (!function_exists('ship_auth_policy_message')) {
 
 // 이미 로그인 되어 있으면 출하내역으로 이동 (깔끔 URL)
 if (!empty($_SESSION['ship_user_id'])) {
-    header('Location: ' . dp_url('shipinglist'));
+    header('Location: ' . dp_url('jtgpt'));
     exit;
 }
 
@@ -309,7 +309,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
 
                         // ✅ 로그인 후 바로 QA 출하내역(깔끔 URL)
-                        header('Location: ' . dp_url('shipinglist'));
+                        header('Location: ' . dp_url('jtgpt'));
                         exit;
                     }
                 }
