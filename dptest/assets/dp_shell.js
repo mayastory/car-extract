@@ -356,6 +356,95 @@
   })();
 
 
+  // ---------- JTGPT shell action bridge ----------
+  function frameReadyTry(fn, maxTry, delay){
+    var tries = 0;
+    function tick(){
+      tries += 1;
+      var frame = getFrame();
+      if (!frame) return;
+      try{
+        if (fn(frame) === true) return;
+      }catch(e){}
+      if (tries < (maxTry || 40)) window.setTimeout(tick, delay || 250);
+    }
+    window.setTimeout(tick, delay || 250);
+  }
+
+  function openIpqcQuickGraph(spec){
+    try{ sessionStorage.setItem('jtgpt.pendingGraphSpec', JSON.stringify(spec || {})); }catch(e){}
+    navigate('/ipqc');
+    frameReadyTry(function(frame){
+      var win = null;
+      try{ win = frame.contentWindow; }catch(e){}
+      if (!win) return false;
+      try{ win.__JTGPT_PENDING_GRAPH_SPEC = spec || {}; }catch(e){}
+      try{ win.dispatchEvent(new CustomEvent('jtgpt:graph-spec', { detail: spec || {} })); }catch(e){}
+      try{
+        if (typeof win.__ipqcOpenQuickGraphSafe === 'function') {
+          win.__ipqcOpenQuickGraphSafe();
+          return true;
+        }
+      }catch(e){}
+      return false;
+    }, 50, 250);
+  }
+
+  function openIpqcProcessCapability(spec){
+    try{ sessionStorage.setItem('jtgpt.pendingGraphSpec', JSON.stringify(spec || {})); }catch(e){}
+    navigate('/ipqc');
+    frameReadyTry(function(frame){
+      var win = null;
+      try{ win = frame.contentWindow; }catch(e){}
+      if (!win) return false;
+      try{ win.__JTGPT_PENDING_GRAPH_SPEC = spec || {}; }catch(e){}
+      try{ win.dispatchEvent(new CustomEvent('jtgpt:graph-spec', { detail: spec || {} })); }catch(e){}
+      try{
+        if (typeof win.__ipqcOpenProcessCapabilitySafe === 'function') {
+          win.__ipqcOpenProcessCapabilitySafe();
+          return true;
+        }
+      }catch(e){}
+      return false;
+    }, 50, 250);
+  }
+
+  function runShellAction(action){
+    var a = action || {};
+    var kind = String(a.kind || a.type || '').toLowerCase();
+    if (!kind && a.route) kind = 'navigate';
+    if (kind === 'navigate') {
+      navigate(String(a.route || '/jtgpt'));
+      return true;
+    }
+    if (kind === 'open_ipqc_quick_graph') {
+      openIpqcQuickGraph(a.graph_spec || {});
+      return true;
+    }
+    if (kind === 'open_ipqc_process_capability') {
+      openIpqcProcessCapability(a.graph_spec || {});
+      return true;
+    }
+    if (a.href) {
+      try{ window.location.href = a.href; return true; }catch(e){}
+    }
+    return false;
+  }
+
+  window.DP_SHELL_ACTIONS = {
+    navigate: navigate,
+    run: runShellAction,
+    openQuickGraph: openIpqcQuickGraph,
+    openProcessCapability: openIpqcProcessCapability
+  };
+
+  window.addEventListener('message', function(ev){
+    var data = ev && ev.data ? ev.data : null;
+    if (!data || data.type !== 'dp-shell-action') return;
+    runShellAction(data.action || data);
+  });
+
+
   if (document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', init);
   }else{
