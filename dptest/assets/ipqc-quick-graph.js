@@ -6910,7 +6910,6 @@ function renderGrid(){
 
 function qgSyncRightSideChrome(){
   try{ qgSyncGroupYBox(); }catch(e){}
-  try{ qgSyncRightDock(); }catch(e){}
 }
 
 
@@ -6961,31 +6960,7 @@ function qgSyncGroupYBox(){
 
 
 function qgSyncRightDock(){
-  try{
-    const dock = qs('#qgOverlay .qg-dropdock-float');
-    const legend = qs('#qgOverlay .qg-legend');
-    const grid = qs('#qgGrid');
-    if (!dock || !legend || !grid) return;
-    const rows = qsa('.qg-fai-row', grid).filter(Boolean);
-    if (!rows.length){
-      dock.style.display = 'none';
-      return;
-    }
-    const firstPlot = qs('.qg-fai-one', rows[0]) || qs('.qg-svg', rows[0]) || qs('.qg-row-label', rows[0]) || rows[0];
-    const legendRect = legend.getBoundingClientRect();
-    const topRect = firstPlot.getBoundingClientRect();
-    const dockRect = dock.getBoundingClientRect();
-    const dockH = Math.round(dockRect.height || dock.offsetHeight || 0);
-    let top = Math.round(topRect.top - legendRect.top + 2);
-    const minTop = 6;
-    const maxTop = Math.max(minTop, Math.round(legendRect.height - dockH - 6));
-    if (!isFinite(top)) top = minTop;
-    top = Math.max(minTop, Math.min(maxTop, top));
-    dock.style.display = 'flex';
-    dock.style.left = 'auto';
-    dock.style.right = '6px';
-    dock.style.top = top + 'px';
-  }catch(e){}
+  try{}catch(e){}
 }
 
 function drawMatrixSvg(svg, tools, cavs, dates, opt){

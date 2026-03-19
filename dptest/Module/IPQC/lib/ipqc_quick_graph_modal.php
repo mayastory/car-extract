@@ -214,13 +214,14 @@ if (!function_exists('h')) {
 
 
   /* Legend dock (outside plot) */
-  #qgOverlay .qg-legend{ padding:6px 94px 6px 6px; border-left:1px solid rgba(255,255,255,0.08); overflow-y:auto; overflow-x:hidden; display:flex; flex-direction:column; align-items:stretch; justify-content:center; position:relative; box-sizing:border-box; }
+  #qgOverlay .qg-legend{ padding:6px 6px 6px 0; border-left:1px solid rgba(255,255,255,0.08); overflow-y:auto; overflow-x:hidden; display:flex; align-items:center; justify-content:center; position:relative; }
   #qgOverlay .qg-legend-card{
     width:100%;
-    max-width:none;
+    max-width:190px;
     border-radius:12px;
-    border:1px solid #cfc7b7;
-    background:#f7f4ec;
+    /* JMP-like legend card (fixed light gray like JMP) */
+    border:1px solid #cfcfcf;
+    background:#f8f8f8;
     color:#000;
     padding:8px 10px;
     overflow:hidden;
@@ -230,29 +231,29 @@ if (!function_exists('h')) {
   #qgOverlay .qg-dropdock{
     overflow:hidden;
     box-sizing:border-box;
-    width:82px;
+    width:128px;
     display:flex;
     flex-direction:column;
-    gap:2px;
-    padding:2px;
-    border:1px solid #a7a39a;
-    background:#ddd6c7;
-    box-shadow:none;
+    gap:4px; /* slight separation between boxes */
+    padding:4px;
+    border:1px solid #b9b9b9;
+    background:#fff;
+    box-shadow:0 1px 0 rgba(0,0,0,0.15);
   }
   #qgOverlay .qg-dropdock-item{
     box-sizing:border-box;
     width:100%;
-    height:30px;
-    border:1px solid #a7a39a;
-    background:#eee8dc;
-    color:#4f4b43;
+    height:34px;
+    border:1px solid #b9b9b9;
+    background:#ffffff;
+    color:#222;
     font-weight:700;
-    font-size:11px;
+    font-size:12px;
     line-height:1;
     display:flex;
     align-items:center;
     justify-content:center;
-    padding:0 6px;
+    padding:0 8px;
     user-select:none;
     cursor:default;
     white-space:nowrap;
@@ -270,8 +271,8 @@ if (!function_exists('h')) {
   #qgOverlay .qg-dropdock-item.hover::before{
     content:"";
     position:absolute;
-    inset:1px;
-    border-radius:4px;
+    inset:2px;
+    border-radius:6px;
     background:rgba(120,170,255,0.18);
     border:2px solid rgba(70,120,255,0.95);
     pointer-events:none;
@@ -281,9 +282,9 @@ if (!function_exists('h')) {
   #qgOverlay .qg-dropdock-var{
     position:static;
     margin-left:4px;
-    font-size:11px;
+    font-size:12px;
     font-weight:700;
-    color:#5b5851;
+    color:#333;
     font-style:italic;
     pointer-events:none;
     max-width:100%;
@@ -314,15 +315,14 @@ if (!function_exists('h')) {
   /* Floating placement: mimic JMP right-side drop zones without pushing the legend */
   #qgOverlay .qg-dropdock-float{
     position:absolute;
-    left:auto;
-    right:6px;
+    left:0;
     top:120px;
     z-index:60;
     margin:0;
     pointer-events:auto;
   }
 
-  #qgOverlay .qg-legend-card{ align-self:center; width:100%; max-width:none; }
+  #qgOverlay .qg-legend-card{ align-self:center; }
   /* Legend list is dynamic (built by JS) */
   #qgOverlay .qg-legend-item{ display:flex; align-items:center; gap:6px; margin:2px 0; font-size:11px; opacity:0.92; color:#000;  min-width:0; }
   #qgOverlay .qg-legend-item .qg-lg-label{
