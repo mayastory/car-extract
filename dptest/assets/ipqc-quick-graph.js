@@ -4590,7 +4590,7 @@ function qgPanelRectsFromSvg(svg){
 
   const r0 = svg.getBoundingClientRect();
   const W = 1200; // fixed viewBox width (drawMatrixSvg)
-  const padL = 72, padR = 14; // must match drawMatrixSvg()
+  const padL = 56, padR = 2; // must match drawMatrixSvg()
   const innerW = W - padL - padR;
   const panelW = innerW / nP;
 
@@ -6010,24 +6010,6 @@ function renderFacetList(rootId, items, selSet){
       next.baseLsl = rawL;
     }
 
-    const ratio = qgClampOocSpecPct(pct) / 100;
-    const hasU = qgIsVisibleLimitValue(rawU);
-    const hasL = qgIsVisibleLimitValue(rawL);
-    const savedUEqualsRaw = (src.baseUsl === undefined || src.baseUsl === null || qgSpecApproxEqual(Number(src.baseUsl), Number(rawU), qgSpecLegacyScaledEps(src.baseUsl, rawU)));
-    const savedLEqualsRaw = (src.baseLsl === undefined || src.baseLsl === null || qgSpecApproxEqual(Number(src.baseLsl), Number(rawL), qgSpecLegacyScaledEps(src.baseLsl, rawL)));
-
-    // Legacy one-sided specs in the pivot can still arrive pre-scaled by the current OOC percent.
-    // When only one side exists and the saved base is missing (or still equals the legacy raw value),
-    // treat the pivot value as the old scaled display value and restore the true 100% base into the input.
-    if (ratio > 0 && ratio < 1){
-      if (hasU && !hasL && savedUEqualsRaw){
-        next.baseUsl = Number(rawU) / ratio;
-      }
-      if (hasL && !hasU && savedLEqualsRaw){
-        next.baseLsl = Number(rawL) / ratio;
-      }
-    }
-
     return next;
   }
 
@@ -6572,7 +6554,7 @@ function renderFacetList(rootId, items, selSet){
 function qgBuildTopHeaderSvg(toolsRow, cavs){
   const ns = 'http://www.w3.org/2000/svg';
   const W = 1200;
-  const padL = 72;
+  const padL = 56;
   const padR = 2;
   const innerW = W - padL - padR;
   const nT = Math.max(1, Array.isArray(toolsRow) ? toolsRow.length : 0);
@@ -6946,7 +6928,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
   const rowCount = Math.max(1, Number(opt && opt.rowCount) || 1);
   // Keep a stable plot box so all FAI rows and the shared cavity header line up exactly.
   // USL/LSL labels must stay inside the last cavity panel without shrinking the usable plot width.
-  const padL = 72;
+  const padL = 56;
   const padR = 2;
   const padT = 0, padB = (opt && opt.showXLabels===false) ? 0 : 56;
   const innerW = W - padL - padR;
@@ -8076,7 +8058,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
 
     const W = 1200, H = (opt && opt.h ? opt.h : 320);
     // Keep x-axis labels tight to the plot (JMP-like), while still preventing clipping.
-    const padL = 72, padR = 14, padT = 14, padB = (opt && opt.showXLabels===false) ? 26 : 70;
+    const padL = 56, padR = 14, padT = 14, padB = (opt && opt.showXLabels===false) ? 26 : 70;
     const innerW = W - padL - padR;
     const innerH = H - padT - padB;
 

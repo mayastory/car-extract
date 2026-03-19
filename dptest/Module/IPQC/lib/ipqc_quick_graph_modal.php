@@ -177,6 +177,35 @@ if (!function_exists('h')) {
   /* Reduce inner padding so the plot starts closer to the left and gains width */
   #qgOverlay .qg-main{ padding:4px; overflow:auto; position:relative; }
 
+  /* JMP-like right-edge placeholder for Group Y (visual box only for now) */
+  #qgOverlay #qgGroupYBox{
+    position:absolute;
+    right:2px;
+    top:50%;
+    transform:translateY(-50%);
+    width:24px;
+    height:116px;
+    border:1px solid #a9a9a9;
+    background:#efefef;
+    color:#666;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-shadow:none;
+    pointer-events:none;
+    z-index:3;
+    box-sizing:border-box;
+  }
+  #qgOverlay #qgGroupYBox .qg-group-y-text{
+    writing-mode:vertical-rl;
+    transform:rotate(180deg);
+    font-size:11px;
+    font-weight:700;
+    letter-spacing:0;
+    line-height:1;
+    user-select:none;
+  }
+
 
   /* Legend dock (outside plot) */
   #qgOverlay .qg-legend{ padding:6px 6px 6px 0; border-left:1px solid rgba(255,255,255,0.08); overflow-y:auto; overflow-x:hidden; display:flex; align-items:center; justify-content:center; position:relative; }
@@ -502,12 +531,12 @@ if (!function_exists('h')) {
   /* Tighter vertical rhythm so stacked panels visually connect (JMP-like). */
   #qgOverlay .qg-tool-group{ position:relative; margin-bottom:0; background:#ffffff; }
 
-  /* Align header with FAI rows: [label 34px] + [gap 6px] + [svg width] */
+  /* Align header with FAI rows: [label 28px] + [gap 4px] + [svg width] */
   #qgOverlay .qg-tophead{
     position:sticky; top:0; z-index:6;
     display:grid;
-    grid-template-columns: 34px 1fr;
-    gap:6px;
+    grid-template-columns: 28px 1fr;
+    gap:4px;
     background:transparent;
     border:none;
     margin-bottom:0;
@@ -598,7 +627,7 @@ if (!function_exists('h')) {
   #qgOverlay .qg-fai-one{ width:100%; }
 /* Grid */
   /* Remove inter-group gaps so the header/FAI panels look like one continuous page (JMP-like) */
-  #qgOverlay #qgGrid{ display:grid; gap:0; }
+  #qgOverlay #qgGrid{ display:grid; gap:0; padding-right:26px; box-sizing:border-box; }
   .qg-card{ border:1px solid rgba(255,255,255,0.10); border-radius:12px; background:rgba(0,0,0,0.18); overflow:hidden; }
   .qg-card .hd{ padding:8px 10px;
     overflow:hidden; border-bottom:1px solid rgba(255,255,255,0.08); font-size:12px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
@@ -627,7 +656,7 @@ if (!function_exists('h')) {
 
   /* FAI rows (override) */
   /* Slightly tighter gap between label and plot to gain width */
-  #qgOverlay .qg-fai-row{ display:grid; grid-template-columns: 34px 1fr; gap:6px; margin-bottom:0; align-items:stretch; min-height:0; overflow:hidden; background:#ffffff; }
+  #qgOverlay .qg-fai-row{ display:grid; grid-template-columns: 28px 1fr; gap:4px; margin-bottom:0; align-items:stretch; min-height:0; overflow:hidden; background:#ffffff; }
   #qgOverlay .qg-fai-one{ min-height:0; overflow:hidden; line-height:0; background:#ffffff; }
   #qgOverlay .qg-row-label{ display:flex; align-items:center; justify-content:center; align-self:start; border:1px solid rgba(255,255,255,0.08); border-radius:0; background:rgba(0,0,0,0.18); min-height:0; overflow:hidden; }
   #qgOverlay .qg-row-label .vtxt{ writing-mode: vertical-rl; transform: rotate(180deg); font-weight:900; font-size:12px; letter-spacing:0.2px; opacity:0.92; padding:0; }
@@ -1085,6 +1114,7 @@ if (!function_exists('h')) {
       <div class="qg-main">
         <div id="qgMsg"></div>
         <div id="qgGrid"></div>
+        <div id="qgGroupYBox" aria-hidden="true"><span class="qg-group-y-text">그룹 Y</span></div>
       </div>
 
       <div class="qg-legend" aria-label="범례">
