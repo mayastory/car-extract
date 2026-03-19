@@ -838,7 +838,7 @@ function qgEnsureCaptionState(colKey){
       const ov = document.getElementById('qgOverlay');
       if (!ov) return;
       const w = (W && isFinite(W)) ? Number(W) : 1200;
-      const l = (padL && isFinite(padL)) ? Number(padL) : 36;
+      const l = (padL && isFinite(padL)) ? Number(padL) : 56;
       const r = (padR && isFinite(padR)) ? Number(padR) : 18;
       ov.style.setProperty('--qg-padL-pct', (l / w * 100).toFixed(3) + '%');
       ov.style.setProperty('--qg-padR-pct', (r / w * 100).toFixed(3) + '%');
@@ -4590,7 +4590,7 @@ function qgPanelRectsFromSvg(svg){
 
   const r0 = svg.getBoundingClientRect();
   const W = 1200; // fixed viewBox width (drawMatrixSvg)
-  const padL = 36, padR = 2; // must match drawMatrixSvg()
+  const padL = 72, padR = 14; // must match drawMatrixSvg()
   const innerW = W - padL - padR;
   const panelW = innerW / nP;
 
@@ -6010,6 +6010,24 @@ function renderFacetList(rootId, items, selSet){
       next.baseLsl = rawL;
     }
 
+    const ratio = qgClampOocSpecPct(pct) / 100;
+    const hasU = qgIsVisibleLimitValue(rawU);
+    const hasL = qgIsVisibleLimitValue(rawL);
+    const savedUEqualsRaw = (src.baseUsl === undefined || src.baseUsl === null || qgSpecApproxEqual(Number(src.baseUsl), Number(rawU), qgSpecLegacyScaledEps(src.baseUsl, rawU)));
+    const savedLEqualsRaw = (src.baseLsl === undefined || src.baseLsl === null || qgSpecApproxEqual(Number(src.baseLsl), Number(rawL), qgSpecLegacyScaledEps(src.baseLsl, rawL)));
+
+    // Legacy one-sided specs in the pivot can still arrive pre-scaled by the current OOC percent.
+    // When only one side exists and the saved base is missing (or still equals the legacy raw value),
+    // treat the pivot value as the old scaled display value and restore the true 100% base into the input.
+    if (ratio > 0 && ratio < 1){
+      if (hasU && !hasL && savedUEqualsRaw){
+        next.baseUsl = Number(rawU) / ratio;
+      }
+      if (hasL && !hasU && savedLEqualsRaw){
+        next.baseLsl = Number(rawL) / ratio;
+      }
+    }
+
     return next;
   }
 
@@ -6554,7 +6572,7 @@ function renderFacetList(rootId, items, selSet){
 function qgBuildTopHeaderSvg(toolsRow, cavs){
   const ns = 'http://www.w3.org/2000/svg';
   const W = 1200;
-  const padL = 36;
+  const padL = 72;
   const padR = 2;
   const innerW = W - padL - padR;
   const nT = Math.max(1, Array.isArray(toolsRow) ? toolsRow.length : 0);
@@ -6713,7 +6731,7 @@ function renderGrid(){
 
   // Decide how many Tool columns can fit in one row (then wrap)
   const gridW = (grid && grid.clientWidth) ? grid.clientWidth : (main ? main.clientWidth : 1200);
-  const plotW = Math.max(520, gridW - 34); // tighter left gutter like JMP
+  const plotW = Math.max(520, gridW - 44); // subtract label/gap roughly
   const minToolW = Math.max(220, (selCavs2.length * 70) + 40); // tuned to resemble JMP packing
   let toolsPerRow = Math.max(1, Math.floor(plotW / minToolW));
   // Prevent unnecessary wrapping for small Tool counts (JMP-like)
@@ -6903,78 +6921,6 @@ function renderGrid(){
     e.textContent = '표시할 데이터가 없습니다.';
     grid.appendChild(e);
   }
-  try{ qgSyncGroupYBox(); }catch(e){}
-  try{ qgSyncRightDock(); }catch(e){}
-  try{ requestAnimationFrame(()=>{
-    try{ qgSyncGroupYBox(); }catch(e2){}
-    try{ qgSyncRightDock(); }catch(e3){}
-  }); }catch(e){}
-}
-
-
-function qgSyncRightDock(){
-  try{
-    const dock = qs('#qgOverlay .qg-dropdock-float');
-    const legend = qs('#qgOverlay .qg-legend');
-    const head = qs('#qgGrid .qg-tophead-body') || qs('#qgGrid .qg-tophead');
-    if (!dock || !legend || !head) return;
-    const legendRect = legend.getBoundingClientRect();
-    const headRect = head.getBoundingClientRect();
-    let top = Math.round(headRect.top - legendRect.top);
-    if (!isFinite(top)) top = 120;
-    dock.style.top = Math.max(0, top) + 'px';
-    dock.style.left = '0px';
-    dock.style.margin = '0';
-    if (!QG._rightDockSyncBound){
-      QG._rightDockSyncBound = true;
-      const kick = ()=>{ try{ requestAnimationFrame(()=>{ try{ qgSyncRightDock(); }catch(e){} }); }catch(e){ try{ qgSyncRightDock(); }catch(e2){} } };
-      window.addEventListener('resize', kick, { passive:true });
-      const main = qs('#qgOverlay .qg-main');
-      if (main) main.addEventListener('scroll', kick, { passive:true });
-    }
-  }catch(e){}
-}
-
-
-function qgSyncGroupYBox(){
-  try{
-    const box = qs('#qgGroupYBox');
-    const main = qs('#qgOverlay .qg-main');
-    const grid = qs('#qgGrid');
-    if (!box || !main || !grid) return;
-    const rows = qsa('.qg-fai-row', grid).filter(Boolean);
-    if (!rows.length){
-      box.style.display = 'none';
-      return;
-    }
-    const firstPlot = qs('.qg-fai-one', rows[0]) || qs('.qg-row-label', rows[0]) || rows[0];
-    const lastPlot = qs('.qg-fai-one', rows[rows.length - 1]) || qs('.qg-row-label', rows[rows.length - 1]) || rows[rows.length - 1];
-    const mainRect = main.getBoundingClientRect();
-    const topRect = firstPlot.getBoundingClientRect();
-    const botRect = lastPlot.getBoundingClientRect();
-    const insetTop = 2;
-    const insetBottom = 2;
-    let top = Math.round(topRect.top - mainRect.top + insetTop);
-    let height = Math.round((botRect.bottom - insetBottom) - (topRect.top + insetTop));
-    if (!isFinite(top)) top = 0;
-    if (!isFinite(height) || height < 48) height = 48;
-    box.style.display = 'flex';
-    box.style.right = '-1px';
-    box.style.top = Math.max(0, top) + 'px';
-    box.style.bottom = 'auto';
-    box.style.height = height + 'px';
-    box.style.width = '30px';
-    box.style.pointerEvents = 'none';
-    const txt = qs('.qg-group-y-text', box);
-    if (txt){
-      txt.style.transform = 'rotate(90deg)';
-      txt.style.transformOrigin = 'center center';
-    }
-    if (!QG._groupYResizeBound){
-      QG._groupYResizeBound = true;
-      window.addEventListener('resize', ()=>{ try{ qgSyncGroupYBox(); }catch(e){} }, { passive:true });
-    }
-  }catch(e){}
 }
 
 function drawMatrixSvg(svg, tools, cavs, dates, opt){
@@ -7000,7 +6946,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
   const rowCount = Math.max(1, Number(opt && opt.rowCount) || 1);
   // Keep a stable plot box so all FAI rows and the shared cavity header line up exactly.
   // USL/LSL labels must stay inside the last cavity panel without shrinking the usable plot width.
-  const padL = 36;
+  const padL = 72;
   const padR = 2;
   const padT = 0, padB = (opt && opt.showXLabels===false) ? 0 : 56;
   const innerW = W - padL - padR;
@@ -7257,7 +7203,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
 
     const tx = document.createElementNS(ns,'text');
     const yLbl = Math.max(padT + yTickFontPx * 0.85, Math.min(padT + innerH - yTickFontPx * 0.35, y));
-    tx.setAttribute('x', String(yAxisX - 4));
+    tx.setAttribute('x', String(yAxisX - 8));
     tx.setAttribute('y', String(yLbl));
     tx.setAttribute('font-size', String(yTickFontPx));
     tx.setAttribute('fill','rgba(0,0,0,0.70)');
@@ -8130,7 +8076,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
 
     const W = 1200, H = (opt && opt.h ? opt.h : 320);
     // Keep x-axis labels tight to the plot (JMP-like), while still preventing clipping.
-    const padL = 36, padR = 14, padT = 14, padB = (opt && opt.showXLabels===false) ? 26 : 70;
+    const padL = 72, padR = 14, padT = 14, padB = (opt && opt.showXLabels===false) ? 26 : 70;
     const innerW = W - padL - padR;
     const innerH = H - padT - padB;
 
@@ -8326,7 +8272,7 @@ const clip = (el)=>{ try{ el.setAttribute('clip-path', clipUrl); }catch(e){} };
       svg.appendChild(tk);
 
       const tx = document.createElementNS(ns,'text');
-      tx.setAttribute('x', String(yAxisX - 4));
+      tx.setAttribute('x', String(yAxisX - 8));
       tx.setAttribute('y', String(y + 4));
       tx.setAttribute('font-size','11');
       tx.setAttribute('fill','rgba(0,0,0,0.70)');
