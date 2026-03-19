@@ -7229,7 +7229,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
 
     const tx = document.createElementNS(ns,'text');
     const yLbl = Math.max(padT + yTickFontPx * 0.85, Math.min(padT + innerH - yTickFontPx * 0.35, y));
-    tx.setAttribute('x', String(yAxisX - 8));
+    tx.setAttribute('x', String(yAxisX - 4));
     tx.setAttribute('y', String(yLbl));
     tx.setAttribute('font-size', String(yTickFontPx));
     tx.setAttribute('fill','rgba(0,0,0,0.70)');
@@ -8298,7 +8298,7 @@ const clip = (el)=>{ try{ el.setAttribute('clip-path', clipUrl); }catch(e){} };
       svg.appendChild(tk);
 
       const tx = document.createElementNS(ns,'text');
-      tx.setAttribute('x', String(yAxisX - 8));
+      tx.setAttribute('x', String(yAxisX - 4));
       tx.setAttribute('y', String(y + 4));
       tx.setAttribute('font-size','11');
       tx.setAttribute('fill','rgba(0,0,0,0.70)');
