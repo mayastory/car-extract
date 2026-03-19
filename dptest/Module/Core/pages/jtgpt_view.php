@@ -1,85 +1,103 @@
 <?php
-// [modules-refactor] JTMES_ROOT for relocated pages
-if (!defined('JTMES_ROOT')) { define('JTMES_ROOT', realpath(dirname(__DIR__, 3)) ?: dirname(__DIR__, 3)); }
+declare(strict_types=1);
 
-date_default_timezone_set('Asia/Seoul');
-
-session_start();
-require_once JTMES_ROOT . '/config/dp_config.php';
-require_once JTMES_ROOT . '/inc/common.php';
-require_once JTMES_ROOT . '/lib/auth_guard.php';
-
-dp_auth_guard();
-
-$EMBED = !empty($_GET['embed']);
-if (!$EMBED) {
-    require_once JTMES_ROOT . '/inc/sidebar.php';
-    require_once JTMES_ROOT . '/inc/dp_userbar.php';
+$ROOT = dirname(__DIR__, 3);
+if (!defined('JTMES_ROOT')) {
+    define('JTMES_ROOT', $ROOT);
 }
 
-if (!function_exists('jtgpt_h')) {
-    function jtgpt_h(?string $s): string {
-        return htmlspecialchars((string)($s ?? ''), ENT_QUOTES, 'UTF-8');
+$bootstrapCandidates = [
+    $ROOT . '/inc/common.php',
+    $ROOT . '/lib/auth_guard.php',
+    $ROOT . '/config/config.php',
+    $ROOT . '/config/db.php',
+    $ROOT . '/config/db_config.php',
+    $ROOT . '/lib/db.php',
+    $ROOT . '/inc/db.php',
+    $ROOT . '/bootstrap.php',
+    $ROOT . '/inc/bootstrap.php',
+];
+foreach ($bootstrapCandidates as $f) {
+    if (is_file($f)) {
+        require_once $f;
     }
 }
 
-if (!function_exists('jtgpt_contains_any')) {
-    function jtgpt_contains_any(string $haystack, array $needles): bool {
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    @session_start();
+}
+
+if (function_exists('dp_auth_guard')) {
+    dp_auth_guard();
+} elseif (function_exists('dp_require_login')) {
+    dp_require_login();
+}
+
+if (!function_exists('h')) {
+    function h($s): string {
+        return htmlspecialchars((string)$s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+}
+if (!function_exists('dp_url')) {
+    function dp_url(string $path): string {
+        $path = ltrim($path, '/');
+        return '/' . $path;
+    }
+}
+if (!function_exists('jt_now')) {
+    function jt_now(): DateTime {
+        return new DateTime('now', new DateTimeZone('Asia/Seoul'));
+    }
+}
+if (!function_exists('jt_format_int')) {
+    function jt_format_int($n): string {
+        return number_format((int)$n);
+    }
+}
+if (!function_exists('jt_contains_any')) {
+    function jt_contains_any(string $text, array $needles): bool {
         foreach ($needles as $needle) {
-            if ($needle !== '' && mb_strpos($haystack, $needle) !== false) {
+            $needle = trim((string)$needle);
+            if ($needle !== '' && mb_strpos($text, mb_strtolower($needle, 'UTF-8')) !== false) {
                 return true;
             }
         }
         return false;
     }
 }
-
-if (!function_exists('jtgpt_format_int')) {
-    function jtgpt_format_int($v): string {
-        return number_format((int)$v);
+if (!function_exists('jt_try_parse_ymd')) {
+    function jt_try_parse_ymd(string $y, string $m, string $d): ?string {
+        $ymd = trim($y) . '-' . str_pad((string)((int)$m), 2, '0', STR_PAD_LEFT) . '-' . str_pad((string)((int)$d), 2, '0', STR_PAD_LEFT);
+        $dt = DateTime::createFromFormat('Y-m-d', $ymd);
+        return ($dt && $dt->format('Y-m-d') === $ymd) ? $ymd : null;
     }
 }
-
-if (!function_exists('jtgpt_detect_time_hint')) {
-    function jtgpt_detect_time_hint(string $text): ?string {
+if (!function_exists('jt_detect_time_hint')) {
+    function jt_detect_time_hint(string $text): ?string {
         $map = [
             '오늘' => ['오늘', '금일', 'today', 'now'],
             '어제' => ['어제', 'yesterday'],
             '이번 주' => ['이번주', '이번 주', '금주', 'this week'],
-            '최근 7일' => ['최근 7일', '7일', '일주일', '1주일', '최근 일주일'],
+            '최근 7일' => ['최근7일', '최근 7일', '7일', '일주일', '1주일'],
             '이번 달' => ['이번달', '이번 달', '금월', 'this month'],
         ];
         foreach ($map as $label => $needles) {
-            if (jtgpt_contains_any($text, $needles)) {
+            if (jt_contains_any($text, $needles)) {
                 return $label;
             }
         }
         return null;
     }
 }
-
-if (!function_exists('jtgpt_try_parse_ymd')) {
-    function jtgpt_try_parse_ymd(string $y, string $m, string $d): ?string {
-        $m = str_pad((string)((int)$m), 2, '0', STR_PAD_LEFT);
-        $d = str_pad((string)((int)$d), 2, '0', STR_PAD_LEFT);
-        $ymd = trim($y) . '-' . $m . '-' . $d;
-        $dt = DateTime::createFromFormat('Y-m-d', $ymd);
-        if (!$dt || $dt->format('Y-m-d') !== $ymd) {
-            return null;
-        }
-        return $ymd;
-    }
-}
-
-if (!function_exists('jtgpt_detect_date_range')) {
-    function jtgpt_detect_date_range(string $text): array {
-        $now = new DateTime('now', new DateTimeZone('Asia/Seoul'));
+if (!function_exists('jt_detect_date_range')) {
+    function jt_detect_date_range(string $text): array {
+        $now = jt_now();
         $today = $now->format('Y-m-d');
 
         if (preg_match_all('/(20\d{2})[\.\/-]?(\d{1,2})[\.\/-]?(\d{1,2})/', $text, $m, PREG_SET_ORDER)) {
             $dates = [];
             foreach ($m as $hit) {
-                $ymd = jtgpt_try_parse_ymd($hit[1], $hit[2], $hit[3]);
+                $ymd = jt_try_parse_ymd($hit[1], $hit[2], $hit[3]);
                 if ($ymd !== null) {
                     $dates[] = $ymd;
                 }
@@ -94,7 +112,7 @@ if (!function_exists('jtgpt_detect_date_range')) {
             }
         }
 
-        $hint = jtgpt_detect_time_hint($text);
+        $hint = jt_detect_time_hint($text);
         if ($hint === '오늘') {
             return ['from' => $today, 'to' => $today, 'label' => '오늘', 'implicit' => false];
         }
@@ -104,29 +122,23 @@ if (!function_exists('jtgpt_detect_date_range')) {
         }
         if ($hint === '이번 주') {
             $start = (clone $now)->modify('monday this week')->format('Y-m-d');
-            $end = $today;
-            return ['from' => $start, 'to' => $end, 'label' => '이번 주', 'implicit' => false];
+            return ['from' => $start, 'to' => $today, 'label' => '이번 주', 'implicit' => false];
         }
         if ($hint === '최근 7일') {
             $start = (clone $now)->modify('-6 day')->format('Y-m-d');
-            $end = $today;
-            return ['from' => $start, 'to' => $end, 'label' => '최근 7일', 'implicit' => false];
+            return ['from' => $start, 'to' => $today, 'label' => '최근 7일', 'implicit' => false];
         }
         if ($hint === '이번 달') {
             $start = (clone $now)->modify('first day of this month')->format('Y-m-d');
-            $end = $today;
-            return ['from' => $start, 'to' => $end, 'label' => '이번 달', 'implicit' => false];
+            return ['from' => $start, 'to' => $today, 'label' => '이번 달', 'implicit' => false];
         }
-
         return ['from' => $today, 'to' => $today, 'label' => '오늘', 'implicit' => true];
     }
 }
-
-if (!function_exists('jtgpt_extract_part_name')) {
-    function jtgpt_extract_part_name(string $message): ?string {
-        $original = trim($message);
-        if ($original === '') return null;
-
+if (!function_exists('jt_extract_part_name')) {
+    function jt_extract_part_name(string $message): ?string {
+        $text = trim($message);
+        if ($text === '') return null;
         $aliasMap = [
             'ir base' => 'MEM-IR-BASE',
             'irbase' => 'MEM-IR-BASE',
@@ -139,243 +151,429 @@ if (!function_exists('jtgpt_extract_part_name')) {
             'z stopper' => 'MEM-Z-STOPPER',
             'z-stopper' => 'MEM-Z-STOPPER',
         ];
-        $lower = mb_strtolower($original, 'UTF-8');
-        foreach ($aliasMap as $needle => $partName) {
-            if (mb_strpos($lower, $needle) !== false) {
-                return $partName;
-            }
+        $lower = mb_strtolower($text, 'UTF-8');
+        foreach ($aliasMap as $needle => $mapped) {
+            if (mb_strpos($lower, $needle) !== false) return $mapped;
         }
-
-        if (preg_match('/\b(MEM-[A-Z0-9\.\-]+)\b/i', $original, $m)) {
+        if (preg_match('/\b(MEM-[A-Z0-9\.\-]+)\b/i', $text, $m)) {
             return strtoupper(trim($m[1]));
         }
-
-        if (preg_match('/\b([A-Z0-9]+(?:-[A-Z0-9\.]+){2,})\b/', strtoupper($original), $m)) {
-            return trim($m[1]);
-        }
-
         return null;
     }
 }
-
-if (!function_exists('jtgpt_build_shipinglist_href')) {
-    function jtgpt_build_shipinglist_href(string $fromDate, string $toDate, ?string $partName = null): string {
-        $qs = [
-            'from_date' => $fromDate,
-            'to_date' => $toDate,
+if (!function_exists('jt_extract_customer')) {
+    function jt_extract_customer(string $message): ?array {
+        $text = trim($message);
+        $map = [
+            ['label' => '자화전자', 'like' => '%자화전자%'],
+            ['label' => '엘지이노텍', 'like' => '%엘지이노텍%'],
+            ['label' => 'LG이노텍', 'like' => '%엘지이노텍%'],
+            ['label' => 'LG', 'like' => '%엘지이노텍%'],
         ];
-        if ($partName !== null && $partName !== '') {
-            $qs['part_name'] = $partName;
+        foreach ($map as $row) {
+            if (mb_strpos($text, $row['label']) !== false) {
+                return $row;
+            }
         }
-        return dp_url('shipinglist') . '?' . http_build_query($qs);
+        return null;
     }
 }
+if (!function_exists('jt_extract_point_no')) {
+    function jt_extract_point_no(string $message): ?string {
+        if (preg_match('/\b(\d{1,3}(?:-\d{1,2})?)\b/u', $message, $m)) {
+            return trim($m[1]);
+        }
+        return null;
+    }
+}
+if (!function_exists('jt_shipping_intent')) {
+    function jt_shipping_intent(string $text): string {
+        $t = mb_strtolower(trim($text), 'UTF-8');
+        if ($t === '') return 'unknown';
 
-if (!function_exists('jtgpt_shipping_reply')) {
-    function jtgpt_shipping_reply(PDO $pdo, string $message): array {
-        $text = trim($message);
-        $normalized = mb_strtolower($text, 'UTF-8');
-        $range = jtgpt_detect_date_range($normalized);
-        $partName = jtgpt_extract_part_name($text);
-
-        $where = [
-            'ship_datetime >= :from_dt',
-            'ship_datetime < :to_dt',
-        ];
+        $hasRecent = jt_contains_any($t, ['최근', '제일최근', '가장최근', '마지막', '최신']);
+        if (jt_contains_any($t, ['출하일', '출고일']) || ($hasRecent && jt_contains_any($t, ['출하', '출고']))) {
+            return 'latest_ship_date';
+        }
+        if (jt_contains_any($t, ['lot']) && jt_contains_any($t, ['몇', '건', '갯수', '개수'])) {
+            return 'lot_count';
+        }
+        if (jt_contains_any($t, ['tray']) && jt_contains_any($t, ['몇', '건', '갯수', '개수'])) {
+            return 'tray_count';
+        }
+        if (jt_contains_any($t, ['수량', 'qty', 'ea', '합계', '총']) && jt_contains_any($t, ['출하', '출고'])) {
+            return 'total_qty';
+        }
+        if (jt_contains_any($t, ['뭐가 제일 많이', '가장 많이', '최다']) && jt_contains_any($t, ['출하', '출고'])) {
+            return 'top_part';
+        }
+        if (jt_contains_any($t, ['요약', '정리'])) {
+            return 'summary';
+        }
+        if (jt_contains_any($t, ['출하', '출고', 'ship', 'shipping'])) {
+            return 'summary';
+        }
+        return 'unknown';
+    }
+}
+if (!function_exists('jt_shipping_where')) {
+    function jt_shipping_where(array $range, ?string $partName, ?array $customer): array {
+        $where = ['ship_datetime >= :from_dt', 'ship_datetime < :to_dt'];
         $params = [
             ':from_dt' => $range['from'] . ' 00:00:00',
             ':to_dt' => date('Y-m-d 00:00:00', strtotime($range['to'] . ' +1 day')),
         ];
-
-        if ($partName !== null && $partName !== '') {
+        if ($partName) {
             $where[] = 'part_name LIKE :part_name';
             $params[':part_name'] = '%' . $partName . '%';
         }
-
+        if ($customer) {
+            $where[] = 'ship_to LIKE :ship_to';
+            $params[':ship_to'] = $customer['like'];
+        }
+        return [$where, $params];
+    }
+}
+if (!function_exists('jt_shipping_href')) {
+    function jt_shipping_href(array $range, ?string $partName, ?array $customer): string {
+        $q = [
+            'from_date' => $range['from'],
+            'to_date' => $range['to'],
+        ];
+        if ($partName) $q['part_name'] = $partName;
+        if ($customer) $q['ship_to'] = $customer['label'];
+        return dp_url('shipinglist') . '?' . http_build_query($q);
+    }
+}
+if (!function_exists('jt_shipping_reply')) {
+    function jt_shipping_reply(PDO $pdo, string $message): array {
+        $text = trim($message);
+        $range = jt_detect_date_range(mb_strtolower($text, 'UTF-8'));
+        $partName = jt_extract_part_name($text);
+        $customer = jt_extract_customer($text);
+        $intent = jt_shipping_intent($text);
+        [$where, $params] = jt_shipping_where($range, $partName, $customer);
         $whereSql = 'WHERE ' . implode(' AND ', $where);
+        $scopeBits = [];
+        if ($customer) $scopeBits[] = $customer['label'];
+        if ($partName) $scopeBits[] = $partName;
+        $scope = $scopeBits ? implode(' / ', $scopeBits) . ' ' : '';
+        $actions = [
+            ['label' => 'QA 출하내역 열기', 'href' => jt_shipping_href($range, $partName, $customer)],
+        ];
 
-        $summarySql = "
-            SELECT
-                COUNT(*) AS row_count,
-                COALESCE(SUM(qty), 0) AS total_qty,
-                COUNT(DISTINCT small_pack_no) AS lot_count,
-                COUNT(DISTINCT tray_no) AS tray_count,
-                COUNT(DISTINCT part_name) AS part_count
-            FROM ShipingList
-            {$whereSql}
-        ";
+        if ($intent === 'latest_ship_date') {
+            $sql = "SELECT MAX(ship_datetime) AS last_ship_datetime FROM ShipingList {$whereSql}";
+            $st = $pdo->prepare($sql);
+            $st->execute($params);
+            $last = (string)($st->fetchColumn() ?: '');
+            if ($last === '') {
+                return [
+                    'answer' => $scope . $range['label'] . ' 범위에서는 출하 이력이 없어요.',
+                    'actions' => $actions,
+                    'suggestions' => ['어제 출하수량 알려줘', '자화전자 최근 7일 출하수량', '오늘 출하 lot 몇개야'],
+                ];
+            }
+            $dateOnly = substr($last, 0, 10);
+            return [
+                'answer' => $scope . '기준 가장 최근 출하일은 ' . $dateOnly . '입니다.',
+                'actions' => $actions,
+                'suggestions' => ['그날 출하수량 알려줘', '그날 lot 몇개야', '자화전자 최근 출하수량 요약'],
+            ];
+        }
+
+        $summarySql = "SELECT COUNT(*) AS row_count, COALESCE(SUM(qty),0) AS total_qty, COUNT(DISTINCT small_pack_no) AS lot_count, COUNT(DISTINCT tray_no) AS tray_count, COUNT(DISTINCT part_name) AS part_count FROM ShipingList {$whereSql}";
         $st = $pdo->prepare($summarySql);
         $st->execute($params);
         $summary = $st->fetch(PDO::FETCH_ASSOC) ?: [];
-
         $rowCount = (int)($summary['row_count'] ?? 0);
         $totalQty = (int)($summary['total_qty'] ?? 0);
         $lotCount = (int)($summary['lot_count'] ?? 0);
         $trayCount = (int)($summary['tray_count'] ?? 0);
         $partCount = (int)($summary['part_count'] ?? 0);
 
-        $actions = [
-            ['label' => 'QA 출하내역 열기', 'href' => jtgpt_build_shipinglist_href($range['from'], $range['to'], $partName)],
-        ];
-
         if ($rowCount <= 0) {
-            $answer = $range['label'] . ' 기준 출하 데이터가 없어요.';
-            if (!empty($range['implicit'])) {
-                $answer .= " 날짜를 따로 말하지 않아서 오늘 기준으로 확인했어요.";
-            }
-            if ($partName) {
-                $answer .= ' 품번 필터는 ' . $partName . ' 로 봤어요.';
-            }
             return [
-                'answer' => $answer,
+                'answer' => $scope . $range['label'] . ' 기준 출하 데이터가 없어요.',
                 'actions' => $actions,
-                'suggestions' => [
-                    '오늘 출하수량 알려줘',
-                    '어제 출하 lot 몇개야',
-                    '이번 주 MEM-IR-BASE 출하수량',
-                ],
+                'suggestions' => ['어제 출하수량 알려줘', '최근 7일 출하 요약해줘', '자화전자 최근 출하일 알려줘'],
             ];
         }
 
-        $topSql = "
-            SELECT part_name, COALESCE(SUM(qty), 0) AS total_qty
-            FROM ShipingList
-            {$whereSql}
-            GROUP BY part_name
-            ORDER BY total_qty DESC, part_name ASC
-            LIMIT 5
-        ";
-        $st = $pdo->prepare($topSql);
-        $st->execute($params);
-        $topRows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
-
-        $answer = $range['label'] . ' 출하 기준';
-        if (!empty($range['implicit'])) {
-            $answer .= '으로 봤어요. 날짜를 따로 말하지 않아서 오늘 기준으로 확인했어요.';
-        }
-        if ($partName) {
-            $answer .= ' ' . $partName . ' 필터로';
-        }
-        $answer .= ' 총 출하수량은 ' . jtgpt_format_int($totalQty) . ' EA예요.';
-        $answer .= ' lot ' . jtgpt_format_int($lotCount) . '건, tray ' . jtgpt_format_int($trayCount) . '건, 조회 행 ' . jtgpt_format_int($rowCount) . '건';
-        if ($partName === null) {
-            $answer .= ', 품번 ' . jtgpt_format_int($partCount) . '종';
-        }
-        $answer .= '이 잡혔어요.';
-
-        if ($partName === null && $topRows) {
-            $parts = [];
-            foreach ($topRows as $r) {
-                $pn = trim((string)($r['part_name'] ?? ''));
-                if ($pn === '') continue;
-                $parts[] = $pn . ' ' . jtgpt_format_int((int)($r['total_qty'] ?? 0)) . ' EA';
-            }
-            if ($parts) {
-                $answer .= "\n상위 품번은 " . implode(', ', $parts) . '예요.';
-            }
-        }
-
-        $suggestions = [];
-        if ($partName === null) {
-            $suggestions[] = $range['label'] . ' MEM-IR-BASE 출하수량';
-        }
-        $suggestions[] = $range['label'] . ' 출하 lot 몇개야';
-        $suggestions[] = '어제 출하수량 알려줘';
-
-        return [
-            'answer' => $answer,
-            'actions' => $actions,
-            'suggestions' => $suggestions,
-        ];
-    }
-}
-
-if (!function_exists('jtgpt_parse_message')) {
-    function jtgpt_parse_message(string $message): array {
-        $text = trim($message);
-        $normalized = mb_strtolower($text, 'UTF-8');
-        $timeHint = jtgpt_detect_time_hint($normalized);
-
-        if ($text === '') {
+        if ($intent === 'lot_count') {
             return [
-                'answer' => '질문이 비어 있어요. 예: 오늘 출하수량 알려줘, 어제 출하 lot 몇개야, 이번 주 MEM-IR-BASE 출하수량',
-                'actions' => [],
-                'suggestions' => ['오늘 출하수량 알려줘', '어제 출하 lot 몇개야', '이번 주 MEM-IR-BASE 출하수량'],
+                'answer' => $scope . $range['label'] . ' 출하 lot는 ' . jt_format_int($lotCount) . '건입니다.',
+                'actions' => $actions,
+                'suggestions' => ['같은 조건 출하수량 알려줘', '같은 조건 tray 몇개야', '같은 조건 출하 요약해줘'],
             ];
         }
-
-        $shippingNeedles = ['출하', '출고', 'ship', 'shipping', 'lot', '포장', '납품', '수량', 'qty', 'ea'];
-        if (jtgpt_contains_any($normalized, $shippingNeedles)) {
-            try {
-                $pdo = dp_get_pdo();
-                return jtgpt_shipping_reply($pdo, $text);
-            } catch (Throwable $e) {
+        if ($intent === 'tray_count') {
+            return [
+                'answer' => $scope . $range['label'] . ' tray는 ' . jt_format_int($trayCount) . '건입니다.',
+                'actions' => $actions,
+                'suggestions' => ['같은 조건 lot 몇개야', '같은 조건 출하수량 알려줘', '같은 조건 출하 요약해줘'],
+            ];
+        }
+        if ($intent === 'total_qty') {
+            return [
+                'answer' => $scope . $range['label'] . ' 총 출하수량은 ' . jt_format_int($totalQty) . ' EA입니다.',
+                'actions' => $actions,
+                'suggestions' => ['같은 조건 lot 몇개야', '같은 조건 tray 몇개야', '같은 조건 출하 요약해줘'],
+            ];
+        }
+        if ($intent === 'top_part') {
+            $topSql = "SELECT part_name, COALESCE(SUM(qty),0) AS total_qty FROM ShipingList {$whereSql} GROUP BY part_name ORDER BY total_qty DESC, part_name ASC LIMIT 1";
+            $st = $pdo->prepare($topSql);
+            $st->execute($params);
+            $row = $st->fetch(PDO::FETCH_ASSOC) ?: [];
+            $pn = trim((string)($row['part_name'] ?? ''));
+            $q = (int)($row['total_qty'] ?? 0);
+            if ($pn !== '') {
                 return [
-                    'answer' => '출하 데이터를 조회하는 중 오류가 났어요. DB 연결이나 테이블 상태를 확인해 주세요.\n' . $e->getMessage(),
-                    'actions' => [
-                        ['label' => 'QA 출하내역 열기', 'href' => dp_url('shipinglist')],
-                    ],
-                    'suggestions' => ['오늘 출하수량 알려줘', '어제 출하 lot 몇개야'],
+                    'answer' => $scope . $range['label'] . ' 가장 많이 출하된 품번은 ' . $pn . '이고, 수량은 ' . jt_format_int($q) . ' EA입니다.',
+                    'actions' => $actions,
+                    'suggestions' => [$pn . ' 출하수량 알려줘', '같은 조건 lot 몇개야', '같은 조건 출하 요약해줘'],
                 ];
             }
         }
 
-        $modules = [
-            'rma' => [
-                'title' => 'RMA 내역',
-                'href' => dp_url('rma'),
-                'needles' => ['rma', 'return', '반품', '회수', '리턴'],
-                'summary' => 'RMA/반품/회수 관련 요청으로 이해했어요. 아직 이쪽은 실데이터 답변보다 화면 이동 중심이에요.',
-            ],
-            'oqc' => [
-                'title' => 'OQC 측정 데이터 조회',
-                'href' => dp_url('oqc'),
-                'needles' => ['oqc', '측정', 'ng', '불량', '검사', '측정값', 'cavity', 'tool'],
-                'summary' => 'OQC 측정/NG/검사 관련 요청으로 이해했어요. 아직 이쪽은 실데이터 답변보다 화면 이동 중심이에요.',
-            ],
-            'ipqc' => [
-                'title' => 'JMP Assist (IPQC)',
-                'href' => dp_url('ipqc'),
-                'needles' => ['ipqc', 'jmp', '공정능력', 'cpk', 'cp', 'cpu', 'cpl', 'spc', '히스토그램', '그래프'],
-                'summary' => 'IPQC/JMP/공정능력 관련 요청으로 이해했어요. 아직 이쪽은 실데이터 답변보다 화면 이동 중심이에요.',
-            ],
+        $topSql = "SELECT part_name, COALESCE(SUM(qty),0) AS total_qty FROM ShipingList {$whereSql} GROUP BY part_name ORDER BY total_qty DESC, part_name ASC LIMIT 3";
+        $st = $pdo->prepare($topSql);
+        $st->execute($params);
+        $topRows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $pieces = [];
+        foreach ($topRows as $row) {
+            $pn = trim((string)($row['part_name'] ?? ''));
+            if ($pn === '') continue;
+            $pieces[] = $pn . ' ' . jt_format_int((int)($row['total_qty'] ?? 0)) . ' EA';
+        }
+        $answer = $scope . $range['label'] . ' 기준 출하수량은 ' . jt_format_int($totalQty) . ' EA, lot ' . jt_format_int($lotCount) . '건, tray ' . jt_format_int($trayCount) . '건입니다.';
+        if (!$partName) {
+            $answer .= ' 품번은 ' . jt_format_int($partCount) . '종입니다.';
+        }
+        if ($pieces) {
+            $answer .= "\n상위 품번은 " . implode(', ', $pieces) . '입니다.';
+        }
+        return [
+            'answer' => $answer,
+            'actions' => $actions,
+            'suggestions' => ['같은 조건 출하수량만 알려줘', '같은 조건 lot 몇개야', '자화전자 최근 출하일 알려줘'],
+        ];
+    }
+}
+if (!function_exists('jt_oqc_schema')) {
+    function jt_oqc_schema(PDO $pdo): array {
+        $headerCols = [];
+        try {
+            $st = $pdo->query('SHOW COLUMNS FROM `oqc_header`');
+            foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+                $headerCols[strtolower((string)($r['Field'] ?? ''))] = true;
+            }
+        } catch (Throwable $e) {
+        }
+        return [
+            'has_ship_date' => isset($headerCols['ship_date']),
+            'has_lot_date' => isset($headerCols['lot_date']),
+        ];
+    }
+}
+if (!function_exists('jt_oqc_date_sql')) {
+    function jt_oqc_date_sql(array $schema): string {
+        if (!empty($schema['has_ship_date'])) {
+            return 'COALESCE(h.ship_date, h.lot_date)';
+        }
+        if (!empty($schema['has_lot_date'])) {
+            return 'h.lot_date';
+        }
+        return 'NULL';
+    }
+}
+if (!function_exists('jt_oqc_reply')) {
+    function jt_oqc_reply(PDO $pdo, string $message): array {
+        $text = trim($message);
+        $normalized = mb_strtolower($text, 'UTF-8');
+        $pointNo = jt_extract_point_no($text);
+        $partName = jt_extract_part_name($text);
+        $range = jt_detect_date_range($normalized);
+        $schema = jt_oqc_schema($pdo);
+        $dateExpr = jt_oqc_date_sql($schema);
+
+        $where = ['r.result_ok = 0'];
+        $params = [];
+        if ($partName) {
+            $where[] = 'h.part_name = :part_name';
+            $params[':part_name'] = $partName;
+        }
+        if ($pointNo) {
+            $where[] = 'r.point_no = :point_no';
+            $params[':point_no'] = $pointNo;
+        }
+        if ($dateExpr !== 'NULL') {
+            $where[] = "{$dateExpr} >= :from_date";
+            $where[] = "{$dateExpr} <= :to_date";
+            $params[':from_date'] = $range['from'];
+            $params[':to_date'] = $range['to'];
+        }
+        $whereSql = 'WHERE ' . implode(' AND ', $where);
+
+        $actions = [
+            ['label' => 'OQC 측정 데이터 조회 열기', 'href' => dp_url('oqc')],
         ];
 
-        $scores = [];
-        foreach ($modules as $key => $meta) {
-            $score = 0;
-            foreach ($meta['needles'] as $needle) {
-                if ($needle !== '' && mb_strpos($normalized, mb_strtolower($needle, 'UTF-8')) !== false) {
-                    $score++;
-                }
-            }
-            $scores[$key] = $score;
-        }
-        arsort($scores);
-        $topKey = (string)key($scores);
-        $topScore = (int)current($scores);
-
-        if ($topScore > 0 && isset($modules[$topKey])) {
-            $meta = $modules[$topKey];
-            $answer = $meta['summary'];
-            if ($timeHint !== null) {
-                $answer .= ' 날짜 키워드 ' . $timeHint . ' 도 감지했어요.';
-            }
+        if (!$pointNo && !jt_contains_any($normalized, ['ng 많은', 'ng많은', '자주', '많은 포인트', '탑', 'top'])) {
+            $ask = 'OQC는 바로 찾을 수 있게 좁혀 말해줘. 예: "최근 7일 MEM-IR-BASE OQC NG 많은 포인트", "어제 OQC 55-1 포인트 NG"';
             return [
-                'answer' => $answer,
-                'actions' => [
-                    ['label' => $meta['title'] . ' 열기', 'href' => $meta['href']],
-                ],
-                'suggestions' => ['오늘 출하수량 알려줘', '어제 출하 lot 몇개야', '이번 주 MEM-IR-BASE 출하수량'],
+                'answer' => $ask,
+                'actions' => $actions,
+                'suggestions' => ['최근 7일 OQC NG 많은 포인트', '어제 OQC 55-1 포인트 NG', 'MEM-IR-BASE OQC NG 많은 포인트'],
             ];
         }
 
+        if ($pointNo) {
+            $sql = "SELECT COUNT(*) AS ng_count, MAX({$dateExpr}) AS last_date FROM oqc_result_header r JOIN oqc_header h ON h.id = r.header_id {$whereSql}";
+            $st = $pdo->prepare($sql);
+            $st->execute($params);
+            $row = $st->fetch(PDO::FETCH_ASSOC) ?: [];
+            $count = (int)($row['ng_count'] ?? 0);
+            $lastDate = trim((string)($row['last_date'] ?? ''));
+            if ($count <= 0) {
+                return [
+                    'answer' => $range['label'] . ' 범위에서 OQC 포인트 ' . $pointNo . ' NG는 잡히지 않았어요' . ($partName ? ' (' . $partName . ')' : '') . '.',
+                    'actions' => $actions,
+                    'suggestions' => ['범위를 넓혀서 다시 찾아줘', '최근 7일 OQC NG 많은 포인트', 'OQC 측정 데이터 조회 열기'],
+                ];
+            }
+            return [
+                'answer' => $range['label'] . ' 범위에서 OQC 포인트 ' . $pointNo . ' NG는 ' . jt_format_int($count) . '건입니다' . ($partName ? ' (' . $partName . ')' : '') . ($lastDate ? '. 마지막 검출일은 ' . $lastDate . '입니다.' : '.'),
+                'actions' => $actions,
+                'suggestions' => ['같은 범위 OQC NG 많은 포인트', '같은 범위 다른 포인트도 찾아줘', 'OQC 측정 데이터 조회 열기'],
+            ];
+        }
+
+        $sql = "SELECT r.point_no, COUNT(*) AS ng_count FROM oqc_result_header r JOIN oqc_header h ON h.id = r.header_id {$whereSql} GROUP BY r.point_no ORDER BY ng_count DESC, r.point_no ASC LIMIT 5";
+        $st = $pdo->prepare($sql);
+        $st->execute($params);
+        $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        if (!$rows) {
+            return [
+                'answer' => $range['label'] . ' 범위에서는 OQC NG 포인트가 없습니다' . ($partName ? ' (' . $partName . ')' : '') . '.',
+                'actions' => $actions,
+                'suggestions' => ['범위를 넓혀서 다시 찾아줘', '어제 OQC 55-1 포인트 NG', 'OQC 측정 데이터 조회 열기'],
+            ];
+        }
+        $parts = [];
+        foreach ($rows as $r) {
+            $parts[] = trim((string)$r['point_no']) . ' ' . jt_format_int((int)$r['ng_count']) . '건';
+        }
         return [
-            'answer' => '지금은 출하 수량/lot 수는 실제 DB에서 답하고 있어요. 예를 들어 오늘 출하수량 알려줘, 어제 출하 lot 몇개야, 이번 주 MEM-IR-BASE 출하수량처럼 물어보면 돼요.',
+            'answer' => $range['label'] . ' OQC에서 NG가 많은 포인트는 ' . implode(', ', $parts) . '입니다' . ($partName ? ' (' . $partName . ')' : '') . '.',
+            'actions' => $actions,
+            'suggestions' => ['1위 포인트 상세 보여줘', '어제 OQC 55-1 포인트 NG', 'OQC 측정 데이터 조회 열기'],
+        ];
+    }
+}
+if (!function_exists('jt_action_reply')) {
+    function jt_action_reply(string $message): ?array {
+        $text = mb_strtolower(trim($message), 'UTF-8');
+        if ($text === '') return null;
+
+        if (jt_contains_any($text, ['그래프빌더', 'graph builder', 'jmp', 'ipqc']) && jt_contains_any($text, ['켜줘', '열어줘', '열기', '실행'])) {
+            return [
+                'answer' => 'JMP Assist(IPQC)를 새 창으로 열게요.',
+                'actions' => [
+                    ['label' => 'JMP Assist 새 창 열기', 'href' => dp_url('ipqc'), 'open' => 'new_window'],
+                ],
+                'suggestions' => ['공정능력 그래프 열어줘', 'IPQC 화면 열어줘', 'OQC 창도 열어줘'],
+            ];
+        }
+        if (jt_contains_any($text, ['oqc']) && jt_contains_any($text, ['켜줘', '열어줘', '열기', '실행'])) {
+            return [
+                'answer' => 'OQC 측정 데이터 조회 화면을 열게요.',
+                'actions' => [
+                    ['label' => 'OQC 화면 열기', 'href' => dp_url('oqc')],
+                ],
+                'suggestions' => ['최근 7일 OQC NG 많은 포인트', '어제 OQC 55-1 포인트 NG', 'JMP Assist 새 창 열기'],
+            ];
+        }
+        if (jt_contains_any($text, ['qa', '출하', 'shipinglist']) && jt_contains_any($text, ['켜줘', '열어줘', '열기', '실행'])) {
+            return [
+                'answer' => 'QA 출하내역 화면을 열게요.',
+                'actions' => [
+                    ['label' => 'QA 출하내역 열기', 'href' => dp_url('shipinglist')],
+                ],
+                'suggestions' => ['오늘 출하수량 알려줘', '자화전자 최근 출하일 알려줘', 'JMP Assist 새 창 열기'],
+            ];
+        }
+        return null;
+    }
+}
+if (!function_exists('jt_parse_message')) {
+    function jt_parse_message(string $message): array {
+        $text = trim($message);
+        $normalized = mb_strtolower($text, 'UTF-8');
+
+        if ($text === '') {
+            return [
+                'answer' => '질문이 비어 있어요. 예: 자화전자 제일 최근 출하일은?, 어제 출하 lot 몇개야, 최근 7일 OQC NG 많은 포인트',
+                'actions' => [],
+                'suggestions' => ['자화전자 제일 최근 출하일은?', '어제 출하 lot 몇개야', '최근 7일 OQC NG 많은 포인트'],
+            ];
+        }
+
+        $action = jt_action_reply($text);
+        if ($action !== null) {
+            return $action;
+        }
+
+        $needsNgClarify = jt_contains_any($normalized, ['ng', '불량', '이상']) && !jt_contains_any($normalized, ['oqc', 'omm', 'cmm', 'aoi']);
+        if ($needsNgClarify) {
+            return [
+                'answer' => 'NG는 어느 공정으로 볼지 먼저 말해줘. OMM / CMM / AOI / OQC 중 하나로 좁혀주면 바로 찾을게요.',
+                'actions' => [],
+                'suggestions' => ['최근 7일 OQC NG 많은 포인트', '최근 7일 CMM NG 찾아줘', 'AOI NG 많은 모델 보여줘'],
+            ];
+        }
+
+        $shippingNeedles = ['출하', '출고', 'ship', 'shipping', 'lot', 'tray', '납품'];
+        if (jt_contains_any($normalized, $shippingNeedles)) {
+            try {
+                if (!function_exists('dp_get_pdo')) {
+                    throw new RuntimeException('dp_get_pdo() 가 로드되지 않았습니다.');
+                }
+                $pdo = dp_get_pdo();
+                return jt_shipping_reply($pdo, $text);
+            } catch (Throwable $e) {
+                return [
+                    'answer' => '출하 데이터를 조회하는 중 오류가 났어요. ' . $e->getMessage(),
+                    'actions' => [['label' => 'QA 출하내역 열기', 'href' => dp_url('shipinglist')]],
+                    'suggestions' => ['어제 출하수량 알려줘', '자화전자 제일 최근 출하일은?', '오늘 출하 lot 몇개야'],
+                ];
+            }
+        }
+
+        if (jt_contains_any($normalized, ['oqc', '포인트', 'ng', '불량'])) {
+            try {
+                if (!function_exists('dp_get_pdo')) {
+                    throw new RuntimeException('dp_get_pdo() 가 로드되지 않았습니다.');
+                }
+                $pdo = dp_get_pdo();
+                return jt_oqc_reply($pdo, $text);
+            } catch (Throwable $e) {
+                return [
+                    'answer' => 'OQC 데이터를 조회하는 중 오류가 났어요. ' . $e->getMessage(),
+                    'actions' => [['label' => 'OQC 측정 데이터 조회 열기', 'href' => dp_url('oqc')]],
+                    'suggestions' => ['최근 7일 OQC NG 많은 포인트', '어제 OQC 55-1 포인트 NG', 'OQC 화면 열어줘'],
+                ];
+            }
+        }
+
+        return [
+            'answer' => '아직 바로 처리할 수 있는 건 출하 실데이터, OQC NG 포인트, 그리고 화면 열기 요청이에요. OMM / CMM / AOI도 같은 방식으로 붙일 수 있게 이어서 확장하면 됩니다.',
             'actions' => [
-                ['label' => 'QA 출하내역 열기', 'href' => dp_url('shipinglist')],
+                ['label' => 'JMP Assist 새 창 열기', 'href' => dp_url('ipqc'), 'open' => 'new_window'],
+                ['label' => 'OQC 측정 데이터 조회 열기', 'href' => dp_url('oqc')],
             ],
-            'suggestions' => ['오늘 출하수량 알려줘', '어제 출하 lot 몇개야', '이번 주 MEM-IR-BASE 출하수량'],
+            'suggestions' => ['자화전자 제일 최근 출하일은?', '최근 7일 OQC NG 많은 포인트', '그래프빌더 켜줘'],
         ];
     }
 }
@@ -400,7 +598,7 @@ if ($isAjax) {
         $payload = $_POST;
     }
     $message = trim((string)($payload['message'] ?? ''));
-    $result = jtgpt_parse_message($message);
+    $result = jt_parse_message($message);
     echo json_encode([
         'ok' => true,
         'answer' => (string)($result['answer'] ?? ''),
@@ -409,8 +607,6 @@ if ($isAjax) {
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
-
-$selfUrl = $EMBED ? 'jtgpt_view.php?embed=1' : dp_url('jtgpt_view.php');
 ?>
 <!doctype html>
 <html lang="ko">
@@ -420,473 +616,183 @@ $selfUrl = $EMBED ? 'jtgpt_view.php?embed=1' : dp_url('jtgpt_view.php');
 <title>JTGPT</title>
 <style>
     :root{
-        --bg:#202124;
-        --panel:rgba(49,49,52,.88);
-        --panel-2:rgba(36,36,39,.96);
-        --line:rgba(255,255,255,.08);
-        --text:#ececec;
-        --muted:#b3b3b3;
-        --accent:#ffffff;
-        --bubble-user:#303134;
-        --bubble-ai:#252629;
-        --shadow:0 20px 80px rgba(0,0,0,.28);
+        --bg:#111417;
+        --bg2:#171b20;
+        --panel:rgba(33,36,44,.88);
+        --panel2:rgba(44,48,57,.88);
+        --border:rgba(255,255,255,.08);
+        --text:#f3f5f8;
+        --muted:#b7bec8;
+        --accent:#cfd5de;
+        --chip:rgba(255,255,255,.08);
     }
     *{box-sizing:border-box}
     html,body{height:100%}
     body{
         margin:0;
+        font-family:Segoe UI,Apple SD Gothic Neo,Pretendard,Malgun Gothic,sans-serif;
         color:var(--text);
-        background:transparent;
-        font-family:Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif;
-    }
-    .jtgpt-page{
-        min-height:100%;
-        display:flex;
-        flex-direction:column;
-        position:relative;
+        background:
+            radial-gradient(ellipse at top, rgba(37,74,62,.45), transparent 45%),
+            radial-gradient(ellipse at center, rgba(30,51,59,.35), transparent 55%),
+            linear-gradient(180deg, #14181d 0%, #101317 100%);
         overflow:hidden;
-        background:linear-gradient(180deg, rgba(32,33,36,.82) 0%, rgba(24,24,27,.90) 100%);
     }
-    .jtgpt-page::before{
-        content:"";
-        position:absolute;
-        inset:-20% auto auto 50%;
-        width:520px;
-        height:520px;
-        transform:translateX(-50%);
-        background:radial-gradient(circle, rgba(255,255,255,.08), rgba(255,255,255,0));
-        pointer-events:none;
-        filter:blur(10px);
-    }
-    .jtgpt-inner{
-        width:min(920px, calc(100% - 48px));
-        margin:0 auto;
-        flex:1;
-        display:flex;
-        flex-direction:column;
-        position:relative;
-        z-index:1;
-    }
-    .jtgpt-top{
-        padding:26px 0 0;
-        display:flex;
-        justify-content:space-between;
-        align-items:center;
-        min-height:78px;
-    }
-    .jtgpt-badge{
-        display:inline-flex;
-        align-items:center;
-        gap:8px;
-        padding:10px 14px;
-        border-radius:999px;
-        border:1px solid rgba(255,255,255,.10);
-        background:rgba(255,255,255,.04);
-        color:#f4f4f5;
-        font-size:13px;
-        letter-spacing:.2px;
-        backdrop-filter:blur(8px);
-    }
-    .jtgpt-status{
-        color:var(--muted);
-        font-size:13px;
-    }
-    .jtgpt-main{
-        flex:1;
-        display:flex;
-        flex-direction:column;
-        justify-content:center;
-        padding:24px 0 26px;
-        min-height:0;
-    }
-    .jtgpt-page.has-chat .jtgpt-main{
-        justify-content:flex-end;
-        gap:18px;
-        padding-top:18px;
-    }
-    .jtgpt-hero{
-        text-align:center;
-        margin-bottom:30px;
-        transition:all .22s ease;
-    }
-    .jtgpt-page.has-chat .jtgpt-hero{
-        display:none;
-    }
-    .jtgpt-hero h1{
-        margin:0 0 14px;
-        font-size:48px;
-        font-weight:700;
-        letter-spacing:-0.03em;
-    }
-    .jtgpt-hero p{
-        margin:0;
-        color:var(--muted);
-        font-size:17px;
-    }
-    .jtgpt-thread{
-        display:none;
-        flex:1;
-        min-height:0;
-        overflow:auto;
-        padding:6px 4px 10px;
-        gap:18px;
-        scroll-behavior:smooth;
-    }
-    .jtgpt-page.has-chat .jtgpt-thread{
-        display:flex;
-        flex-direction:column;
-    }
-    .msg{
-        display:flex;
-        flex-direction:column;
-        gap:8px;
-    }
-    .msg.user{align-items:flex-end}
-    .msg.assistant{align-items:flex-start}
-    .msg-role{
-        font-size:12px;
-        color:var(--muted);
-        padding:0 6px;
-    }
-    .bubble{
-        max-width:min(760px, 92%);
-        padding:16px 18px;
-        border-radius:22px;
-        box-shadow:var(--shadow);
-        line-height:1.65;
+    body::before{
+        content:"0 1 0 1 1 0 0 1 0 1 0 0 1 1 0 1 0 0 1 1 0 1 0 1 0 0 1 1 0 1 0 0 1 1 0 1 0 0 1";
+        position:fixed;inset:0;
+        color:rgba(170,255,190,.07);
+        font-family:Consolas,monospace;
+        font-size:22px;
+        line-height:32px;
+        letter-spacing:22px;
         white-space:pre-wrap;
-        word-break:keep-all;
-        border:1px solid var(--line);
-    }
-    .msg.user .bubble{
-        background:var(--bubble-user);
-        color:#fff;
-        border-bottom-right-radius:8px;
-    }
-    .msg.assistant .bubble{
-        background:var(--bubble-ai);
-        color:#f2f2f2;
-        border-bottom-left-radius:8px;
-    }
-    .msg-actions,
-    .msg-suggestions{
-        display:flex;
-        flex-wrap:wrap;
-        gap:8px;
-        padding:0 4px;
-    }
-    .chip,
-    .action-btn{
-        appearance:none;
-        border:none;
-        cursor:pointer;
-        border-radius:999px;
-        padding:10px 14px;
-        font-size:13px;
-        line-height:1;
-        text-decoration:none;
-        transition:transform .12s ease, background .12s ease, border-color .12s ease;
-    }
-    .chip{
-        background:rgba(255,255,255,.06);
-        color:#e6e6e6;
-        border:1px solid rgba(255,255,255,.08);
-    }
-    .chip:hover,
-    .action-btn:hover{
-        transform:translateY(-1px);
-    }
-    .action-btn{
-        background:#f3f4f6;
-        color:#111827;
-        font-weight:600;
-    }
-    .composer-wrap{
-        width:min(740px, 100%);
-        margin:0 auto;
-        transition:all .22s ease;
-    }
-    .composer{
-        border:1px solid rgba(255,255,255,.08);
-        background:var(--panel);
-        border-radius:30px;
-        box-shadow:var(--shadow);
-        backdrop-filter:blur(10px);
+        pointer-events:none;
+        padding:10px 30px;
         overflow:hidden;
     }
-    .composer-input{
-        width:100%;
-        min-height:88px;
-        max-height:220px;
-        resize:none;
-        border:none;
-        outline:none;
-        background:transparent;
-        color:#fff;
-        padding:18px 20px 12px;
-        font-size:18px;
-        line-height:1.5;
-        font-family:inherit;
-    }
-    .composer-input::placeholder{color:#a8a8a8}
-    .composer-bottom{
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-        gap:12px;
-        padding:0 14px 12px 14px;
-    }
-    .composer-tools{
-        display:flex;
-        align-items:center;
-        gap:10px;
-        color:var(--muted);
-        font-size:13px;
-        flex-wrap:wrap;
-    }
-    .composer-pill{
-        display:inline-flex;
-        align-items:center;
-        gap:6px;
-        padding:8px 10px;
-        border-radius:999px;
-        border:1px solid rgba(255,255,255,.08);
-        background:rgba(255,255,255,.04);
-    }
-    .send-btn{
-        width:46px;
-        height:46px;
-        border:none;
-        border-radius:50%;
-        background:#f3f4f6;
-        color:#111827;
-        font-size:18px;
-        cursor:pointer;
-        font-weight:700;
-    }
-    .send-btn[disabled]{opacity:.45; cursor:not-allowed}
-    .quick-row{
-        width:min(740px, 100%);
-        margin:16px auto 0;
-        display:flex;
-        flex-wrap:wrap;
-        justify-content:center;
-        gap:10px;
-    }
-    .jtgpt-page.has-chat .quick-row{
-        display:none;
-    }
-    .quick-btn{
-        appearance:none;
-        border:1px solid rgba(255,255,255,.08);
-        background:rgba(255,255,255,.04);
-        color:#efefef;
-        border-radius:999px;
-        padding:12px 16px;
-        cursor:pointer;
-        font-size:14px;
-    }
-    .typing{
-        display:inline-flex;
-        align-items:center;
-        gap:6px;
-    }
-    .typing i{
-        width:7px;
-        height:7px;
-        border-radius:50%;
-        background:#d4d4d8;
-        display:block;
-        animation:blink 1s infinite ease-in-out;
-    }
-    .typing i:nth-child(2){animation-delay:.15s}
-    .typing i:nth-child(3){animation-delay:.3s}
-    @keyframes blink{
-        0%, 80%, 100%{opacity:.25; transform:translateY(0)}
-        40%{opacity:1; transform:translateY(-2px)}
-    }
-    @media (max-width: 900px){
-        .jtgpt-inner{width:min(100%, calc(100% - 28px));}
-        .jtgpt-hero h1{font-size:36px;}
-        .composer-input{font-size:16px; min-height:82px;}
-    }
+    .page{position:relative;height:100%;display:flex;flex-direction:column;max-width:1200px;margin:0 auto;padding:18px 22px 24px}
+    .badge{display:inline-flex;align-items:center;gap:8px;padding:12px 18px;border:1px solid rgba(255,255,255,.16);border-radius:999px;background:rgba(255,255,255,.03);font-weight:600;color:#eef2f6;backdrop-filter:blur(8px);align-self:flex-start}
+    .chat{flex:1;overflow:auto;padding:18px 0 16px;display:flex;flex-direction:column;gap:18px}
+    .row{display:flex;flex-direction:column;gap:8px}
+    .row.user{align-items:flex-end}
+    .who{font-size:13px;color:var(--muted);padding:0 6px}
+    .bubble{max-width:820px;border-radius:24px;padding:18px 22px;line-height:1.65;font-size:15px;white-space:pre-wrap;backdrop-filter:blur(10px);border:1px solid var(--border);box-shadow:0 12px 40px rgba(0,0,0,.22)}
+    .row.assistant .bubble{background:var(--panel)}
+    .row.user .bubble{background:var(--panel2)}
+    .actions,.suggestions{display:flex;flex-wrap:wrap;gap:10px;margin-top:2px}
+    .chip{border:1px solid rgba(255,255,255,.12);background:var(--chip);color:#eef2f6;border-radius:999px;padding:10px 14px;font-size:14px;text-decoration:none;cursor:pointer}
+    .chip:hover{background:rgba(255,255,255,.12)}
+    .composerWrap{padding-top:8px}
+    .composer{max-width:760px;margin:0 auto;background:rgba(50,54,64,.95);border:1px solid var(--border);border-radius:30px;padding:18px 18px 14px;box-shadow:0 24px 50px rgba(0,0,0,.28);backdrop-filter:blur(12px)}
+    textarea{width:100%;min-height:78px;max-height:240px;resize:none;border:0;outline:0;background:transparent;color:#f5f7fb;font-size:18px;line-height:1.5;font-family:inherit}
+    textarea::placeholder{color:#d0d5dd}
+    .composerBottom{display:flex;align-items:center;justify-content:space-between;margin-top:10px;gap:12px}
+    .leftTools,.rightTools{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .mini{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:var(--muted);font-size:14px}
+    .send{width:44px;height:44px;border-radius:50%;border:0;background:#eef2f6;color:#111;cursor:pointer;font-size:20px;font-weight:700}
+    .hero{padding:40px 0 12px;text-align:center;color:#eef3f9;font-size:24px}
+    .hidden{display:none !important}
 </style>
 </head>
 <body>
-<?php if (!$EMBED): ?>
-<?php echo dp_sidebar_render('jtgpt'); ?>
-<div class="dp-shell-wrap" style="height:100vh; box-sizing:border-box; padding-left:72px; display:flex; flex-direction:column; position:relative; z-index:20;">
-    <?php echo dp_render_userbar(['admin_badge_mode' => 'modal', 'admin_iframe_src' => 'admin_settings', 'logout_action' => 'logout']); ?>
-    <div style="flex:1; min-height:0;">
-<?php endif; ?>
-<div class="jtgpt-page" id="jtgptPage">
-    <div class="jtgpt-inner">
-        <div class="jtgpt-top">
-            <div class="jtgpt-badge">✦ JTGPT <span style="opacity:.7">BETA</span></div>
-            <div class="jtgpt-status">출하 수량/lot 실데이터 응답 2차</div>
-        </div>
-        <div class="jtgpt-main">
-            <div class="jtgpt-hero">
-                <h1>어디서부터 시작할까요?</h1>
-                <p>이제 출하 수량과 lot 수는 실제 DB에서 답해요. 예: 오늘 출하수량 알려줘</p>
-            </div>
-            <div class="jtgpt-thread" id="jtgptThread"></div>
-            <div class="composer-wrap">
-                <form class="composer" id="jtgptForm" autocomplete="off">
-                    <textarea class="composer-input" id="jtgptInput" name="message" placeholder="무엇이든 물어보세요" rows="1"></textarea>
-                    <div class="composer-bottom">
-                        <div class="composer-tools">
-                            <span class="composer-pill">＋</span>
-                            <span class="composer-pill">실데이터</span>
-                            <span class="composer-pill">출하 수량</span>
-                        </div>
-                        <button class="send-btn" id="jtgptSend" type="submit" aria-label="보내기">↑</button>
-                    </div>
-                </form>
-                <div class="quick-row">
-                    <button class="quick-btn" type="button" data-quick="오늘 출하수량 알려줘">오늘 출하수량 알려줘</button>
-                    <button class="quick-btn" type="button" data-quick="어제 출하 lot 몇개야">어제 출하 lot 몇개야</button>
-                    <button class="quick-btn" type="button" data-quick="이번 주 MEM-IR-BASE 출하수량">이번 주 MEM-IR-BASE 출하수량</button>
+<div class="page">
+    <div class="badge">✦ JTGPT <span style="opacity:.7;font-size:12px">BETA</span></div>
+    <div id="hero" class="hero">어디서부터 시작할까요?</div>
+    <div id="chat" class="chat"></div>
+    <div class="composerWrap">
+        <div class="composer">
+            <textarea id="message" placeholder="무엇이든 물어보세요"></textarea>
+            <div class="composerBottom">
+                <div class="leftTools">
+                    <div class="mini">＋</div>
+                    <div class="mini">실데이터</div>
+                    <div class="mini">질문 애매하면 되묻기</div>
+                </div>
+                <div class="rightTools">
+                    <button id="sendBtn" class="send" type="button">↑</button>
                 </div>
             </div>
         </div>
     </div>
 </div>
-<?php if (!$EMBED): ?>
-    </div>
-</div>
-<?php endif; ?>
 <script>
 (function(){
-    var page = document.getElementById('jtgptPage');
-    var form = document.getElementById('jtgptForm');
-    var input = document.getElementById('jtgptInput');
-    var thread = document.getElementById('jtgptThread');
-    var send = document.getElementById('jtgptSend');
-    var endpoint = <?php echo json_encode($selfUrl, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); ?>;
+    const chat = document.getElementById('chat');
+    const hero = document.getElementById('hero');
+    const textarea = document.getElementById('message');
+    const sendBtn = document.getElementById('sendBtn');
 
-    function escapeHtml(str){
-        return String(str).replace(/[&<>"']/g, function(ch){
-            return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'})[ch];
-        });
-    }
+    function createRow(role, text, actions, suggestions){
+        const row = document.createElement('div');
+        row.className = 'row ' + role;
+        const who = document.createElement('div');
+        who.className = 'who';
+        who.textContent = role === 'user' ? '나' : 'JTGPT';
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble';
+        bubble.textContent = text || '';
+        row.appendChild(who);
+        row.appendChild(bubble);
 
-    function autoResize(){
-        input.style.height = 'auto';
-        input.style.height = Math.min(input.scrollHeight, 220) + 'px';
-    }
-
-    function ensureChatMode(){
-        if (!page.classList.contains('has-chat')) {
-            page.classList.add('has-chat');
-        }
-    }
-
-    function appendMessage(role, text, actions, suggestions){
-        ensureChatMode();
-        var wrap = document.createElement('div');
-        wrap.className = 'msg ' + role;
-        var html = '';
-        html += '<div class="msg-role">' + (role === 'user' ? '나' : 'JTGPT') + '</div>';
-        html += '<div class="bubble">' + escapeHtml(text).replace(/\n/g, '<br>') + '</div>';
         if (actions && actions.length) {
-            html += '<div class="msg-actions">';
-            actions.forEach(function(item){
-                html += '<a class="action-btn" href="' + encodeURI(item.href || '#') + '" data-jtgpt-nav="' + escapeHtml(item.href || '#') + '">' + escapeHtml(item.label || '이동') + '</a>';
+            const box = document.createElement('div');
+            box.className = 'actions';
+            actions.forEach(a => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'chip';
+                btn.textContent = a.label || '열기';
+                btn.addEventListener('click', () => {
+                    if (!a.href) return;
+                    if (a.open === 'new_window') {
+                        window.open(a.href, '_blank', 'noopener');
+                        return;
+                    }
+                    if (window.top && window.top !== window) {
+                        window.top.location.href = a.href;
+                    } else {
+                        window.location.href = a.href;
+                    }
+                });
+                box.appendChild(btn);
             });
-            html += '</div>';
+            row.appendChild(box);
         }
         if (suggestions && suggestions.length) {
-            html += '<div class="msg-suggestions">';
-            suggestions.forEach(function(item){
-                html += '<button class="chip" type="button" data-jtgpt-suggest="' + escapeHtml(item) + '">' + escapeHtml(item) + '</button>';
+            const box = document.createElement('div');
+            box.className = 'suggestions';
+            suggestions.forEach(s => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'chip';
+                btn.textContent = s;
+                btn.addEventListener('click', () => {
+                    textarea.value = s;
+                    textarea.focus();
+                });
+                box.appendChild(btn);
             });
-            html += '</div>';
+            row.appendChild(box);
         }
-        wrap.innerHTML = html;
-        thread.appendChild(wrap);
-        thread.scrollTop = thread.scrollHeight;
+        chat.appendChild(row);
+        hero.classList.add('hidden');
+        chat.scrollTop = chat.scrollHeight;
     }
 
-    function appendTyping(){
-        ensureChatMode();
-        var wrap = document.createElement('div');
-        wrap.className = 'msg assistant';
-        wrap.id = 'jtgptTyping';
-        wrap.innerHTML = '<div class="msg-role">JTGPT</div><div class="bubble"><span class="typing"><i></i><i></i><i></i></span></div>';
-        thread.appendChild(wrap);
-        thread.scrollTop = thread.scrollHeight;
-    }
-
-    function removeTyping(){
-        var el = document.getElementById('jtgptTyping');
-        if (el) el.remove();
-    }
-
-    async function ask(message){
-        var text = String(message || '').trim();
-        if (!text) return;
-        appendMessage('user', text);
-        input.value = '';
-        autoResize();
-        appendTyping();
-        send.disabled = true;
+    async function send(){
+        const message = textarea.value.trim();
+        if (!message) return;
+        createRow('user', message);
+        textarea.value = '';
+        textarea.style.height = '78px';
         try {
-            var res = await fetch(endpoint, {
+            const res = await fetch(window.location.href, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest'
                 },
-                body: JSON.stringify({message: text})
+                body: JSON.stringify({message})
             });
-            var data = await res.json();
-            removeTyping();
-            appendMessage('assistant', data.answer || '응답을 만들지 못했어요.', data.actions || [], data.suggestions || []);
+            const data = await res.json();
+            createRow('assistant', data.answer || '응답이 비어 있어요.', data.actions || [], data.suggestions || []);
         } catch (err) {
-            removeTyping();
-            appendMessage('assistant', '지금은 응답 연결 중 문제가 있어요. 잠시 후 다시 시도해 주세요.', [], ['오늘 출하수량 알려줘', '어제 출하 lot 몇개야']);
-        } finally {
-            send.disabled = false;
-            input.focus();
+            createRow('assistant', '응답을 불러오지 못했어요. 네트워크나 서버 상태를 확인해 주세요.');
         }
     }
 
-    form.addEventListener('submit', function(e){
-        e.preventDefault();
-        ask(input.value);
+    textarea.addEventListener('input', () => {
+        textarea.style.height = '78px';
+        textarea.style.height = Math.min(textarea.scrollHeight, 240) + 'px';
     });
-
-    input.addEventListener('input', autoResize);
-    input.addEventListener('keydown', function(e){
+    textarea.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            form.requestSubmit();
+            send();
         }
     });
-
-    document.addEventListener('click', function(e){
-        var sug = e.target.closest('[data-jtgpt-suggest]');
-        if (sug) {
-            ask(sug.getAttribute('data-jtgpt-suggest') || '');
-            return;
-        }
-        var quick = e.target.closest('[data-quick]');
-        if (quick) {
-            ask(quick.getAttribute('data-quick') || '');
-            return;
-        }
-        var nav = e.target.closest('[data-jtgpt-nav]');
-        if (nav) {
-            e.preventDefault();
-            var href = nav.getAttribute('data-jtgpt-nav') || nav.getAttribute('href') || '#';
-            if (window.top && href && href !== '#') {
-                window.top.location.href = href;
-            }
-        }
-    });
-
-    autoResize();
+    sendBtn.addEventListener('click', send);
 })();
 </script>
 </body>
