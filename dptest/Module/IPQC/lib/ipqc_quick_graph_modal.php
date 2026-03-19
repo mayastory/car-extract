@@ -181,11 +181,11 @@ if (!function_exists('h')) {
   #qgOverlay #qgGroupYBox{
     position:absolute;
     right:0;
-    top:58px;
-    bottom:28px;
+    top:86px;
+    bottom:auto;
     transform:none;
-    width:34px;
-    height:auto;
+    width:22px;
+    height:160px;
     border:1px solid #a9a9a9;
     background:#efefef;
     color:#666;
@@ -201,7 +201,7 @@ if (!function_exists('h')) {
   #qgOverlay #qgGroupYBox .qg-group-y-text{
     display:block;
     writing-mode:horizontal-tb;
-    transform:rotate(-90deg);
+    transform:rotate(90deg);
     transform-origin:center center;
     white-space:nowrap;
     font-size:11px;

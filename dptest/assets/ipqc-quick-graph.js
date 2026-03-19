@@ -838,7 +838,7 @@ function qgEnsureCaptionState(colKey){
       const ov = document.getElementById('qgOverlay');
       if (!ov) return;
       const w = (W && isFinite(W)) ? Number(W) : 1200;
-      const l = (padL && isFinite(padL)) ? Number(padL) : 56;
+      const l = (padL && isFinite(padL)) ? Number(padL) : 44;
       const r = (padR && isFinite(padR)) ? Number(padR) : 18;
       ov.style.setProperty('--qg-padL-pct', (l / w * 100).toFixed(3) + '%');
       ov.style.setProperty('--qg-padR-pct', (r / w * 100).toFixed(3) + '%');
@@ -6554,7 +6554,7 @@ function renderFacetList(rootId, items, selSet){
 function qgBuildTopHeaderSvg(toolsRow, cavs){
   const ns = 'http://www.w3.org/2000/svg';
   const W = 1200;
-  const padL = 56;
+  const padL = 44;
   const padR = 2;
   const innerW = W - padL - padR;
   const nT = Math.max(1, Array.isArray(toolsRow) ? toolsRow.length : 0);
@@ -6713,7 +6713,7 @@ function renderGrid(){
 
   // Decide how many Tool columns can fit in one row (then wrap)
   const gridW = (grid && grid.clientWidth) ? grid.clientWidth : (main ? main.clientWidth : 1200);
-  const plotW = Math.max(520, gridW - 44); // subtract label/gap roughly
+  const plotW = Math.max(520, gridW - 34); // tighter left gutter like JMP
   const minToolW = Math.max(220, (selCavs2.length * 70) + 40); // tuned to resemble JMP packing
   let toolsPerRow = Math.max(1, Math.floor(plotW / minToolW));
   // Prevent unnecessary wrapping for small Tool counts (JMP-like)
@@ -6903,6 +6903,48 @@ function renderGrid(){
     e.textContent = '표시할 데이터가 없습니다.';
     grid.appendChild(e);
   }
+  try{ qgSyncGroupYBox(); }catch(e){}
+  try{ requestAnimationFrame(()=>{ try{ qgSyncGroupYBox(); }catch(e2){} }); }catch(e){}
+}
+
+
+function qgSyncGroupYBox(){
+  try{
+    const box = qs('#qgGroupYBox');
+    const main = qs('#qgOverlay .qg-main');
+    const grid = qs('#qgGrid');
+    if (!box || !main || !grid) return;
+    const rows = qsa('.qg-fai-row', grid).filter(Boolean);
+    if (!rows.length){
+      box.style.display = 'none';
+      return;
+    }
+    const firstLabel = qs('.qg-row-label', rows[0]) || rows[0];
+    const lastLabel = qs('.qg-row-label', rows[rows.length - 1]) || rows[rows.length - 1];
+    const mainRect = main.getBoundingClientRect();
+    const topRect = firstLabel.getBoundingClientRect();
+    const botRect = lastLabel.getBoundingClientRect();
+    let top = Math.round(topRect.top - mainRect.top);
+    let height = Math.round(botRect.bottom - topRect.top);
+    if (!isFinite(top)) top = 0;
+    if (!isFinite(height) || height < 60) height = 60;
+    box.style.display = 'flex';
+    box.style.right = '0px';
+    box.style.top = Math.max(0, top) + 'px';
+    box.style.bottom = 'auto';
+    box.style.height = height + 'px';
+    box.style.width = '22px';
+    box.style.pointerEvents = 'none';
+    const txt = qs('.qg-group-y-text', box);
+    if (txt){
+      txt.style.transform = 'rotate(90deg)';
+      txt.style.transformOrigin = 'center center';
+    }
+    if (!QG._groupYResizeBound){
+      QG._groupYResizeBound = true;
+      window.addEventListener('resize', ()=>{ try{ qgSyncGroupYBox(); }catch(e){} }, { passive:true });
+    }
+  }catch(e){}
 }
 
 function drawMatrixSvg(svg, tools, cavs, dates, opt){
@@ -6928,7 +6970,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
   const rowCount = Math.max(1, Number(opt && opt.rowCount) || 1);
   // Keep a stable plot box so all FAI rows and the shared cavity header line up exactly.
   // USL/LSL labels must stay inside the last cavity panel without shrinking the usable plot width.
-  const padL = 56;
+  const padL = 44;
   const padR = 2;
   const padT = 0, padB = (opt && opt.showXLabels===false) ? 0 : 56;
   const innerW = W - padL - padR;
@@ -8058,7 +8100,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
 
     const W = 1200, H = (opt && opt.h ? opt.h : 320);
     // Keep x-axis labels tight to the plot (JMP-like), while still preventing clipping.
-    const padL = 56, padR = 14, padT = 14, padB = (opt && opt.showXLabels===false) ? 26 : 70;
+    const padL = 44, padR = 14, padT = 14, padB = (opt && opt.showXLabels===false) ? 26 : 70;
     const innerW = W - padL - padR;
     const innerH = H - padT - padB;
 
