@@ -1,4 +1,4 @@
-/* dp_shell.js (v18)
+/* dp_shell.js (v19)
    - iframe 내부 페이지에 dp_theme_unified.css 주입 + data-dp-unified=1
    - 메뉴 이동(A: 메뉴 따라 주소 변경) 유지
    - 사이드바 '바깥 클릭 닫힘'은 backdrop이 항상 iframe 위에 오도록 CSS(z-index)로 해결
@@ -23,6 +23,7 @@
   // NOTE: SHELL(app.php)에서 iframe으로 실제 페이지를 띄우는 매핑
   //       (메뉴 이동 시 전체 페이지 리로드를 막아 매트릭스 BG가 초기화되지 않게 함)
   var ROUTES = {
+    '/jtgpt': 'jtgpt_view.php',
     '/shipinglist': 'shipinglist_list.php',
     '/rma': 'RMAlist_list.php',
     '/oqc': 'oqc_view.php',
@@ -44,7 +45,7 @@
 
   function buildEmbedUrl(targetPath){
     // targetPath: "/shipinglist?..." or "/oqc?..."
-    var u = targetPath || '/shipinglist';
+    var u = targetPath || '/jtgpt';
     if (u.indexOf('/') !== 0) u = '/' + u;
 
     // split path/query
@@ -52,7 +53,7 @@
     var path = parts[0];
     var query = parts[1] ? ('?' + parts[1]) : '';
 
-    var page = ROUTES[path] || ROUTES['/shipinglist'];
+    var page = ROUTES[path] || ROUTES['/jtgpt'];
 
     // embed=1 유지
     var q = qsParse(query);
@@ -156,11 +157,11 @@
     var p = location.pathname || '';
     // BASE 제거
     if (BASE && p.indexOf(BASE) === 0) p = p.slice(BASE.length);
-    if (!p) p = '/shipinglist';
+    if (!p) p = '/jtgpt';
     // /shipinglist/ -> /shipinglist
     if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
     // 알 수 없으면 기본
-    if (!ROUTES[p]) return '/shipinglist';
+    if (!ROUTES[p]) return '/jtgpt';
     return p;
   }
 
