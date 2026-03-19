@@ -1,267 +1,434 @@
 <?php
-// [modules-refactor] JTMES_ROOT for relocated pages
-if (!defined('JTMES_ROOT')) { define('JTMES_ROOT', realpath(dirname(__DIR__, 3)) ?: dirname(__DIR__, 3)); }
+// JTGPT minimal replacement focused on:
+// 1) typewriter-style assistant rendering (front-end)
+// 2) better disambiguation for shipping questions such as
+//    "오늘 출하수량" vs "오늘까지 누적" and latest ship date queries.
 
-date_default_timezone_set('Asia/Seoul');
-
-session_start();
-require_once JTMES_ROOT . '/config/dp_config.php';
-require_once JTMES_ROOT . '/inc/common.php';
-require_once JTMES_ROOT . '/lib/auth_guard.php';
-require_once JTMES_ROOT . '/Module/Core/lib/jtgpt_session.php';
-require_once JTMES_ROOT . '/Module/Core/lib/jtgpt_planner.php';
-require_once JTMES_ROOT . '/Module/Core/lib/jtgpt_tools_shipping.php';
-require_once JTMES_ROOT . '/Module/Core/lib/jtgpt_tools_quality.php';
-
-dp_auth_guard();
-$EMBED = !empty($_GET['embed']);
-if (!$EMBED) {
-    require_once JTMES_ROOT . '/inc/sidebar.php';
-    require_once JTMES_ROOT . '/inc/dp_userbar.php';
-}
-
-jtgpt_session_init();
-
-if (!function_exists('jtgpt_h')) {
-    function jtgpt_h(?string $s): string {
-        return htmlspecialchars((string)($s ?? ''), ENT_QUOTES, 'UTF-8');
+$__bootstrapCandidates = [
+    dirname(__DIR__, 3) . '/bootstrap.php',
+    dirname(__DIR__, 4) . '/bootstrap.php',
+    dirname(__DIR__, 3) . '/public/bootstrap.php',
+];
+foreach ($__bootstrapCandidates as $__bootstrapFile) {
+    if (is_file($__bootstrapFile)) {
+        require_once $__bootstrapFile;
+        break;
     }
 }
 
-if (!function_exists('jtgpt_scope_label')) {
-    function jtgpt_scope_label(array $args): string {
-        $bits = [];
-        $range = $args['range']['label'] ?? null;
-        if ($range) $bits[] = (string)$range;
-        if (!empty($args['customer'])) $bits[] = (string)$args['customer'];
-        if (!empty($args['part_name'])) $bits[] = (string)$args['part_name'];
-        return trim(implode(' ', $bits));
-    }
+if (!defined('JTMES_ROOT')) {
+    define('JTMES_ROOT', dirname(__DIR__, 3));
 }
 
-if (!function_exists('jtgpt_build_shipinglist_href')) {
-    function jtgpt_build_shipinglist_href(string $fromDate, string $toDate, ?string $partName = null, ?string $customer = null): string {
-        $qs = ['from_date' => $fromDate, 'to_date' => $toDate];
-        if ($partName !== null && $partName !== '') $qs['part_name'] = $partName;
-        if ($customer !== null && $customer !== '') $qs['ship_to'] = $customer;
-        return dp_url('shipinglist') . '?' . http_build_query($qs);
+if (!function_exists('h')) {
+    function h($v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
+}
+if (!function_exists('dp_url')) {
+    function dp_url(string $route = ''): string {
+        $route = trim($route, '/');
+        if ($route === '') return '/';
+        return '/' . $route;
     }
 }
-
-if (!function_exists('jtgpt_action_nav')) {
-    function jtgpt_action_nav(string $label, string $route, ?string $href = null, array $extra = []): array {
-        return array_merge([
-            'label' => $label,
-            'kind'  => 'navigate',
-            'route' => $route,
-            'href'  => $href ?: dp_url(ltrim($route, '/')),
-        ], $extra);
-    }
-}
-
-if (!function_exists('jtgpt_action_graph')) {
-    function jtgpt_action_graph(string $label, string $kind, array $graphSpec = []): array {
-        return [
-            'label' => $label,
-            'kind'  => $kind,
-            'route' => '/ipqc',
-            'href'  => dp_url('ipqc'),
-            'graph_spec' => $graphSpec,
-        ];
-    }
-}
-
-if (!function_exists('jtgpt_execute_plan')) {
-    function jtgpt_execute_plan(array $plan): array {
-        $kind = (string)($plan['kind'] ?? 'clarify');
-        $tool = (string)($plan['tool'] ?? '');
-        $args = (array)($plan['args'] ?? []);
-        $base = ['answer' => '', 'actions' => [], 'suggestions' => [], 'auto_actions' => [], 'state_patch' => []];
-
-        if ($kind === 'clarify') {
-            return array_merge($base, [
-                'answer' => (string)($plan['answer'] ?? '조금만 더 구체적으로 말해 주세요.'),
-                'suggestions' => array_values($plan['suggestions'] ?? []),
-            ]);
+if (!function_exists('jtgpt_get_pdo')) {
+    function jtgpt_get_pdo(): PDO {
+        if (!function_exists('dp_get_pdo')) {
+            throw new RuntimeException('dp_get_pdo() not found');
         }
+        return dp_get_pdo();
+    }
+}
 
-        if ($tool === 'guard_read_only') {
-            return array_merge($base, [
-                'answer' => 'JTGPT는 관리자/권한/보안성 작업은 건드리지 않고, 읽기 전용 조회만 처리해요. 출하·OQC·그래프 요청처럼 조회성 질문으로 말해 주세요.',
-                'suggestions' => ['자화전자 제일 최근 출하일은?', '최근 7일 OQC NG 많은 포인트', '그래프빌더 열어줘'],
-            ]);
+$EMBED = (string)($_GET['embed'] ?? '') === '1';
+$selfUrl = $EMBED ? 'jtgpt_view.php?embed=1' : dp_url('jtgpt_view.php');
+
+function jtgpt_format_int($n): string {
+    return number_format((int)$n);
+}
+function jtgpt_mb_contains(string $haystack, string $needle): bool {
+    return $needle !== '' && mb_strpos($haystack, $needle) !== false;
+}
+function jtgpt_contains_any(string $text, array $needles): bool {
+    foreach ($needles as $needle) {
+        if ($needle !== '' && mb_strpos($text, mb_strtolower($needle, 'UTF-8')) !== false) {
+            return true;
         }
+    }
+    return false;
+}
+function jtgpt_normalize_compare(string $text): string {
+    $text = mb_strtolower($text, 'UTF-8');
+    return preg_replace('/[\s\-\_\(\)\[\]\{\}\.,\/]+/u', '', $text) ?? $text;
+}
+function jtgpt_detect_time_hint(string $text): ?string {
+    $map = [
+        '오늘' => ['오늘', '금일', 'today'],
+        '어제' => ['어제', 'yesterday'],
+        '이번 주' => ['이번주', '이번 주', '금주', 'this week'],
+        '최근 7일' => ['최근7일', '최근 7일', '7일', '일주일', '1주일', '최근 일주일'],
+        '이번 달' => ['이번달', '이번 달', '금월', 'this month'],
+    ];
+    foreach ($map as $label => $needles) {
+        if (jtgpt_contains_any($text, $needles)) return $label;
+    }
+    return null;
+}
+function jtgpt_try_parse_ymd(string $y, string $m, string $d): ?string {
+    $m = str_pad((string)((int)$m), 2, '0', STR_PAD_LEFT);
+    $d = str_pad((string)((int)$d), 2, '0', STR_PAD_LEFT);
+    $ymd = trim($y) . '-' . $m . '-' . $d;
+    $dt = DateTime::createFromFormat('Y-m-d', $ymd);
+    return ($dt && $dt->format('Y-m-d') === $ymd) ? $ymd : null;
+}
+function jtgpt_detect_metric(string $normalized): string {
+    if (jtgpt_contains_any($normalized, ['제일최근출하일', '제일 최근 출하일', '최근출하일', '최근 출하일', '마지막출하일', '마지막 출하일', '최종출하일', '최종 출하일'])) {
+        return 'last_ship_date';
+    }
+    if (jtgpt_contains_any($normalized, ['lot', '소포장', 'small_pack'])) {
+        return 'lot_count';
+    }
+    if (jtgpt_contains_any($normalized, ['tray', '트레이'])) {
+        return 'tray_count';
+    }
+    if (jtgpt_contains_any($normalized, ['요약', '정리', 'summary'])) {
+        return 'summary';
+    }
+    if (jtgpt_contains_any($normalized, ['수량', 'qty', 'ea', '개수'])) {
+        return 'total_qty';
+    }
+    return 'summary';
+}
+function jtgpt_is_shipping_question(string $normalized): bool {
+    return jtgpt_contains_any($normalized, ['출하', '출고', 'ship', 'shipping', '납품', 'lot', 'tray', '소포장']);
+}
+function jtgpt_detect_date_range(string $text): ?array {
+    $now = new DateTime('now', new DateTimeZone('Asia/Seoul'));
+    $today = $now->format('Y-m-d');
 
-        if ($kind === 'action') {
-            if ($tool === 'open_ipqc_route') {
-                $action = jtgpt_action_nav('JMP Assist (IPQC) 열기', '/ipqc', dp_url('ipqc'));
-                return array_merge($base, [
-                    'answer' => 'JMP Assist (IPQC) 화면을 열게요.',
-                    'actions' => [$action],
-                    'auto_actions' => !empty($plan['autorun']) ? [$action] : [],
-                    'suggestions' => ['그래프빌더 열어줘', '최근 7일 OQC NG 많은 포인트'],
-                ]);
-            }
-            if ($tool === 'open_ipqc_quick_graph') {
-                $action = jtgpt_action_graph('그래프빌더 열기', 'open_ipqc_quick_graph', (array)($args['graph_spec'] ?? []));
-                return array_merge($base, [
-                    'answer' => 'IPQC 그래프빌더를 열어둘게요. 현재 요청은 그래프 스펙으로 같이 넘겨요.',
-                    'actions' => [$action],
-                    'auto_actions' => !empty($plan['autorun']) ? [$action] : [],
-                    'state_patch' => ['last_graph_spec' => $args['graph_spec'] ?? null],
-                    'suggestions' => ['최근 7일 MEM-IR-BASE 그래프 만들어줘', '55-1 포인트로 다시'],
-                ]);
-            }
-            if ($tool === 'open_ipqc_process_capability') {
-                $action = jtgpt_action_graph('공정 능력 열기', 'open_ipqc_process_capability', (array)($args['graph_spec'] ?? []));
-                return array_merge($base, [
-                    'answer' => 'IPQC 공정 능력 창을 열게요.',
-                    'actions' => [$action],
-                    'auto_actions' => !empty($plan['autorun']) ? [$action] : [],
-                    'state_patch' => ['last_graph_spec' => $args['graph_spec'] ?? null],
-                    'suggestions' => ['그래프빌더 열어줘', '최근 7일 OQC NG 많은 포인트'],
-                ]);
-            }
+    if (preg_match_all('/(20\d{2})[\.\/-]?(\d{1,2})[\.\/-]?(\d{1,2})/', $text, $m, PREG_SET_ORDER)) {
+        $dates = [];
+        foreach ($m as $hit) {
+            $ymd = jtgpt_try_parse_ymd($hit[1], $hit[2], $hit[3]);
+            if ($ymd !== null) $dates[] = $ymd;
         }
+        $dates = array_values(array_unique($dates));
+        sort($dates);
+        if (count($dates) >= 2) {
+            return ['from' => $dates[0], 'to' => $dates[count($dates) - 1], 'label' => $dates[0] . ' ~ ' . $dates[count($dates) - 1], 'implicit' => false];
+        }
+        if (count($dates) === 1) {
+            return ['from' => $dates[0], 'to' => $dates[0], 'label' => $dates[0], 'implicit' => false];
+        }
+    }
 
+    if (preg_match('/오늘\s*까지/u', $text)) {
+        return ['from' => null, 'to' => $today, 'label' => '오늘까지', 'implicit' => false, 'end_only' => true];
+    }
+    if (preg_match('/어제\s*까지/u', $text)) {
+        $d = (clone $now)->modify('-1 day')->format('Y-m-d');
+        return ['from' => null, 'to' => $d, 'label' => '어제까지', 'implicit' => false, 'end_only' => true];
+    }
+
+    $hint = jtgpt_detect_time_hint($text);
+    if ($hint === '오늘') {
+        return ['from' => $today, 'to' => $today, 'label' => '오늘', 'implicit' => false];
+    }
+    if ($hint === '어제') {
+        $d = (clone $now)->modify('-1 day')->format('Y-m-d');
+        return ['from' => $d, 'to' => $d, 'label' => '어제', 'implicit' => false];
+    }
+    if ($hint === '이번 주') {
+        $start = (clone $now)->modify('monday this week')->format('Y-m-d');
+        return ['from' => $start, 'to' => $today, 'label' => '이번 주', 'implicit' => false];
+    }
+    if ($hint === '최근 7일') {
+        $start = (clone $now)->modify('-6 day')->format('Y-m-d');
+        return ['from' => $start, 'to' => $today, 'label' => '최근 7일', 'implicit' => false];
+    }
+    if ($hint === '이번 달') {
+        $start = (clone $now)->modify('first day of this month')->format('Y-m-d');
+        return ['from' => $start, 'to' => $today, 'label' => '이번 달', 'implicit' => false];
+    }
+    return null;
+}
+function jtgpt_default_today_range(): array {
+    $now = new DateTime('now', new DateTimeZone('Asia/Seoul'));
+    $today = $now->format('Y-m-d');
+    return ['from' => $today, 'to' => $today, 'label' => '오늘', 'implicit' => true];
+}
+function jtgpt_extract_part_name(string $message): ?string {
+    $original = trim($message);
+    if ($original === '') return null;
+    $aliasMap = [
+        'ir base' => 'MEM-IR-BASE', 'irbase' => 'MEM-IR-BASE',
+        'x carrier' => 'MEM-X-CARRIER', 'x-carrier' => 'MEM-X-CARRIER',
+        'y carrier' => 'MEM-Y-CARRIER', 'y-carrier' => 'MEM-Y-CARRIER',
+        'z carrier' => 'MEM-Z-CARRIER', 'z-carrier' => 'MEM-Z-CARRIER',
+        'z stopper' => 'MEM-Z-STOPPER', 'z-stopper' => 'MEM-Z-STOPPER',
+    ];
+    $lower = mb_strtolower($original, 'UTF-8');
+    foreach ($aliasMap as $needle => $partName) {
+        if (mb_strpos($lower, $needle) !== false) return $partName;
+    }
+    if (preg_match('/\b(MEM-[A-Z0-9\.\-]+)\b/i', $original, $m)) {
+        return strtoupper(trim($m[1]));
+    }
+    return null;
+}
+function jtgpt_extract_customer(PDO $pdo, string $message): ?string {
+    static $customers = null;
+    $original = trim($message);
+    if ($original === '') return null;
+    $aliases = [
+        '자화전자' => '자화전자',
+        '엘지이노텍' => '엘지이노텍',
+        'lg이노텍' => '엘지이노텍',
+        'lg innotek' => '엘지이노텍',
+    ];
+    foreach ($aliases as $needle => $value) {
+        if (mb_strpos(mb_strtolower($original, 'UTF-8'), mb_strtolower($needle, 'UTF-8')) !== false) {
+            return $value;
+        }
+    }
+    if ($customers === null) {
+        $customers = [];
         try {
-            $pdo = dp_get_pdo();
+            $st = $pdo->query("SELECT DISTINCT TRIM(ship_to) AS ship_to FROM ShipingList WHERE COALESCE(TRIM(ship_to),'') <> '' ORDER BY CHAR_LENGTH(TRIM(ship_to)) DESC, ship_to ASC");
+            $rows = $st ? ($st->fetchAll(PDO::FETCH_ASSOC) ?: []) : [];
+            foreach ($rows as $r) {
+                $shipTo = trim((string)($r['ship_to'] ?? ''));
+                if ($shipTo !== '') $customers[] = $shipTo;
+            }
         } catch (Throwable $e) {
-            return array_merge($base, [
-                'answer' => 'DB 연결 중 오류가 났어요. ' . $e->getMessage(),
-                'suggestions' => ['자화전자 제일 최근 출하일은?', '최근 7일 OQC NG 많은 포인트'],
-            ]);
+            $customers = [];
         }
-
-        if ($tool === 'shipping_last_ship_date') {
-            $r = jtgpt_tool_shipping_last_ship_date($pdo, $args);
-            $scope = jtgpt_scope_label($args);
-            $action = jtgpt_action_nav('QA 출하내역 열기', '/shipinglist', jtgpt_build_shipinglist_href($args['range']['from'] ?? date('Y-m-d'), $args['range']['to'] ?? date('Y-m-d'), $args['part_name'] ?? null, $args['customer'] ?? null));
-            if (empty($r['found'])) {
-                return array_merge($base, [
-                    'answer' => trim(($scope !== '' ? $scope . ' ' : '') . '조건으로는 최근 출하 이력이 없어요.'),
-                    'actions' => [$action],
-                    'suggestions' => ['오늘 출하수량 알려줘', '최근 7일 출하 요약해줘'],
-                ]);
-            }
-            $row = (array)$r['row'];
-            $dt = trim((string)($row['ship_datetime'] ?? ''));
-            $dateText = $dt !== '' ? substr($dt, 0, 16) : '알 수 없음';
-            $who = trim((string)($args['customer'] ?? ''));
-            $part = trim((string)($args['part_name'] ?? ''));
-            $subject = $who !== '' ? $who : ($part !== '' ? $part : '전체');
-            $answer = $subject . '의 가장 최근 출하일은 ' . $dateText . '이에요.';
-            if (!empty($row['part_name']) && $part === '') $answer .= ' 품번은 ' . trim((string)$row['part_name']) . ' 기준이었어요.';
-            return array_merge($base, [
-                'answer' => $answer,
-                'actions' => [$action],
-                'suggestions' => ['오늘 출하수량 알려줘', '어제 출하 lot 몇개야', '그래프빌더 열어줘'],
-                'state_patch' => ['last_module' => 'shipping', 'last_shipping_subject' => $subject],
-            ]);
+    }
+    $compactMessage = jtgpt_normalize_compare($original);
+    foreach ($customers as $candidate) {
+        $compactCandidate = jtgpt_normalize_compare($candidate);
+        if ($compactCandidate !== '' && mb_strpos($compactMessage, $compactCandidate) !== false) {
+            return $candidate;
         }
-
-        if ($tool === 'shipping_summary') {
-            $r = jtgpt_tool_shipping_summary($pdo, $args);
-            $scope = jtgpt_scope_label($args);
-            $action = jtgpt_action_nav('QA 출하내역 열기', '/shipinglist', jtgpt_build_shipinglist_href($args['range']['from'] ?? date('Y-m-d'), $args['range']['to'] ?? date('Y-m-d'), $args['part_name'] ?? null, $args['customer'] ?? null));
-            if (empty($r['found'])) {
-                $answer = trim(($scope !== '' ? $scope . ' ' : '') . '조건으로는 출하 데이터가 없어요.');
-                return array_merge($base, [
-                    'answer' => $answer,
-                    'actions' => [$action],
-                    'suggestions' => ['자화전자 제일 최근 출하일은?', '최근 7일 출하 요약해줘'],
-                ]);
-            }
-            $metric = (string)($args['metric'] ?? 'summary');
-            $scopePrefix = $scope !== '' ? ($scope . ' ') : '';
-            if ($metric === 'qty') {
-                $answer = $scopePrefix . '출하수량은 ' . jtgpt_tool_format_int($r['total_qty']) . ' EA예요.';
-            } elseif ($metric === 'lot_count') {
-                $answer = $scopePrefix . '출하 lot는 ' . jtgpt_tool_format_int($r['lot_count']) . '건이에요.';
-            } elseif ($metric === 'tray_count') {
-                $answer = $scopePrefix . 'tray는 ' . jtgpt_tool_format_int($r['tray_count']) . '건이에요.';
-            } else {
-                $answer = $scopePrefix . '출하는 ' . jtgpt_tool_format_int($r['total_qty']) . ' EA, lot ' . jtgpt_tool_format_int($r['lot_count']) . '건, tray ' . jtgpt_tool_format_int($r['tray_count']) . '건이에요.';
-                if (empty($args['part_name']) && !empty($r['top_parts'][0]['part_name'])) {
-                    $answer .= ' 가장 많은 품번은 ' . trim((string)$r['top_parts'][0]['part_name']) . '였어요.';
-                }
-            }
-            return array_merge($base, [
-                'answer' => $answer,
-                'actions' => [$action],
-                'suggestions' => ['자화전자 제일 최근 출하일은?', '최근 7일 OQC NG 많은 포인트', '그래프빌더 열어줘'],
-                'state_patch' => ['last_module' => 'shipping', 'last_shipping_summary' => $r],
-            ]);
+    }
+    return null;
+}
+function jtgpt_build_shipinglist_href(?string $fromDate, ?string $toDate, ?string $partName = null, ?string $customer = null): string {
+    $qs = [];
+    if ($fromDate) $qs['from_date'] = $fromDate;
+    if ($toDate) $qs['to_date'] = $toDate;
+    if ($partName) $qs['part_name'] = $partName;
+    if ($customer) $qs['ship_to'] = $customer;
+    $base = dp_url('shipinglist');
+    return $qs ? ($base . '?' . http_build_query($qs)) : $base;
+}
+function jtgpt_build_ship_where(array $range = null, ?string $partName = null, ?string $customer = null): array {
+    $where = [];
+    $params = [];
+    if ($range !== null) {
+        if (!empty($range['from'])) {
+            $where[] = 'ship_datetime >= :from_dt';
+            $params[':from_dt'] = $range['from'] . ' 00:00:00';
         }
-
-        if ($tool === 'oqc_top_ng_points') {
-            $r = jtgpt_tool_oqc_top_ng_points($pdo, $args);
-            $action = jtgpt_action_nav('OQC 화면 열기', '/oqc', dp_url('oqc'));
-            if (empty($r['found'])) {
-                $scope = jtgpt_scope_label($args);
-                return array_merge($base, [
-                    'answer' => trim(($scope !== '' ? $scope . ' ' : '') . '조건으로는 OQC NG 포인트가 안 잡혀요.'),
-                    'actions' => [$action],
-                    'suggestions' => ['어제 OQC NG 많은 포인트', '그래프빌더 열어줘'],
-                    'state_patch' => ['last_module' => 'oqc'],
-                ]);
-            }
-            $rows = array_values($r['rows']);
-            $top = $rows[0];
-            $parts = [];
-            $ranked = [];
-            foreach ($rows as $idx => $row) {
-                $ranked[] = (string)$row['point_no'];
-                $parts[] = ($idx + 1) . '위 ' . trim((string)$row['point_no']) . ' ' . jtgpt_tool_format_int($row['ng_count'] ?? 0) . '건';
-            }
-            $scope = jtgpt_scope_label($args);
-            $answer = ($scope !== '' ? $scope . ' ' : '') . 'OQC에서 NG가 가장 많았던 포인트는 ' . trim((string)$top['point_no']) . '예요. 총 ' . jtgpt_tool_format_int($top['ng_count'] ?? 0) . '건이고, 뒤로는 ' . implode(', ', $parts) . ' 순이에요.';
-            return array_merge($base, [
-                'answer' => $answer,
-                'actions' => [$action],
-                'suggestions' => ['1위 포인트 상세 보여줘', '그 포인트 그래프 만들어줘', '그래프빌더 열어줘'],
-                'state_patch' => ['last_module' => 'oqc', 'last_ranked_points' => $ranked, 'last_result_kind' => 'oqc_top_ng_points'],
-            ]);
+        if (!empty($range['to'])) {
+            $where[] = 'ship_datetime < :to_dt';
+            $params[':to_dt'] = date('Y-m-d 00:00:00', strtotime($range['to'] . ' +1 day'));
         }
+    }
+    if ($partName !== null && $partName !== '') {
+        $where[] = 'part_name LIKE :part_name';
+        $params[':part_name'] = '%' . $partName . '%';
+    }
+    if ($customer !== null && $customer !== '') {
+        $where[] = 'ship_to LIKE :ship_to';
+        $params[':ship_to'] = '%' . $customer . '%';
+    }
+    return [$where ? ('WHERE ' . implode(' AND ', $where)) : '', $params];
+}
+function jtgpt_reply(array $data): array {
+    return array_merge(['answer' => '', 'actions' => [], 'suggestions' => []], $data);
+}
+function jtgpt_shipping_reply(PDO $pdo, string $message): array {
+    $text = trim($message);
+    $normalized = mb_strtolower($text, 'UTF-8');
+    $metric = jtgpt_detect_metric($normalized);
+    $range = jtgpt_detect_date_range($normalized);
+    $partName = jtgpt_extract_part_name($text);
+    $customer = jtgpt_extract_customer($pdo, $text);
 
-        if ($tool === 'oqc_point_detail') {
-            $r = jtgpt_tool_oqc_point_detail($pdo, $args);
-            $action = jtgpt_action_nav('OQC 화면 열기', '/oqc', dp_url('oqc'));
-            $point = (string)($args['point_no'] ?? '');
-            if (empty($r['found'])) {
-                return array_merge($base, [
-                    'answer' => 'OQC 포인트 ' . $point . ' 기준 NG 이력이 안 잡혀요.',
-                    'actions' => [$action],
-                    'suggestions' => ['최근 7일 OQC NG 많은 포인트', '그래프빌더 열어줘'],
-                    'state_patch' => ['last_module' => 'oqc'],
-                ]);
-            }
-            $s = (array)$r['summary'];
-            $latest = [];
-            foreach ((array)$r['latest_rows'] as $row) {
-                $piece = trim((string)($row['ship_date'] ?? ''));
-                if (!empty($row['part_name'])) $piece .= ' ' . trim((string)$row['part_name']);
-                if (!empty($row['tool_cavity'])) $piece .= ' ' . trim((string)$row['tool_cavity']);
-                if (!empty($row['kind'])) $piece .= ' ' . trim((string)$row['kind']);
-                if ($piece !== '') $latest[] = $piece;
-            }
-            $scope = jtgpt_scope_label($args);
-            $answer = ($scope !== '' ? $scope . ' ' : '') . 'OQC 포인트 ' . trim((string)$s['point_no']) . ' NG는 ' . jtgpt_tool_format_int($s['ng_count'] ?? 0) . '건이에요.';
-            if (!empty($s['last_ship_date'])) $answer .= ' 최근 기준일은 ' . trim((string)$s['last_ship_date']) . '이에요.';
-            if ($latest) $answer .= ' 최근 이력은 ' . implode(' / ', array_slice($latest, 0, 3)) . ' 정도예요.';
-            return array_merge($base, [
-                'answer' => $answer,
-                'actions' => [$action, jtgpt_action_graph('그래프빌더 열기', 'open_ipqc_quick_graph', ['source' => 'oqc', 'point_no' => $point, 'part_name' => $args['part_name'] ?? null, 'date_range' => $args['range'] ?? null, 'raw' => 'OQC point detail'])],
-                'suggestions' => ['그 포인트 그래프 만들어줘', '최근 7일 OQC NG 많은 포인트', '그래프빌더 열어줘'],
-                'state_patch' => ['last_module' => 'oqc', 'last_point_no' => $point, 'last_result_kind' => 'oqc_point_detail'],
-            ]);
-        }
-
-        return array_merge($base, [
-            'answer' => '이번 요청은 아직 처리 루틴이 연결되지 않았어요.',
-            'suggestions' => ['자화전자 제일 최근 출하일은?', '최근 7일 OQC NG 많은 포인트', '그래프빌더 열어줘'],
+    if (preg_match('/(오늘|어제)\s*까지/u', $text) && in_array($metric, ['total_qty', 'lot_count', 'tray_count', 'summary'], true)) {
+        return jtgpt_reply([
+            'answer' => '"오늘까지"를 오늘 하루로 볼지, 오늘까지 누적으로 볼지 애매해요.\n예: "오늘 출하수량" 또는 "오늘까지 누적 출하수량"처럼 말해 주세요.',
+            'suggestions' => ['오늘 출하수량 알려줘', '오늘까지 누적 출하수량', '자화전자 제일 최근 출하일은?'],
         ]);
     }
+
+    if ($metric === 'last_ship_date' && $range === null) {
+        // 최근 출하일은 날짜를 안 말했으면 전체 기간 기준으로 조회.
+        [$whereSql, $params] = jtgpt_build_ship_where(null, $partName, $customer);
+        $sql = "SELECT MAX(ship_datetime) AS last_ship_datetime FROM ShipingList {$whereSql}";
+        $st = $pdo->prepare($sql);
+        $st->execute($params);
+        $lastShip = (string)($st->fetchColumn() ?: '');
+        if ($lastShip === '' || strpos($lastShip, '0000-00-00') === 0) {
+            $prefix = $customer ? ($customer . ' ') : ($partName ? ($partName . ' ') : '');
+            return jtgpt_reply([
+                'answer' => $prefix . '기준으로 최근 출하일을 찾지 못했어요.',
+                'actions' => [[ 'label' => 'QA 출하내역 열기', 'href' => jtgpt_build_shipinglist_href(null, null, $partName, $customer) ]],
+                'suggestions' => ['자화전자 제일 최근 출하일은?', '오늘 출하수량 알려줘'],
+            ]);
+        }
+        $dateOnly = substr($lastShip, 0, 10);
+        $prefix = '';
+        if ($customer) $prefix .= $customer . ' ';
+        if ($partName) $prefix .= $partName . ' ';
+        if ($prefix === '') $prefix = '전체 출하 기준으로 ';
+        return jtgpt_reply([
+            'answer' => trim($prefix) . '가장 최근 출하일은 ' . $dateOnly . '입니다.',
+            'actions' => [[ 'label' => 'QA 출하내역 열기', 'href' => jtgpt_build_shipinglist_href($dateOnly, $dateOnly, $partName, $customer) ]],
+            'suggestions' => ['그날 출하수량 알려줘', '오늘 출하수량 알려줘', '어제 출하 lot 몇개야'],
+        ]);
+    }
+
+    if ($range === null) {
+        $range = jtgpt_default_today_range();
+    }
+
+    [$whereSql, $params] = jtgpt_build_ship_where($range, $partName, $customer);
+    $summarySql = "
+        SELECT
+            COUNT(*) AS row_count,
+            COALESCE(SUM(qty), 0) AS total_qty,
+            COUNT(DISTINCT small_pack_no) AS lot_count,
+            COUNT(DISTINCT tray_no) AS tray_count,
+            COUNT(DISTINCT part_name) AS part_count
+        FROM ShipingList
+        {$whereSql}
+    ";
+    $st = $pdo->prepare($summarySql);
+    $st->execute($params);
+    $summary = $st->fetch(PDO::FETCH_ASSOC) ?: [];
+
+    $rowCount = (int)($summary['row_count'] ?? 0);
+    $totalQty = (int)($summary['total_qty'] ?? 0);
+    $lotCount = (int)($summary['lot_count'] ?? 0);
+    $trayCount = (int)($summary['tray_count'] ?? 0);
+    $partCount = (int)($summary['part_count'] ?? 0);
+
+    $actions = [[
+        'label' => 'QA 출하내역 열기',
+        'href' => jtgpt_build_shipinglist_href($range['from'] ?? null, $range['to'] ?? null, $partName, $customer),
+    ]];
+
+    if ($rowCount <= 0) {
+        $subject = [];
+        if ($customer) $subject[] = $customer;
+        if ($partName) $subject[] = $partName;
+        $prefix = $subject ? implode(' / ', $subject) . ' ' : '';
+        $answer = $prefix . $range['label'] . ' 기준 출하 데이터가 없어요.';
+        if (!empty($range['implicit'])) {
+            $answer .= ' 날짜를 따로 말하지 않아서 오늘 하루 기준으로 봤어요.';
+        }
+        return jtgpt_reply([
+            'answer' => $answer,
+            'actions' => $actions,
+            'suggestions' => ['어제 출하수량 알려줘', '이번 주 출하 요약해줘', '자화전자 제일 최근 출하일은?'],
+        ]);
+    }
+
+    $subject = [];
+    if ($customer) $subject[] = $customer;
+    if ($partName) $subject[] = $partName;
+    $subjectPrefix = $subject ? implode(' / ', $subject) . ' ' : '';
+
+    if ($metric === 'total_qty') {
+        $answer = $subjectPrefix . $range['label'] . ' 출하수량은 ' . jtgpt_format_int($totalQty) . ' EA입니다.';
+        if (!empty($range['implicit'])) $answer .= ' 날짜를 따로 말하지 않아서 오늘 하루 기준으로 봤어요.';
+        return jtgpt_reply([
+            'answer' => $answer,
+            'actions' => $actions,
+            'suggestions' => [$range['label'] . ' 출하 lot 몇개야', $range['label'] . ' 출하 요약해줘', '자화전자 제일 최근 출하일은?'],
+        ]);
+    }
+    if ($metric === 'lot_count') {
+        $answer = $subjectPrefix . $range['label'] . ' 출하 lot는 ' . jtgpt_format_int($lotCount) . '건입니다.';
+        if (!empty($range['implicit'])) $answer .= ' 날짜를 따로 말하지 않아서 오늘 하루 기준으로 봤어요.';
+        return jtgpt_reply([
+            'answer' => $answer,
+            'actions' => $actions,
+            'suggestions' => [$range['label'] . ' 출하수량 알려줘', $range['label'] . ' tray 몇개야', '자화전자 제일 최근 출하일은?'],
+        ]);
+    }
+    if ($metric === 'tray_count') {
+        $answer = $subjectPrefix . $range['label'] . ' tray는 ' . jtgpt_format_int($trayCount) . '건입니다.';
+        if (!empty($range['implicit'])) $answer .= ' 날짜를 따로 말하지 않아서 오늘 하루 기준으로 봤어요.';
+        return jtgpt_reply([
+            'answer' => $answer,
+            'actions' => $actions,
+            'suggestions' => [$range['label'] . ' 출하수량 알려줘', $range['label'] . ' 출하 lot 몇개야', '자화전자 제일 최근 출하일은?'],
+        ]);
+    }
+
+    $topParts = [];
+    if ($partName === null) {
+        $topSql = "SELECT part_name, COALESCE(SUM(qty),0) AS total_qty FROM ShipingList {$whereSql} GROUP BY part_name ORDER BY total_qty DESC, part_name ASC LIMIT 5";
+        $st = $pdo->prepare($topSql);
+        $st->execute($params);
+        $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        foreach ($rows as $r) {
+            $pn = trim((string)($r['part_name'] ?? ''));
+            if ($pn === '') continue;
+            $topParts[] = $pn . ' ' . jtgpt_format_int((int)($r['total_qty'] ?? 0)) . ' EA';
+        }
+    }
+
+    $answer = $subjectPrefix . $range['label'] . ' 출하 요약입니다.\n';
+    $answer .= '- 출하수량: ' . jtgpt_format_int($totalQty) . ' EA\n';
+    $answer .= '- lot: ' . jtgpt_format_int($lotCount) . '건\n';
+    $answer .= '- tray: ' . jtgpt_format_int($trayCount) . '건\n';
+    $answer .= '- 조회 행: ' . jtgpt_format_int($rowCount) . '건';
+    if ($partName === null) {
+        $answer .= '\n- 품번: ' . jtgpt_format_int($partCount) . '종';
+    }
+    if ($topParts) {
+        $answer .= '\n상위 품번: ' . implode(', ', $topParts);
+    }
+    if (!empty($range['implicit'])) {
+        $answer .= '\n날짜를 따로 말하지 않아서 오늘 하루 기준으로 봤어요.';
+    }
+    return jtgpt_reply([
+        'answer' => $answer,
+        'actions' => $actions,
+        'suggestions' => [$range['label'] . ' 출하수량 알려줘', $range['label'] . ' 출하 lot 몇개야', '자화전자 제일 최근 출하일은?'],
+    ]);
+}
+function jtgpt_parse_message(string $message): array {
+    $text = trim($message);
+    if ($text === '') {
+        return jtgpt_reply([
+            'answer' => '질문이 비어 있어요. 예: 오늘 출하수량 알려줘, 자화전자 제일 최근 출하일은?, 오늘까지 누적 출하수량',
+            'suggestions' => ['오늘 출하수량 알려줘', '자화전자 제일 최근 출하일은?', '오늘까지 누적 출하수량'],
+        ]);
+    }
+    $normalized = mb_strtolower($text, 'UTF-8');
+
+    if (jtgpt_is_shipping_question($normalized) || jtgpt_contains_any($normalized, ['최근출하일', '마지막출하일', '최종출하일'])) {
+        try {
+            $pdo = jtgpt_get_pdo();
+            return jtgpt_shipping_reply($pdo, $text);
+        } catch (Throwable $e) {
+            return jtgpt_reply([
+                'answer' => '출하 데이터를 조회하는 중 오류가 났어요.\n' . $e->getMessage(),
+                'actions' => [[ 'label' => 'QA 출하내역 열기', 'href' => dp_url('shipinglist') ]],
+                'suggestions' => ['오늘 출하수량 알려줘', '자화전자 제일 최근 출하일은?'],
+            ]);
+        }
+    }
+
+    return jtgpt_reply([
+        'answer' => '이번 패치는 출하 질문 의도 분리와 타이핑 표시만 먼저 고쳤어요.\n지금은 출하 쪽 질문부터 정확히 처리합니다. 예: 오늘 출하수량 알려줘, 자화전자 제일 최근 출하일은?',
+        'actions' => [[ 'label' => 'QA 출하내역 열기', 'href' => dp_url('shipinglist') ]],
+        'suggestions' => ['오늘 출하수량 알려줘', '자화전자 제일 최근 출하일은?', '오늘까지 누적 출하수량'],
+    ]);
 }
 
 $isAjax = ($_SERVER['REQUEST_METHOD'] === 'POST') && (
@@ -269,7 +436,6 @@ $isAjax = ($_SERVER['REQUEST_METHOD'] === 'POST') && (
     || (($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'XMLHttpRequest')
     || (($_POST['action'] ?? '') === 'chat')
 );
-
 if ($isAjax) {
     header('Content-Type: application/json; charset=UTF-8');
     $raw = file_get_contents('php://input') ?: '';
@@ -280,527 +446,229 @@ if ($isAjax) {
     }
     if (!$payload) $payload = $_POST;
     $message = trim((string)($payload['message'] ?? ''));
-    $state = jtgpt_session_state();
-    jtgpt_session_push('user', $message);
-    $plan = jtgpt_planner_plan($message, $state);
-    $result = jtgpt_execute_plan($plan);
-    if (!empty($result['state_patch']) && is_array($result['state_patch'])) {
-        jtgpt_session_merge_state($result['state_patch']);
-    }
-    jtgpt_session_push('assistant', (string)($result['answer'] ?? ''), ['tool' => $plan['tool'] ?? null, 'kind' => $plan['kind'] ?? null]);
+    $result = jtgpt_parse_message($message);
     echo json_encode([
         'ok' => true,
         'answer' => (string)($result['answer'] ?? ''),
         'actions' => array_values($result['actions'] ?? []),
         'suggestions' => array_values($result['suggestions'] ?? []),
-        'auto_actions' => array_values($result['auto_actions'] ?? []),
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
-
-$selfUrl = $EMBED ? 'jtgpt_view.php?embed=1' : dp_url('jtgpt_view.php');
 ?>
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JTGPT</title>
 <style>
-    :root{
-        --bg:#202124;
-        --panel:rgba(49,49,52,.88);
-        --panel-2:rgba(36,36,39,.96);
-        --line:rgba(255,255,255,.08);
-        --text:#ececec;
-        --muted:#b3b3b3;
-        --accent:#ffffff;
-        --bubble-user:#303134;
-        --bubble-ai:#252629;
-        --shadow:0 20px 80px rgba(0,0,0,.28);
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-        margin:0;
-        color:var(--text);
-        background:transparent;
-        font-family:Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif;
-    }
-    .jtgpt-page{
-        min-height:100%;
-        display:flex;
-        flex-direction:column;
-        position:relative;
-        overflow:hidden;
-        background:linear-gradient(180deg, rgba(32,33,36,.82) 0%, rgba(24,24,27,.90) 100%);
-    }
-    .jtgpt-page::before{
-        content:"";
-        position:absolute;
-        inset:-20% auto auto 50%;
-        width:520px;
-        height:520px;
-        transform:translateX(-50%);
-        background:radial-gradient(circle, rgba(255,255,255,.08), rgba(255,255,255,0));
-        pointer-events:none;
-        filter:blur(10px);
-    }
-    .jtgpt-inner{
-        width:min(920px, calc(100% - 48px));
-        margin:0 auto;
-        flex:1;
-        display:flex;
-        flex-direction:column;
-        position:relative;
-        z-index:1;
-    }
-    .jtgpt-top{
-        padding:26px 0 0;
-        display:flex;
-        justify-content:space-between;
-        align-items:center;
-        min-height:78px;
-    }
-    .jtgpt-badge{
-        display:inline-flex;
-        align-items:center;
-        gap:8px;
-        padding:10px 14px;
-        border-radius:999px;
-        border:1px solid rgba(255,255,255,.10);
-        background:rgba(255,255,255,.04);
-        color:#f4f4f5;
-        font-size:13px;
-        letter-spacing:.2px;
-        backdrop-filter:blur(8px);
-    }
-    .jtgpt-status{
-        color:var(--muted);
-        font-size:13px;
-    }
-    .jtgpt-main{
-        flex:1;
-        display:flex;
-        flex-direction:column;
-        justify-content:center;
-        padding:24px 0 26px;
-        min-height:0;
-    }
-    .jtgpt-page.has-chat .jtgpt-main{
-        justify-content:flex-end;
-        gap:18px;
-        padding-top:18px;
-    }
-    .jtgpt-hero{
-        text-align:center;
-        margin-bottom:30px;
-        transition:all .22s ease;
-    }
-    .jtgpt-page.has-chat .jtgpt-hero{
-        display:none;
-    }
-    .jtgpt-hero h1{
-        margin:0 0 14px;
-        font-size:48px;
-        font-weight:700;
-        letter-spacing:-0.03em;
-    }
-    .jtgpt-hero p{
-        margin:0;
-        color:var(--muted);
-        font-size:17px;
-    }
-    .jtgpt-thread{
-        display:none;
-        flex:1;
-        min-height:0;
-        overflow:auto;
-        padding:6px 4px 10px;
-        gap:18px;
-        scroll-behavior:smooth;
-    }
-    .jtgpt-page.has-chat .jtgpt-thread{
-        display:flex;
-        flex-direction:column;
-    }
-    .msg{
-        display:flex;
-        flex-direction:column;
-        gap:8px;
-    }
-    .msg.user{align-items:flex-end}
-    .msg.assistant{align-items:flex-start}
-    .msg-role{
-        font-size:12px;
-        color:var(--muted);
-        padding:0 6px;
-    }
-    .bubble{
-        max-width:min(760px, 92%);
-        padding:16px 18px;
-        border-radius:22px;
-        box-shadow:var(--shadow);
-        line-height:1.65;
-        white-space:pre-wrap;
-        word-break:keep-all;
-        border:1px solid var(--line);
-    }
-    .msg.user .bubble{
-        background:var(--bubble-user);
-        color:#fff;
-        border-bottom-right-radius:8px;
-    }
-    .msg.assistant .bubble{
-        background:var(--bubble-ai);
-        color:#f2f2f2;
-        border-bottom-left-radius:8px;
-    }
-    .msg-actions,
-    .msg-suggestions{
-        display:flex;
-        flex-wrap:wrap;
-        gap:8px;
-        padding:0 4px;
-    }
-    .chip,
-    .action-btn{
-        appearance:none;
-        border:none;
-        cursor:pointer;
-        border-radius:999px;
-        padding:10px 14px;
-        font-size:13px;
-        line-height:1;
-        text-decoration:none;
-        transition:transform .12s ease, background .12s ease, border-color .12s ease;
-    }
-    .chip{
-        background:rgba(255,255,255,.06);
-        color:#e6e6e6;
-        border:1px solid rgba(255,255,255,.08);
-    }
-    .chip:hover,
-    .action-btn:hover{
-        transform:translateY(-1px);
-    }
-    .action-btn{
-        background:#f3f4f6;
-        color:#111827;
-        font-weight:600;
-    }
-    .composer-wrap{
-        width:min(740px, 100%);
-        margin:0 auto;
-        transition:all .22s ease;
-    }
-    .composer{
-        border:1px solid rgba(255,255,255,.08);
-        background:var(--panel);
-        border-radius:30px;
-        box-shadow:var(--shadow);
-        backdrop-filter:blur(10px);
-        overflow:hidden;
-    }
-    .composer-input{
-        width:100%;
-        min-height:88px;
-        max-height:220px;
-        resize:none;
-        border:none;
-        outline:none;
-        background:transparent;
-        color:#fff;
-        padding:18px 20px 12px;
-        font-size:18px;
-        line-height:1.5;
-        font-family:inherit;
-    }
-    .composer-input::placeholder{color:#a8a8a8}
-    .composer-bottom{
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-        gap:12px;
-        padding:0 14px 12px 14px;
-    }
-    .composer-tools{
-        display:flex;
-        align-items:center;
-        gap:10px;
-        color:var(--muted);
-        font-size:13px;
-        flex-wrap:wrap;
-    }
-    .composer-pill{
-        display:inline-flex;
-        align-items:center;
-        gap:6px;
-        padding:8px 10px;
-        border-radius:999px;
-        border:1px solid rgba(255,255,255,.08);
-        background:rgba(255,255,255,.04);
-    }
-    .send-btn{
-        width:46px;
-        height:46px;
-        border:none;
-        border-radius:50%;
-        background:#f3f4f6;
-        color:#111827;
-        font-size:18px;
-        cursor:pointer;
-        font-weight:700;
-    }
-    .send-btn[disabled]{opacity:.45; cursor:not-allowed}
-    .quick-row{
-        width:min(740px, 100%);
-        margin:16px auto 0;
-        display:flex;
-        flex-wrap:wrap;
-        justify-content:center;
-        gap:10px;
-    }
-    .jtgpt-page.has-chat .quick-row{
-        display:none;
-    }
-    .quick-btn{
-        appearance:none;
-        border:1px solid rgba(255,255,255,.08);
-        background:rgba(255,255,255,.04);
-        color:#efefef;
-        border-radius:999px;
-        padding:12px 16px;
-        cursor:pointer;
-        font-size:14px;
-    }
-    .typing{
-        display:inline-flex;
-        align-items:center;
-        gap:6px;
-    }
-    .typing i{
-        width:7px;
-        height:7px;
-        border-radius:50%;
-        background:#d4d4d8;
-        display:block;
-        animation:blink 1s infinite ease-in-out;
-    }
-    .typing i:nth-child(2){animation-delay:.15s}
-    .typing i:nth-child(3){animation-delay:.3s}
-    @keyframes blink{
-        0%, 80%, 100%{opacity:.25; transform:translateY(0)}
-        40%{opacity:1; transform:translateY(-2px)}
-    }
-    @media (max-width: 900px){
-        .jtgpt-inner{width:min(100%, calc(100% - 28px));}
-        .jtgpt-hero h1{font-size:36px;}
-        .composer-input{font-size:16px; min-height:82px;}
-    }
+:root{
+  --bg:#0a1412;
+  --panel:#20232b;
+  --panel2:#2a2d35;
+  --line:rgba(255,255,255,.10);
+  --text:#f4f6f8;
+  --muted:#aab1ba;
+  --chip:#2d3138;
+  --accent:#dfe4ea;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family:Segoe UI, Apple SD Gothic Neo, Malgun Gothic, sans-serif;
+  color:var(--text);
+  background:
+    radial-gradient(circle at 50% 10%, rgba(90,110,130,.22), transparent 26%),
+    linear-gradient(180deg, #08110f 0%, #0b1714 100%);
+}
+.jtgpt-wrap{min-height:100%; display:flex; flex-direction:column; max-width:980px; margin:0 auto; padding:16px 18px 28px}
+.jtgpt-badge{display:inline-flex; align-items:center; gap:6px; padding:9px 14px; border:1px solid rgba(255,255,255,.14); border-radius:999px; color:#f4f6f8; font-size:14px; background:rgba(255,255,255,.03); backdrop-filter:blur(8px)}
+.jtgpt-badge small{opacity:.72; font-weight:600}
+.chat{flex:1; padding:18px 0 10px; overflow:auto}
+.msg{display:flex; margin:18px 0}
+.msg.user{justify-content:flex-end}
+.msg.assistant{justify-content:flex-start}
+.msg-inner{max-width:min(78%, 760px)}
+.msg-role{font-size:13px; color:var(--muted); margin:0 0 8px 6px}
+.bubble{white-space:pre-wrap; line-height:1.6; border-radius:22px; padding:16px 18px; border:1px solid var(--line); box-shadow:0 10px 28px rgba(0,0,0,.22)}
+.msg.user .bubble{background:#2a2d35}
+.msg.assistant .bubble{background:#1e232d}
+.cursor{display:inline-block; width:8px; height:1.1em; vertical-align:-2px; background:#cfd6df; margin-left:2px; animation:blink 1s step-end infinite}
+@keyframes blink{50%{opacity:0}}
+.actions,.suggestions{display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 0 0}
+.chip{appearance:none; border:1px solid rgba(255,255,255,.12); background:var(--chip); color:#eef2f6; border-radius:999px; padding:10px 14px; font-size:14px; cursor:pointer}
+.composer{position:sticky; bottom:0; padding-top:14px; background:linear-gradient(180deg, rgba(10,20,18,0), rgba(10,20,18,.88) 22%, rgba(10,20,18,.98) 100%)}
+.composer-box{background:var(--panel2); border:1px solid rgba(255,255,255,.10); border-radius:28px; padding:16px 18px 14px; box-shadow:0 16px 40px rgba(0,0,0,.28)}
+.textarea{width:100%; min-height:96px; resize:none; border:none; outline:none; background:transparent; color:var(--text); font-size:18px; line-height:1.5}
+.toolbar{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:10px}
+.left-tools{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+.icon-btn,.send-btn{appearance:none; border:none; cursor:pointer}
+.icon-btn{width:40px; height:40px; border-radius:999px; background:rgba(255,255,255,.05); color:#e9eef5; font-size:24px}
+.send-btn{width:44px; height:44px; border-radius:999px; background:#eef2f6; color:#15181d; font-size:20px}
+.helper-chip{padding:9px 12px; border-radius:999px; border:1px solid rgba(255,255,255,.10); background:rgba(255,255,255,.03); color:var(--muted); font-size:14px}
+@media (max-width: 760px){
+  .jtgpt-wrap{padding:10px 12px 20px}
+  .msg-inner{max-width:92%}
+  .textarea{font-size:17px; min-height:88px}
+}
 </style>
 </head>
 <body>
-<?php if (!$EMBED): ?>
-<?php echo dp_sidebar_render('jtgpt'); ?>
-<div class="dp-shell-wrap" style="height:100vh; box-sizing:border-box; padding-left:72px; display:flex; flex-direction:column; position:relative; z-index:20;">
-    <?php echo dp_render_userbar(['admin_badge_mode' => 'modal', 'admin_iframe_src' => 'admin_settings', 'logout_action' => 'logout']); ?>
-    <div style="flex:1; min-height:0;">
-<?php endif; ?>
-<div class="jtgpt-page" id="jtgptPage">
-    <div class="jtgpt-inner">
-        <div class="jtgpt-top">
-            <div class="jtgpt-badge">✦ JTGPT <span style="opacity:.7">BETA</span></div>
-            <div class="jtgpt-status">출하·OQC·그래프 액션 1차</div>
+<div class="jtgpt-wrap">
+  <div><span class="jtgpt-badge">✦ JTGPT <small>BETA</small></span></div>
+  <div id="chat" class="chat"></div>
+  <div class="composer">
+    <div class="composer-box">
+      <textarea id="messageInput" class="textarea" placeholder="무엇이든 물어보세요"></textarea>
+      <div class="toolbar">
+        <div class="left-tools">
+          <button type="button" class="icon-btn" aria-label="추가">＋</button>
+          <span class="helper-chip">타이핑 응답</span>
+          <button type="button" class="helper-chip" data-fill="오늘 출하수량 알려줘">출하 수량</button>
+          <button type="button" class="helper-chip" data-fill="자화전자 제일 최근 출하일은?">최근 출하일</button>
         </div>
-        <div class="jtgpt-main">
-            <div class="jtgpt-hero">
-                <h1>어디서부터 시작할까요?</h1>
-                <p>출하 실데이터, OQC NG 포인트, 그래프빌더 실행을 한 곳에서 처리해요.</p>
-            </div>
-            <div class="jtgpt-thread" id="jtgptThread"></div>
-            <div class="composer-wrap">
-                <form class="composer" id="jtgptForm" autocomplete="off">
-                    <textarea class="composer-input" id="jtgptInput" name="message" placeholder="무엇이든 물어보세요" rows="1"></textarea>
-                    <div class="composer-bottom">
-                        <div class="composer-tools">
-                            <span class="composer-pill">＋</span>
-                            <span class="composer-pill">실데이터</span>
-                            <span class="composer-pill">OQC NG</span>
-                        </div>
-                        <button class="send-btn" id="jtgptSend" type="submit" aria-label="보내기">↑</button>
-                    </div>
-                </form>
-                <div class="quick-row">
-                    <button class="quick-btn" type="button" data-quick="자화전자 제일 최근 출하일은?">자화전자 제일 최근 출하일은?</button>
-                    <button class="quick-btn" type="button" data-quick="최근 7일 OQC NG 많은 포인트">최근 7일 OQC NG 많은 포인트</button>
-                    <button class="quick-btn" type="button" data-quick="그래프빌더 열어줘">그래프빌더 열어줘</button>
-                </div>
-            </div>
-        </div>
+        <button id="sendBtn" type="button" class="send-btn" aria-label="전송">↑</button>
+      </div>
     </div>
+  </div>
 </div>
-<?php if (!$EMBED): ?>
-    </div>
-</div>
-<?php endif; ?>
 <script>
-(function(){
-    var page = document.getElementById('jtgptPage');
-    var form = document.getElementById('jtgptForm');
-    var input = document.getElementById('jtgptInput');
-    var thread = document.getElementById('jtgptThread');
-    var send = document.getElementById('jtgptSend');
-    var endpoint = <?php echo json_encode($selfUrl, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); ?>;
+(() => {
+  const chatEl = document.getElementById('chat');
+  const inputEl = document.getElementById('messageInput');
+  const sendBtn = document.getElementById('sendBtn');
 
-    function escapeHtml(str){
-        return String(str).replace(/[&<>"']/g, function(ch){
-            return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'})[ch];
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+  }
+  function scrollBottom(){
+    requestAnimationFrame(() => { chatEl.scrollTop = chatEl.scrollHeight; });
+  }
+  function createMessage(role, text){
+    const msg = document.createElement('div');
+    msg.className = 'msg ' + role;
+    const inner = document.createElement('div');
+    inner.className = 'msg-inner';
+    const roleEl = document.createElement('div');
+    roleEl.className = 'msg-role';
+    roleEl.textContent = role === 'user' ? '나' : 'JTGPT';
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.textContent = text || '';
+    inner.appendChild(roleEl);
+    inner.appendChild(bubble);
+    msg.appendChild(inner);
+    chatEl.appendChild(msg);
+    scrollBottom();
+    return {msg, inner, bubble};
+  }
+  function appendChips(container, items, kind){
+    if (!Array.isArray(items) || !items.length) return;
+    const wrap = document.createElement('div');
+    wrap.className = kind;
+    items.forEach(item => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'chip';
+      if (kind === 'actions') {
+        btn.textContent = item.label || '열기';
+        btn.addEventListener('click', () => {
+          const href = item.href || '';
+          if (!href) return;
+          try {
+            window.top.location.href = href;
+          } catch (_) {
+            window.location.href = href;
+          }
         });
-    }
-
-    function autoResize(){
-        input.style.height = 'auto';
-        input.style.height = Math.min(input.scrollHeight, 220) + 'px';
-    }
-
-    function ensureChatMode(){
-        if (!page.classList.contains('has-chat')) page.classList.add('has-chat');
-    }
-
-    function encodeAction(item){
-        try { return encodeURIComponent(JSON.stringify(item || {})); } catch (e) { return ''; }
-    }
-
-    function appendMessage(role, text, actions, suggestions){
-        ensureChatMode();
-        var wrap = document.createElement('div');
-        wrap.className = 'msg ' + role;
-        var html = '';
-        html += '<div class="msg-role">' + (role === 'user' ? '나' : 'JTGPT') + '</div>';
-        html += '<div class="bubble">' + escapeHtml(text).replace(/\n/g, '<br>') + '</div>';
-        if (actions && actions.length) {
-            html += '<div class="msg-actions">';
-            actions.forEach(function(item){
-                var href = item && item.href ? item.href : '#';
-                html += '<a class="action-btn" href="' + escapeHtml(href) + '" data-jtgpt-action="' + encodeAction(item) + '">' + escapeHtml(item.label || '실행') + '</a>';
-            });
-            html += '</div>';
-        }
-        if (suggestions && suggestions.length) {
-            html += '<div class="msg-suggestions">';
-            suggestions.forEach(function(item){
-                html += '<button class="chip" type="button" data-jtgpt-suggest="' + escapeHtml(item) + '">' + escapeHtml(item) + '</button>';
-            });
-            html += '</div>';
-        }
-        wrap.innerHTML = html;
-        thread.appendChild(wrap);
-        thread.scrollTop = thread.scrollHeight;
-    }
-
-    function appendTyping(){
-        ensureChatMode();
-        var wrap = document.createElement('div');
-        wrap.className = 'msg assistant';
-        wrap.id = 'jtgptTyping';
-        wrap.innerHTML = '<div class="msg-role">JTGPT</div><div class="bubble"><span class="typing"><i></i><i></i><i></i></span></div>';
-        thread.appendChild(wrap);
-        thread.scrollTop = thread.scrollHeight;
-    }
-
-    function removeTyping(){
-        var el = document.getElementById('jtgptTyping');
-        if (el) el.remove();
-    }
-
-    function parseAction(raw){
-        try { return JSON.parse(decodeURIComponent(String(raw || ''))); } catch (e) { return null; }
-    }
-
-    function runAction(action){
-        if (!action) return false;
-        try {
-            if (window.top && window.top !== window && window.top.DP_SHELL_ACTIONS && typeof window.top.DP_SHELL_ACTIONS.run === 'function') {
-                window.top.DP_SHELL_ACTIONS.run(action);
-                return true;
-            }
-        } catch (e) {}
-        try {
-            if (window.top && window.top !== window) {
-                window.top.postMessage({type:'dp-shell-action', action:action}, '*');
-                if (action.href) return true;
-            }
-        } catch (e) {}
-        if (action.href) {
-            location.href = action.href;
-            return true;
-        }
-        return false;
-    }
-
-    async function ask(message){
-        var text = String(message || '').trim();
-        if (!text) return;
-        appendMessage('user', text);
-        input.value = '';
-        autoResize();
-        appendTyping();
-        send.disabled = true;
-        try {
-            var res = await fetch(endpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: JSON.stringify({message: text})
-            });
-            var data = await res.json();
-            removeTyping();
-            appendMessage('assistant', data.answer || '응답을 만들지 못했어요.', data.actions || [], data.suggestions || []);
-            if (Array.isArray(data.auto_actions)) {
-                data.auto_actions.forEach(function(item){ runAction(item); });
-            }
-        } catch (err) {
-            removeTyping();
-            appendMessage('assistant', '지금은 응답 연결 중 문제가 있어요. 잠시 후 다시 시도해 주세요.', [], ['자화전자 제일 최근 출하일은?', '최근 7일 OQC NG 많은 포인트', '그래프빌더 열어줘']);
-        } finally {
-            send.disabled = false;
-            input.focus();
-        }
-    }
-
-    form.addEventListener('submit', function(e){
-        e.preventDefault();
-        ask(input.value);
+      } else {
+        btn.textContent = String(item);
+        btn.addEventListener('click', () => {
+          inputEl.value = String(item);
+          inputEl.focus();
+        });
+      }
+      wrap.appendChild(btn);
     });
-
-    input.addEventListener('input', autoResize);
-    input.addEventListener('keydown', function(e){
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            form.requestSubmit();
-        }
+    container.appendChild(wrap);
+    scrollBottom();
+  }
+  function typeText(target, text, done){
+    const chars = Array.from(String(text || ''));
+    let i = 0;
+    target.textContent = '';
+    const cursor = document.createElement('span');
+    cursor.className = 'cursor';
+    target.appendChild(cursor);
+    function step(){
+      if (i >= chars.length) {
+        cursor.remove();
+        if (done) done();
+        scrollBottom();
+        return;
+      }
+      const node = document.createTextNode(chars[i]);
+      target.insertBefore(node, cursor);
+      i += 1;
+      scrollBottom();
+      setTimeout(step, 14);
+    }
+    step();
+  }
+  function showWelcome(){
+    const m = createMessage('assistant', '');
+    typeText(m.bubble, '이번 패치는 두 가지만 먼저 고쳤어요.\n- 답변이 한 번에 팡 뜨지 않고 타이핑처럼 보이게\n- "오늘 출하수량"과 "오늘까지 누적"을 헷갈리면 되묻기\n예: 오늘 출하수량 알려줘, 자화전자 제일 최근 출하일은?, 오늘까지 누적 출하수량', () => {
+      appendChips(m.inner, ['오늘 출하수량 알려줘', '자화전자 제일 최근 출하일은?', '오늘까지 누적 출하수량'], 'suggestions');
     });
+  }
+  async function sendMessage(prefill){
+    const text = (typeof prefill === 'string' ? prefill : inputEl.value).trim();
+    if (!text) return;
+    createMessage('user', text);
+    inputEl.value = '';
+    inputEl.focus();
 
-    document.addEventListener('click', function(e){
-        var sug = e.target.closest('[data-jtgpt-suggest]');
-        if (sug) {
-            ask(sug.getAttribute('data-jtgpt-suggest') || '');
-            return;
-        }
-        var quick = e.target.closest('[data-quick]');
-        if (quick) {
-            ask(quick.getAttribute('data-quick') || '');
-            return;
-        }
-        var act = e.target.closest('[data-jtgpt-action]');
-        if (act) {
-            e.preventDefault();
-            var action = parseAction(act.getAttribute('data-jtgpt-action') || '');
-            if (!runAction(action)) {
-                var href = act.getAttribute('href') || '#';
-                if (href && href !== '#') location.href = href;
-            }
-        }
+    const assistant = createMessage('assistant', '');
+    assistant.bubble.textContent = '생각 중';
+    const waitCursor = document.createElement('span');
+    waitCursor.className = 'cursor';
+    assistant.bubble.appendChild(waitCursor);
+    scrollBottom();
+
+    try {
+      const res = await fetch(<?php echo json_encode($selfUrl); ?>, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify({ message: text })
+      });
+      const data = await res.json();
+      assistant.bubble.textContent = '';
+      typeText(assistant.bubble, data.answer || '응답을 받지 못했어요.', () => {
+        appendChips(assistant.inner, data.actions || [], 'actions');
+        appendChips(assistant.inner, data.suggestions || [], 'suggestions');
+      });
+    } catch (err) {
+      assistant.bubble.textContent = '';
+      typeText(assistant.bubble, '응답 중 오류가 났어요. 잠시 후 다시 시도해 주세요.', null);
+    }
+  }
+
+  sendBtn.addEventListener('click', () => sendMessage());
+  inputEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+  document.querySelectorAll('[data-fill]').forEach(el => {
+    el.addEventListener('click', () => {
+      inputEl.value = el.getAttribute('data-fill') || '';
+      inputEl.focus();
     });
-
-    autoResize();
+  });
+  showWelcome();
 })();
 </script>
 </body>
