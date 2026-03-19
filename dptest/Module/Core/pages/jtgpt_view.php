@@ -62,20 +62,35 @@ function jtgpt_trim_spaces(string $text): string {
     return trim(preg_replace('/\s+/u', ' ', $text) ?? '');
 }
 
+function jtgpt_lower(string $text): string {
+    return function_exists('mb_strtolower') ? jtgpt_lower($text) : strtolower($text);
+}
+
+function jtgpt_strlen(string $text): int {
+    return function_exists('mb_strlen') ? mb_strlen($text, 'UTF-8') : strlen($text);
+}
+
+
+function jtgpt_generic_tokens(): array {
+    return [
+        '오늘','금일','어제','최근','최근7일','최근 7일','이번주','일주일','누적','오늘까지','금일까지','현재까지',
+        '출하','출고','출하내역','출고내역','수량','출하수량','출고수량','lot','tray','ea','로트','트레이',
+        '제일','최근','마지막','최신','언제','있어','있나','있어?','있나?','해','했어','했어?','여부'
+    ];
+}
+
 function jtgpt_extract_customer_keyword(string $text): ?string {
     $patterns = [
         '/([가-힣A-Za-z0-9()\-]{2,30})\s*(?:의\s*)?(?:제일\s*)?(?:최근|마지막|최신)\s*출하일/u',
         '/([가-힣A-Za-z0-9()\-]{2,30})\s*(?:의\s*)?(?:오늘까지|금일까지|누적)\s*출하(?:수량|량)?/u',
         '/([가-힣A-Za-z0-9()\-]{2,30})\s*(?:의\s*)?(?:오늘|금일|어제)\s*출하(?:수량|량|lot|tray)?/u',
-        '/([가-힣A-Za-z0-9()\-]{2,30})\s*(?:의\s*)?출하(?:수량|량|lot|tray|일)?/u',
+        '/([가-힣A-Za-z0-9()\-]{2,30})\s*(?:의\s*)?출하(?:수량|량|lot|tray|일|내역)?/u',
     ];
-    $ban = [
-        '오늘','금일','어제','최근','출하','출고','수량','출하수량','누적','lot','tray','ea','제일','마지막','최신','있어',
-    ];
+    $ban = jtgpt_generic_tokens();
     foreach ($patterns as $pattern) {
         if (preg_match($pattern, $text, $m)) {
             $candidate = jtgpt_trim_spaces((string)($m[1] ?? ''));
-            if ($candidate === '' || in_array(mb_strtolower($candidate, 'UTF-8'), $ban, true) || in_array($candidate, $ban, true)) {
+            if ($candidate === '' || in_array(jtgpt_lower($candidate), $ban, true) || in_array($candidate, $ban, true)) {
                 continue;
             }
             return $candidate;
@@ -84,40 +99,60 @@ function jtgpt_extract_customer_keyword(string $text): ?string {
     return null;
 }
 
-function jtgpt_shipping_date_range(string $kind): array {
+function jtgpt_extract_short_customer_slot(string $text): ?string {
+    $candidate = jtgpt_trim_spaces($text);
+    if ($candidate === '' || jtgpt_strlen($candidate) > 30) {
+        return null;
+    }
+    if (!preg_match('/^[가-힣A-Za-z0-9()\- ]{2,30}$/u', $candidate)) {
+        return null;
+    }
+    $ban = jtgpt_generic_tokens();
+    if (in_array($candidate, $ban, true) || in_array(jtgpt_lower($candidate), $ban, true)) {
+        return null;
+    }
+    if (preg_match('/^(수량|lot|tray|출하|출하내역|출고|출고내역|최근 출하일|제일 최근 출하일)$/u', $candidate)) {
+        return null;
+    }
+    return $candidate;
+}
+
+function jtgpt_shipping_date_bounds(?string $kind): array {
     $today = new DateTimeImmutable('today');
-    if ($kind === 'yesterday') {
-        $from = $today->modify('-1 day');
-        $to = $today;
-        return [$from->format('Y-m-d 00:00:00'), $to->format('Y-m-d 00:00:00')];
+    $tomorrow = $today->modify('+1 day');
+
+    switch ($kind) {
+        case 'yesterday':
+            return [$today->modify('-1 day')->format('Y-m-d 00:00:00'), $today->format('Y-m-d 00:00:00')];
+        case 'today':
+            return [$today->format('Y-m-d 00:00:00'), $tomorrow->format('Y-m-d 00:00:00')];
+        case 'recent7':
+            return [$today->modify('-6 day')->format('Y-m-d 00:00:00'), $tomorrow->format('Y-m-d 00:00:00')];
+        case 'until_today':
+            return [null, $tomorrow->format('Y-m-d 00:00:00')];
+        default:
+            return [null, null];
     }
-    if ($kind === 'today') {
-        $from = $today;
-        $to = $today->modify('+1 day');
-        return [$from->format('Y-m-d 00:00:00'), $to->format('Y-m-d 00:00:00')];
-    }
-    if ($kind === 'recent7') {
-        $from = $today->modify('-6 day');
-        $to = $today->modify('+1 day');
-        return [$from->format('Y-m-d 00:00:00'), $to->format('Y-m-d 00:00:00')];
-    }
-    return ['', ''];
 }
 
 function jtgpt_shipping_summary(PDO $pdo, ?string $rangeKind, ?string $customer): array {
-    [$fromDt, $toDt] = $rangeKind ? jtgpt_shipping_date_range($rangeKind) : ['', ''];
+    [$fromDt, $toDt] = jtgpt_shipping_date_bounds($rangeKind);
     $where = [];
     $params = [];
-    if ($fromDt !== '' && $toDt !== '') {
+
+    if ($fromDt !== null) {
         $where[] = 'ship_datetime >= :from_dt';
-        $where[] = 'ship_datetime < :to_dt';
         $params[':from_dt'] = $fromDt;
+    }
+    if ($toDt !== null) {
+        $where[] = 'ship_datetime < :to_dt';
         $params[':to_dt'] = $toDt;
     }
     if ($customer !== null && $customer !== '') {
         $where[] = '(ship_to LIKE :kw OR customer_part_no LIKE :kw OR part_name LIKE :kw OR model LIKE :kw OR project LIKE :kw)';
         $params[':kw'] = '%' . $customer . '%';
     }
+
     $whereSql = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
     $sql = "SELECT COALESCE(SUM(COALESCE(qty,0)),0) AS total_qty,
                    COUNT(DISTINCT NULLIF(TRIM(COALESCE(small_pack_no,'')),'')) AS lot_count,
@@ -128,6 +163,7 @@ function jtgpt_shipping_summary(PDO $pdo, ?string $rangeKind, ?string $customer)
     $st = $pdo->prepare($sql);
     $st->execute($params);
     $row = $st->fetch(PDO::FETCH_ASSOC) ?: [];
+
     return [
         'total_qty' => (int)($row['total_qty'] ?? 0),
         'lot_count' => (int)($row['lot_count'] ?? 0),
@@ -154,74 +190,89 @@ function jtgpt_shipping_last_date(PDO $pdo, ?string $customer): ?string {
     return $value !== '' ? $value : null;
 }
 
+function jtgpt_detect_range(string $text, array $ctx): ?string {
+    if (preg_match('/오늘까지|금일까지|현재까지|누적/u', $text)) {
+        return 'until_today';
+    }
+    if (preg_match('/어제/u', $text)) {
+        return 'yesterday';
+    }
+    if (preg_match('/최근\s*7일|최근\s*일주일/u', $text)) {
+        return 'recent7';
+    }
+    if (preg_match('/오늘|금일/u', $text)) {
+        return 'today';
+    }
+
+    if (($ctx['module'] ?? '') === 'shipping' && !empty($ctx['range'])) {
+        return (string)$ctx['range'];
+    }
+    return null;
+}
+
+function jtgpt_detect_shipping_type(string $text, array $ctx): ?string {
+    if (preg_match('/(?:제일\s*)?(?:최근|마지막|최신)\s*출하일|언제\s*출하/u', $text)) {
+        return 'shipping_last_date';
+    }
+    if (preg_match('/출하수량|출고수량|수량|ea\b/u', $text)) {
+        return 'shipping_qty';
+    }
+    if (preg_match('/\blot\b|lot수|lot 개수|로트/u', $text)) {
+        return 'shipping_lot';
+    }
+    if (preg_match('/tray|트레이/u', $text)) {
+        return 'shipping_tray';
+    }
+    if (preg_match('/출하내역|출고내역|출하했어|출하 있|출고 있|출하/u', $text)) {
+        return 'shipping_exists';
+    }
+
+    if (($ctx['module'] ?? '') === 'shipping' && !empty($ctx['intent'])) {
+        return (string)$ctx['intent'];
+    }
+    return null;
+}
+
 function jtgpt_parse_shipping_intent(string $message, array $ctx): array {
     $text = jtgpt_trim_spaces($message);
-    $lower = mb_strtolower($text, 'UTF-8');
+    $lower = jtgpt_lower($text);
 
-    $hasShip = (bool)preg_match('/출하|출고|ship|shipping/u', $lower);
-    $hasQty = (bool)preg_match('/출하수량|출고수량|수량|ea|ea\b/u', $lower);
-    $hasLot = (bool)preg_match('/\blot\b|lot수|lot 개수|로트/u', $lower);
-    $hasTray = (bool)preg_match('/tray|트레이/u', $lower);
-    $hasLastDate = (bool)preg_match('/(?:제일\s*)?(?:최근|마지막|최신)\s*출하일|언제\s*출하/u', $text);
-    $asksExist = (bool)preg_match('/있어\?|있나\?|있어$/u', $text);
-
-    $range = null;
-    if (preg_match('/오늘까지|금일까지|현재까지|누적/u', $text)) {
-        $range = 'until_today';
-    } elseif (preg_match('/어제/u', $text)) {
-        $range = 'yesterday';
-    } elseif (preg_match('/최근\s*7일|최근\s*일주일/u', $text)) {
-        $range = 'recent7';
-    } elseif (preg_match('/오늘|금일/u', $text)) {
-        $range = 'today';
-    }
+    $hasShipWord = (bool)preg_match('/출하|출고|ship|shipping/u', $lower);
+    $hasShortMetric = (bool)preg_match('/^(수량|lot|tray|출하수량|출하내역|출고내역|최근 출하일|제일 최근 출하일)$/u', $text);
+    $shortRangeOnly = (bool)preg_match('/^(오늘|금일|어제|최근\s*7일|최근\s*일주일|오늘까지|금일까지|누적)$/u', $text);
+    $ctxIsShipping = (($ctx['module'] ?? '') === 'shipping');
 
     $customer = jtgpt_extract_customer_keyword($text);
-
-    if ($hasLastDate) {
-        return ['type' => 'shipping_last_date', 'range' => null, 'customer' => $customer];
+    if ($customer === null && $ctxIsShipping) {
+        $shortCustomer = jtgpt_extract_short_customer_slot($text);
+        if ($shortCustomer !== null) {
+            $customer = $shortCustomer;
+        }
+    }
+    if ($customer === null && $ctxIsShipping && !empty($ctx['customer']) && !$hasShipWord && !$shortRangeOnly && !$hasShortMetric) {
+        $customer = (string)$ctx['customer'];
     }
 
-    if ($asksExist && $hasShip) {
-        if ($range === null) {
+    $type = jtgpt_detect_shipping_type($text, $ctx);
+    $range = jtgpt_detect_range($text, $ctx);
+
+    if ($type === 'shipping_last_date') {
+        return ['type' => 'shipping_last_date', 'range' => null, 'customer' => $customer ?: ($ctx['customer'] ?? null)];
+    }
+
+    if ($ctxIsShipping && ($shortRangeOnly || $hasShortMetric || ($customer !== null && !$hasShipWord && !$shortRangeOnly && !$hasShortMetric))) {
+        $type = $type ?: (($ctx['intent'] ?? '') ?: 'shipping_exists');
+        $range = $range ?? (($ctx['range'] ?? '') ?: 'today');
+        $customer = $customer ?: ($ctx['customer'] ?? null);
+        return ['type' => $type, 'range' => $range, 'customer' => $customer];
+    }
+
+    if ($type !== null || $hasShipWord) {
+        $type = $type ?: 'shipping_exists';
+        if ($range === null && $type !== 'shipping_last_date') {
             $range = 'today';
         }
-        return ['type' => 'shipping_exists', 'range' => $range, 'customer' => $customer];
-    }
-
-    if ($hasShip || $hasQty || $hasLot || $hasTray) {
-        if ($range === 'until_today' && !$hasQty && !$hasLot && !$hasTray) {
-            return [
-                'type' => 'clarify',
-                'question' => '“오늘까지 누적 출하수량”을 말하는 건지, “오늘 출하수량”을 말하는 건지 알려주세요.',
-            ];
-        }
-
-        if ($range === null && ($hasQty || $hasLot || $hasTray)) {
-            return [
-                'type' => 'clarify',
-                'question' => '기준 기간이 빠졌어요. 오늘 / 오늘까지 누적 / 어제 / 최근 7일 중 어떤 기준으로 볼까요?',
-            ];
-        }
-
-        if ($hasQty) {
-            return ['type' => 'shipping_qty', 'range' => $range ?? 'today', 'customer' => $customer];
-        }
-        if ($hasLot) {
-            return ['type' => 'shipping_lot', 'range' => $range ?? 'today', 'customer' => $customer];
-        }
-        if ($hasTray) {
-            return ['type' => 'shipping_tray', 'range' => $range ?? 'today', 'customer' => $customer];
-        }
-
-        return [
-            'type' => 'clarify',
-            'question' => '출하 쪽으로 이해했어요. 수량 / lot / tray / 최근 출하일 중 무엇을 볼까요?',
-        ];
-    }
-
-    if (($ctx['module'] ?? '') === 'shipping' && preg_match('/최근\s*출하일|마지막/u', $text)) {
-        return ['type' => 'shipping_last_date', 'range' => null, 'customer' => $customer ?: ($ctx['customer'] ?? null)];
+        return ['type' => $type, 'range' => $range, 'customer' => $customer];
     }
 
     return ['type' => 'unknown'];
@@ -236,10 +287,7 @@ function jtgpt_format_ship_scope(?string $rangeKind, ?string $customer): string 
         null => '전체 기간',
     ];
     $scope = $labels[$rangeKind] ?? '기준 기간';
-    if ($customer !== null && $customer !== '') {
-        return $customer . ' / ' . $scope;
-    }
-    return $scope;
+    return ($customer !== null && $customer !== '') ? ($customer . ' / ' . $scope) : $scope;
 }
 
 function jtgpt_answer_shipping(array $intent): string {
@@ -257,20 +305,20 @@ function jtgpt_answer_shipping(array $intent): string {
         jtgpt_ctx_set([
             'module' => 'shipping',
             'intent' => $type,
+            'range' => null,
             'customer' => $customer,
             'last_ship_datetime' => $last,
         ]);
         if (!$last) {
-            return $customer ? $customer . ' 기준 출하 이력을 찾지 못했어요.' : '출하 이력을 찾지 못했어요.';
+            return $customer ? ($customer . ' 기준 출하 이력을 찾지 못했어요.') : '출하 이력을 찾지 못했어요.';
         }
         $dateOnly = substr($last, 0, 10);
         return $customer
-            ? $customer . '의 가장 최근 출하일은 ' . $dateOnly . '입니다.'
-            : '가장 최근 출하일은 ' . $dateOnly . '입니다.';
+            ? ($customer . '의 가장 최근 출하일은 ' . $dateOnly . '입니다.')
+            : ('가장 최근 출하일은 ' . $dateOnly . '입니다.');
     }
 
-    $queryRange = $range === 'until_today' ? null : $range;
-    $summary = jtgpt_shipping_summary($pdo, $queryRange, $customer);
+    $summary = jtgpt_shipping_summary($pdo, $range, $customer);
     $scope = jtgpt_format_ship_scope($range, $customer);
 
     jtgpt_ctx_set([
@@ -286,7 +334,7 @@ function jtgpt_answer_shipping(array $intent): string {
     }
 
     if ($type === 'shipping_exists') {
-        return $scope . ' 기준 출하는 있습니다. 총 ' . number_format((int)$summary['total_qty']) . ' EA, lot ' . number_format((int)$summary['lot_count']) . '건입니다.';
+        return $scope . ' 기준 출하는 있습니다. 총 ' . number_format((int)$summary['total_qty']) . ' EA입니다.';
     }
     if ($type === 'shipping_qty') {
         return $scope . ' 출하수량은 ' . number_format((int)$summary['total_qty']) . ' EA입니다.';
@@ -305,9 +353,6 @@ function jtgpt_answer(string $message): string {
     $ctx = jtgpt_ctx_get();
     $intent = jtgpt_parse_shipping_intent($message, $ctx);
 
-    if (($intent['type'] ?? '') === 'clarify') {
-        return (string)($intent['question'] ?? '어떤 기준으로 볼까요?');
-    }
     if (($intent['type'] ?? '') === 'unknown') {
         return '지금은 출하 조회 1차만 먼저 연결했어요. 예를 들면 “오늘 출하수량”, “오늘까지 누적 출하수량”, “자화전자 최근 출하일”처럼 물어보면 됩니다.';
     }
