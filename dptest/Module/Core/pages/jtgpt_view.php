@@ -139,8 +139,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['jtgpt_ui_chat'])) {
         background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
         border: 1px solid rgba(255,255,255,.09);
         box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
-        font-size: 18px;
-        letter-spacing: .02em;
+        font-size: 20px;
+        letter-spacing: 0;
+        font-family: "Segoe UI Symbol", "Apple Symbols", "Noto Sans Symbols 2", "Noto Sans KR", sans-serif;
+        font-weight: 400;
     }
 
     .hero-title {
@@ -333,7 +335,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['jtgpt_ui_chat'])) {
         <div class="conversation" id="conversation">
             <div class="hero-wrap" id="heroWrap">
                 <div class="hero">
-                    <div class="hero-badge">✦</div>
+                    <div class="hero-badge" aria-hidden="true">✦</div>
                     <h1 class="hero-title">무엇을 도와드릴까요?</h1>
                     <p class="hero-subtitle">JTGPT UI 시안입니다. 먼저 화면과 입력 경험을 맞춘 뒤, 읽기 전용 조회와 그래프 기능을 붙일 수 있습니다.</p>
                 </div>
