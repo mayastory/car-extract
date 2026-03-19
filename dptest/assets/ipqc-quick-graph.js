@@ -6904,7 +6904,35 @@ function renderGrid(){
     grid.appendChild(e);
   }
   try{ qgSyncGroupYBox(); }catch(e){}
-  try{ requestAnimationFrame(()=>{ try{ qgSyncGroupYBox(); }catch(e2){} }); }catch(e){}
+  try{ qgSyncRightDock(); }catch(e){}
+  try{ requestAnimationFrame(()=>{
+    try{ qgSyncGroupYBox(); }catch(e2){}
+    try{ qgSyncRightDock(); }catch(e3){}
+  }); }catch(e){}
+}
+
+
+function qgSyncRightDock(){
+  try{
+    const dock = qs('#qgOverlay .qg-dropdock-float');
+    const legend = qs('#qgOverlay .qg-legend');
+    const head = qs('#qgGrid .qg-tophead-body') || qs('#qgGrid .qg-tophead');
+    if (!dock || !legend || !head) return;
+    const legendRect = legend.getBoundingClientRect();
+    const headRect = head.getBoundingClientRect();
+    let top = Math.round(headRect.top - legendRect.top);
+    if (!isFinite(top)) top = 120;
+    dock.style.top = Math.max(0, top) + 'px';
+    dock.style.left = '0px';
+    dock.style.margin = '0';
+    if (!QG._rightDockSyncBound){
+      QG._rightDockSyncBound = true;
+      const kick = ()=>{ try{ requestAnimationFrame(()=>{ try{ qgSyncRightDock(); }catch(e){} }); }catch(e){ try{ qgSyncRightDock(); }catch(e2){} } };
+      window.addEventListener('resize', kick, { passive:true });
+      const main = qs('#qgOverlay .qg-main');
+      if (main) main.addEventListener('scroll', kick, { passive:true });
+    }
+  }catch(e){}
 }
 
 
