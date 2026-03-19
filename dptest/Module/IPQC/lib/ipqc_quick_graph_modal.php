@@ -177,14 +177,14 @@ if (!function_exists('h')) {
   /* Reduce inner padding so the plot starts closer to the left and gains width */
   #qgOverlay .qg-main{ padding:4px; overflow:auto; position:relative; }
 
-  /* JMP-like right-edge placeholder for Group Y (visual box only for now) */
+    /* JMP-like right-edge Group Y tab */
   #qgOverlay #qgGroupYBox{
     position:absolute;
-    right:2px;
+    right:0;
     top:50%;
     transform:translateY(-50%);
-    width:24px;
-    height:116px;
+    width:34px;
+    height:152px;
     border:1px solid #a9a9a9;
     background:#efefef;
     color:#666;
