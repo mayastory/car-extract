@@ -175,17 +175,17 @@ if (!function_exists('h')) {
   #qgOverlay .qg-main,
   #qgOverlay .qg-legend{ position:relative; z-index:1; }
   /* Reduce inner padding so the plot starts closer to the left and gains width */
-  #qgOverlay .qg-main{ padding:4px; overflow:auto; position:relative; }
+  #qgOverlay .qg-main{ padding:2px; overflow:auto; position:relative; }
 
     /* JMP-like right-edge Group Y tab */
   #qgOverlay #qgGroupYBox{
     position:absolute;
-    right:0;
+    right:-1px;
     top:86px;
     bottom:auto;
     transform:none;
-    width:22px;
-    height:160px;
+    width:30px;
+    height:144px;
     border:1px solid #a9a9a9;
     background:#efefef;
     color:#666;
@@ -201,7 +201,7 @@ if (!function_exists('h')) {
   #qgOverlay #qgGroupYBox .qg-group-y-text{
     display:block;
     writing-mode:horizontal-tb;
-    transform:rotate(90deg);
+    transform:rotate(-90deg);
     transform-origin:center center;
     white-space:nowrap;
     font-size:11px;
@@ -661,7 +661,7 @@ if (!function_exists('h')) {
 
   /* FAI rows (override) */
   /* Slightly tighter gap between label and plot to gain width */
-  #qgOverlay .qg-fai-row{ display:grid; grid-template-columns: 28px 1fr; gap:4px; margin-bottom:0; align-items:stretch; min-height:0; overflow:hidden; background:#ffffff; }
+  #qgOverlay .qg-fai-row{ display:grid; grid-template-columns: 24px 1fr; gap:2px; margin-bottom:0; align-items:stretch; min-height:0; overflow:hidden; background:#ffffff; }
   #qgOverlay .qg-fai-one{ min-height:0; overflow:hidden; line-height:0; background:#ffffff; }
   #qgOverlay .qg-row-label{ display:flex; align-items:center; justify-content:center; align-self:start; border:1px solid rgba(255,255,255,0.08); border-radius:0; background:rgba(0,0,0,0.18); min-height:0; overflow:hidden; }
   #qgOverlay .qg-row-label .vtxt{ writing-mode: vertical-rl; transform: rotate(180deg); font-weight:900; font-size:12px; letter-spacing:0.2px; opacity:0.92; padding:0; }

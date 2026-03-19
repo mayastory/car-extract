@@ -838,7 +838,7 @@ function qgEnsureCaptionState(colKey){
       const ov = document.getElementById('qgOverlay');
       if (!ov) return;
       const w = (W && isFinite(W)) ? Number(W) : 1200;
-      const l = (padL && isFinite(padL)) ? Number(padL) : 44;
+      const l = (padL && isFinite(padL)) ? Number(padL) : 36;
       const r = (padR && isFinite(padR)) ? Number(padR) : 18;
       ov.style.setProperty('--qg-padL-pct', (l / w * 100).toFixed(3) + '%');
       ov.style.setProperty('--qg-padR-pct', (r / w * 100).toFixed(3) + '%');
@@ -4590,7 +4590,7 @@ function qgPanelRectsFromSvg(svg){
 
   const r0 = svg.getBoundingClientRect();
   const W = 1200; // fixed viewBox width (drawMatrixSvg)
-  const padL = 56, padR = 2; // must match drawMatrixSvg()
+  const padL = 36, padR = 2; // must match drawMatrixSvg()
   const innerW = W - padL - padR;
   const panelW = innerW / nP;
 
@@ -6554,7 +6554,7 @@ function renderFacetList(rootId, items, selSet){
 function qgBuildTopHeaderSvg(toolsRow, cavs){
   const ns = 'http://www.w3.org/2000/svg';
   const W = 1200;
-  const padL = 44;
+  const padL = 36;
   const padR = 2;
   const innerW = W - padL - padR;
   const nT = Math.max(1, Array.isArray(toolsRow) ? toolsRow.length : 0);
@@ -6919,25 +6919,27 @@ function qgSyncGroupYBox(){
       box.style.display = 'none';
       return;
     }
-    const firstLabel = qs('.qg-row-label', rows[0]) || rows[0];
-    const lastLabel = qs('.qg-row-label', rows[rows.length - 1]) || rows[rows.length - 1];
+    const firstPlot = qs('.qg-fai-one', rows[0]) || qs('.qg-row-label', rows[0]) || rows[0];
+    const lastPlot = qs('.qg-fai-one', rows[rows.length - 1]) || qs('.qg-row-label', rows[rows.length - 1]) || rows[rows.length - 1];
     const mainRect = main.getBoundingClientRect();
-    const topRect = firstLabel.getBoundingClientRect();
-    const botRect = lastLabel.getBoundingClientRect();
-    let top = Math.round(topRect.top - mainRect.top);
-    let height = Math.round(botRect.bottom - topRect.top);
+    const topRect = firstPlot.getBoundingClientRect();
+    const botRect = lastPlot.getBoundingClientRect();
+    const insetTop = 2;
+    const insetBottom = 2;
+    let top = Math.round(topRect.top - mainRect.top + insetTop);
+    let height = Math.round((botRect.bottom - insetBottom) - (topRect.top + insetTop));
     if (!isFinite(top)) top = 0;
-    if (!isFinite(height) || height < 60) height = 60;
+    if (!isFinite(height) || height < 48) height = 48;
     box.style.display = 'flex';
-    box.style.right = '0px';
+    box.style.right = '-1px';
     box.style.top = Math.max(0, top) + 'px';
     box.style.bottom = 'auto';
     box.style.height = height + 'px';
-    box.style.width = '22px';
+    box.style.width = '30px';
     box.style.pointerEvents = 'none';
     const txt = qs('.qg-group-y-text', box);
     if (txt){
-      txt.style.transform = 'rotate(90deg)';
+      txt.style.transform = 'rotate(-90deg)';
       txt.style.transformOrigin = 'center center';
     }
     if (!QG._groupYResizeBound){
@@ -6970,7 +6972,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
   const rowCount = Math.max(1, Number(opt && opt.rowCount) || 1);
   // Keep a stable plot box so all FAI rows and the shared cavity header line up exactly.
   // USL/LSL labels must stay inside the last cavity panel without shrinking the usable plot width.
-  const padL = 44;
+  const padL = 36;
   const padR = 2;
   const padT = 0, padB = (opt && opt.showXLabels===false) ? 0 : 56;
   const innerW = W - padL - padR;
@@ -8100,7 +8102,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
 
     const W = 1200, H = (opt && opt.h ? opt.h : 320);
     // Keep x-axis labels tight to the plot (JMP-like), while still preventing clipping.
-    const padL = 44, padR = 14, padT = 14, padB = (opt && opt.showXLabels===false) ? 26 : 70;
+    const padL = 36, padR = 14, padT = 14, padB = (opt && opt.showXLabels===false) ? 26 : 70;
     const innerW = W - padL - padR;
     const innerH = H - padT - padB;
 
