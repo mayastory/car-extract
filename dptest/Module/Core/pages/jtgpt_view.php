@@ -34,6 +34,12 @@ if (!function_exists('jtgpt_contains_any')) {
     }
 }
 
+if (!function_exists('jtgpt_format_int')) {
+    function jtgpt_format_int($v): string {
+        return number_format((int)$v);
+    }
+}
+
 if (!function_exists('jtgpt_detect_time_hint')) {
     function jtgpt_detect_time_hint(string $text): ?string {
         $map = [
@@ -52,36 +58,286 @@ if (!function_exists('jtgpt_detect_time_hint')) {
     }
 }
 
+if (!function_exists('jtgpt_try_parse_ymd')) {
+    function jtgpt_try_parse_ymd(string $y, string $m, string $d): ?string {
+        $m = str_pad((string)((int)$m), 2, '0', STR_PAD_LEFT);
+        $d = str_pad((string)((int)$d), 2, '0', STR_PAD_LEFT);
+        $ymd = trim($y) . '-' . $m . '-' . $d;
+        $dt = DateTime::createFromFormat('Y-m-d', $ymd);
+        if (!$dt || $dt->format('Y-m-d') !== $ymd) {
+            return null;
+        }
+        return $ymd;
+    }
+}
+
+if (!function_exists('jtgpt_detect_date_range')) {
+    function jtgpt_detect_date_range(string $text): array {
+        $now = new DateTime('now', new DateTimeZone('Asia/Seoul'));
+        $today = $now->format('Y-m-d');
+
+        if (preg_match_all('/(20\d{2})[\.\/-]?(\d{1,2})[\.\/-]?(\d{1,2})/', $text, $m, PREG_SET_ORDER)) {
+            $dates = [];
+            foreach ($m as $hit) {
+                $ymd = jtgpt_try_parse_ymd($hit[1], $hit[2], $hit[3]);
+                if ($ymd !== null) {
+                    $dates[] = $ymd;
+                }
+            }
+            $dates = array_values(array_unique($dates));
+            sort($dates);
+            if (count($dates) >= 2) {
+                return ['from' => $dates[0], 'to' => $dates[count($dates) - 1], 'label' => $dates[0] . ' ~ ' . $dates[count($dates) - 1], 'implicit' => false];
+            }
+            if (count($dates) === 1) {
+                return ['from' => $dates[0], 'to' => $dates[0], 'label' => $dates[0], 'implicit' => false];
+            }
+        }
+
+        $hint = jtgpt_detect_time_hint($text);
+        if ($hint === '오늘') {
+            return ['from' => $today, 'to' => $today, 'label' => '오늘', 'implicit' => false];
+        }
+        if ($hint === '어제') {
+            $d = (clone $now)->modify('-1 day')->format('Y-m-d');
+            return ['from' => $d, 'to' => $d, 'label' => '어제', 'implicit' => false];
+        }
+        if ($hint === '이번 주') {
+            $start = (clone $now)->modify('monday this week')->format('Y-m-d');
+            $end = $today;
+            return ['from' => $start, 'to' => $end, 'label' => '이번 주', 'implicit' => false];
+        }
+        if ($hint === '최근 7일') {
+            $start = (clone $now)->modify('-6 day')->format('Y-m-d');
+            $end = $today;
+            return ['from' => $start, 'to' => $end, 'label' => '최근 7일', 'implicit' => false];
+        }
+        if ($hint === '이번 달') {
+            $start = (clone $now)->modify('first day of this month')->format('Y-m-d');
+            $end = $today;
+            return ['from' => $start, 'to' => $end, 'label' => '이번 달', 'implicit' => false];
+        }
+
+        return ['from' => $today, 'to' => $today, 'label' => '오늘', 'implicit' => true];
+    }
+}
+
+if (!function_exists('jtgpt_extract_part_name')) {
+    function jtgpt_extract_part_name(string $message): ?string {
+        $original = trim($message);
+        if ($original === '') return null;
+
+        $aliasMap = [
+            'ir base' => 'MEM-IR-BASE',
+            'irbase' => 'MEM-IR-BASE',
+            'x carrier' => 'MEM-X-CARRIER',
+            'x-carrier' => 'MEM-X-CARRIER',
+            'y carrier' => 'MEM-Y-CARRIER',
+            'y-carrier' => 'MEM-Y-CARRIER',
+            'z carrier' => 'MEM-Z-CARRIER',
+            'z-carrier' => 'MEM-Z-CARRIER',
+            'z stopper' => 'MEM-Z-STOPPER',
+            'z-stopper' => 'MEM-Z-STOPPER',
+        ];
+        $lower = mb_strtolower($original, 'UTF-8');
+        foreach ($aliasMap as $needle => $partName) {
+            if (mb_strpos($lower, $needle) !== false) {
+                return $partName;
+            }
+        }
+
+        if (preg_match('/\b(MEM-[A-Z0-9\.\-]+)\b/i', $original, $m)) {
+            return strtoupper(trim($m[1]));
+        }
+
+        if (preg_match('/\b([A-Z0-9]+(?:-[A-Z0-9\.]+){2,})\b/', strtoupper($original), $m)) {
+            return trim($m[1]);
+        }
+
+        return null;
+    }
+}
+
+if (!function_exists('jtgpt_build_shipinglist_href')) {
+    function jtgpt_build_shipinglist_href(string $fromDate, string $toDate, ?string $partName = null): string {
+        $qs = [
+            'from_date' => $fromDate,
+            'to_date' => $toDate,
+        ];
+        if ($partName !== null && $partName !== '') {
+            $qs['part_name'] = $partName;
+        }
+        return dp_url('shipinglist') . '?' . http_build_query($qs);
+    }
+}
+
+if (!function_exists('jtgpt_shipping_reply')) {
+    function jtgpt_shipping_reply(PDO $pdo, string $message): array {
+        $text = trim($message);
+        $normalized = mb_strtolower($text, 'UTF-8');
+        $range = jtgpt_detect_date_range($normalized);
+        $partName = jtgpt_extract_part_name($text);
+
+        $where = [
+            'ship_datetime >= :from_dt',
+            'ship_datetime < :to_dt',
+        ];
+        $params = [
+            ':from_dt' => $range['from'] . ' 00:00:00',
+            ':to_dt' => date('Y-m-d 00:00:00', strtotime($range['to'] . ' +1 day')),
+        ];
+
+        if ($partName !== null && $partName !== '') {
+            $where[] = 'part_name LIKE :part_name';
+            $params[':part_name'] = '%' . $partName . '%';
+        }
+
+        $whereSql = 'WHERE ' . implode(' AND ', $where);
+
+        $summarySql = "
+            SELECT
+                COUNT(*) AS row_count,
+                COALESCE(SUM(qty), 0) AS total_qty,
+                COUNT(DISTINCT small_pack_no) AS lot_count,
+                COUNT(DISTINCT tray_no) AS tray_count,
+                COUNT(DISTINCT part_name) AS part_count
+            FROM ShipingList
+            {$whereSql}
+        ";
+        $st = $pdo->prepare($summarySql);
+        $st->execute($params);
+        $summary = $st->fetch(PDO::FETCH_ASSOC) ?: [];
+
+        $rowCount = (int)($summary['row_count'] ?? 0);
+        $totalQty = (int)($summary['total_qty'] ?? 0);
+        $lotCount = (int)($summary['lot_count'] ?? 0);
+        $trayCount = (int)($summary['tray_count'] ?? 0);
+        $partCount = (int)($summary['part_count'] ?? 0);
+
+        $actions = [
+            ['label' => 'QA 출하내역 열기', 'href' => jtgpt_build_shipinglist_href($range['from'], $range['to'], $partName)],
+        ];
+
+        if ($rowCount <= 0) {
+            $answer = $range['label'] . ' 기준 출하 데이터가 없어요.';
+            if (!empty($range['implicit'])) {
+                $answer .= " 날짜를 따로 말하지 않아서 오늘 기준으로 확인했어요.";
+            }
+            if ($partName) {
+                $answer .= ' 품번 필터는 ' . $partName . ' 로 봤어요.';
+            }
+            return [
+                'answer' => $answer,
+                'actions' => $actions,
+                'suggestions' => [
+                    '오늘 출하수량 알려줘',
+                    '어제 출하 lot 몇개야',
+                    '이번 주 MEM-IR-BASE 출하수량',
+                ],
+            ];
+        }
+
+        $topSql = "
+            SELECT part_name, COALESCE(SUM(qty), 0) AS total_qty
+            FROM ShipingList
+            {$whereSql}
+            GROUP BY part_name
+            ORDER BY total_qty DESC, part_name ASC
+            LIMIT 5
+        ";
+        $st = $pdo->prepare($topSql);
+        $st->execute($params);
+        $topRows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+        $answer = $range['label'] . ' 출하 기준';
+        if (!empty($range['implicit'])) {
+            $answer .= '으로 봤어요. 날짜를 따로 말하지 않아서 오늘 기준으로 확인했어요.';
+        }
+        if ($partName) {
+            $answer .= ' ' . $partName . ' 필터로';
+        }
+        $answer .= ' 총 출하수량은 ' . jtgpt_format_int($totalQty) . ' EA예요.';
+        $answer .= ' lot ' . jtgpt_format_int($lotCount) . '건, tray ' . jtgpt_format_int($trayCount) . '건, 조회 행 ' . jtgpt_format_int($rowCount) . '건';
+        if ($partName === null) {
+            $answer .= ', 품번 ' . jtgpt_format_int($partCount) . '종';
+        }
+        $answer .= '이 잡혔어요.';
+
+        if ($partName === null && $topRows) {
+            $parts = [];
+            foreach ($topRows as $r) {
+                $pn = trim((string)($r['part_name'] ?? ''));
+                if ($pn === '') continue;
+                $parts[] = $pn . ' ' . jtgpt_format_int((int)($r['total_qty'] ?? 0)) . ' EA';
+            }
+            if ($parts) {
+                $answer .= "\n상위 품번은 " . implode(', ', $parts) . '예요.';
+            }
+        }
+
+        $suggestions = [];
+        if ($partName === null) {
+            $suggestions[] = $range['label'] . ' MEM-IR-BASE 출하수량';
+        }
+        $suggestions[] = $range['label'] . ' 출하 lot 몇개야';
+        $suggestions[] = '어제 출하수량 알려줘';
+
+        return [
+            'answer' => $answer,
+            'actions' => $actions,
+            'suggestions' => $suggestions,
+        ];
+    }
+}
+
 if (!function_exists('jtgpt_parse_message')) {
     function jtgpt_parse_message(string $message): array {
         $text = trim($message);
         $normalized = mb_strtolower($text, 'UTF-8');
         $timeHint = jtgpt_detect_time_hint($normalized);
 
+        if ($text === '') {
+            return [
+                'answer' => '질문이 비어 있어요. 예: 오늘 출하수량 알려줘, 어제 출하 lot 몇개야, 이번 주 MEM-IR-BASE 출하수량',
+                'actions' => [],
+                'suggestions' => ['오늘 출하수량 알려줘', '어제 출하 lot 몇개야', '이번 주 MEM-IR-BASE 출하수량'],
+            ];
+        }
+
+        $shippingNeedles = ['출하', '출고', 'ship', 'shipping', 'lot', '포장', '납품', '수량', 'qty', 'ea'];
+        if (jtgpt_contains_any($normalized, $shippingNeedles)) {
+            try {
+                $pdo = dp_get_pdo();
+                return jtgpt_shipping_reply($pdo, $text);
+            } catch (Throwable $e) {
+                return [
+                    'answer' => '출하 데이터를 조회하는 중 오류가 났어요. DB 연결이나 테이블 상태를 확인해 주세요.\n' . $e->getMessage(),
+                    'actions' => [
+                        ['label' => 'QA 출하내역 열기', 'href' => dp_url('shipinglist')],
+                    ],
+                    'suggestions' => ['오늘 출하수량 알려줘', '어제 출하 lot 몇개야'],
+                ];
+            }
+        }
+
         $modules = [
-            'shipinglist' => [
-                'title' => 'QA 출하내역',
-                'href' => dp_url('shipinglist'),
-                'needles' => ['출하', '출고', 'ship', 'shipping', 'lot', '포장', '납품', 'qa'],
-                'summary' => '출하/출고/lot/포장 관련 요청으로 이해했어요.',
-            ],
             'rma' => [
                 'title' => 'RMA 내역',
                 'href' => dp_url('rma'),
                 'needles' => ['rma', 'return', '반품', '회수', '리턴'],
-                'summary' => 'RMA/반품/회수 관련 요청으로 이해했어요.',
+                'summary' => 'RMA/반품/회수 관련 요청으로 이해했어요. 아직 이쪽은 실데이터 답변보다 화면 이동 중심이에요.',
             ],
             'oqc' => [
                 'title' => 'OQC 측정 데이터 조회',
                 'href' => dp_url('oqc'),
                 'needles' => ['oqc', '측정', 'ng', '불량', '검사', '측정값', 'cavity', 'tool'],
-                'summary' => 'OQC 측정/NG/검사 관련 요청으로 이해했어요.',
+                'summary' => 'OQC 측정/NG/검사 관련 요청으로 이해했어요. 아직 이쪽은 실데이터 답변보다 화면 이동 중심이에요.',
             ],
             'ipqc' => [
                 'title' => 'JMP Assist (IPQC)',
                 'href' => dp_url('ipqc'),
                 'needles' => ['ipqc', 'jmp', '공정능력', 'cpk', 'cp', 'cpu', 'cpl', 'spc', '히스토그램', '그래프'],
-                'summary' => 'IPQC/JMP/공정능력 관련 요청으로 이해했어요.',
+                'summary' => 'IPQC/JMP/공정능력 관련 요청으로 이해했어요. 아직 이쪽은 실데이터 답변보다 화면 이동 중심이에요.',
             ],
         ];
 
@@ -95,62 +351,31 @@ if (!function_exists('jtgpt_parse_message')) {
             }
             $scores[$key] = $score;
         }
-
         arsort($scores);
         $topKey = (string)key($scores);
         $topScore = (int)current($scores);
-        $matched = array_keys(array_filter($scores, static fn($v) => $v > 0));
-
-        if ($text === '') {
-            return [
-                'answer' => '질문이 비어 있어요. 출하, RMA, OQC, IPQC 중 원하는 걸 자연스럽게 말해보세요.',
-                'actions' => [],
-                'suggestions' => ['오늘 출하 lot 보여줘', '최근 OQC NG 쪽 먼저 보자', '공정능력 그래프 쪽 보고 싶어'],
-            ];
-        }
-
-        if (count($matched) > 1 && $topScore > 0) {
-            $titles = [];
-            foreach ($matched as $m) {
-                $titles[] = $modules[$m]['title'];
-            }
-            $actions = [];
-            foreach ($matched as $m) {
-                $actions[] = ['label' => $modules[$m]['title'] . ' 열기', 'href' => $modules[$m]['href']];
-            }
-            $answer = '여러 메뉴가 함께 감지됐어요: ' . implode(', ', $titles) . '. 우선 어느 화면으로 갈지 하나 골라주세요.';
-            if ($timeHint !== null) {
-                $answer .= ' 날짜 표현 ' . $timeHint . ' 도 감지했어요.';
-            }
-            return [
-                'answer' => $answer,
-                'actions' => $actions,
-                'suggestions' => ['오늘 출하만 보여줘', 'OQC NG만 보자', 'IPQC 공정능력 화면 열어줘'],
-            ];
-        }
 
         if ($topScore > 0 && isset($modules[$topKey])) {
             $meta = $modules[$topKey];
-            $answer = $meta['summary'] . ' 1차 버전이라 아직은 해당 메뉴로 이동 중심으로 연결돼 있어요.';
+            $answer = $meta['summary'];
             if ($timeHint !== null) {
                 $answer .= ' 날짜 키워드 ' . $timeHint . ' 도 감지했어요.';
-            }
-            if (jtgpt_contains_any($normalized, ['열어', '이동', '가자', '띄워', '보여줘', '조회'])) {
-                $answer .= ' 아래 버튼으로 바로 이동하면 돼요.';
             }
             return [
                 'answer' => $answer,
                 'actions' => [
                     ['label' => $meta['title'] . ' 열기', 'href' => $meta['href']],
                 ],
-                'suggestions' => ['오늘 lot 쪽 보자', '최근 NG 있는 측정값 보고 싶어', '공정능력 그래프 열어줘'],
+                'suggestions' => ['오늘 출하수량 알려줘', '어제 출하 lot 몇개야', '이번 주 MEM-IR-BASE 출하수량'],
             ];
         }
 
         return [
-            'answer' => '아직 1차 버전이라 출하/RMA/OQC/IPQC 중심으로 이해하고 있어요. 아래 예시처럼 말해보면 더 잘 맞아요.',
-            'actions' => [],
-            'suggestions' => ['오늘 출하 lot 보여줘', 'RMA 쪽 먼저 보자', '최근 OQC NG 데이터', 'IPQC 공정능력 화면 열어줘'],
+            'answer' => '지금은 출하 수량/lot 수는 실제 DB에서 답하고 있어요. 예를 들어 오늘 출하수량 알려줘, 어제 출하 lot 몇개야, 이번 주 MEM-IR-BASE 출하수량처럼 물어보면 돼요.',
+            'actions' => [
+                ['label' => 'QA 출하내역 열기', 'href' => dp_url('shipinglist')],
+            ],
+            'suggestions' => ['오늘 출하수량 알려줘', '어제 출하 lot 몇개야', '이번 주 MEM-IR-BASE 출하수량'],
         ];
     }
 }
@@ -498,12 +723,12 @@ $selfUrl = $EMBED ? 'jtgpt_view.php?embed=1' : dp_url('jtgpt_view.php');
     <div class="jtgpt-inner">
         <div class="jtgpt-top">
             <div class="jtgpt-badge">✦ JTGPT <span style="opacity:.7">BETA</span></div>
-            <div class="jtgpt-status">자연어 메뉴 라우팅 1차 버전</div>
+            <div class="jtgpt-status">출하 수량/lot 실데이터 응답 2차</div>
         </div>
         <div class="jtgpt-main">
             <div class="jtgpt-hero">
                 <h1>어디서부터 시작할까요?</h1>
-                <p>출하, RMA, OQC, IPQC를 자연스럽게 말하면 먼저 맞는 화면으로 연결해볼게요.</p>
+                <p>이제 출하 수량과 lot 수는 실제 DB에서 답해요. 예: 오늘 출하수량 알려줘</p>
             </div>
             <div class="jtgpt-thread" id="jtgptThread"></div>
             <div class="composer-wrap">
@@ -512,16 +737,16 @@ $selfUrl = $EMBED ? 'jtgpt_view.php?embed=1' : dp_url('jtgpt_view.php');
                     <div class="composer-bottom">
                         <div class="composer-tools">
                             <span class="composer-pill">＋</span>
-                            <span class="composer-pill">생각 확장</span>
-                            <span class="composer-pill">JTGPT 1차</span>
+                            <span class="composer-pill">실데이터</span>
+                            <span class="composer-pill">출하 수량</span>
                         </div>
                         <button class="send-btn" id="jtgptSend" type="submit" aria-label="보내기">↑</button>
                     </div>
                 </form>
                 <div class="quick-row">
-                    <button class="quick-btn" type="button" data-quick="오늘 출하 lot 보여줘">오늘 출하 lot 보여줘</button>
-                    <button class="quick-btn" type="button" data-quick="최근 OQC NG 쪽 먼저 보자">최근 OQC NG 쪽 먼저 보자</button>
-                    <button class="quick-btn" type="button" data-quick="IPQC 공정능력 화면 열어줘">IPQC 공정능력 화면 열어줘</button>
+                    <button class="quick-btn" type="button" data-quick="오늘 출하수량 알려줘">오늘 출하수량 알려줘</button>
+                    <button class="quick-btn" type="button" data-quick="어제 출하 lot 몇개야">어제 출하 lot 몇개야</button>
+                    <button class="quick-btn" type="button" data-quick="이번 주 MEM-IR-BASE 출하수량">이번 주 MEM-IR-BASE 출하수량</button>
                 </div>
             </div>
         </div>
@@ -620,7 +845,7 @@ $selfUrl = $EMBED ? 'jtgpt_view.php?embed=1' : dp_url('jtgpt_view.php');
             appendMessage('assistant', data.answer || '응답을 만들지 못했어요.', data.actions || [], data.suggestions || []);
         } catch (err) {
             removeTyping();
-            appendMessage('assistant', '지금은 응답 연결 중 문제가 있어요. 잠시 후 다시 시도해 주세요.', [], ['오늘 출하 lot 보여줘', 'OQC 쪽 보자']);
+            appendMessage('assistant', '지금은 응답 연결 중 문제가 있어요. 잠시 후 다시 시도해 주세요.', [], ['오늘 출하수량 알려줘', '어제 출하 lot 몇개야']);
         } finally {
             send.disabled = false;
             input.focus();
