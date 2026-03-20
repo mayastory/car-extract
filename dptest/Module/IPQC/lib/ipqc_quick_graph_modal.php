@@ -133,7 +133,7 @@ if (!function_exists('h')) {
   #qgOverlay .qg-actions{ display:flex; align-items:center; gap:8px; }
   #qgOverlay .qg-close{ padding:6px 10px; border-radius:10px; border:1px solid rgba(255,255,255,0.14); background:rgba(0,0,0,0.25); color:#fff; cursor:pointer; }
   /* Give more room to the plot area: shrink right legend dock a bit (JMP-like tighter layout) */
-  #qgOverlay .qg-body{ display:grid; grid-template-columns: 260px 1fr 228px; flex:1 1 auto; min-height:0; position:relative; }
+  #qgOverlay .qg-body{ display:grid; grid-template-columns: 260px 1fr 200px; flex:1 1 auto; min-height:0;   position:relative; }
 
 
   /* Guard: keep outer UI dark-mode (do NOT let plot/legend colors paint the whole modal) */
@@ -175,11 +175,44 @@ if (!function_exists('h')) {
   #qgOverlay .qg-main,
   #qgOverlay .qg-legend{ position:relative; z-index:1; }
   /* Reduce inner padding so the plot starts closer to the left and gains width */
-  #qgOverlay .qg-main{ padding:4px; overflow:auto; position:relative; }
+  #qgOverlay .qg-main{ padding:2px 0 2px 2px; overflow-y:auto; overflow-x:hidden; position:relative; }
+  /* JMP-like right-edge Group Y tab */
+  #qgOverlay #qgGroupYBox{
+    position:absolute;
+    right:0;
+    top:86px;
+    bottom:auto;
+    transform:none;
+    width:28px;
+    height:144px;
+    border:1px solid #a7a39a;
+    background:#e6e1d3;
+    color:#55524a;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-shadow:none;
+    pointer-events:none;
+    z-index:3;
+    box-sizing:border-box;
+  }
+  #qgOverlay #qgGroupYBox .qg-group-y-text{
+    display:block;
+    writing-mode:vertical-rl;
+    text-orientation:mixed;
+    transform:none;
+    transform-origin:center center;
+    white-space:nowrap;
+    font-size:11px;
+    font-weight:700;
+    letter-spacing:0;
+    line-height:1;
+    user-select:none;
+  }
 
 
   /* Legend dock (outside plot) */
-  #qgOverlay .qg-legend{ padding:6px 6px 6px 0; border-left:1px solid rgba(255,255,255,0.08); overflow-y:auto; overflow-x:hidden; display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start; gap:10px; position:relative; box-sizing:border-box; }
+  #qgOverlay .qg-legend{ padding:6px 94px 6px 6px; border-left:1px solid rgba(255,255,255,0.08); overflow-y:auto; overflow-x:hidden; display:flex; align-items:center; justify-content:flex-start; position:relative; box-sizing:border-box; }
   #qgOverlay .qg-legend-card{
     width:100%;
     max-width:190px;
@@ -196,29 +229,29 @@ if (!function_exists('h')) {
   #qgOverlay .qg-dropdock{
     overflow:hidden;
     box-sizing:border-box;
-    width:128px;
+    width:82px;
     display:flex;
     flex-direction:column;
-    gap:4px;              /* slight separation between boxes */
-    padding:4px;
-    border:1px solid #b9b9b9;
-    background:#fff;
-    box-shadow:0 1px 0 rgba(0,0,0,0.15);
+    gap:2px;
+    padding:2px;
+    border:1px solid #a7a39a;
+    background:#d9d3c4;
+    box-shadow:none;
   }
   #qgOverlay .qg-dropdock-item{
     box-sizing:border-box;
     width:100%;
-    height:34px;
-    border:1px solid #b9b9b9;
-    background:#ffffff;
-    color:#222;
+    height:30px;
+    border:1px solid #a7a39a;
+    background:#ece7da;
+    color:#4f4b43;
     font-weight:700;
-    font-size:12px;
+    font-size:11px;
     line-height:1;
     display:flex;
     align-items:center;
     justify-content:center;
-    padding:0 8px;
+    padding:0 6px;
     user-select:none;
     cursor:default;
     white-space:nowrap;
@@ -236,8 +269,8 @@ if (!function_exists('h')) {
   #qgOverlay .qg-dropdock-item.hover::before{
     content:"";
     position:absolute;
-    inset:2px;
-    border-radius:6px;
+    inset:1px;
+    border-radius:4px;
     background:rgba(120,170,255,0.18);
     border:2px solid rgba(70,120,255,0.95);
     pointer-events:none;
@@ -247,9 +280,9 @@ if (!function_exists('h')) {
   #qgOverlay .qg-dropdock-var{
     position:static;
     margin-left:4px;
-    font-size:12px;
+    font-size:11px;
     font-weight:700;
-    color:#333;
+    color:#5b5851;
     font-style:italic;
     pointer-events:none;
     max-width:100%;
@@ -280,14 +313,15 @@ if (!function_exists('h')) {
   /* Floating placement: mimic JMP right-side drop zones without pushing the legend */
   #qgOverlay .qg-dropdock-float{
     position:absolute;
-    left:34px;
+    left:auto;
+    right:6px;
     top:120px;
     z-index:60;
     margin:0;
     pointer-events:auto;
   }
 
-  #qgOverlay .qg-legend-card{ align-self:flex-start; margin-top:118px; margin-left:34px; }
+  #qgOverlay .qg-legend-card{ align-self:center; width:100%; max-width:none; }
   /* Legend list is dynamic (built by JS) */
   #qgOverlay .qg-legend-item{ display:flex; align-items:center; gap:6px; margin:2px 0; font-size:11px; opacity:0.92; color:#000;  min-width:0; }
   #qgOverlay .qg-legend-item .qg-lg-label{
@@ -506,8 +540,8 @@ if (!function_exists('h')) {
   #qgOverlay .qg-tophead{
     position:sticky; top:0; z-index:6;
     display:grid;
-    grid-template-columns: 34px 1fr;
-    gap:6px;
+    grid-template-columns: 28px 1fr;
+    gap:4px;
     background:transparent;
     border:none;
     margin-bottom:0;
@@ -598,7 +632,7 @@ if (!function_exists('h')) {
   #qgOverlay .qg-fai-one{ width:100%; }
 /* Grid */
   /* Remove inter-group gaps so the header/FAI panels look like one continuous page (JMP-like) */
-  #qgOverlay #qgGrid{ display:grid; gap:0; }
+  #qgOverlay #qgGrid{ display:grid; gap:0; padding-right:26px; box-sizing:border-box; }
   .qg-card{ border:1px solid rgba(255,255,255,0.10); border-radius:12px; background:rgba(0,0,0,0.18); overflow:hidden; }
   .qg-card .hd{ padding:8px 10px;
     overflow:hidden; border-bottom:1px solid rgba(255,255,255,0.08); font-size:12px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
@@ -627,7 +661,7 @@ if (!function_exists('h')) {
 
   /* FAI rows (override) */
   /* Slightly tighter gap between label and plot to gain width */
-  #qgOverlay .qg-fai-row{ display:grid; grid-template-columns: 28px 1fr; gap:0; margin-bottom:0; align-items:stretch; min-height:0; overflow:hidden; background:#ffffff; }
+  #qgOverlay .qg-fai-row{ display:grid; grid-template-columns: 24px 1fr; gap:2px; margin-bottom:0; align-items:stretch; min-height:0; overflow:hidden; background:#ffffff; }
   #qgOverlay .qg-fai-one{ min-height:0; overflow:hidden; line-height:0; background:#ffffff; }
   #qgOverlay .qg-row-label{ display:flex; align-items:center; justify-content:center; align-self:start; border:1px solid rgba(255,255,255,0.08); border-radius:0; background:rgba(0,0,0,0.18); min-height:0; overflow:hidden; }
   #qgOverlay .qg-row-label .vtxt{ writing-mode: vertical-rl; transform: rotate(180deg); font-weight:900; font-size:12px; letter-spacing:0.2px; opacity:0.92; padding:0; }
@@ -1085,6 +1119,7 @@ if (!function_exists('h')) {
       <div class="qg-main">
         <div id="qgMsg"></div>
         <div id="qgGrid"></div>
+        <div id="qgGroupYBox" aria-hidden="true"><div class="qg-group-y-text">그룹 Y</div></div>
       </div>
 
       <div class="qg-legend" aria-label="범례">

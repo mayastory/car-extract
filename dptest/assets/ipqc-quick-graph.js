@@ -838,7 +838,7 @@ function qgEnsureCaptionState(colKey){
       const ov = document.getElementById('qgOverlay');
       if (!ov) return;
       const w = (W && isFinite(W)) ? Number(W) : 1200;
-      const l = (padL && isFinite(padL)) ? Number(padL) : 56;
+      const l = (padL && isFinite(padL)) ? Number(padL) : 36;
       const r = (padR && isFinite(padR)) ? Number(padR) : 18;
       ov.style.setProperty('--qg-padL-pct', (l / w * 100).toFixed(3) + '%');
       ov.style.setProperty('--qg-padR-pct', (r / w * 100).toFixed(3) + '%');
@@ -4590,7 +4590,7 @@ function qgPanelRectsFromSvg(svg){
 
   const r0 = svg.getBoundingClientRect();
   const W = 1200; // fixed viewBox width (drawMatrixSvg)
-  const padL = 62, padR = 14; // restored from Mar 17/18 history; must match drawMatrixSvg()
+  const padL = 36, padR = 2; // must match drawMatrixSvg()
   const innerW = W - padL - padR;
   const panelW = innerW / nP;
 
@@ -6232,106 +6232,82 @@ function renderFacetList(rootId, items, selSet){
   }
 
 
-  function qgEnsureGroupYTab(){
-    const legend = qs('.qg-legend');
-    if (!legend) return null;
-    let tab = qs('#qgGroupYTab', legend);
-    if (!tab){
-      tab = document.createElement('div');
-      tab.id = 'qgGroupYTab';
-      tab.setAttribute('aria-hidden', 'true');
-      tab.style.position = 'absolute';
-      tab.style.display = 'none';
-      tab.style.boxSizing = 'border-box';
-      tab.style.alignItems = 'center';
-      tab.style.justifyContent = 'center';
-      tab.style.overflow = 'hidden';
-      tab.style.pointerEvents = 'none';
-      tab.style.zIndex = '55';
-      const txt = document.createElement('div');
-      txt.className = 'qg-groupy-text';
-      txt.textContent = '그룹 Y';
-      tab.appendChild(txt);
-      legend.appendChild(tab);
-    }
-    if (!QG._groupYSyncBound){
-      QG._groupYSyncBound = true;
-      const sync = ()=>{ try{ qgSyncGroupYTab(); }catch(e){} };
-      window.addEventListener('resize', sync, true);
-      document.addEventListener('scroll', sync, true);
-    }
-    const main = qs('.qg-main');
-    if (main && !main._qgGroupYScrollBound){
-      main._qgGroupYScrollBound = true;
-      main.addEventListener('scroll', ()=>{ try{ qgSyncGroupYTab(); }catch(e){} }, { passive:true });
-    }
-    return tab;
+  function qgSyncRightSideChrome(){
+    try{ qgSyncGroupYBox(); }catch(e){}
+    try{ qgSyncRightDock(); }catch(e){}
   }
 
-  function qgSyncGroupYTab(){
-    const legend = qs('.qg-legend');
-    const tab = qgEnsureGroupYTab();
-    if (!legend || !tab) return;
+  function qgSyncGroupYBox(){
+    try{
+      const box = qs('#qgGroupYBox');
+      const main = qs('#qgOverlay .qg-main');
+      const grid = qs('#qgGrid');
+      if (!box || !main || !grid) return;
+      const rows = qsa('.qg-fai-row', grid).filter(Boolean);
+      if (!rows.length){
+        box.style.display = 'none';
+        return;
+      }
+      const firstPlot = qs('.qg-row-label', rows[0]) || qs('.qg-fai-one', rows[0]) || rows[0];
+      const lastPlot = qs('.qg-row-label', rows[rows.length - 1]) || qs('.qg-fai-one', rows[rows.length - 1]) || rows[rows.length - 1];
+      const mainRect = main.getBoundingClientRect();
+      const topRect = firstPlot.getBoundingClientRect();
+      const botRect = lastPlot.getBoundingClientRect();
+      const insetTop = 2;
+      const insetBottom = 2;
+      let top = Math.round(topRect.top - mainRect.top + insetTop);
+      let height = Math.round((botRect.bottom - insetBottom) - (topRect.top + insetTop));
+      if (!isFinite(top)) top = 0;
+      if (!isFinite(height) || height < 48) height = 48;
+      box.style.display = 'flex';
+      box.style.right = '0px';
+      box.style.top = Math.max(0, top) + 'px';
+      box.style.bottom = 'auto';
+      box.style.height = height + 'px';
+      box.style.width = '28px';
+      box.style.pointerEvents = 'none';
+      const txt = qs('.qg-group-y-text', box);
+      if (txt){
+        txt.style.writingMode = 'vertical-rl';
+        txt.style.textOrientation = 'mixed';
+        txt.style.transform = 'none';
+        txt.style.transformOrigin = 'center center';
+      }
+      if (!QG._groupYResizeBound){
+        QG._groupYResizeBound = true;
+        const sync = ()=>{ try{ qgSyncRightSideChrome(); }catch(e){} };
+        window.addEventListener('resize', sync, { passive:true });
+        main.addEventListener('scroll', sync, { passive:true });
+      }
+    }catch(e){}
+  }
 
-    const labels = qsa('#qgGrid .qg-row-label');
-    const usable = [];
-    for (const lbl of labels){
-      try{
-        const r = lbl.getBoundingClientRect();
-        if (r && r.width > 2 && r.height > 2) usable.push({ el: lbl, rect: r });
-      }catch(e){}
-    }
-    if (!usable.length){
-      tab.style.display = 'none';
-      return;
-    }
-
-    usable.sort((a,b)=> a.rect.top - b.rect.top);
-    const first = usable[0].rect;
-    const last = usable[usable.length - 1].rect;
-    const srcLabel = usable[0].el;
-    const srcText = srcLabel && srcLabel.querySelector ? srcLabel.querySelector('.vtxt') : null;
-    const legendRect = legend.getBoundingClientRect();
-    const labelRect = srcLabel.getBoundingClientRect();
-    const card = qs('.qg-legend-card', legend);
-    const cardRect = card ? card.getBoundingClientRect() : null;
-
-    let top = first.top - legendRect.top;
-    let height = last.bottom - first.top;
-    const width = 28;
-    if (!isFinite(top) || !isFinite(height) || height <= 0){
-      tab.style.display = 'none';
-      return;
-    }
-
-    const left = 0;
-    const ts = srcText ? getComputedStyle(srcText) : null;
-
-    tab.style.display = 'flex';
-    tab.style.top = Math.round(top) + 'px';
-    tab.style.left = Math.round(left) + 'px';
-    tab.style.width = String(width) + 'px';
-    tab.style.height = Math.round(height) + 'px';
-    tab.style.background = '#bfbfbf';
-    tab.style.border = '1px solid #9d9d9d';
-    tab.style.borderRadius = '0';
-    tab.style.boxShadow = 'none';
-
-    const txt = qs('.qg-groupy-text', tab);
-    if (txt){
-      txt.style.writingMode = 'vertical-rl';
-      txt.style.transform = 'none';
-      txt.style.textOrientation = 'mixed';
-      txt.style.fontWeight = (ts && ts.fontWeight) ? ts.fontWeight : '800';
-      txt.style.fontSize = (ts && ts.fontSize) ? ts.fontSize : '12px';
-      txt.style.letterSpacing = (ts && ts.letterSpacing) ? ts.letterSpacing : '0.2px';
-      txt.style.opacity = '1';
-      txt.style.padding = '0';
-      txt.style.color = '#2f2f2f';
-      txt.style.whiteSpace = 'nowrap';
-      txt.style.lineHeight = '1';
-      txt.style.userSelect = 'none';
-    }
+  function qgSyncRightDock(){
+    try{
+      const dock = qs('#qgOverlay .qg-dropdock-float');
+      const legend = qs('#qgOverlay .qg-legend');
+      const grid = qs('#qgGrid');
+      if (!dock || !legend || !grid) return;
+      const rows = qsa('.qg-fai-row', grid).filter(Boolean);
+      if (!rows.length){
+        dock.style.display = 'none';
+        return;
+      }
+      const firstPlot = qs('.qg-row-label', rows[0]) || qs('.qg-fai-one', rows[0]) || rows[0];
+      const legendRect = legend.getBoundingClientRect();
+      const topRect = firstPlot.getBoundingClientRect();
+      const dockRect = dock.getBoundingClientRect();
+      const dockH = Math.round(dockRect.height || dock.offsetHeight || 0);
+      let top = Math.round(topRect.top - legendRect.top + 2);
+      const minTop = 6;
+      const maxTop = Math.max(minTop, Math.round(legendRect.height - dockH - 6));
+      if (!isFinite(top)) top = minTop;
+      top = Math.max(minTop, Math.min(maxTop, top));
+      dock.style.display = 'flex';
+      dock.style.left = 'auto';
+      dock.style.right = '6px';
+      dock.style.top = top + 'px';
+    }catch(e){}
   }
 
   function renderLegend(){
@@ -6341,7 +6317,7 @@ function renderFacetList(rootId, items, selSet){
 
     const meta = selectedSeriesMeta();
     if (!meta.length){
-      try{ qgSyncGroupYTab(); }catch(e){}
+      try{ qgSyncRightSideChrome(); }catch(e){}
       return;
     }
 
@@ -6672,15 +6648,15 @@ function renderFacetList(rootId, items, selSet){
         root.appendChild(row);
       }
     }
-  try{ qgSyncGroupYTab(); }catch(e){}
+  try{ qgSyncRightSideChrome(); }catch(e){}
 }
 
 
 function qgBuildTopHeaderSvg(toolsRow, cavs){
   const ns = 'http://www.w3.org/2000/svg';
   const W = 1200;
-  const padL = 62;
-  const padR = 14;
+  const padL = 36;
+  const padR = 2;
   const innerW = W - padL - padR;
   const nT = Math.max(1, Array.isArray(toolsRow) ? toolsRow.length : 0);
   const nC = Math.max(1, Array.isArray(cavs) ? cavs.length : 0);
@@ -6838,7 +6814,7 @@ function renderGrid(){
 
   // Decide how many Tool columns can fit in one row (then wrap)
   const gridW = (grid && grid.clientWidth) ? grid.clientWidth : (main ? main.clientWidth : 1200);
-  const plotW = Math.max(520, gridW - 44); // subtract label/gap roughly
+  const plotW = Math.max(520, gridW - 34); // tighter left gutter like JMP
   const minToolW = Math.max(220, (selCavs2.length * 70) + 40); // tuned to resemble JMP packing
   let toolsPerRow = Math.max(1, Math.floor(plotW / minToolW));
   // Prevent unnecessary wrapping for small Tool counts (JMP-like)
@@ -7022,7 +6998,7 @@ function renderGrid(){
     }
   }
 
-  try{ qgSyncGroupYTab(); }catch(e){}
+  try{ qgSyncRightSideChrome(); }catch(e){}
 
   if (!anyAdded){
     const e = document.createElement('div');
@@ -7055,8 +7031,8 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
   const rowCount = Math.max(1, Number(opt && opt.rowCount) || 1);
   // Keep a stable plot box so all FAI rows and the shared cavity header line up exactly.
   // USL/LSL labels must stay inside the last cavity panel without shrinking the usable plot width.
-  const padL = 62;
-  const padR = 14;
+  const padL = 36;
+  const padR = 2;
   const padT = 0, padB = (opt && opt.showXLabels===false) ? 0 : 56;
   const innerW = W - padL - padR;
   const innerH = H - padT - padB;
@@ -7312,7 +7288,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
 
     const tx = document.createElementNS(ns,'text');
     const yLbl = Math.max(padT + yTickFontPx * 0.85, Math.min(padT + innerH - yTickFontPx * 0.35, y));
-    tx.setAttribute('x', String(yAxisX - 8));
+    tx.setAttribute('x', String(yAxisX - 4));
     tx.setAttribute('y', String(yLbl));
     tx.setAttribute('font-size', String(yTickFontPx));
     tx.setAttribute('fill','rgba(0,0,0,0.70)');
@@ -8185,7 +8161,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
 
     const W = 1200, H = (opt && opt.h ? opt.h : 320);
     // Keep x-axis labels tight to the plot (JMP-like), while still preventing clipping.
-    const padL = 62, padR = 14, padT = 14, padB = (opt && opt.showXLabels===false) ? 26 : 70;
+    const padL = 36, padR = 14, padT = 14, padB = (opt && opt.showXLabels===false) ? 26 : 70;
     const innerW = W - padL - padR;
     const innerH = H - padT - padB;
 
@@ -8381,7 +8357,7 @@ const clip = (el)=>{ try{ el.setAttribute('clip-path', clipUrl); }catch(e){} };
       svg.appendChild(tk);
 
       const tx = document.createElementNS(ns,'text');
-      tx.setAttribute('x', String(yAxisX - 8));
+      tx.setAttribute('x', String(yAxisX - 4));
       tx.setAttribute('y', String(y + 4));
       tx.setAttribute('font-size','11');
       tx.setAttribute('fill','rgba(0,0,0,0.70)');
