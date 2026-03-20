@@ -179,10 +179,10 @@ if (!function_exists('h')) {
 
 
   /* Legend dock (outside plot) */
-  #qgOverlay .qg-legend{ padding:6px 6px 6px 0; border-left:1px solid rgba(255,255,255,0.08); overflow-y:auto; overflow-x:hidden; display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start; position:relative; }
+  #qgOverlay .qg-legend{ padding:6px 6px 6px 0; border-left:1px solid rgba(255,255,255,0.08); overflow-y:auto; overflow-x:hidden; display:flex; align-items:center; justify-content:center; position:relative; }
   #qgOverlay .qg-legend-card{
-    width:100%;
-    max-width:190px;
+    width:calc(100% - 34px);
+    max-width:calc(100% - 34px);
     border-radius:12px;
     /* JMP-like legend card (fixed light gray like JMP) */
     border:1px solid #cfcfcf;
@@ -280,14 +280,14 @@ if (!function_exists('h')) {
   /* Floating placement: mimic JMP right-side drop zones without pushing the legend */
   #qgOverlay .qg-dropdock-float{
     position:absolute;
-    left:34px;
-    top:0;
+    left:0;
+    top:120px;
     z-index:60;
     margin:0;
     pointer-events:auto;
   }
 
-  #qgOverlay .qg-legend-card{ align-self:flex-start; }
+  #qgOverlay .qg-legend-card{ align-self:flex-start; margin-top: 118px; margin-left: 34px; }
   /* Legend list is dynamic (built by JS) */
   #qgOverlay .qg-legend-item{ display:flex; align-items:center; gap:6px; margin:2px 0; font-size:11px; opacity:0.92; color:#000;  min-width:0; }
   #qgOverlay .qg-legend-item .qg-lg-label{
@@ -627,7 +627,7 @@ if (!function_exists('h')) {
 
   /* FAI rows (override) */
   /* Slightly tighter gap between label and plot to gain width */
-  #qgOverlay .qg-fai-row{ display:grid; grid-template-columns: 34px 1fr; gap:6px; margin-bottom:0; align-items:stretch; min-height:0; overflow:hidden; background:#ffffff; }
+  #qgOverlay .qg-fai-row{ display:grid; grid-template-columns: 28px 1fr; gap:0; margin-bottom:0; align-items:stretch; min-height:0; overflow:hidden; background:#ffffff; }
   #qgOverlay .qg-fai-one{ min-height:0; overflow:hidden; line-height:0; background:#ffffff; }
   #qgOverlay .qg-row-label{ display:flex; align-items:center; justify-content:center; align-self:start; border:1px solid rgba(255,255,255,0.08); border-radius:0; background:rgba(0,0,0,0.18); min-height:0; overflow:hidden; }
   #qgOverlay .qg-row-label .vtxt{ writing-mode: vertical-rl; transform: rotate(180deg); font-weight:900; font-size:12px; letter-spacing:0.2px; opacity:0.92; padding:0; }

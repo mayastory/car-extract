@@ -4590,7 +4590,7 @@ function qgPanelRectsFromSvg(svg){
 
   const r0 = svg.getBoundingClientRect();
   const W = 1200; // fixed viewBox width (drawMatrixSvg)
-  const padL = 72, padR = 14; // must match drawMatrixSvg()
+  const padL = 56, padR = 14; // must match drawMatrixSvg()
   const innerW = W - padL - padR;
   const panelW = innerW / nP;
 
@@ -6299,71 +6299,38 @@ function renderFacetList(rootId, items, selSet){
     let top = first.top - legendRect.top;
     let height = last.bottom - first.top;
     const width = 28;
-    if (!isFinite(top) || !isFinite(height) || !isFinite(width) || height <= 0){
+    if (!isFinite(top) || !isFinite(height) || height <= 0){
       tab.style.display = 'none';
       return;
     }
 
+    const left = 0;
     const ts = srcText ? getComputedStyle(srcText) : null;
 
     tab.style.display = 'flex';
     tab.style.top = Math.round(top) + 'px';
-    tab.style.left = '0px';
-    tab.style.width = Math.round(width) + 'px';
+    tab.style.left = Math.round(left) + 'px';
+    tab.style.width = String(width) + 'px';
     tab.style.height = Math.round(height) + 'px';
-    tab.style.background = '#dcd8cc';
-    tab.style.border = '1px solid #bcb7aa';
+    tab.style.background = 'rgba(0,0,0,0.18)';
+    tab.style.border = '1px solid rgba(255,255,255,0.08)';
     tab.style.borderRadius = '0';
+    tab.style.boxShadow = 'none';
 
     const txt = qs('.qg-groupy-text', tab);
     if (txt){
       txt.style.writingMode = 'vertical-rl';
-      txt.style.transform = 'none';
+      txt.style.transform = 'rotate(180deg)';
       txt.style.textOrientation = 'mixed';
       txt.style.fontWeight = (ts && ts.fontWeight) ? ts.fontWeight : '900';
       txt.style.fontSize = (ts && ts.fontSize) ? ts.fontSize : '12px';
       txt.style.letterSpacing = (ts && ts.letterSpacing) ? ts.letterSpacing : '0.2px';
-      txt.style.opacity = '1';
+      txt.style.opacity = '0.92';
       txt.style.padding = '0';
-      txt.style.color = '#56524a';
+      txt.style.color = 'rgba(255,255,255,0.92)';
       txt.style.whiteSpace = 'nowrap';
       txt.style.lineHeight = '1';
       txt.style.userSelect = 'none';
-    }
-
-    try{ qgSyncLegendDockLayout(); }catch(e){}
-  }
-
-  function qgSyncLegendDockLayout(){
-    const legend = qs('.qg-legend');
-    if (!legend) return;
-    const dock = qs('.qg-dropdock-float', legend);
-    const card = qs('.qg-legend-card', legend);
-    const tab = qs('#qgGroupYTab', legend);
-    if (!dock && !card) return;
-
-    const legendRect = legend.getBoundingClientRect();
-    const head = qs('#qgGrid .qg-tophead-body');
-    const headRect = head ? head.getBoundingClientRect() : null;
-
-    const slotW = (tab && tab.style.display !== 'none') ? Math.max(28, Math.round(tab.getBoundingClientRect().width || 28)) : 0;
-    const gap = slotW ? 6 : 0;
-    const contentLeft = slotW + gap;
-    const top = (headRect && isFinite(headRect.top)) ? Math.max(0, Math.round(headRect.top - legendRect.top)) : 0;
-
-    if (dock){
-      dock.style.left = Math.round(contentLeft) + 'px';
-      dock.style.top = Math.round(top) + 'px';
-    }
-
-    if (card){
-      card.style.marginLeft = Math.round(contentLeft) + 'px';
-      card.style.alignSelf = 'flex-start';
-      card.style.width = 'calc(100% - ' + Math.round(contentLeft) + 'px)';
-      card.style.maxWidth = 'none';
-      card.style.boxSizing = 'border-box';
-      const dockH = dock ? Math.round(dock.getBoundingClientRect().height || 0) : 0;
-      card.style.marginTop = Math.max(0, top + dockH + 8) + 'px';
     }
   }
 
@@ -6712,8 +6679,8 @@ function renderFacetList(rootId, items, selSet){
 function qgBuildTopHeaderSvg(toolsRow, cavs){
   const ns = 'http://www.w3.org/2000/svg';
   const W = 1200;
-  const padL = 62;
-  const padR = 14;
+  const padL = 56;
+  const padR = 2;
   const innerW = W - padL - padR;
   const nT = Math.max(1, Array.isArray(toolsRow) ? toolsRow.length : 0);
   const nC = Math.max(1, Array.isArray(cavs) ? cavs.length : 0);
@@ -7088,8 +7055,8 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
   const rowCount = Math.max(1, Number(opt && opt.rowCount) || 1);
   // Keep a stable plot box so all FAI rows and the shared cavity header line up exactly.
   // USL/LSL labels must stay inside the last cavity panel without shrinking the usable plot width.
-  const padL = 62;
-  const padR = 14;
+  const padL = 56;
+  const padR = 2;
   const padT = 0, padB = (opt && opt.showXLabels===false) ? 0 : 56;
   const innerW = W - padL - padR;
   const innerH = H - padT - padB;
@@ -8218,7 +8185,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
 
     const W = 1200, H = (opt && opt.h ? opt.h : 320);
     // Keep x-axis labels tight to the plot (JMP-like), while still preventing clipping.
-    const padL = 72, padR = 14, padT = 14, padB = (opt && opt.showXLabels===false) ? 26 : 70;
+    const padL = 56, padR = 14, padT = 14, padB = (opt && opt.showXLabels===false) ? 26 : 70;
     const innerW = W - padL - padR;
     const innerH = H - padT - padB;
 
