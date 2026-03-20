@@ -133,7 +133,7 @@ if (!function_exists('h')) {
   #qgOverlay .qg-actions{ display:flex; align-items:center; gap:8px; }
   #qgOverlay .qg-close{ padding:6px 10px; border-radius:10px; border:1px solid rgba(255,255,255,0.14); background:rgba(0,0,0,0.25); color:#fff; cursor:pointer; }
   /* Give more room to the plot area: shrink right legend dock a bit (JMP-like tighter layout) */
-  #qgOverlay .qg-body{ display:grid; grid-template-columns: 260px 1fr 200px; flex:1 1 auto; min-height:0;   position:relative; }
+  #qgOverlay .qg-body{ display:grid; grid-template-columns: 260px 1fr 238px; flex:1 1 auto; min-height:0;   position:relative; }
 
 
   /* Guard: keep outer UI dark-mode (do NOT let plot/legend colors paint the whole modal) */
@@ -179,7 +179,7 @@ if (!function_exists('h')) {
 
 
   /* Legend dock (outside plot) */
-  #qgOverlay .qg-legend{ padding:6px 6px 6px 0; border-left:1px solid rgba(255,255,255,0.08); overflow-y:auto; overflow-x:hidden; display:flex; align-items:center; justify-content:center; position:relative; }
+  #qgOverlay .qg-legend{ --qg-groupy-slot:34px; padding:6px 8px 6px calc(var(--qg-groupy-slot) + 12px); border-left:1px solid rgba(255,255,255,0.08); overflow-y:auto; overflow-x:hidden; display:flex; align-items:flex-start; justify-content:flex-start; position:relative; box-sizing:border-box; }
   #qgOverlay .qg-legend-card{
     width:100%;
     max-width:190px;

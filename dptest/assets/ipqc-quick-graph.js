@@ -6293,22 +6293,20 @@ function renderFacetList(rootId, items, selSet){
     const srcText = srcLabel && srcLabel.querySelector ? srcLabel.querySelector('.vtxt') : null;
     const legendRect = legend.getBoundingClientRect();
     const labelRect = srcLabel.getBoundingClientRect();
-    const card = qs('.qg-legend-card', legend);
-    const cardRect = card ? card.getBoundingClientRect() : null;
+    const legendCs = getComputedStyle(legend);
+    const slotPx = parseFloat(String(legendCs.getPropertyValue('--qg-groupy-slot') || '').trim());
 
     let top = first.top - legendRect.top;
     let height = last.bottom - first.top;
     let width = Math.max(24, Math.round(labelRect.width || 34));
+    if (isFinite(slotPx) && slotPx > 0) width = Math.min(width, Math.round(slotPx));
     if (!isFinite(top) || !isFinite(height) || !isFinite(width) || height <= 0){
       tab.style.display = 'none';
       return;
     }
 
-    const gap = 6;
-    let left = 0;
-    if (cardRect && isFinite(cardRect.left)){
-      left = Math.max(0, Math.round(cardRect.left - legendRect.left - width - gap));
-    }
+    const leftInset = 6;
+    const left = Math.max(0, Math.round(leftInset));
 
     const cs = getComputedStyle(srcLabel);
     const ts = srcText ? getComputedStyle(srcText) : null;
@@ -6325,7 +6323,7 @@ function renderFacetList(rootId, items, selSet){
     const txt = qs('.qg-groupy-text', tab);
     if (txt){
       txt.style.writingMode = 'vertical-rl';
-      txt.style.transform = 'none';
+      txt.style.transform = 'rotate(180deg)';
       txt.style.textOrientation = 'mixed';
       txt.style.fontWeight = (ts && ts.fontWeight) ? ts.fontWeight : '900';
       txt.style.fontSize = (ts && ts.fontSize) ? ts.fontSize : '12px';
