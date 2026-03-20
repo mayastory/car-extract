@@ -1,733 +1,348 @@
 <?php
-declare(strict_types=1);
+if (session_status() === PHP_SESSION_NONE) { @session_start(); }
 
-if (session_status() !== PHP_SESSION_ACTIVE) {
-    @session_start();
-}
-
-if (!defined('JTMES_ROOT')) {
-    define('JTMES_ROOT', realpath(dirname(__DIR__, 3)) ?: dirname(__DIR__, 3));
-}
-
-date_default_timezone_set('Asia/Seoul');
-
-function jtgpt_json_response(array $payload): void {
+function jtgpt_h($v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
+function jtgpt_json(array $data): void {
     header('Content-Type: application/json; charset=UTF-8');
-    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
-
-function jtgpt_bootstrap_pdo(): ?PDO {
-    static $pdo = false;
-    if ($pdo !== false) {
-        return $pdo;
+function jtgpt_contains_any(string $text, array $needles): bool {
+    foreach ($needles as $n) {
+        if ($n !== '' && mb_strpos($text, $n, 0, 'UTF-8') !== false) return true;
     }
-
-    $candidates = [
-        JTMES_ROOT . '/config/dp_config.php',
-        JTMES_ROOT . '/config/db.php',
-        JTMES_ROOT . '/config/bootstrap.php',
-    ];
-    foreach ($candidates as $file) {
-        if (is_file($file)) {
-            require_once $file;
-        }
+    return false;
+}
+function jtgpt_find_pdo(): ?PDO {
+    static $booted = false;
+    foreach (['pdo'] as $g) {
+        if (isset($GLOBALS[$g]) && $GLOBALS[$g] instanceof PDO) return $GLOBALS[$g];
     }
-
-    try {
-        if (function_exists('dp_get_pdo')) {
-            $pdo = dp_get_pdo();
-            return $pdo;
-        }
-        if (isset($GLOBALS['pdo']) && $GLOBALS['pdo'] instanceof PDO) {
-            $pdo = $GLOBALS['pdo'];
-            return $pdo;
-        }
-    } catch (Throwable $e) {
-        return null;
-    }
-
-    return null;
-}
-
-function jtgpt_ctx_get(): array {
-    return is_array($_SESSION['jtgpt_ctx'] ?? null) ? $_SESSION['jtgpt_ctx'] : [];
-}
-
-function jtgpt_ctx_set(array $ctx): void {
-    $_SESSION['jtgpt_ctx'] = $ctx;
-}
-
-function jtgpt_trim_spaces(string $text): string {
-    return trim(preg_replace('/\s+/u', ' ', $text) ?? '');
-}
-
-function jtgpt_lower(string $text): string {
-    return function_exists('mb_strtolower') ? jtgpt_lower($text) : strtolower($text);
-}
-
-function jtgpt_strlen(string $text): int {
-    return function_exists('mb_strlen') ? mb_strlen($text, 'UTF-8') : strlen($text);
-}
-
-
-function jtgpt_generic_tokens(): array {
-    return [
-        '오늘','금일','어제','최근','최근7일','최근 7일','이번주','일주일','누적','오늘까지','금일까지','현재까지',
-        '출하','출고','출하내역','출고내역','수량','출하수량','출고수량','lot','tray','ea','로트','트레이',
-        '제일','최근','마지막','최신','언제','있어','있나','있어?','있나?','해','했어','했어?','여부'
-    ];
-}
-
-function jtgpt_extract_customer_keyword(string $text): ?string {
-    $patterns = [
-        '/([가-힣A-Za-z0-9()\-]{2,30})\s*(?:의\s*)?(?:제일\s*)?(?:최근|마지막|최신)\s*출하일/u',
-        '/([가-힣A-Za-z0-9()\-]{2,30})\s*(?:의\s*)?(?:오늘까지|금일까지|누적)\s*출하(?:수량|량)?/u',
-        '/([가-힣A-Za-z0-9()\-]{2,30})\s*(?:의\s*)?(?:오늘|금일|어제)\s*출하(?:수량|량|lot|tray)?/u',
-        '/([가-힣A-Za-z0-9()\-]{2,30})\s*(?:의\s*)?출하(?:수량|량|lot|tray|일|내역)?/u',
-    ];
-    $ban = jtgpt_generic_tokens();
-    foreach ($patterns as $pattern) {
-        if (preg_match($pattern, $text, $m)) {
-            $candidate = jtgpt_trim_spaces((string)($m[1] ?? ''));
-            if ($candidate === '' || in_array(jtgpt_lower($candidate), $ban, true) || in_array($candidate, $ban, true)) {
-                continue;
+    foreach (['dp_get_pdo', 'get_pdo'] as $fn) {
+        if (function_exists($fn)) {
+            try {
+                $pdo = $fn();
+                if ($pdo instanceof PDO) return $pdo;
+            } catch (Throwable $e) {
             }
-            return $candidate;
+        }
+    }
+    if (!$booted) {
+        $booted = true;
+        $root = dirname(__DIR__, 3);
+        $candidates = [
+            $root . '/config/config.php',
+            $root . '/config/db.php',
+            $root . '/bootstrap.php',
+            $root . '/init.php',
+        ];
+        foreach ($candidates as $f) {
+            if (is_file($f)) { @include_once $f; }
+        }
+        foreach (['pdo'] as $g) {
+            if (isset($GLOBALS[$g]) && $GLOBALS[$g] instanceof PDO) return $GLOBALS[$g];
+        }
+        foreach (['dp_get_pdo', 'get_pdo'] as $fn) {
+            if (function_exists($fn)) {
+                try {
+                    $pdo = $fn();
+                    if ($pdo instanceof PDO) return $pdo;
+                } catch (Throwable $e) {
+                }
+            }
         }
     }
     return null;
 }
-
-function jtgpt_extract_short_customer_slot(string $text): ?string {
-    $candidate = jtgpt_trim_spaces($text);
-    if ($candidate === '' || jtgpt_strlen($candidate) > 30) {
-        return null;
-    }
-    if (!preg_match('/^[가-힣A-Za-z0-9()\- ]{2,30}$/u', $candidate)) {
-        return null;
-    }
-    $ban = jtgpt_generic_tokens();
-    if (in_array($candidate, $ban, true) || in_array(jtgpt_lower($candidate), $ban, true)) {
-        return null;
-    }
-    if (preg_match('/^(수량|lot|tray|출하|출하내역|출고|출고내역|최근 출하일|제일 최근 출하일)$/u', $candidate)) {
-        return null;
-    }
-    return $candidate;
+function jtgpt_fmt(int $n): string { return number_format($n); }
+function jtgpt_alias_customer(?string $v): ?string {
+    if ($v === null || $v === '') return null;
+    $map = [
+        'lg' => '엘지이노텍',
+        'lg이노텍' => '엘지이노텍',
+        '엘지' => '엘지이노텍',
+        '엘지이노텍' => '엘지이노텍',
+        '자화전자' => '자화전자',
+    ];
+    $k = mb_strtolower(trim($v), 'UTF-8');
+    return $map[$k] ?? trim($v);
 }
-
-function jtgpt_shipping_date_bounds(?string $kind): array {
-    $today = new DateTimeImmutable('today');
-    $tomorrow = $today->modify('+1 day');
-
-    switch ($kind) {
-        case 'yesterday':
-            return [$today->modify('-1 day')->format('Y-m-d 00:00:00'), $today->format('Y-m-d 00:00:00')];
-        case 'today':
-            return [$today->format('Y-m-d 00:00:00'), $tomorrow->format('Y-m-d 00:00:00')];
-        case 'recent7':
-            return [$today->modify('-6 day')->format('Y-m-d 00:00:00'), $tomorrow->format('Y-m-d 00:00:00')];
-        case 'until_today':
-            return [null, $tomorrow->format('Y-m-d 00:00:00')];
-        default:
-            return [null, null];
+function jtgpt_detect_customer(string $text): ?string {
+    $map = [
+        'lg innotek' => '엘지이노텍',
+        'lg이노텍' => '엘지이노텍',
+        '엘지이노텍' => '엘지이노텍',
+        '엘지' => '엘지이노텍',
+        'lg' => '엘지이노텍',
+        '자화전자' => '자화전자',
+    ];
+    $lower = mb_strtolower($text, 'UTF-8');
+    foreach ($map as $needle => $value) {
+        if (mb_strpos($lower, $needle, 0, 'UTF-8') !== false) return $value;
     }
+    return null;
 }
-
-function jtgpt_shipping_summary(PDO $pdo, ?string $rangeKind, ?string $customer): array {
-    [$fromDt, $toDt] = jtgpt_shipping_date_bounds($rangeKind);
+function jtgpt_detect_metric(string $text): ?string {
+    if (jtgpt_contains_any($text, ['제일최근출하일','제일 최근 출하일','최근출하일','최근 출하일','마지막출하일','마지막 출하일','제일 최근','최근'])) return 'last_ship_date';
+    if (jtgpt_contains_any($text, ['lot','로트','소포장'])) return 'lot_count';
+    if (jtgpt_contains_any($text, ['tray','트레이'])) return 'tray_count';
+    if (jtgpt_contains_any($text, ['수량','ea','qty','개수'])) return 'total_qty';
+    if (jtgpt_contains_any($text, ['있나','있어','있냐','출하내역','출하했어','출하 있어'])) return 'exists';
+    if (jtgpt_contains_any($text, ['출하','출고','ship','shipping'])) return 'summary';
+    return null;
+}
+function jtgpt_detect_range(string $text): ?array {
+    $tz = new DateTimeZone('Asia/Seoul');
+    $now = new DateTime('now', $tz);
+    $today = $now->format('Y-m-d');
+    if (preg_match('/오늘\s*까지|오늘까지\s*누적|누적/u', $text)) {
+        return ['from' => null, 'to' => $today, 'label' => '오늘까지 누적', 'cumulative' => true];
+    }
+    if (preg_match('/어제/u', $text)) {
+        $d = (clone $now)->modify('-1 day')->format('Y-m-d');
+        return ['from' => $d, 'to' => $d, 'label' => '어제', 'cumulative' => false];
+    }
+    if (preg_match('/최근\s*7일|일주일|1주일/u', $text)) {
+        $d = (clone $now)->modify('-6 day')->format('Y-m-d');
+        return ['from' => $d, 'to' => $today, 'label' => '최근 7일', 'cumulative' => false];
+    }
+    if (preg_match('/오늘|금일/u', $text)) {
+        return ['from' => $today, 'to' => $today, 'label' => '오늘', 'cumulative' => false];
+    }
+    return null;
+}
+function jtgpt_build_where(?array $range, ?string $customer): array {
     $where = [];
     $params = [];
+    if ($range) {
+        if (!empty($range['from'])) {
+            $where[] = 'ship_datetime >= :from_dt';
+            $params[':from_dt'] = $range['from'] . ' 00:00:00';
+        }
+        if (!empty($range['to'])) {
+            $where[] = 'ship_datetime < :to_dt';
+            $params[':to_dt'] = date('Y-m-d 00:00:00', strtotime($range['to'] . ' +1 day'));
+        }
+    }
+    if ($customer) {
+        $where[] = 'ship_to LIKE :ship_to';
+        $params[':ship_to'] = '%' . $customer . '%';
+    }
+    return [$where ? ('WHERE ' . implode(' AND ', $where)) : '', $params];
+}
+function jtgpt_is_shipping(string $text, ?array $ctx): bool {
+    if (jtgpt_contains_any($text, ['출하','출고','ship','shipping','lot','tray','소포장','납품'])) return true;
+    if ($ctx && ($ctx['module'] ?? '') === 'shipping') {
+        if (jtgpt_detect_metric($text) || jtgpt_detect_range($text) || jtgpt_detect_customer($text)) return true;
+        $short = preg_replace('/\s+/u', '', $text);
+        if (in_array($short, ['오늘','어제','최근7일','수량','lot','tray','lg','엘지','엘지이노텍','자화전자'], true)) return true;
+    }
+    return false;
+}
+function jtgpt_shipping_answer(PDO $pdo, string $text, array &$ctx): array {
+    $metric = jtgpt_detect_metric($text) ?: ($ctx['metric'] ?? 'summary');
+    $customer = jtgpt_detect_customer($text) ?: ($ctx['customer'] ?? null);
+    $range = jtgpt_detect_range($text);
+    if (!$range) {
+        if ($metric === 'last_ship_date') {
+            $range = null;
+        } else {
+            $range = $ctx['range'] ?? null;
+        }
+    }
+    if (!$range && $metric !== 'last_ship_date') {
+        $tz = new DateTimeZone('Asia/Seoul');
+        $today = (new DateTime('now', $tz))->format('Y-m-d');
+        $range = ['from' => $today, 'to' => $today, 'label' => '오늘', 'cumulative' => false];
+    }
+    $ctx = [
+        'module' => 'shipping',
+        'metric' => $metric,
+        'customer' => $customer,
+        'range' => $range,
+    ];
 
-    if ($fromDt !== null) {
-        $where[] = 'ship_datetime >= :from_dt';
-        $params[':from_dt'] = $fromDt;
-    }
-    if ($toDt !== null) {
-        $where[] = 'ship_datetime < :to_dt';
-        $params[':to_dt'] = $toDt;
-    }
-    if ($customer !== null && $customer !== '') {
-        $where[] = '(ship_to LIKE :kw OR customer_part_no LIKE :kw OR part_name LIKE :kw OR model LIKE :kw OR project LIKE :kw)';
-        $params[':kw'] = '%' . $customer . '%';
+    if ($metric === 'last_ship_date') {
+        [$whereSql, $params] = jtgpt_build_where(null, $customer);
+        $sql = "SELECT MAX(ship_datetime) AS last_ship_datetime FROM ShipingList {$whereSql}";
+        $st = $pdo->prepare($sql);
+        $st->execute($params);
+        $last = (string)($st->fetchColumn() ?: '');
+        if ($last === '' || strpos($last, '0000-00-00') === 0) {
+            return ['answer' => ($customer ? $customer . ' ' : '') . '기준 최근 출하일을 찾지 못했어요.'];
+        }
+        return ['answer' => ($customer ? $customer . ' ' : '전체 ') . '기준 최근 출하일은 ' . substr($last, 0, 10) . '입니다.'];
     }
 
-    $whereSql = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
-    $sql = "SELECT COALESCE(SUM(COALESCE(qty,0)),0) AS total_qty,
-                   COUNT(DISTINCT NULLIF(TRIM(COALESCE(small_pack_no,'')),'')) AS lot_count,
-                   COUNT(DISTINCT NULLIF(TRIM(COALESCE(tray_no,'')),'')) AS tray_count,
-                   COUNT(*) AS row_count,
-                   MAX(ship_datetime) AS last_ship_datetime
-            FROM ShipingList {$whereSql}";
+    [$whereSql, $params] = jtgpt_build_where($range, $customer);
+    $sql = "SELECT COUNT(*) AS row_count, COALESCE(SUM(qty),0) AS total_qty, COUNT(DISTINCT small_pack_no) AS lot_count, COUNT(DISTINCT tray_no) AS tray_count FROM ShipingList {$whereSql}";
     $st = $pdo->prepare($sql);
     $st->execute($params);
     $row = $st->fetch(PDO::FETCH_ASSOC) ?: [];
+    $rowCount = (int)($row['row_count'] ?? 0);
+    $totalQty = (int)($row['total_qty'] ?? 0);
+    $lotCount = (int)($row['lot_count'] ?? 0);
+    $trayCount = (int)($row['tray_count'] ?? 0);
+    $prefix = $customer ? ($customer . ' ') : '';
+    $label = $range['label'] ?? '오늘';
 
-    return [
-        'total_qty' => (int)($row['total_qty'] ?? 0),
-        'lot_count' => (int)($row['lot_count'] ?? 0),
-        'tray_count' => (int)($row['tray_count'] ?? 0),
-        'row_count' => (int)($row['row_count'] ?? 0),
-        'last_ship_datetime' => (string)($row['last_ship_datetime'] ?? ''),
-        'range_kind' => $rangeKind,
-        'customer' => $customer,
-    ];
+    if ($metric === 'exists') {
+        return ['answer' => $prefix . $label . ' 출하내역은 ' . ($rowCount > 0 ? '있어요.' : '없어요.')];
+    }
+    if ($rowCount <= 0) {
+        return ['answer' => $prefix . $label . ' 기준 출하 데이터가 없어요.'];
+    }
+    if ($metric === 'total_qty') {
+        return ['answer' => $prefix . $label . ' 출하수량은 ' . jtgpt_fmt($totalQty) . ' EA입니다.'];
+    }
+    if ($metric === 'lot_count') {
+        return ['answer' => $prefix . $label . ' 출하 lot는 ' . jtgpt_fmt($lotCount) . '건입니다.'];
+    }
+    if ($metric === 'tray_count') {
+        return ['answer' => $prefix . $label . ' 출하 tray는 ' . jtgpt_fmt($trayCount) . '건입니다.'];
+    }
+    return ['answer' => $prefix . $label . ' 기준 출하수량은 ' . jtgpt_fmt($totalQty) . ' EA이고, lot ' . jtgpt_fmt($lotCount) . '건, tray ' . jtgpt_fmt($trayCount) . '건입니다.'];
+}
+function jtgpt_mock_answer(string $text): array {
+    return ['answer' => '아직 이 질문은 연결 전이에요. 지금은 출하 조회부터 먼저 붙이는 중이에요.'];
 }
 
-function jtgpt_shipping_last_date(PDO $pdo, ?string $customer): ?string {
-    $where = [];
-    $params = [];
-    if ($customer !== null && $customer !== '') {
-        $where[] = '(ship_to LIKE :kw OR customer_part_no LIKE :kw OR part_name LIKE :kw OR model LIKE :kw OR project LIKE :kw)';
-        $params[':kw'] = '%' . $customer . '%';
-    }
-    $whereSql = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
-    $sql = "SELECT MAX(ship_datetime) AS last_ship_datetime FROM ShipingList {$whereSql}";
-    $st = $pdo->prepare($sql);
-    $st->execute($params);
-    $value = (string)$st->fetchColumn();
-    return $value !== '' ? $value : null;
-}
-
-function jtgpt_detect_range(string $text, array $ctx): ?string {
-    if (preg_match('/오늘까지|금일까지|현재까지|누적/u', $text)) {
-        return 'until_today';
-    }
-    if (preg_match('/어제/u', $text)) {
-        return 'yesterday';
-    }
-    if (preg_match('/최근\s*7일|최근\s*일주일/u', $text)) {
-        return 'recent7';
-    }
-    if (preg_match('/오늘|금일/u', $text)) {
-        return 'today';
-    }
-
-    if (($ctx['module'] ?? '') === 'shipping' && !empty($ctx['range'])) {
-        return (string)$ctx['range'];
-    }
-    return null;
-}
-
-function jtgpt_detect_shipping_type(string $text, array $ctx): ?string {
-    if (preg_match('/(?:제일\s*)?(?:최근|마지막|최신)\s*출하일|언제\s*출하/u', $text)) {
-        return 'shipping_last_date';
-    }
-    if (preg_match('/출하수량|출고수량|수량|ea\b/u', $text)) {
-        return 'shipping_qty';
-    }
-    if (preg_match('/\blot\b|lot수|lot 개수|로트/u', $text)) {
-        return 'shipping_lot';
-    }
-    if (preg_match('/tray|트레이/u', $text)) {
-        return 'shipping_tray';
-    }
-    if (preg_match('/출하내역|출고내역|출하했어|출하 있|출고 있|출하/u', $text)) {
-        return 'shipping_exists';
-    }
-
-    if (($ctx['module'] ?? '') === 'shipping' && !empty($ctx['intent'])) {
-        return (string)$ctx['intent'];
-    }
-    return null;
-}
-
-function jtgpt_parse_shipping_intent(string $message, array $ctx): array {
-    $text = jtgpt_trim_spaces($message);
-    $lower = jtgpt_lower($text);
-
-    $hasShipWord = (bool)preg_match('/출하|출고|ship|shipping/u', $lower);
-    $hasShortMetric = (bool)preg_match('/^(수량|lot|tray|출하수량|출하내역|출고내역|최근 출하일|제일 최근 출하일)$/u', $text);
-    $shortRangeOnly = (bool)preg_match('/^(오늘|금일|어제|최근\s*7일|최근\s*일주일|오늘까지|금일까지|누적)$/u', $text);
-    $ctxIsShipping = (($ctx['module'] ?? '') === 'shipping');
-
-    $customer = jtgpt_extract_customer_keyword($text);
-    if ($customer === null && $ctxIsShipping) {
-        $shortCustomer = jtgpt_extract_short_customer_slot($text);
-        if ($shortCustomer !== null) {
-            $customer = $shortCustomer;
-        }
-    }
-    if ($customer === null && $ctxIsShipping && !empty($ctx['customer']) && !$hasShipWord && !$shortRangeOnly && !$hasShortMetric) {
-        $customer = (string)$ctx['customer'];
-    }
-
-    $type = jtgpt_detect_shipping_type($text, $ctx);
-    $range = jtgpt_detect_range($text, $ctx);
-
-    if ($type === 'shipping_last_date') {
-        return ['type' => 'shipping_last_date', 'range' => null, 'customer' => $customer ?: ($ctx['customer'] ?? null)];
-    }
-
-    if ($ctxIsShipping && ($shortRangeOnly || $hasShortMetric || ($customer !== null && !$hasShipWord && !$shortRangeOnly && !$hasShortMetric))) {
-        $type = $type ?: (($ctx['intent'] ?? '') ?: 'shipping_exists');
-        $range = $range ?? (($ctx['range'] ?? '') ?: 'today');
-        $customer = $customer ?: ($ctx['customer'] ?? null);
-        return ['type' => $type, 'range' => $range, 'customer' => $customer];
-    }
-
-    if ($type !== null || $hasShipWord) {
-        $type = $type ?: 'shipping_exists';
-        if ($range === null && $type !== 'shipping_last_date') {
-            $range = 'today';
-        }
-        return ['type' => $type, 'range' => $range, 'customer' => $customer];
-    }
-
-    return ['type' => 'unknown'];
-}
-
-function jtgpt_format_ship_scope(?string $rangeKind, ?string $customer): string {
-    $labels = [
-        'today' => '오늘',
-        'yesterday' => '어제',
-        'recent7' => '최근 7일',
-        'until_today' => '오늘까지 누적',
-        null => '전체 기간',
-    ];
-    $scope = $labels[$rangeKind] ?? '기준 기간';
-    return ($customer !== null && $customer !== '') ? ($customer . ' / ' . $scope) : $scope;
-}
-
-function jtgpt_answer_shipping(array $intent): string {
-    $pdo = jtgpt_bootstrap_pdo();
-    if (!$pdo) {
-        return 'DB 연결을 아직 불러오지 못했어요. 설정 파일 연결부터 다시 확인해 주세요.';
-    }
-
-    $customer = $intent['customer'] ?? null;
-    $type = $intent['type'] ?? 'unknown';
-    $range = $intent['range'] ?? null;
-
-    if ($type === 'shipping_last_date') {
-        $last = jtgpt_shipping_last_date($pdo, $customer);
-        jtgpt_ctx_set([
-            'module' => 'shipping',
-            'intent' => $type,
-            'range' => null,
-            'customer' => $customer,
-            'last_ship_datetime' => $last,
-        ]);
-        if (!$last) {
-            return $customer ? ($customer . ' 기준 출하 이력을 찾지 못했어요.') : '출하 이력을 찾지 못했어요.';
-        }
-        $dateOnly = substr($last, 0, 10);
-        return $customer
-            ? ($customer . '의 가장 최근 출하일은 ' . $dateOnly . '입니다.')
-            : ('가장 최근 출하일은 ' . $dateOnly . '입니다.');
-    }
-
-    $summary = jtgpt_shipping_summary($pdo, $range, $customer);
-    $scope = jtgpt_format_ship_scope($range, $customer);
-
-    jtgpt_ctx_set([
-        'module' => 'shipping',
-        'intent' => $type,
-        'range' => $range,
-        'customer' => $customer,
-        'summary' => $summary,
-    ]);
-
-    if ((int)$summary['row_count'] === 0) {
-        return $scope . ' 기준 출하 데이터가 없습니다.';
-    }
-
-    if ($type === 'shipping_exists') {
-        return $scope . ' 기준 출하는 있습니다. 총 ' . number_format((int)$summary['total_qty']) . ' EA입니다.';
-    }
-    if ($type === 'shipping_qty') {
-        return $scope . ' 출하수량은 ' . number_format((int)$summary['total_qty']) . ' EA입니다.';
-    }
-    if ($type === 'shipping_lot') {
-        return $scope . ' 출하 lot는 ' . number_format((int)$summary['lot_count']) . '건입니다.';
-    }
-    if ($type === 'shipping_tray') {
-        return $scope . ' tray는 ' . number_format((int)$summary['tray_count']) . '건입니다.';
-    }
-
-    return '출하 질문으로 이해했지만, 아직 처리하지 못한 요청이에요.';
-}
-
-function jtgpt_answer(string $message): string {
-    $ctx = jtgpt_ctx_get();
-    $intent = jtgpt_parse_shipping_intent($message, $ctx);
-
-    if (($intent['type'] ?? '') === 'unknown') {
-        return '지금은 출하 조회 1차만 먼저 연결했어요. 예를 들면 “오늘 출하수량”, “오늘까지 누적 출하수량”, “자화전자 최근 출하일”처럼 물어보면 됩니다.';
-    }
-
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $message = trim((string)($_POST['message'] ?? ''));
+    if ($message === '') jtgpt_json(['ok' => false, 'answer' => '']);
+    $ctx = $_SESSION['jtgpt_ctx'] ?? null;
     try {
-        return jtgpt_answer_shipping($intent);
+        if (jtgpt_is_shipping($message, is_array($ctx) ? $ctx : null)) {
+            $pdo = jtgpt_find_pdo();
+            if (!$pdo) {
+                $_SESSION['jtgpt_ctx'] = ['module' => 'shipping'];
+                jtgpt_json(['ok' => true, 'answer' => '지금은 DB 연결을 못 잡아서 출하 조회를 바로 못 하고 있어요.']);
+            }
+            $newCtx = is_array($ctx) ? $ctx : [];
+            $res = jtgpt_shipping_answer($pdo, $message, $newCtx);
+            $_SESSION['jtgpt_ctx'] = $newCtx;
+            jtgpt_json(['ok' => true, 'answer' => $res['answer']]);
+        }
+        unset($_SESSION['jtgpt_ctx']);
+        $res = jtgpt_mock_answer($message);
+        jtgpt_json(['ok' => true, 'answer' => $res['answer']]);
     } catch (Throwable $e) {
-        return '출하 데이터를 읽는 중 문제가 생겼어요. 조회 조건을 조금만 바꿔서 다시 물어봐 주세요.';
+        jtgpt_json(['ok' => true, 'answer' => '지금은 응답을 불러오지 못했어요.']);
     }
-}
-
-$isAjax = ($_SERVER['REQUEST_METHOD'] === 'POST');
-if ($isAjax) {
-    $raw = file_get_contents('php://input') ?: '';
-    $payload = json_decode($raw, true);
-    if (!is_array($payload)) {
-        $payload = $_POST;
-    }
-    $message = trim((string)($payload['message'] ?? ''));
-    jtgpt_json_response([
-        'ok' => true,
-        'answer' => jtgpt_answer($message),
-    ]);
 }
 ?><!doctype html>
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>JTGPT</title>
 <style>
-    :root{
-        --bg:#1e1f22;
-        --surface:rgba(48,50,56,.76);
-        --surface-2:rgba(255,255,255,.038);
-        --surface-3:rgba(255,255,255,.05);
-        --text:#eceef2;
-        --muted:#9ea4ad;
-        --line:rgba(255,255,255,.08);
-        --line-strong:rgba(255,255,255,.12);
-        --assistant:rgba(255,255,255,.038);
-        --user:rgba(255,255,255,.065);
-        --shadow:0 18px 40px rgba(0,0,0,.24);
-        --shadow-soft:0 8px 22px rgba(0,0,0,.18);
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-        margin:0;
-        background:var(--bg);
-        color:var(--text);
-        font-family:"Inter","Segoe UI",Roboto,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
-        -webkit-font-smoothing:antialiased;
-        -moz-osx-font-smoothing:grayscale;
-        text-rendering:optimizeLegibility;
-        overflow:hidden;
-    }
-    .app{height:100%;display:flex;flex-direction:column}
-    .brand{
-        position:fixed;
-        left:24px;
-        top:20px;
-        z-index:10;
-        font-size:13px;
-        font-weight:500;
-        letter-spacing:-.01em;
-        color:rgba(255,255,255,.88);
-        opacity:.82;
-    }
-    .chat{
-        flex:1;
-        overflow:auto;
-        padding:24px 20px 182px;
-    }
-    .chat::-webkit-scrollbar{width:10px}
-    .chat::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:999px}
-
-    .home{
-        min-height:100%;
-        display:flex;
-        flex-direction:column;
-        align-items:center;
-        justify-content:center;
-        padding:84px 20px 210px;
-        text-align:center;
-    }
-    .home.hidden{display:none}
-    .home-badge{
-        width:30px;
-        height:30px;
-        border-radius:10px;
-        border:1px solid var(--line);
-        background:rgba(255,255,255,.028);
-        display:grid;
-        place-items:center;
-        font-size:14px;
-        line-height:1;
-        color:#f5f6f8;
-        margin-bottom:18px;
-        box-shadow:var(--shadow-soft);
-    }
-    .home-title{
-        margin:0;
-        font-size:36px;
-        line-height:1.18;
-        letter-spacing:-.038em;
-        font-weight:560;
-        color:#f2f4f7;
-    }
-
-    .messages{
-        display:none;
-        max-width:800px;
-        margin:0 auto;
-        padding-top:10px;
-    }
-    .messages.active{display:block}
-    .msg{display:flex;margin:0 0 24px}
-    .msg.user{justify-content:flex-end}
-    .msg.assistant{justify-content:flex-start}
-    .bubble-wrap{max-width:min(760px,80%)}
-    .label{
-        font-size:11px;
-        color:var(--muted);
-        margin-bottom:7px;
-        letter-spacing:-.01em;
-    }
-    .msg.user .label{text-align:right}
-    .bubble{
-        border:1px solid var(--line);
-        background:var(--assistant);
-        box-shadow:var(--shadow-soft);
-        border-radius:20px;
-        padding:14px 16px;
-        font-size:14px;
-        line-height:1.72;
-        letter-spacing:-.01em;
-        white-space:pre-wrap;
-        word-break:keep-all;
-        color:#eceef2;
-    }
-    .msg.user .bubble{
-        background:var(--user);
-        border-color:rgba(255,255,255,.10);
-    }
-
-    .composer-wrap{
-        position:fixed;
-        left:50%;
-        bottom:18px;
-        transform:translateX(-50%);
-        width:min(760px, calc(100vw - 24px));
-        z-index:20;
-    }
-    .composer{
-        border:1px solid var(--line);
-        background:var(--surface);
-        border-radius:24px;
-        box-shadow:var(--shadow);
-        padding:12px 13px 10px;
-        backdrop-filter:blur(14px);
-        -webkit-backdrop-filter:blur(14px);
-        transition:border-color .16s ease, box-shadow .16s ease, background .16s ease;
-    }
-    .composer:focus-within{
-        border-color:var(--line-strong);
-        background:rgba(52,54,60,.82);
-        box-shadow:0 20px 48px rgba(0,0,0,.28);
-    }
-    .composer textarea{
-        width:100%;
-        min-height:52px;
-        max-height:220px;
-        resize:none;
-        border:0;
-        outline:none;
-        background:transparent;
-        color:var(--text);
-        font:inherit;
-        font-size:14px;
-        line-height:1.65;
-        padding:2px 4px;
-    }
-    .composer textarea::placeholder{color:#aaafb8}
-    .composer-bottom{
-        margin-top:6px;
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-        gap:12px;
-        padding:0 2px;
-    }
-    .composer-hint{
-        font-size:11px;
-        color:var(--muted);
-        letter-spacing:-.01em;
-    }
-    .send{
-        width:34px;
-        height:34px;
-        border-radius:999px;
-        border:1px solid rgba(255,255,255,.10);
-        background:#ededee;
-        color:#161719;
-        display:grid;
-        place-items:center;
-        font-size:14px;
-        font-weight:700;
-        cursor:pointer;
-        flex:0 0 auto;
-        transition:transform .12s ease, box-shadow .12s ease, opacity .12s ease;
-        padding:0;
-        box-shadow:0 4px 12px rgba(0,0,0,.18);
-    }
-    .send:hover{transform:translateY(-1px);box-shadow:0 6px 14px rgba(0,0,0,.22)}
-    .send:active{transform:translateY(0)}
-    .send[disabled]{opacity:.5;cursor:default;box-shadow:none}
-    .typing-cursor{
-        display:inline-block;
-        width:1px;
-        height:1.02em;
-        background:rgba(255,255,255,.82);
-        vertical-align:-2px;
-        margin-left:2px;
-        animation:blink 1s step-end infinite;
-    }
-    @keyframes blink{50%{opacity:0}}
-
-    @media (max-width: 900px){
-        .home-title{font-size:33px}
-        .bubble-wrap{max-width:86%}
-    }
-    @media (max-width: 640px){
-        .brand{left:16px;top:16px;font-size:12px}
-        .chat{padding:18px 12px 156px}
-        .home{padding:72px 16px 176px}
-        .home-badge{width:28px;height:28px;border-radius:9px;font-size:13px;margin-bottom:16px}
-        .home-title{font-size:29px;line-height:1.22}
-        .composer-wrap{width:calc(100vw - 16px);bottom:10px}
-        .composer{padding:11px 12px 9px;border-radius:22px}
-        .composer textarea{min-height:48px;font-size:14px}
-        .bubble-wrap{max-width:92%}
-        .bubble{padding:13px 15px;border-radius:18px;font-size:14px}
-        .send{width:32px;height:32px}
-    }
+:root{
+  --bg:#191b20;
+  --panel:#2a2d35;
+  --panel2:#21242b;
+  --line:rgba(255,255,255,.08);
+  --text:#f2f2f3;
+  --muted:#aeb3bf;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:Segoe UI, Arial, sans-serif;background:var(--bg);color:var(--text)}
+.page{min-height:100%;display:flex;flex-direction:column}
+.hero{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 24px 220px}
+.hero.hidden{display:none}
+.hero-inner{text-align:center}
+.hero-icon{width:40px;height:40px;margin:0 auto 18px;border:1px solid var(--line);border-radius:13px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.03);font-size:17px}
+.hero-title{font-size:38px;font-weight:700;letter-spacing:-.04em;line-height:1.12;margin:0}
+.chat{display:none;flex:1;padding:26px 24px 220px;max-width:1100px;width:100%;margin:0 auto}
+.chat.active{display:block}
+.msg{display:flex;margin:12px 0}
+.msg.user{justify-content:flex-end}
+.msg.assistant{justify-content:flex-start}
+.bubble{max-width:min(72%,780px);padding:15px 18px;border-radius:20px;border:1px solid var(--line);background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.03));font-size:16px;line-height:1.55;letter-spacing:-.01em;white-space:pre-wrap;word-break:break-word}
+.msg.user .bubble{max-width:360px;background:linear-gradient(180deg,#343844,#2f333c)}
+.msg-label{font-size:12px;color:#b8bdc9;margin:0 0 6px 10px}
+.composer-wrap{position:fixed;left:0;right:0;bottom:20px;padding:0 24px}
+.composer{max-width:780px;margin:0 auto;background:linear-gradient(180deg,#30333b,#2b2e36);border:1px solid rgba(255,255,255,.08);border-radius:26px;padding:18px 18px 12px;box-shadow:0 10px 24px rgba(0,0,0,.18)}
+textarea{width:100%;min-height:74px;max-height:220px;resize:none;border:0;outline:0;background:transparent;color:var(--text);font:inherit;font-size:18px;line-height:1.5}
+textarea::placeholder{color:#a5aab6}
+.composer-bar{display:flex;align-items:center;justify-content:space-between;margin-top:8px}
+.helper{font-size:12px;color:#b1b6c2}
+.send{width:40px;height:40px;border-radius:999px;border:0;background:#f4f4f5;color:#17191e;font-size:18px;cursor:pointer}
+.send:disabled{opacity:.55;cursor:default}
+@media (max-width: 900px){
+  .hero{padding-bottom:200px}
+  .hero-title{font-size:32px}
+  .chat{padding-left:16px;padding-right:16px;padding-bottom:200px}
+  .composer-wrap{padding:0 16px 16px}
+  .bubble{max-width:84%}
+}
 </style>
 </head>
 <body>
-<div class="app">
-    <div class="brand">JTGPT</div>
-
-    <div id="chat" class="chat">
-        <section id="home" class="home">
-            <div class="home-badge">✦</div>
-            <h1 class="home-title">무엇을 도와드릴까요?</h1>
-        </section>
-        <section id="messages" class="messages"></section>
+<div class="page">
+  <section class="hero" id="hero">
+    <div class="hero-inner">
+      <div class="hero-icon">✦</div>
+      <h1 class="hero-title">무엇을 도와드릴까요?</h1>
     </div>
-
-    <div class="composer-wrap">
-        <div class="composer">
-            <textarea id="messageInput" placeholder="무엇이든 물어보세요"></textarea>
-            <div class="composer-bottom">
-                <div class="composer-hint">Enter로 전송 · Shift+Enter로 줄바꿈</div>
-                <button id="sendBtn" class="send" type="button" aria-label="전송">✦</button>
-            </div>
-        </div>
-    </div>
+  </section>
+  <main class="chat" id="chat"></main>
+  <div class="composer-wrap">
+    <form class="composer" id="chatForm">
+      <textarea id="messageInput" placeholder="무엇이든 물어보세요" spellcheck="false"></textarea>
+      <div class="composer-bar">
+        <div class="helper">Enter로 전송 · Shift+Enter로 줄바꿈</div>
+        <button class="send" id="sendBtn" type="submit">✦</button>
+      </div>
+    </form>
+  </div>
 </div>
-
 <script>
-(() => {
-    const homeEl = document.getElementById('home');
-    const messagesEl = document.getElementById('messages');
-    const inputEl = document.getElementById('messageInput');
-    const sendBtn = document.getElementById('sendBtn');
-    const chatEl = document.getElementById('chat');
-
-    function autoResize() {
-        inputEl.style.height = '0px';
-        inputEl.style.height = Math.min(inputEl.scrollHeight, 220) + 'px';
-    }
-
-    function scrollBottom(smooth = true) {
-        chatEl.scrollTo({ top: chatEl.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
-    }
-
-    function enterConversationMode() {
-        homeEl.classList.add('hidden');
-        messagesEl.classList.add('active');
-    }
-
-    function createMessage(role, text = '') {
-        enterConversationMode();
-
-        const item = document.createElement('div');
-        item.className = 'msg ' + role;
-
-        const wrap = document.createElement('div');
-        wrap.className = 'bubble-wrap';
-
-        const label = document.createElement('div');
-        label.className = 'label';
-        label.textContent = role === 'assistant' ? 'JTGPT' : '나';
-        wrap.appendChild(label);
-
-        const bubble = document.createElement('div');
-        bubble.className = 'bubble';
-        bubble.textContent = text;
-        wrap.appendChild(bubble);
-
-        item.appendChild(wrap);
-        messagesEl.appendChild(item);
-        scrollBottom();
-        return bubble;
-    }
-
-    async function typeText(el, text) {
-        el.textContent = '';
-        const cursor = document.createElement('span');
-        cursor.className = 'typing-cursor';
-        el.appendChild(cursor);
-
-        for (const ch of text) {
-            cursor.remove();
-            el.append(document.createTextNode(ch));
-            el.appendChild(cursor);
-            scrollBottom(false);
-            await new Promise(resolve => setTimeout(resolve, 14));
-        }
-        cursor.remove();
-    }
-
-    async function sendMessage() {
-        const message = inputEl.value.trim();
-        if (!message) return;
-
-        createMessage('user', message);
-        inputEl.value = '';
-        autoResize();
-        sendBtn.disabled = true;
-
-        const assistantBubble = createMessage('assistant', '');
-
-        try {
-            const res = await fetch(window.location.href, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: JSON.stringify({ message })
-            });
-            const json = await res.json();
-            await typeText(assistantBubble, (json && json.answer) ? json.answer : '응답을 받지 못했어요.');
-        } catch (e) {
-            await typeText(assistantBubble, '지금 응답을 불러오지 못했어요.');
-        } finally {
-            sendBtn.disabled = false;
-            inputEl.focus();
-            scrollBottom();
-        }
-    }
-
-    inputEl.addEventListener('input', autoResize);
-    inputEl.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    });
-    sendBtn.addEventListener('click', sendMessage);
-
-    autoResize();
-})();
+const hero = document.getElementById('hero');
+const chat = document.getElementById('chat');
+const form = document.getElementById('chatForm');
+const input = document.getElementById('messageInput');
+const sendBtn = document.getElementById('sendBtn');
+let started = false;
+function escapeHtml(s){return s.replace(/[&<>\"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[m]));}
+function ensureChat(){ if(started) return; started = true; hero.classList.add('hidden'); chat.classList.add('active'); }
+function addMessage(role, text){
+  ensureChat();
+  const wrap = document.createElement('div');
+  wrap.className = 'msg ' + role;
+  const inner = document.createElement('div');
+  if(role === 'assistant'){
+    const label = document.createElement('div'); label.className='msg-label'; label.textContent='JTGPT'; inner.appendChild(label);
+  }
+  const bubble = document.createElement('div'); bubble.className='bubble'; bubble.textContent=''; inner.appendChild(bubble); wrap.appendChild(inner); chat.appendChild(wrap); window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+  if(role === 'assistant') typeInto(bubble, text); else bubble.textContent = text;
+}
+function typeInto(el, text){
+  let i=0; const step=()=>{ el.textContent = text.slice(0, i); i++; if(i<=text.length){ setTimeout(step, 9); } }; step();
+}
+form.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const msg = input.value.trim();
+  if(!msg) return;
+  addMessage('user', msg);
+  input.value='';
+  sendBtn.disabled=true;
+  try{
+    const fd = new FormData(); fd.append('message', msg);
+    const res = await fetch(location.href, {method:'POST', body:fd, headers:{'X-Requested-With':'XMLHttpRequest'}});
+    const data = await res.json();
+    addMessage('assistant', (data && data.answer) ? data.answer : '지금은 응답을 불러오지 못했어요.');
+  }catch(err){
+    addMessage('assistant', '지금은 응답을 불러오지 못했어요.');
+  }finally{
+    sendBtn.disabled=false;
+    input.focus();
+  }
+});
+input.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); form.requestSubmit(); }
+});
 </script>
 </body>
 </html>
