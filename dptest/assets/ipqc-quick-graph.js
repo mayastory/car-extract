@@ -6310,7 +6310,6 @@ function renderFacetList(rootId, items, selSet){
       left = Math.max(0, Math.round(cardRect.left - legendRect.left - width - gap));
     }
 
-    const cs = getComputedStyle(srcLabel);
     const ts = srcText ? getComputedStyle(srcText) : null;
 
     tab.style.display = 'flex';
@@ -6318,9 +6317,10 @@ function renderFacetList(rootId, items, selSet){
     tab.style.left = Math.round(left) + 'px';
     tab.style.width = Math.round(width) + 'px';
     tab.style.height = Math.round(height) + 'px';
-    tab.style.background = cs.backgroundColor || 'rgba(0,0,0,0.18)';
-    tab.style.border = cs.border || '1px solid rgba(255,255,255,0.08)';
+    tab.style.background = '#efefef';
+    tab.style.border = '1px solid #d0d0d0';
     tab.style.borderRadius = '0';
+    tab.style.boxShadow = 'none';
 
     const txt = qs('.qg-groupy-text', tab);
     if (txt){
@@ -6330,9 +6330,9 @@ function renderFacetList(rootId, items, selSet){
       txt.style.fontWeight = (ts && ts.fontWeight) ? ts.fontWeight : '900';
       txt.style.fontSize = (ts && ts.fontSize) ? ts.fontSize : '12px';
       txt.style.letterSpacing = (ts && ts.letterSpacing) ? ts.letterSpacing : '0.2px';
-      txt.style.opacity = (ts && ts.opacity) ? ts.opacity : '0.92';
+      txt.style.opacity = '1';
       txt.style.padding = '0';
-      txt.style.color = (ts && ts.color) ? ts.color : '#fff';
+      txt.style.color = '#5a5a5a';
       txt.style.whiteSpace = 'nowrap';
       txt.style.lineHeight = '1';
       txt.style.userSelect = 'none';
