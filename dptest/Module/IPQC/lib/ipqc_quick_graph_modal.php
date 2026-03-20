@@ -133,7 +133,7 @@ if (!function_exists('h')) {
   #qgOverlay .qg-actions{ display:flex; align-items:center; gap:8px; }
   #qgOverlay .qg-close{ padding:6px 10px; border-radius:10px; border:1px solid rgba(255,255,255,0.14); background:rgba(0,0,0,0.25); color:#fff; cursor:pointer; }
   /* Give more room to the plot area: shrink right legend dock a bit (JMP-like tighter layout) */
-  #qgOverlay .qg-body{ display:grid; grid-template-columns: 260px 1fr 200px; flex:1 1 auto; min-height:0;   position:relative; }
+  #qgOverlay .qg-body{ display:grid; grid-template-columns: 260px 1fr 228px; flex:1 1 auto; min-height:0; position:relative; }
 
 
   /* Guard: keep outer UI dark-mode (do NOT let plot/legend colors paint the whole modal) */
@@ -179,10 +179,10 @@ if (!function_exists('h')) {
 
 
   /* Legend dock (outside plot) */
-  #qgOverlay .qg-legend{ padding:6px 6px 6px 0; border-left:1px solid rgba(255,255,255,0.08); overflow-y:auto; overflow-x:hidden; display:flex; align-items:center; justify-content:center; position:relative; }
+  #qgOverlay .qg-legend{ padding:6px 6px 6px 0; border-left:1px solid rgba(255,255,255,0.08); overflow-y:auto; overflow-x:hidden; display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start; gap:10px; position:relative; box-sizing:border-box; }
   #qgOverlay .qg-legend-card{
-    width:calc(100% - 34px);
-    max-width:calc(100% - 34px);
+    width:100%;
+    max-width:190px;
     border-radius:12px;
     /* JMP-like legend card (fixed light gray like JMP) */
     border:1px solid #cfcfcf;
@@ -280,14 +280,14 @@ if (!function_exists('h')) {
   /* Floating placement: mimic JMP right-side drop zones without pushing the legend */
   #qgOverlay .qg-dropdock-float{
     position:absolute;
-    left:0;
+    left:34px;
     top:120px;
     z-index:60;
     margin:0;
     pointer-events:auto;
   }
 
-  #qgOverlay .qg-legend-card{ align-self:flex-start; margin-top: 118px; margin-left: 34px; }
+  #qgOverlay .qg-legend-card{ align-self:flex-start; margin-top:118px; margin-left:34px; }
   /* Legend list is dynamic (built by JS) */
   #qgOverlay .qg-legend-item{ display:flex; align-items:center; gap:6px; margin:2px 0; font-size:11px; opacity:0.92; color:#000;  min-width:0; }
   #qgOverlay .qg-legend-item .qg-lg-label{
