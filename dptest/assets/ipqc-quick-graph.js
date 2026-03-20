@@ -6231,13 +6231,124 @@ function renderFacetList(rootId, items, selSet){
     return out;
   }
 
+
+  function qgEnsureGroupYTab(){
+    const legend = qs('.qg-legend');
+    if (!legend) return null;
+    let tab = qs('#qgGroupYTab', legend);
+    if (!tab){
+      tab = document.createElement('div');
+      tab.id = 'qgGroupYTab';
+      tab.setAttribute('aria-hidden', 'true');
+      tab.style.position = 'absolute';
+      tab.style.display = 'none';
+      tab.style.boxSizing = 'border-box';
+      tab.style.alignItems = 'center';
+      tab.style.justifyContent = 'center';
+      tab.style.overflow = 'hidden';
+      tab.style.pointerEvents = 'none';
+      tab.style.zIndex = '55';
+      const txt = document.createElement('div');
+      txt.className = 'qg-groupy-text';
+      txt.textContent = '그룹 Y';
+      tab.appendChild(txt);
+      legend.appendChild(tab);
+    }
+    if (!QG._groupYSyncBound){
+      QG._groupYSyncBound = true;
+      const sync = ()=>{ try{ qgSyncGroupYTab(); }catch(e){} };
+      window.addEventListener('resize', sync, true);
+      document.addEventListener('scroll', sync, true);
+    }
+    const main = qs('.qg-main');
+    if (main && !main._qgGroupYScrollBound){
+      main._qgGroupYScrollBound = true;
+      main.addEventListener('scroll', ()=>{ try{ qgSyncGroupYTab(); }catch(e){} }, { passive:true });
+    }
+    return tab;
+  }
+
+  function qgSyncGroupYTab(){
+    const legend = qs('.qg-legend');
+    const tab = qgEnsureGroupYTab();
+    if (!legend || !tab) return;
+
+    const labels = qsa('#qgGrid .qg-row-label');
+    const usable = [];
+    for (const lbl of labels){
+      try{
+        const r = lbl.getBoundingClientRect();
+        if (r && r.width > 2 && r.height > 2) usable.push({ el: lbl, rect: r });
+      }catch(e){}
+    }
+    if (!usable.length){
+      tab.style.display = 'none';
+      return;
+    }
+
+    usable.sort((a,b)=> a.rect.top - b.rect.top);
+    const first = usable[0].rect;
+    const last = usable[usable.length - 1].rect;
+    const srcLabel = usable[0].el;
+    const srcText = srcLabel && srcLabel.querySelector ? srcLabel.querySelector('.vtxt') : null;
+    const legendRect = legend.getBoundingClientRect();
+    const labelRect = srcLabel.getBoundingClientRect();
+    const card = qs('.qg-legend-card', legend);
+    const cardRect = card ? card.getBoundingClientRect() : null;
+
+    let top = first.top - legendRect.top;
+    let height = last.bottom - first.top;
+    let width = Math.max(24, Math.round(labelRect.width || 34));
+    if (!isFinite(top) || !isFinite(height) || !isFinite(width) || height <= 0){
+      tab.style.display = 'none';
+      return;
+    }
+
+    const gap = 6;
+    let left = 0;
+    if (cardRect && isFinite(cardRect.left)){
+      left = Math.max(0, Math.round(cardRect.left - legendRect.left - width - gap));
+    }
+
+    const cs = getComputedStyle(srcLabel);
+    const ts = srcText ? getComputedStyle(srcText) : null;
+
+    tab.style.display = 'flex';
+    tab.style.top = Math.round(top) + 'px';
+    tab.style.left = Math.round(left) + 'px';
+    tab.style.width = Math.round(width) + 'px';
+    tab.style.height = Math.round(height) + 'px';
+    tab.style.background = cs.backgroundColor || 'rgba(0,0,0,0.18)';
+    tab.style.border = cs.border || '1px solid rgba(255,255,255,0.08)';
+    tab.style.borderRadius = '0';
+
+    const txt = qs('.qg-groupy-text', tab);
+    if (txt){
+      txt.style.writingMode = 'vertical-rl';
+      txt.style.transform = 'none';
+      txt.style.textOrientation = 'mixed';
+      txt.style.fontWeight = (ts && ts.fontWeight) ? ts.fontWeight : '900';
+      txt.style.fontSize = (ts && ts.fontSize) ? ts.fontSize : '12px';
+      txt.style.letterSpacing = (ts && ts.letterSpacing) ? ts.letterSpacing : '0.2px';
+      txt.style.opacity = (ts && ts.opacity) ? ts.opacity : '0.92';
+      txt.style.padding = '0';
+      txt.style.color = (ts && ts.color) ? ts.color : '#fff';
+      txt.style.whiteSpace = 'nowrap';
+      txt.style.lineHeight = '1';
+      txt.style.userSelect = 'none';
+    }
+  }
+
   function renderLegend(){
     const root = qs('#qgLegendItems');
     if (!root) return;
     root.innerHTML = '';
 
     const meta = selectedSeriesMeta();
-    if (!meta.length) return;
+    if (!meta.length){
+      try{ qgSyncGroupYTab(); }catch(e){}
+      return;
+    }
 
     const dock = (QG && QG.dockVars) ? QG.dockVars : null;
     const vis = qgResolveVisualChannels();
@@ -6566,6 +6677,7 @@ function renderFacetList(rootId, items, selSet){
         root.appendChild(row);
       }
     }
+  try{ qgSyncGroupYTab(); }catch(e){}
 }
 
 
@@ -6914,6 +7026,8 @@ function renderGrid(){
       try{ group.remove(); }catch(e){}
     }
   }
+
+  try{ qgSyncGroupYTab(); }catch(e){}
 
   if (!anyAdded){
     const e = document.createElement('div');
