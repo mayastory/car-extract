@@ -5992,6 +5992,13 @@ function renderFacetList(rootId, items, selSet){
       baseLsl: (src.baseLsl !== undefined) ? src.baseLsl : rawL,
     };
 
+    const ratio = qgClampOocSpecPct(pct) / 100;
+    const hasSavedBase = (src.baseUsl !== undefined) || (src.baseLsl !== undefined);
+    if (!hasSavedBase && ratio > 0 && ratio < 1){
+      if (qgIsVisibleLimitValue(rawU)) next.baseUsl = Number(rawU) / ratio;
+      if (qgIsVisibleLimitValue(rawL)) next.baseLsl = Number(rawL) / ratio;
+    }
+
     const scaled = qgCalcScaledOocLimitsFromBase(rawU, rawL, pct);
     const epsU = qgSpecLegacyScaledEps(rawU, scaled.usl);
     const epsL = qgSpecLegacyScaledEps(rawL, scaled.lsl);
