@@ -317,7 +317,7 @@ if (!function_exists('h')) {
     left:auto;
     top:auto;
     z-index:60;
-    margin:44px 0 10px 0;
+    margin:8px 0 10px 0;
     pointer-events:auto;
     align-self:flex-start;
   }
