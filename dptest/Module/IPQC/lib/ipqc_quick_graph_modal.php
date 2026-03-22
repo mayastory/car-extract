@@ -175,19 +175,20 @@ if (!function_exists('h')) {
   #qgOverlay .qg-main,
   #qgOverlay .qg-legend{ position:relative; z-index:1; }
   /* Reduce inner padding so the plot starts closer to the left and gains width */
-  #qgOverlay .qg-main{ padding:2px 0 2px 2px; overflow-y:auto; overflow-x:hidden; position:relative; }
-  /* JMP-like right-edge Group Y tab */
+  #qgOverlay .qg-main{ padding:2px; overflow:auto; position:relative; }
+
+    /* JMP-like right-edge Group Y tab */
   #qgOverlay #qgGroupYBox{
     position:absolute;
-    right:0;
+    right:-1px;
     top:86px;
     bottom:auto;
     transform:none;
-    width:28px;
+    width:30px;
     height:144px;
-    border:1px solid #a7a39a;
-    background:#e6e1d3;
-    color:#55524a;
+    border:1px solid #a9a9a9;
+    background:#efefef;
+    color:#666;
     display:flex;
     align-items:center;
     justify-content:center;
@@ -195,12 +196,12 @@ if (!function_exists('h')) {
     pointer-events:none;
     z-index:3;
     box-sizing:border-box;
+    overflow:hidden;
   }
   #qgOverlay #qgGroupYBox .qg-group-y-text{
     display:block;
-    writing-mode:vertical-rl;
-    text-orientation:mixed;
-    transform:none;
+    writing-mode:horizontal-tb;
+    transform:rotate(-90deg);
     transform-origin:center center;
     white-space:nowrap;
     font-size:11px;
@@ -212,7 +213,7 @@ if (!function_exists('h')) {
 
 
   /* Legend dock (outside plot) */
-  #qgOverlay .qg-legend{ padding:6px 94px 6px 6px; border-left:1px solid rgba(255,255,255,0.08); overflow-y:auto; overflow-x:hidden; display:flex; align-items:center; justify-content:flex-start; position:relative; box-sizing:border-box; }
+  #qgOverlay .qg-legend{ padding:6px 6px 6px 0; border-left:1px solid rgba(255,255,255,0.08); overflow-y:auto; overflow-x:hidden; display:flex; align-items:center; justify-content:center; position:relative; }
   #qgOverlay .qg-legend-card{
     width:100%;
     max-width:190px;
@@ -229,29 +230,29 @@ if (!function_exists('h')) {
   #qgOverlay .qg-dropdock{
     overflow:hidden;
     box-sizing:border-box;
-    width:82px;
+    width:128px;
     display:flex;
     flex-direction:column;
-    gap:2px;
-    padding:2px;
-    border:1px solid #a7a39a;
-    background:#d9d3c4;
-    box-shadow:none;
+    gap:4px;              /* slight separation between boxes */
+    padding:4px;
+    border:1px solid #b9b9b9;
+    background:#fff;
+    box-shadow:0 1px 0 rgba(0,0,0,0.15);
   }
   #qgOverlay .qg-dropdock-item{
     box-sizing:border-box;
     width:100%;
-    height:30px;
-    border:1px solid #a7a39a;
-    background:#ece7da;
-    color:#4f4b43;
+    height:34px;
+    border:1px solid #b9b9b9;
+    background:#ffffff;
+    color:#222;
     font-weight:700;
-    font-size:11px;
+    font-size:12px;
     line-height:1;
     display:flex;
     align-items:center;
     justify-content:center;
-    padding:0 6px;
+    padding:0 8px;
     user-select:none;
     cursor:default;
     white-space:nowrap;
@@ -269,8 +270,8 @@ if (!function_exists('h')) {
   #qgOverlay .qg-dropdock-item.hover::before{
     content:"";
     position:absolute;
-    inset:1px;
-    border-radius:4px;
+    inset:2px;
+    border-radius:6px;
     background:rgba(120,170,255,0.18);
     border:2px solid rgba(70,120,255,0.95);
     pointer-events:none;
@@ -280,9 +281,9 @@ if (!function_exists('h')) {
   #qgOverlay .qg-dropdock-var{
     position:static;
     margin-left:4px;
-    font-size:11px;
+    font-size:12px;
     font-weight:700;
-    color:#5b5851;
+    color:#333;
     font-style:italic;
     pointer-events:none;
     max-width:100%;
@@ -313,15 +314,14 @@ if (!function_exists('h')) {
   /* Floating placement: mimic JMP right-side drop zones without pushing the legend */
   #qgOverlay .qg-dropdock-float{
     position:absolute;
-    left:auto;
-    right:6px;
+    left:0;
     top:120px;
     z-index:60;
     margin:0;
     pointer-events:auto;
   }
 
-  #qgOverlay .qg-legend-card{ align-self:center; width:100%; max-width:none; }
+  #qgOverlay .qg-legend-card{ align-self:center; }
   /* Legend list is dynamic (built by JS) */
   #qgOverlay .qg-legend-item{ display:flex; align-items:center; gap:6px; margin:2px 0; font-size:11px; opacity:0.92; color:#000;  min-width:0; }
   #qgOverlay .qg-legend-item .qg-lg-label{
@@ -536,7 +536,7 @@ if (!function_exists('h')) {
   /* Tighter vertical rhythm so stacked panels visually connect (JMP-like). */
   #qgOverlay .qg-tool-group{ position:relative; margin-bottom:0; background:#ffffff; }
 
-  /* Align header with FAI rows: [label 34px] + [gap 6px] + [svg width] */
+  /* Align header with FAI rows: [label 28px] + [gap 4px] + [svg width] */
   #qgOverlay .qg-tophead{
     position:sticky; top:0; z-index:6;
     display:grid;
@@ -1119,7 +1119,7 @@ if (!function_exists('h')) {
       <div class="qg-main">
         <div id="qgMsg"></div>
         <div id="qgGrid"></div>
-        <div id="qgGroupYBox" aria-hidden="true"><div class="qg-group-y-text">그룹 Y</div></div>
+        <div id="qgGroupYBox" aria-hidden="true"><span class="qg-group-y-text">그룹 Y</span></div>
       </div>
 
       <div class="qg-legend" aria-label="범례">
