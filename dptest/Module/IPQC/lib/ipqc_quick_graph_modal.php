@@ -605,12 +605,12 @@ if (!function_exists('h')) {
   /* Tighter vertical rhythm so stacked panels visually connect (JMP-like). */
   #qgOverlay .qg-tool-group{ position:relative; margin-bottom:0; background:#ffffff; }
 
-  /* Align header with FAI rows: [label 28px] + [gap 4px] + [svg width] */
+  /* Align header with FAI rows exactly: [label 24px] + [gap 2px] + [svg width] */
   #qgOverlay .qg-tophead{
     position:sticky; top:0; z-index:6;
     display:grid;
-    grid-template-columns: 28px 1fr;
-    gap:4px;
+    grid-template-columns: 24px 1fr;
+    gap:2px;
     background:transparent;
     border:none;
     margin-bottom:0;
