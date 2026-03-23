@@ -4886,7 +4886,7 @@ function qgGetGroupYLayoutMetrics(){
   const valueW = 18;
   const fieldW = 18;
   const totalW = vars.length * (valueW + fieldW);
-  return { valueW, fieldW, totalW, gridPad: totalW + 10 };
+  return { valueW, fieldW, totalW, gridPad: totalW };
 }
 
 function qgGetXAxisVars(){
@@ -6894,7 +6894,7 @@ function qgBuildTopHeaderSvg(toolsRow, cavs){
     rect(padL, y0, innerW, y1 - y0, '#dedbcf', null, 0);
     rect(padL, y1, innerW, y2 - y1, '#f6f4ea', null, 0);
     rect(padL, y2, innerW, y3 - y2, '#dedbcf', null, 0);
-    rect(padL, y3, innerW, y4 - y3, '#dedbcf', null, 0);
+    rect(padL, y3, innerW, y4 - y3, '#f6f4ea', null, 0);
     line(padL, y1, W - padR, y1, '#cfcfcf', 1);
     line(padL, y2, W - padR, y2, '#cfcfcf', 1);
     line(padL, y3, W - padR, y3, '#cfcfcf', 1);
@@ -6950,9 +6950,8 @@ function qgBuildTopHeaderSvg(toolsRow, cavs){
   svg.setAttribute('height', String(H));
   try{ svg.style.height = H + 'px'; }catch(e){}
   rect(0, 0, W, H, '#ffffff', null, 0);
-  rect(padL, 0, innerW, H, '#ffffff', null, 0);
-  line(padL, H - 1, W - padR, H - 1, '#cfcfcf', 1);
-  text(padL + innerW / 2, H / 2, '그룹 X', { size:11, weight:700, fill:'#b8b8b8' });
+  rect(padL, 0, innerW, H, '#dedbcf', '#cfcfcf', 1);
+  text(padL + innerW / 2, H / 2, '그룹 X', { size:11, weight:700, fill:'#222222' });
   return svg;
 }
 
