@@ -6950,8 +6950,8 @@ function qgBuildTopHeaderSvg(toolsRow, cavs){
   svg.setAttribute('height', String(H));
   try{ svg.style.height = H + 'px'; }catch(e){}
   rect(0, 0, W, H, '#ffffff', null, 0);
-  rect(padL, 0, innerW, H, '#dedbcf', '#cfcfcf', 1);
-  text(padL + innerW / 2, H / 2, '그룹 X', { size:11, weight:700, fill:'#222222' });
+  rect(padL, 0, innerW, H, '#efefef', '#a9a9a9', 1);
+  text(padL + innerW / 2, H / 2, '그룹 X', { size:11, weight:700, fill:'#666666' });
   return svg;
 }
 
