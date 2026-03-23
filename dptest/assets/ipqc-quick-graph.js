@@ -156,7 +156,6 @@
     oocSpecByCol: {}, // {colKey: pct} per-FAI OOC SPEC percentage (100 = current base/input USL/LSL, default slider value stays 85)
     oocLineVisibleByCol: {}, // {colKey:boolean} per-FAI OOC reference line visibility
     limitBaseByCol: {}, // {colKey:{baseUsl,baseLsl}} per-FAI base limits before OOC scaling
-    limitLabelAlignByCol: {}, // {colKey:'left'|'center'|'right'} per-FAI USL/LSL label alignment
     editingOocSpec: false,
     plotElems: { points:true, line:true, box:true }, // toolbar elements (Shift multi-select)
     captionByColKey: {}, // {colKey:{enabled,stats:[...],xPos,yPos}} (display only)
@@ -993,7 +992,7 @@ function qgNormVarPrefix(x){
   return (!s || s === 'V') ? 'OOC/OOS' : s;
 }
 
-function qgNormTextAlign(x){
+function qgNormVarLabelAlign(x){
   const s = String((x===undefined||x===null) ? '' : x).trim().toLowerCase();
   return (s === 'left' || s === 'center' || s === 'right') ? s : 'right';
 }
@@ -1663,6 +1662,7 @@ function qgBindHoverTip(){
     if (v.dash === undefined || v.dash === null) v.dash = '10 3 2 3';
     if (v.showLabel === undefined) v.showLabel = true;
     if (!v.labelPrefix) v.labelPrefix = 'OOC/OOS';
+    if (!v.labelAlign) v.labelAlign = 'right';
     try{
       const b = QG.userStyle.box;
       const s = Number(b.widthScale);
@@ -1705,6 +1705,7 @@ function qgBindHoverTip(){
     const vStyle = qs('#qgUD_var_style');
     const vLbl   = qs('#qgUD_var_label');
     const vPref  = qs('#qgUD_var_prefix');
+    const vAlign = qs('#qgUD_var_align');
 
     // box style (icon is visual only)
     const bColor = qs('#qgUD_box_color');
@@ -1783,6 +1784,7 @@ function qgBindHoverTip(){
     }
     if (vLbl) vLbl.checked = !!v.showLabel;
     if (vPref) vPref.value = qgNormVarPrefix(v.labelPrefix);
+    if (vAlign) vAlign.value = qgNormVarLabelAlign(v.labelAlign);
 
     // init mean line style inputs (per active FAI)
     function ensureMeanStyle(k){
@@ -2685,6 +2687,7 @@ function qgBindHoverTip(){
         if (vStyle) vv.dash = qgVarDashFromStyleKey(vStyle.value);
         if (vLbl) vv.showLabel = !!vLbl.checked;
         if (vPref) vv.labelPrefix = qgNormVarPrefix(vPref.value);
+        if (vAlign) vv.labelAlign = qgNormVarLabelAlign(vAlign.value);
         try{
           if (bTh){
             const p = Number(String(bTh.value||'').trim());
@@ -2901,6 +2904,7 @@ function qgBindHoverTip(){
       bindLive(vWidth);
       bindLive(vStyle, ['change']);
       bindLive(vLbl, ['change']);
+      bindLive(vAlign, ['change']);
       bindLive(vPref);
       bindLive(bColor);
       bindLive(bFill, ['change']);
@@ -5022,7 +5026,6 @@ function qgRenderGroupYBox(){
     const varKey = stripVars[si];
     const valStrip = document.createElement('div');
     valStrip.className = 'qg-group-y-strip qg-group-y-strip-values';
-    valStrip.dataset.varkey = varKey;
     valStrip.style.left = left + 'px';
     valStrip.style.width = metrics.valueW + 'px';
     const bands = qgBuildGroupYValueBands(rowMeta, varKey);
@@ -5043,7 +5046,6 @@ function qgRenderGroupYBox(){
 
     const fldStrip = document.createElement('div');
     fldStrip.className = 'qg-group-y-strip qg-group-y-strip-field';
-    fldStrip.dataset.varkey = varKey;
     fldStrip.style.left = left + 'px';
     fldStrip.style.width = metrics.fieldW + 'px';
     const fldBand = document.createElement('div');
@@ -5062,7 +5064,6 @@ function qgRenderGroupYBox(){
 
   box.innerHTML = '';
   box.appendChild(host);
-  try{ qgBindGroupYStripDrags(); }catch(e){}
 }
 
 function qgUpdateGroupYBox(){
@@ -5104,23 +5105,9 @@ function qgPickGroupYBoxAt(x, y){
   return null;
 }
 
-function qgPickGroupXBoxAt(x, y){
-  const bodies = qsa('.qg-tophead-body');
-  for (const el of bodies){
-    if (!el) continue;
-    const r = el.getBoundingClientRect();
-    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return el;
-  }
-  return null;
-}
-
 function qgClearVarDropHover(){
   qgClearDockHover();
   try{ const gy = qs('#qgGroupYBox'); if (gy) gy.classList.remove('hover'); }catch(e){}
-  qsa('.qg-tophead-body.qg-var-drop-hover').forEach(el=>{
-    try{ el.classList.remove('qg-var-drop-hover'); }catch(e){}
-    try{ el.style.boxShadow = ''; }catch(e){}
-  });
 }
 
 function qgPickVarDropTargetAt(x, y){
@@ -5130,112 +5117,13 @@ function qgPickVarDropTargetAt(x, y){
   }
   const gy = qgPickGroupYBoxAt(x, y);
   if (gy) return { type:'groupY', el:gy };
-  const gx = qgPickGroupXBoxAt(x, y);
-  if (gx) return { type:'groupX', el:gx };
   return null;
 }
 
 function qgMarkVarDropHover(target){
   qgClearVarDropHover();
   if (!target || !target.el) return;
-  try{
-    if (target.type === 'groupX'){
-      target.el.classList.add('qg-var-drop-hover');
-      target.el.style.boxShadow = 'inset 0 0 0 2px rgba(61,111,227,0.38)';
-    }else{
-      target.el.classList.add('hover');
-    }
-  }catch(e){}
-}
-
-
-function qgBindGroupYStripDragHandle(el, varKey, label){
-  if (!el || el._qgGroupYDragBound) return;
-  el._qgGroupYDragBound = true;
-  try{
-    if (el.style){
-      el.style.cursor = 'grab';
-      el.style.userSelect = 'none';
-      el.style.webkitUserSelect = 'none';
-    }
-  }catch(e){}
-
-  el.addEventListener('pointerdown', (ev)=>{
-    try{
-      if (!ev || (ev.button !== undefined && ev.button !== 0)) return;
-    }catch(e){}
-    const vk = qgNormalizeDockVar(varKey);
-    if (vk !== 'tool' && vk !== 'cavity') return;
-
-    const pid = ev.pointerId;
-    const st = {
-      pid,
-      src: el,
-      varKey: vk,
-      label: (label || qgDockVarLabel(vk)).toString(),
-      startX: ev.clientX,
-      startY: ev.clientY,
-      dragging: false,
-      overTarget: null
-    };
-    QG._groupYVarPtr = st;
-
-    try{ el.setPointerCapture && el.setPointerCapture(pid); }catch(e){}
-    const ghost = qgEnsureVarGhost();
-
-    const onMove = (mv)=>{
-      const s = QG._groupYVarPtr;
-      if (!s || s.pid !== mv.pointerId) return;
-      const dx = mv.clientX - s.startX;
-      const dy = mv.clientY - s.startY;
-      const dist = Math.sqrt(dx*dx + dy*dy);
-      if (!s.dragging){
-        if (dist < 6) return;
-        s.dragging = true;
-        ghost.textContent = s.label;
-        ghost.style.display = 'block';
-        try{ mv.preventDefault(); mv.stopPropagation(); }catch(e){}
-      }
-      ghost.style.left = (mv.clientX + 12) + 'px';
-      ghost.style.top  = (mv.clientY + 10) + 'px';
-      const target = qgPickVarDropTargetAt(mv.clientX, mv.clientY);
-      qgMarkVarDropHover(target);
-      s.overTarget = target;
-    };
-
-    const onUp = (up)=>{
-      const s = QG._groupYVarPtr;
-      if (!s || s.pid !== up.pointerId) return;
-      try{ document.removeEventListener('pointermove', onMove, true); }catch(e){}
-      try{ document.removeEventListener('pointerup', onUp, true); }catch(e){}
-      try{ document.removeEventListener('pointercancel', onUp, true); }catch(e){}
-      const didDrag = !!s.dragging;
-      const target = s.overTarget;
-      QG._groupYVarPtr = null;
-      qgClearVarDropHover();
-      ghost.style.display = 'none';
-      if (didDrag){
-        try{ up.preventDefault(); up.stopPropagation(); }catch(e){}
-        if (target){
-          if (target.type === 'groupX') qgClearGroupYVar(s.varKey);
-          else if (target.type === 'dock' && target.dockKey) qgSetDockVar(target.dockKey, s.varKey);
-        }
-        QG._dragVarSuppressClickUntil = Date.now() + 300;
-      }
-    };
-
-    document.addEventListener('pointermove', onMove, true);
-    document.addEventListener('pointerup', onUp, true);
-    document.addEventListener('pointercancel', onUp, true);
-  }, true);
-}
-
-function qgBindGroupYStripDrags(){
-  qsa('#qgGroupYBox .qg-group-y-strip[data-varkey]').forEach(el=>{
-    const vk = qgNormalizeDockVar(el.dataset ? el.dataset.varkey : '');
-    if (!vk) return;
-    try{ qgBindGroupYStripDragHandle(el, vk, qgDockVarLabel(vk)); }catch(e){}
-  });
+  try{ target.el.classList.add('hover'); }catch(e){}
 }
 
 function qgBindGroupYBoxInteractions(){
@@ -5857,17 +5745,6 @@ try{
 
     if (uslEl && !uslEl._qg){ uslEl._qg=true; uslEl.addEventListener('input', onLimitInput); uslEl.addEventListener('focus', onLimitFocus); uslEl.addEventListener('blur', onLimitBlur); }
     if (lslEl && !lslEl._qg){ lslEl._qg=true; lslEl.addEventListener('input', onLimitInput); lslEl.addEventListener('focus', onLimitFocus); lslEl.addEventListener('blur', onLimitBlur); }
-    try{
-      const limitAlignEl = qs('#qgUSLLSLLabelAlign');
-      if (limitAlignEl && !limitAlignEl._qg){
-        limitAlignEl._qg = true;
-        limitAlignEl.addEventListener('change', ()=>{
-          applyLimitLabelAlignInputToState();
-          renderGrid();
-        });
-      }
-      syncLimitLabelAlignInput(true);
-    }catch(e){}
 
     // Grid hide toggle (default hidden) - applies to all panels
     try{
@@ -6317,14 +6194,11 @@ function renderFacetList(rootId, items, selSet){
     if (!QG.oocSpecByCol) QG.oocSpecByCol = {};
     if (!QG.oocLineVisibleByCol) QG.oocLineVisibleByCol = {};
     if (!QG.limitBaseByCol) QG.limitBaseByCol = {};
-    if (!QG.limitLabelAlignByCol) QG.limitLabelAlignByCol = {};
     const key = String(col.key || '');
     const savedPct = (QG.oocSpecByCol[key] !== undefined) ? QG.oocSpecByCol[key] : ((col.oocSpecPct !== undefined) ? col.oocSpecPct : 85);
     const savedLineVisible = (QG.oocLineVisibleByCol[key] !== undefined) ? !!QG.oocLineVisibleByCol[key] : ((col.oocLineVisible !== undefined) ? !!col.oocLineVisible : false);
-    const savedLabelAlign = (QG.limitLabelAlignByCol[key] !== undefined) ? QG.limitLabelAlignByCol[key] : ((col.limitLabelAlign !== undefined) ? col.limitLabelAlign : 'right');
     col.oocSpecPct = qgClampOocSpecPct(savedPct);
     col.oocLineVisible = savedLineVisible;
-    col.limitLabelAlign = qgNormTextAlign(savedLabelAlign);
     const savedBaseRaw = QG.limitBaseByCol[key] || null;
     const rawUsl = (col.th && col.th.dataset && col.th.dataset.usl !== undefined) ? num(col.th.dataset.usl) : ((col.baseUsl !== undefined) ? col.baseUsl : col.usl);
     const rawLsl = (col.th && col.th.dataset && col.th.dataset.lsl !== undefined) ? num(col.th.dataset.lsl) : ((col.baseLsl !== undefined) ? col.baseLsl : col.lsl);
@@ -6340,7 +6214,6 @@ function renderFacetList(rootId, items, selSet){
     }
     QG.oocSpecByCol[key] = col.oocSpecPct;
     QG.oocLineVisibleByCol[key] = !!col.oocLineVisible;
-    QG.limitLabelAlignByCol[key] = qgNormTextAlign(col.limitLabelAlign);
     return col;
   }
 
@@ -6543,31 +6416,6 @@ function renderFacetList(rootId, items, selSet){
     if (lslEl) lslEl.value = (lslV !== null && lslV !== undefined) ? fmt(lslV) : '';
   }
 
-  function syncLimitLabelAlignInput(force){
-    if (!force && QG.editingLimits) return;
-    const col = qgEnsureColSpecState(qgGetColByKey(QG.sel.primaryColKey));
-    const selEl = qs('#qgUSLLSLLabelAlign');
-    if (!selEl) return;
-    selEl.value = qgNormTextAlign(col ? col.limitLabelAlign : 'right');
-  }
-
-  function applyLimitLabelAlignInputToState(){
-    const col = qgEnsureColSpecState(qgGetColByKey(QG.sel.primaryColKey));
-    const selEl = qs('#qgUSLLSLLabelAlign');
-    if (!col || !selEl) return;
-    const align = qgNormTextAlign(selEl.value);
-    col.limitLabelAlign = align;
-    if (!QG.limitLabelAlignByCol) QG.limitLabelAlignByCol = {};
-    QG.limitLabelAlignByCol[String(col.key || '')] = align;
-  }
-
-  function qgGetLimitLabelPlacement(opt, rowLeft, rowRight){
-    const align = qgNormTextAlign(opt && opt.limitLabelAlign);
-    if (align === 'left') return { x: rowLeft + 4, anchor: 'start' };
-    if (align === 'center') return { x: rowLeft + ((rowRight - rowLeft) / 2), anchor: 'middle' };
-    return { x: rowRight - 2, anchor: 'end' };
-  }
-
   function getAxisState(colKey){
     const k = (colKey || '').toString();
     if (!k) return { yMin: null, yMax: null };
@@ -6632,7 +6480,6 @@ function renderFacetList(rootId, items, selSet){
     renderFacetList('qgCavityList', QG.cavities, QG.sel.cavities);
 
     syncLimitInputs(false);
-    syncLimitLabelAlignInput(false);
     syncAxisInputs(false);
     syncOocSpecInputs(false);
     syncOocLineInputs(false);
@@ -7071,16 +6918,6 @@ function qgBuildTopHeaderSvg(toolsRow, cavs){
     line(padL, y1, W - padR, y1, '#cfcfcf', 1);
     line(padL, y2, W - padR, y2, '#cfcfcf', 1);
     line(padL, y3, W - padR, y3, '#cfcfcf', 1);
-    const toolDragZone = rect(padL, y0, innerW, y2 - y0, 'transparent', null, 0);
-    const cavityDragZone = rect(padL, y2, innerW, y4 - y2, 'transparent', null, 0);
-    try{
-      toolDragZone.setAttribute('pointer-events', 'all');
-      toolDragZone.style.cursor = 'grab';
-      cavityDragZone.setAttribute('pointer-events', 'all');
-      cavityDragZone.style.cursor = 'grab';
-    }catch(e){}
-    bindDrag(toolDragZone, 'tool');
-    bindDrag(cavityDragZone, 'cavity');
     const tTool = text(padL + innerW / 2, (y0 + y1) / 2, 'Tool', { size:11, weight:700 });
     const tCav = text(padL + innerW / 2, (y2 + y3) / 2, 'Cavity', { size:11, weight:700 });
     bindDrag(tTool, 'tool');
@@ -7116,12 +6953,6 @@ function qgBuildTopHeaderSvg(toolsRow, cavs){
     rect(padL, y0, innerW, y1 - y0, '#dedbcf', null, 0);
     rect(padL, y1, innerW, y2 - y1, '#f6f4ea', null, 0);
     line(padL, y1, W - padR, y1, '#cfcfcf', 1);
-    const headDragZone = rect(padL, y0, innerW, y2 - y0, 'transparent', null, 0);
-    try{
-      headDragZone.setAttribute('pointer-events', 'all');
-      headDragZone.style.cursor = 'grab';
-    }catch(e){}
-    bindDrag(headDragZone, xVar);
     const title = text(padL + innerW / 2, (y0 + y1) / 2, qgDockVarLabel(xVar), { size:11, weight:700 });
     bindDrag(title, xVar);
     for (let i = 0; i < n; i++){
@@ -7391,7 +7222,7 @@ function renderGrid(){
         QG.series = series;
         const seriesColor = QG_SERIES_COLORS[ki % QG_SERIES_COLORS.length];
         const ax = getAxisState(colKey);
-        drawMatrixSvg(svg, rowTools, rowCavs, dates, { usl, lsl, oocUsl: oocLim.usl, oocLsl: oocLim.lsl, yMinO: ax.yMin, yMaxO: ax.yMax, showXLabels: isLastRowOfGroup, h: rowSvgH, color: seriesColor, colKey: colKey, label: qgGetDisplayLabel(colKey), rowIndex: rowIndex, rowCount: rowsN, limitLabelAlign: qgNormTextAlign(col && col.limitLabelAlign) });
+        drawMatrixSvg(svg, rowTools, rowCavs, dates, { usl, lsl, oocUsl: oocLim.usl, oocLsl: oocLim.lsl, yMinO: ax.yMin, yMaxO: ax.yMax, showXLabels: isLastRowOfGroup, h: rowSvgH, color: seriesColor, colKey: colKey, label: qgGetDisplayLabel(colKey), rowIndex: rowIndex, rowCount: rowsN });
         QG.series = prevSeries;
 
         wrap.appendChild(svg);
@@ -7868,12 +7699,14 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       if (st.showLabel === false) return;
       const tx = document.createElementNS(ns,'text');
       const _fontPx = 10;
+      const _specX = right - 2;
+      // Keep the label inside the last cavity panel, but sit it just above the spec line
+      // so the text does not overlap the dashed line or stick to the bottom edge.
       const _labelGap = 4;
       const _specY = Math.max(padT + _fontPx + 1, Math.min(padT + innerH - 4, y - _labelGap));
-      const _limPos = qgGetLimitLabelPlacement(opt, padL, W - padR);
-      tx.setAttribute('x', String(_limPos.x));
+      tx.setAttribute('x', String(_specX));
       tx.setAttribute('y', String(_specY));
-      tx.setAttribute('text-anchor', _limPos.anchor);
+      tx.setAttribute('text-anchor', 'end');
       tx.setAttribute('dominant-baseline', 'alphabetic');
       tx.setAttribute('font-size', String(_fontPx));
       tx.setAttribute('fill','rgba(0,0,0,0.70)');
@@ -7921,16 +7754,27 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
         clip(ln);
         svg.appendChild(ln);
 
-        // Label at the line end, but positioned above the line to avoid overlap
+        // Label above the line, aligned against the full row span (not a single cavity panel)
         if (_vLblOn && pi === nP - 1){
           const tx = document.createElementNS(ns,'text');
           const _fontPx = 10;
-          const _lblX = right - 2;
           const _lineGap = 4;
           const _lblY = Math.max(padT + _fontPx, Math.min(padT + innerH - 2, y - _lineGap));
+          const _rowLeft = padL;
+          const _rowRight = W - padR;
+          const _align = qgNormVarLabelAlign(_vs.labelAlign);
+          let _lblX = _rowRight - 2;
+          let _anchor = 'end';
+          if (_align === 'left'){
+            _lblX = _rowLeft + 4;
+            _anchor = 'start';
+          }else if (_align === 'center'){
+            _lblX = _rowLeft + ((_rowRight - _rowLeft) / 2);
+            _anchor = 'middle';
+          }
           tx.setAttribute('x', String(_lblX));
           tx.setAttribute('y', String(_lblY));
-          tx.setAttribute('text-anchor','end');
+          tx.setAttribute('text-anchor', _anchor);
           tx.setAttribute('dominant-baseline','alphabetic');
           tx.setAttribute('font-size', String(_fontPx));
           tx.setAttribute('fill','rgba(0,0,0,0.70)');
@@ -8929,13 +8773,12 @@ const clip = (el)=>{ try{ el.setAttribute('clip-path', clipUrl); }catch(e){} };
 
         const tx = document.createElementNS(ns,'text');
         const _fontPx = 10;
-        const _lineGap = 4;
-        const _specY = Math.max(padT + _fontPx + 1, Math.min(padT + innerH - 4, y - _lineGap));
-        const _limPos = qgGetLimitLabelPlacement(opt, padL, W - padR);
-        tx.setAttribute('x', String(_limPos.x));
+        const _specX = right - 4;
+        const _specY = Math.max(padT + _fontPx, Math.min(padT + innerH - 2, y));
+        tx.setAttribute('x', String(_specX));
         tx.setAttribute('y', String(_specY));
-        tx.setAttribute('text-anchor', _limPos.anchor);
-        tx.setAttribute('dominant-baseline', 'alphabetic');
+        tx.setAttribute('text-anchor', 'end');
+        tx.setAttribute('dominant-baseline', 'middle');
         tx.setAttribute('font-size', String(_fontPx));
         tx.setAttribute('fill','rgba(0,0,0,0.70)');
         if (st.labelOpacity !== undefined && st.labelOpacity !== null){
