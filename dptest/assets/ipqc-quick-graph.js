@@ -7008,7 +7008,7 @@ function renderGrid(){
   const gridW = (grid && grid.clientWidth) ? grid.clientWidth : (main ? main.clientWidth : 1200);
   let gridPadR = 0;
   try{ gridPadR = parseFloat(getComputedStyle(grid).paddingRight || '0') || 0; }catch(e){}
-  const plotW = Math.max(520, gridW - gridPadR - 8);
+  const plotW = Math.max(520, gridW - gridPadR);
   const xVars = qgGetXAxisVars();
   const groupYVars = qgGetGroupYVars();
   const allAssignments = qgGetGroupYAssignments(selTools2, selCavs2);
