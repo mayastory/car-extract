@@ -1529,6 +1529,15 @@ if (!function_exists('h')) {
                     <label style="min-width:76px;">텍스트:</label>
                     <input id="qgUD_var_prefix" class="qg-ud-inp wide" placeholder="OOC/OOS">
                   </div>
+
+                  <div class="qg-ud-row">
+                    <label>정렬:</label>
+                    <select id="qgUD_var_align" class="qg-ud-sel" style="width:120px;">
+                      <option value="left">왼쪽</option>
+                      <option value="center">가운데</option>
+                      <option value="right">오른쪽</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
