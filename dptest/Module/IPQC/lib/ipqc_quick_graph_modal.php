@@ -68,7 +68,7 @@ if (!function_exists('h')) {
     border: 1px solid rgba(110,170,255,0.92);
     box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06);
     z-index:2;
-    pointer-events:none;
+    pointer-events:auto;
   }
 
   /* Mixed (some FAI ON, some OFF): keep single overlay but make it visibly different (no stripes) */
@@ -197,6 +197,14 @@ if (!function_exists('h')) {
     z-index:3;
     box-sizing:border-box;
     overflow:hidden;
+  }
+  #qgOverlay #qgGroupYBox.hover{
+    background:rgba(120,170,255,0.18);
+    border-color:rgba(70,120,255,0.95);
+    box-shadow:inset 0 0 0 1px rgba(70,120,255,0.95);
+  }
+  #qgOverlay #qgGroupYBox.has-var{
+    cursor:grab;
   }
   #qgOverlay #qgGroupYBox .qg-group-y-text{
     display:block;

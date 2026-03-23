@@ -168,6 +168,7 @@
       busy: false,
       forceAutoFill: false,
     },
+    groupYVars: [],
   };
 
   function qs(sel, root){ return (root||document).querySelector(sel); }
@@ -4867,6 +4868,154 @@ function qgEnsureDockState(){
   if (QG.dockVars.shape === undefined) QG.dockVars.shape = null;
 }
 
+function qgEnsureGroupYState(){
+  if (!Array.isArray(QG.groupYVars)) QG.groupYVars = [];
+  QG.groupYVars = Array.from(new Set((QG.groupYVars || []).map(qgNormalizeDockVar).filter(Boolean))).slice(0, 2);
+  return QG.groupYVars;
+}
+
+function qgGetGroupYVars(){
+  return qgEnsureGroupYState().slice();
+}
+
+function qgGetXAxisVars(){
+  const gy = qgGetGroupYVars();
+  return ['tool','cavity'].filter(v => gy.indexOf(v) < 0);
+}
+
+function qgFormatPanelVarValue(varKey, value){
+  const vk = qgNormalizeDockVar(varKey);
+  const vv = String(value == null ? '' : value);
+  if (vk === 'tool') return 'Tool ' + vv;
+  if (vk === 'cavity'){
+    const up = vv.toUpperCase();
+    return 'Cavity ' + (up.includes('CAV') ? vv : (vv + 'CAV'));
+  }
+  return vv;
+}
+
+function qgFormatGroupYAssignment(asn){
+  const a = asn || {};
+  const parts = [];
+  if (a.tool !== undefined && a.tool !== null) parts.push(qgFormatPanelVarValue('tool', a.tool));
+  if (a.cavity !== undefined && a.cavity !== null) parts.push(qgFormatPanelVarValue('cavity', a.cavity));
+  return parts.join(' / ');
+}
+
+function qgGetGroupYAssignments(selTools, selCavs){
+  const gy = qgGetGroupYVars();
+  const tools = Array.isArray(selTools) ? selTools.slice() : [];
+  const cavs = Array.isArray(selCavs) ? selCavs.slice() : [];
+  if (!gy.length) return [{}];
+  if (gy.length === 1){
+    if (gy[0] === 'tool') return tools.map(t => ({ tool:t }));
+    if (gy[0] === 'cavity') return cavs.map(c => ({ cavity:c }));
+  }
+  const out = [];
+  const first = gy[0];
+  const second = gy[1];
+  const a1 = (first === 'tool') ? tools : cavs;
+  const a2 = (second === 'tool') ? tools : cavs;
+  for (const v1 of a1){
+    for (const v2 of a2){
+      const row = {};
+      row[first] = v1;
+      row[second] = v2;
+      out.push(row);
+    }
+  }
+  return out;
+}
+
+function qgUpdateGroupYBox(){
+  qgEnsureGroupYState();
+  const box = qs('#qgGroupYBox');
+  if (!box) return;
+  const txt = qs('.qg-group-y-text', box);
+  if (!txt) return;
+  const vars = qgGetGroupYVars();
+  txt.textContent = vars.length ? ('그룹 Y : ' + vars.map(qgDockVarLabel).join(' / ')) : '그룹 Y';
+  try{ box.classList.toggle('has-var', vars.length > 0); }catch(e){}
+}
+
+function qgSetGroupYVar(varKey){
+  const vk = qgNormalizeDockVar(varKey);
+  if (!vk) return;
+  const arr = qgEnsureGroupYState();
+  const idx = arr.indexOf(vk);
+  if (idx >= 0) arr.splice(idx, 1);
+  arr.push(vk);
+  QG.groupYVars = Array.from(new Set(arr)).slice(-2);
+  qgUpdateGroupYBox();
+  try{ renderGrid(); }catch(e){}
+  try{ renderLegend(); }catch(e){}
+}
+
+function qgClearGroupYVar(varKey){
+  const arr = qgEnsureGroupYState();
+  if (!arr.length) return;
+  if (!varKey){
+    QG.groupYVars = [];
+  }else{
+    const vk = qgNormalizeDockVar(varKey);
+    QG.groupYVars = arr.filter(v => v !== vk);
+  }
+  qgUpdateGroupYBox();
+  try{ renderGrid(); }catch(e){}
+  try{ renderLegend(); }catch(e){}
+}
+
+function qgPickGroupYBoxAt(x, y){
+  const el = qs('#qgGroupYBox');
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return el;
+  return null;
+}
+
+function qgClearVarDropHover(){
+  qgClearDockHover();
+  try{ const gy = qs('#qgGroupYBox'); if (gy) gy.classList.remove('hover'); }catch(e){}
+}
+
+function qgPickVarDropTargetAt(x, y){
+  const dockEl = qgPickDockItemAt(x, y);
+  if (dockEl){
+    return { type:'dock', el:dockEl, dockKey:(dockEl.dataset && dockEl.dataset.dock) ? String(dockEl.dataset.dock) : null };
+  }
+  const gy = qgPickGroupYBoxAt(x, y);
+  if (gy) return { type:'groupY', el:gy };
+  return null;
+}
+
+function qgMarkVarDropHover(target){
+  qgClearVarDropHover();
+  if (!target || !target.el) return;
+  try{ target.el.classList.add('hover'); }catch(e){}
+}
+
+function qgBindGroupYBoxInteractions(){
+  const box = qs('#qgGroupYBox');
+  if (!box || box._qgBound) return;
+  box._qgBound = true;
+  box.addEventListener('contextmenu', (ev)=>{
+    const vars = qgGetGroupYVars();
+    try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){}
+    if (!vars.length){
+      try{ qgHideCtxMenu(); }catch(e){}
+      return false;
+    }
+    const items = vars.map(v => ({ label: qgDockVarLabel(v) + ' 제거', onClick:()=>{ try{ qgClearGroupYVar(v); }catch(e){} } }));
+    if (vars.length > 1) items.push({ label:'전체 제거', onClick:()=>{ try{ qgClearGroupYVar(); }catch(e){} } });
+    try{ qgShowCtxMenu(ev.clientX, ev.clientY, items); }catch(e){}
+    return false;
+  }, true);
+  box.addEventListener('dblclick', (ev)=>{
+    try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){}
+    try{ qgClearGroupYVar(); }catch(e){}
+  }, { passive:false });
+}
+
 function qgDockVarLabel(varKey){
   const v = (varKey == null) ? '' : String(varKey);
   return (v === 'tool') ? 'Tool' : ((v === 'cavity') ? 'Cavity' : v);
@@ -5086,12 +5235,18 @@ function qgEnsureVarGhost(){
 function qgBindVarDockDragHandle(el, varKey, label){
   if (!el || el._qgVarDockDragBound) return;
   el._qgVarDockDragBound = true;
+  try{
+    if (el.style){
+      el.style.cursor = 'grab';
+      el.style.userSelect = 'none';
+      el.style.webkitUserSelect = 'none';
+    }
+  }catch(e){}
 
   el.addEventListener('pointerdown', (ev)=>{
     try{
       if (!ev || (ev.button !== undefined && ev.button !== 0)) return;
     }catch(e){}
-    // Only for Tool/Cavity group variables
     const vk = (varKey || '').toString();
     if (vk !== 'tool' && vk !== 'cavity') return;
 
@@ -5104,66 +5259,50 @@ function qgBindVarDockDragHandle(el, varKey, label){
       startX: ev.clientX,
       startY: ev.clientY,
       dragging: false,
-      overDockKey: null
+      overTarget: null
     };
     QG._varDockPtr = st;
 
     try{ el.setPointerCapture && el.setPointerCapture(pid); }catch(e){}
-
     const ghost = qgEnsureVarGhost();
 
     const onMove = (mv)=>{
       const s = QG._varDockPtr;
       if (!s || s.pid !== mv.pointerId) return;
-
       const dx = mv.clientX - s.startX;
       const dy = mv.clientY - s.startY;
       const dist = Math.sqrt(dx*dx + dy*dy);
-
       if (!s.dragging){
         if (dist < 6) return;
         s.dragging = true;
-        // show ghost
         ghost.textContent = s.label;
         ghost.style.display = 'block';
         try{ mv.preventDefault(); mv.stopPropagation(); }catch(e){}
       }
-
-      // move ghost
       ghost.style.left = (mv.clientX + 12) + 'px';
       ghost.style.top  = (mv.clientY + 10) + 'px';
-
-      const dockEl = qgPickDockItemAt(mv.clientX, mv.clientY);
-      qgClearDockHover();
-      if (dockEl){
-        dockEl.classList.add('hover');
-        s.overDockKey = (dockEl.dataset && dockEl.dataset.dock) ? String(dockEl.dataset.dock) : null;
-      }else{
-        s.overDockKey = null;
-      }
+      const target = qgPickVarDropTargetAt(mv.clientX, mv.clientY);
+      qgMarkVarDropHover(target);
+      s.overTarget = target;
     };
 
     const onUp = (up)=>{
       const s = QG._varDockPtr;
       if (!s || s.pid !== up.pointerId) return;
-
       try{ document.removeEventListener('pointermove', onMove, true); }catch(e){}
       try{ document.removeEventListener('pointerup', onUp, true); }catch(e){}
       try{ document.removeEventListener('pointercancel', onUp, true); }catch(e){}
-
       const didDrag = !!s.dragging;
-      const dockKey = s.overDockKey;
-
+      const target = s.overTarget;
       QG._varDockPtr = null;
-      qgClearDockHover();
+      qgClearVarDropHover();
       ghost.style.display = 'none';
-
       if (didDrag){
         try{ up.preventDefault(); up.stopPropagation(); }catch(e){}
-        if (dockKey){
-          qgSetDockVar(dockKey, s.varKey);
+        if (target){
+          if (target.type === 'dock' && target.dockKey) qgSetDockVar(target.dockKey, s.varKey);
+          else if (target.type === 'groupY') qgSetGroupYVar(s.varKey);
         }
-        // suppress click that might follow a drag
         QG._dragVarSuppressClickUntil = Date.now() + 300;
       }
     };
@@ -5224,6 +5363,8 @@ function bindUi(){
 
     // Prevent native <img> drag on toolbar icons so pointer-drag apply works (JMP-like)
     try{ qgDisableNativeToolbarImgDrag(); }catch(e){}
+    try{ qgBindGroupYBoxInteractions(); }catch(e){}
+    try{ qgUpdateGroupYBox(); }catch(e){}
 
 // Track Shift key reliably (some browsers/shells lose modifier flags on click events)
 try{
@@ -6564,25 +6705,11 @@ function qgBuildTopHeaderSvg(toolsRow, cavs){
   const padL = 36;
   const padR = 2;
   const innerW = W - padL - padR;
-  const nT = Math.max(1, Array.isArray(toolsRow) ? toolsRow.length : 0);
-  const nC = Math.max(1, Array.isArray(cavs) ? cavs.length : 0);
-  const nP = Math.max(1, nT * nC);
-  const panelW = innerW / nP;
-  const toolW = panelW * nC;
-
-  const y0 = 0;
-  const y1 = 20;
-  const y2 = 42;
-  const y3 = 60;
-  const y4 = 82;
-  const H = y4;
-
+  const xVars = qgGetXAxisVars();
   const svg = document.createElementNS(ns, 'svg');
   svg.classList.add('qg-tophead-svg');
-  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.setAttribute('preserveAspectRatio', 'none');
   svg.setAttribute('width', '100%');
-  svg.setAttribute('height', String(H));
 
   const rect = (x, y, w, h, fill, stroke, sw)=>{
     const el = document.createElementNS(ns, 'rect');
@@ -6622,44 +6749,88 @@ function qgBuildTopHeaderSvg(toolsRow, cavs){
     svg.appendChild(el);
     return el;
   };
+  const bindDrag = (el, varKey)=>{
+    try{
+      el.style.cursor = 'grab';
+      el.style.pointerEvents = 'all';
+      qgBindVarDockDragHandle(el, varKey, qgDockVarLabel(varKey));
+    }catch(e){}
+  };
 
+  if (xVars.length === 2){
+    const nT = Math.max(1, Array.isArray(toolsRow) ? toolsRow.length : 0);
+    const nC = Math.max(1, Array.isArray(cavs) ? cavs.length : 0);
+    const nP = Math.max(1, nT * nC);
+    const panelW = innerW / nP;
+    const toolW = panelW * nC;
+    const y0 = 0, y1 = 20, y2 = 42, y3 = 60, y4 = 82, H = y4;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('height', String(H));
+    rect(0, 0, W, H, '#ffffff', null, 0);
+    rect(padL, y0, innerW, H, '#ffffff', '#cfcfcf', 1);
+    rect(padL, y0, innerW, y1 - y0, '#dedbcf', null, 0);
+    rect(padL, y1, innerW, y2 - y1, '#f8f8f8', null, 0);
+    rect(padL, y2, innerW, y3 - y2, '#dedbcf', null, 0);
+    rect(padL, y3, innerW, y4 - y3, '#dedbcf', null, 0);
+    line(padL, y1, W - padR, y1, '#cfcfcf', 1);
+    line(padL, y2, W - padR, y2, '#cfcfcf', 1);
+    line(padL, y3, W - padR, y3, '#cfcfcf', 1);
+    const tTool = text(padL + innerW / 2, (y0 + y1) / 2, 'Tool', { size:11, weight:700 });
+    const tCav = text(padL + innerW / 2, (y2 + y3) / 2, 'Cavity', { size:11, weight:700 });
+    bindDrag(tTool, 'tool');
+    bindDrag(tCav, 'cavity');
+    for (let ti = 0; ti < nT; ti++){
+      const left = padL + ti * toolW;
+      const mid = left + toolW / 2;
+      text(mid, (y1 + y2) / 2, toolsRow[ti], { size:11, weight:700 });
+      if (ti > 0) line(left, y1, left, y4, '#cfcfcf', 1.5);
+    }
+    for (let pi = 0; pi < nP; pi++){
+      const left = padL + pi * panelW;
+      const cav = cavs[pi % nC];
+      const lab0 = String(cav == null ? '' : cav);
+      const lab = lab0.toUpperCase().includes('CAV') ? lab0 : (lab0 + 'CAV');
+      text(left + panelW / 2, (y3 + y4) / 2, lab, { size:11, weight:700 });
+      if (pi > 0 && (pi % nC) !== 0) line(left, y3, left, y4, '#cfcfcf', 1);
+    }
+    return svg;
+  }
+
+  if (xVars.length === 1){
+    const xVar = xVars[0];
+    const levels = (xVar === 'tool') ? (Array.isArray(toolsRow) ? toolsRow : []) : (Array.isArray(cavs) ? cavs : []);
+    const n = Math.max(1, levels.length || 0);
+    const cellW = innerW / n;
+    const y0 = 0, y1 = 22, y2 = 52, H = y2;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('height', String(H));
+    rect(0, 0, W, H, '#ffffff', null, 0);
+    rect(padL, y0, innerW, H, '#ffffff', '#cfcfcf', 1);
+    rect(padL, y0, innerW, y1 - y0, '#dedbcf', null, 0);
+    rect(padL, y1, innerW, y2 - y1, '#f8f8f8', null, 0);
+    line(padL, y1, W - padR, y1, '#cfcfcf', 1);
+    const title = text(padL + innerW / 2, (y0 + y1) / 2, qgDockVarLabel(xVar), { size:11, weight:700 });
+    bindDrag(title, xVar);
+    for (let i = 0; i < n; i++){
+      const left = padL + i * cellW;
+      let lab = String(levels[i] == null ? '' : levels[i]);
+      if (xVar === 'cavity' && !lab.toUpperCase().includes('CAV')) lab += 'CAV';
+      text(left + cellW / 2, (y1 + y2) / 2, lab, { size:11, weight:700 });
+      if (i > 0) line(left, y1, left, y2, '#cfcfcf', 1);
+    }
+    return svg;
+  }
+
+  const H = 26;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('height', String(H));
   rect(0, 0, W, H, '#ffffff', null, 0);
-  rect(padL, y0, innerW, H, '#ffffff', '#cfcfcf', 1);
-  rect(padL, y0, innerW, y1 - y0, '#dedbcf', null, 0);
-  rect(padL, y1, innerW, y2 - y1, '#f8f8f8', null, 0);
-  rect(padL, y2, innerW, y3 - y2, '#dedbcf', null, 0);
-  rect(padL, y3, innerW, y4 - y3, '#dedbcf', null, 0);
-
-  line(padL, y1, W - padR, y1, '#cfcfcf', 1);
-  line(padL, y2, W - padR, y2, '#cfcfcf', 1);
-  line(padL, y3, W - padR, y3, '#cfcfcf', 1);
-
-  text(padL + innerW / 2, (y0 + y1) / 2, 'Tool', { size:11, weight:700 });
-  text(padL + innerW / 2, (y2 + y3) / 2, 'Cavity', { size:11, weight:700 });
-
-  for (let ti = 0; ti < nT; ti++){
-    const left = padL + ti * toolW;
-    const right = left + toolW;
-    const mid = left + toolW / 2;
-    text(mid, (y1 + y2) / 2, toolsRow[ti], { size:11, weight:700 });
-    if (ti > 0){
-      line(left, y1, left, y4, '#cfcfcf', 1.5);
-    }
-  }
-
-  for (let pi = 0; pi < nP; pi++){
-    const left = padL + pi * panelW;
-    const cav = cavs[pi % nC];
-    const lab0 = String(cav == null ? '' : cav);
-    const lab = lab0.toUpperCase().includes('CAV') ? lab0 : (lab0 + 'CAV');
-    text(left + panelW / 2, (y3 + y4) / 2, lab, { size:11, weight:700 });
-    if (pi > 0 && (pi % nC) !== 0){
-      line(left, y3, left, y4, '#cfcfcf', 1);
-    }
-  }
-
+  rect(padL, 0, innerW, H, '#ffffff', '#cfcfcf', 1);
+  rect(padL, 0, innerW, H, '#f8f8f8', null, 0);
+  text(padL + innerW / 2, H / 2, 'Date', { size:11, weight:700, fill:'#555' });
   return svg;
 }
+
 
 function renderGrid(){
   const grid = qs('#qgGrid');
@@ -6669,6 +6840,7 @@ function renderGrid(){
   const keys = selectedColKeysInOrder();
   try{ QG._visibleColKeys = Array.isArray(keys) ? keys.slice() : []; }catch(e){}
   try{ qgUpdateToolbarSplitOverlays(); }catch(e){}
+  try{ qgUpdateGroupYBox(); }catch(e){}
   if (!keys.length || !QG.seriesByCol){
     const e = document.createElement('div');
     e.className = 'qg-empty';
@@ -6677,11 +6849,8 @@ function renderGrid(){
     return;
   }
 
-  // Y axis range is per selected FAI (JMP-like). The sidebar inputs always edit the active(=primary) FAI.
-
   const selTools = QG.tools.filter(t => QG.sel.tools.has(t));
   const selCavs  = QG.cavities.filter(c => QG.sel.cavities.has(c));
-
   if (!selTools.length || !selCavs.length){
     if (!selTools.length) QG.tools.forEach(t => QG.sel.tools.add(t));
     if (!selCavs.length) QG.cavities.forEach(c => QG.sel.cavities.add(c));
@@ -6697,16 +6866,9 @@ function renderGrid(){
     return;
   }
 
-  // Layout rule (JMP-like):
-  // - Columns: Tool (wrapping to next row when too many to fit)
-  // - Sub-columns: Cavity (1CAV~4CAV) under each Tool
-  // - Rows: selected FAI (no hard limit; distribute within the same graph box)
   const main = qs('.qg-main');
   const mainH = main ? main.clientHeight : 800;
-  // Tighten vertical spacing between FAI rows (JMP-like “connected” panels)
-  // NOTE: CSS also removes margins so panels can touch with no dark gaps.
   const gapY = 0;
-  const rowsN = Math.max(1, keys.length);
   const mainPad = (()=>{
     try{
       if (!main) return 16;
@@ -6716,39 +6878,58 @@ function renderGrid(){
       return pt + pb;
     }catch(e){ return 16; }
   })();
-  const slack = 10;
 
-  // Decide how many Tool columns can fit in one row (then wrap)
   const gridW = (grid && grid.clientWidth) ? grid.clientWidth : (main ? main.clientWidth : 1200);
-  const plotW = Math.max(520, gridW - 34); // tighter left gutter like JMP
-  const minToolW = Math.max(220, (selCavs2.length * 70) + 40); // tuned to resemble JMP packing
-  let toolsPerRow = Math.max(1, Math.floor(plotW / minToolW));
-  // Prevent unnecessary wrapping for small Tool counts (JMP-like)
-  if (selTools2.length <= 3) toolsPerRow = selTools2.length;
-  toolsPerRow = Math.min(selTools2.length, toolsPerRow);
-  if (toolsPerRow < 1) toolsPerRow = 1;
+  const plotW = Math.max(520, gridW - 34);
+  const xVars = qgGetXAxisVars();
+  const groupYVars = qgGetGroupYVars();
+  const allAssignments = qgGetGroupYAssignments(selTools2, selCavs2);
 
-  const toolRows = [];
-  for (let i=0; i<selTools2.length; i+=toolsPerRow){
-    toolRows.push(selTools2.slice(i, i+toolsPerRow));
+  let layoutGroups = [];
+  if (!groupYVars.length || xVars.length === 2){
+    const minToolW = Math.max(220, (selCavs2.length * 70) + 40);
+    let toolsPerRow = Math.max(1, Math.floor(plotW / minToolW));
+    if (selTools2.length <= 3) toolsPerRow = selTools2.length;
+    toolsPerRow = Math.min(selTools2.length, toolsPerRow);
+    if (toolsPerRow < 1) toolsPerRow = 1;
+    for (let i=0; i<selTools2.length; i+=toolsPerRow){
+      layoutGroups.push({ tools: selTools2.slice(i, i+toolsPerRow), cavs: selCavs2.slice() });
+    }
+  }else if (xVars.length === 1 && xVars[0] === 'tool'){
+    const minToolW = 220;
+    let toolsPerRow = Math.max(1, Math.floor(plotW / minToolW));
+    if (selTools2.length <= 3) toolsPerRow = selTools2.length;
+    toolsPerRow = Math.min(selTools2.length, toolsPerRow);
+    if (toolsPerRow < 1) toolsPerRow = 1;
+    for (let i=0; i<selTools2.length; i+=toolsPerRow){
+      layoutGroups.push({ tools: selTools2.slice(i, i+toolsPerRow), cavs: selCavs2.slice() });
+    }
+  }else{
+    layoutGroups = [{ tools: selTools2.slice(), cavs: selCavs2.slice() }];
   }
+  if (!layoutGroups.length) layoutGroups = [{ tools: selTools2.slice(), cavs: selCavs2.slice() }];
 
-
-  // Prevent tiny overflows that cause a pointless scrollbar:
-  // Distribute available height across Tool row-groups (no "1px scroll" just because of date labels).
-  const groupCount = Math.max(1, toolRows.length);
-  const gridGapY = 0;    // matches CSS: #qgGrid gap
-  const groupMB = 0;     // matches CSS: .qg-tool-group margin-bottom
+  const groupCount = Math.max(1, layoutGroups.length);
+  const gridGapY = 0;
+  const groupMB = 0;
   const outer = (groupCount - 1) * gridGapY + groupCount * groupMB;
   const groupCapH = Math.max(220, Math.floor((mainH - mainPad - outer - 4) / groupCount));
 
   let anyAdded = 0;
 
-  for (const toolsRow of toolRows){
+  for (const lg of layoutGroups){
+    const toolsRow = lg.tools.slice();
+    const cavsRow = lg.cavs.slice();
+    const assignments = allAssignments.filter(asn => {
+      if (asn.tool && toolsRow.indexOf(asn.tool) < 0) return false;
+      if (asn.cavity && cavsRow.indexOf(asn.cavity) < 0) return false;
+      return true;
+    });
+    const rowAssignments = assignments.length ? assignments : [{}];
+
     const group = document.createElement('div');
     group.className = 'qg-tool-group';
 
-    // Header (once per Tool-row block)
     const head = document.createElement('div');
     head.className = 'qg-tophead';
     head.innerHTML = `
@@ -6757,16 +6938,15 @@ function renderGrid(){
     `;
     try{
       const body = qs('.qg-tophead-body', head);
-      if (body) body.appendChild(qgBuildTopHeaderSvg(toolsRow, selCavs2));
+      if (body) body.appendChild(qgBuildTopHeaderSvg(toolsRow, cavsRow));
     }catch(e){}
 
     group.appendChild(head);
-
-    // Attach early so we can measure header height for a sensible row height (prevents unwanted scrollbars)
     grid.appendChild(group);
     const headerH = Math.ceil(head.getBoundingClientRect().height || 0);
 
-    const footerH = 52; // reserve date-label space once for the whole tool-row block
+    const footerH = 52;
+    const rowsN = Math.max(1, keys.length * rowAssignments.length);
     const availPlot = Math.max(120, (groupCapH - headerH - 6 - footerH) - (rowsN-1)*gapY);
     const rowPlotH = Math.max(42, Math.floor(availPlot / rowsN));
 
@@ -6776,127 +6956,124 @@ function renderGrid(){
       const colKey = keys[ki];
       const series = QG.seriesByCol[colKey];
       if (!series) continue;
-
       const col = QG.cols.find(c => c.key === colKey) || null;
       const usl = col ? qgGetBaseLimitValueForCol(col, 'usl') : null;
       const lsl = col ? qgGetBaseLimitValueForCol(col, 'lsl') : null;
       const oocLim = (col && qgGetColOocLineVisible(col)) ? qgGetScaledOocLimitsForCol(col) : { usl: null, lsl: null };
 
-      // Union dates across the entire (Tool x Cavity) matrix in this tool-row block
-      const dateMap = new Map();
-      for (const tool of toolsRow){
-        for (const cav of selCavs2){
-          const s = (((series||{}))[tool]||{})[cav]||{};
-          for (const d of Object.keys(s)){
-            const di = normalizeDateKey(d);
-            if (!di.key) continue;
-            const ex = dateMap.get(di.key);
-            if (!ex){
-              di._alts = [d];
-              dateMap.set(di.key, di);
-            }else{
-              if (!ex._alts) ex._alts = [];
-              if (ex._alts.indexOf(d) === -1) ex._alts.push(d);
+      for (let ai=0; ai<rowAssignments.length; ai++){
+        const asn = rowAssignments[ai] || {};
+        const rowTools = asn.tool ? [asn.tool] : toolsRow;
+        const rowCavs  = asn.cavity ? [asn.cavity] : cavsRow;
+
+        const dateMap = new Map();
+        for (const tool of rowTools){
+          for (const cav of rowCavs){
+            const s = (((series||{}))[tool]||{})[cav]||{};
+            for (const d of Object.keys(s)){
+              const di = normalizeDateKey(d);
+              if (!di.key) continue;
+              const ex = dateMap.get(di.key);
+              if (!ex){
+                di._alts = [d];
+                dateMap.set(di.key, di);
+              }else{
+                if (!ex._alts) ex._alts = [];
+                if (ex._alts.indexOf(d) === -1) ex._alts.push(d);
+              }
             }
           }
         }
-      }
-      const dates = Array.from(dateMap.values()).sort(sortDateInfo);
-      if (!dates.length) continue;
+        const dates = Array.from(dateMap.values()).sort(sortDateInfo);
+        if (!dates.length) continue;
 
-      const row = document.createElement('div');
-      row.className = 'qg-fai-row';
-      try{ row.dataset.colKey = String(colKey); }catch(e){}
-      row.innerHTML = `
-        <div class="qg-row-label"><div class="vtxt">${escapeHtml(qgGetDisplayLabel(colKey))}</div></div>
-        <div class="qg-fai-one"></div>
-      `;
-      const wrap = qs('.qg-fai-one', row);
+        const row = document.createElement('div');
+        row.className = 'qg-fai-row';
+        try{ row.dataset.colKey = String(colKey); }catch(e){}
+        const gySuffix = qgFormatGroupYAssignment(asn);
+        const labelText = gySuffix ? (qgGetDisplayLabel(colKey) + ' · ' + gySuffix) : qgGetDisplayLabel(colKey);
+        row.innerHTML = `
+          <div class="qg-row-label"><div class="vtxt">${escapeHtml(labelText)}</div></div>
+          <div class="qg-fai-one"></div>
+        `;
+        const wrap = qs('.qg-fai-one', row);
+        const lblEl = qs('.qg-row-label', row);
 
-      // Double-click row label to rename display label (legend/user-define/graph label only)
-      const lblEl = qs('.qg-row-label', row);
-      if (lblEl && !lblEl._qgRename){
-        lblEl._qgRename = true;
-        try{ lblEl.style.cursor = 'text'; }catch(e){}
-        lblEl.addEventListener('dblclick', (ev)=>{
-          try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){}
-          const k = String(colKey || '');
-          const col0 = (QG.cols || []).find(c => String(c.key) === k) || null;
-          const base = col0 ? String(col0.label || k) : k;
-          const cur = qgGetDisplayLabel(k);
-          qgOpenRenameDlg({ colKey: k, base: base, cur: cur });
-        }, { passive:false });
-      }
-
-      // Lock row wrapper/label height to the SVG height so many stacked FAIs keep a clean seam.
-      try{
-        row.style.margin = '0';
-        row.style.padding = '0';
-        row.style.minHeight = '0';
-        row.style.overflow = 'hidden';
-      }catch(e){}
-      try{
-        wrap.style.margin = '0';
-        wrap.style.padding = '0';
-        wrap.style.minHeight = '0';
-        wrap.style.overflow = 'hidden';
-        wrap.style.lineHeight = '0';
-      }catch(e){}
-      try{
-        if (lblEl){
-          lblEl.style.minHeight = '0';
-          lblEl.style.overflow = 'hidden';
-          lblEl.style.borderRadius = '0';
+        if (lblEl && !lblEl._qgRename){
+          lblEl._qgRename = true;
+          try{ lblEl.style.cursor = 'text'; }catch(e){}
+          lblEl.addEventListener('dblclick', (ev)=>{
+            try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){}
+            const k = String(colKey || '');
+            const col0 = (QG.cols || []).find(c => String(c.key) === k) || null;
+            const base = col0 ? String(col0.label || k) : k;
+            const cur = qgGetDisplayLabel(k);
+            qgOpenRenameDlg({ colKey: k, base: base, cur: cur });
+          }, { passive:false });
         }
-      }catch(e){}
 
-      const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
-      svg.classList.add('qg-svg');
-      try{ svg.dataset.colKey = String(colKey); svg.setAttribute('data-col-key', String(colKey)); }catch(e){}
-      svg.setAttribute('viewBox', '0 0 1200 320');
-      svg.setAttribute('preserveAspectRatio','none');
-      svg.style.height = '320px';
-      svg.style.pointerEvents = 'all';
+        try{
+          row.style.margin = '0';
+          row.style.padding = '0';
+          row.style.minHeight = '0';
+          row.style.overflow = 'hidden';
+          wrap.style.margin = '0';
+          wrap.style.padding = '0';
+          wrap.style.minHeight = '0';
+          wrap.style.overflow = 'hidden';
+          wrap.style.lineHeight = '0';
+          if (lblEl){
+            lblEl.style.minHeight = '0';
+            lblEl.style.overflow = 'hidden';
+            lblEl.style.borderRadius = '0';
+          }
+        }catch(e){}
 
-      // Clicking a chart should switch the axis/limit editor to that FAI (primary selection)
-      if (!svg._qgPick){
-        svg._qgPick = true;
-        svg.addEventListener('pointerdown', (ev)=>{
-          try{
-            if (ev.button !== undefined && ev.button !== 0) return;
-          }catch(e){}
-          setPrimaryColKey(colKey);
-          // keep the UI in sync without rebuilding everything
-          renderFaiList();
-        }, { passive:true });
-      }
+        const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+        svg.classList.add('qg-svg');
+        try{ svg.dataset.colKey = String(colKey); svg.setAttribute('data-col-key', String(colKey)); }catch(e){}
+        svg.setAttribute('viewBox', '0 0 1200 320');
+        svg.setAttribute('preserveAspectRatio','none');
+        svg.style.height = '320px';
+        svg.style.pointerEvents = 'all';
 
-      // Dates only once per tool-row block (on the last FAI row)
-      const showXLabels = (ki === keys.length - 1);
-      const rowSvgH = rowPlotH + (showXLabels ? footerH : 0);
-      svg.setAttribute('viewBox', `0 0 1200 ${rowSvgH}`);
-      svg.style.height = rowSvgH + 'px';
-      svg.style.display = 'block';
-      try{
-        row.style.height = rowSvgH + 'px';
-        wrap.style.height = rowSvgH + 'px';
-        if (lblEl){
-          lblEl.style.height = rowPlotH + 'px';
-          lblEl.style.alignSelf = 'start';
+        if (!svg._qgPick){
+          svg._qgPick = true;
+          svg.addEventListener('pointerdown', (ev)=>{
+            try{
+              if (ev.button !== undefined && ev.button !== 0) return;
+            }catch(e){}
+            setPrimaryColKey(colKey);
+            renderFaiList();
+          }, { passive:true });
         }
-      }catch(e){}
 
-      const prevSeries = QG.series;
-      QG.series = series;
-      const seriesColor = QG_SERIES_COLORS[ki % QG_SERIES_COLORS.length];
-      const ax = getAxisState(colKey);
-      drawMatrixSvg(svg, toolsRow, selCavs2, dates, { usl, lsl, oocUsl: oocLim.usl, oocLsl: oocLim.lsl, yMinO: ax.yMin, yMaxO: ax.yMax, showXLabels, h: rowSvgH, color: seriesColor, colKey: colKey, label: qgGetDisplayLabel(colKey), rowIndex: ki, rowCount: rowsN });
-      QG.series = prevSeries;
+        const isLastRowOfGroup = (ki === keys.length - 1) && (ai === rowAssignments.length - 1);
+        const rowSvgH = rowPlotH + (isLastRowOfGroup ? footerH : 0);
+        svg.setAttribute('viewBox', `0 0 1200 ${rowSvgH}`);
+        svg.style.height = rowSvgH + 'px';
+        svg.style.display = 'block';
+        try{
+          row.style.height = rowSvgH + 'px';
+          wrap.style.height = rowSvgH + 'px';
+          if (lblEl){
+            lblEl.style.height = rowPlotH + 'px';
+            lblEl.style.alignSelf = 'start';
+          }
+        }catch(e){}
 
-      wrap.appendChild(svg);
-      group.appendChild(row);
-      groupAdded += 1;
-      anyAdded += 1;
+        const prevSeries = QG.series;
+        QG.series = series;
+        const seriesColor = QG_SERIES_COLORS[ki % QG_SERIES_COLORS.length];
+        const ax = getAxisState(colKey);
+        drawMatrixSvg(svg, rowTools, rowCavs, dates, { usl, lsl, oocUsl: oocLim.usl, oocLsl: oocLim.lsl, yMinO: ax.yMin, yMaxO: ax.yMax, showXLabels: isLastRowOfGroup, h: rowSvgH, color: seriesColor, colKey: colKey, label: qgGetDisplayLabel(colKey), rowIndex: (ki * rowAssignments.length) + ai, rowCount: rowsN });
+        QG.series = prevSeries;
+
+        wrap.appendChild(svg);
+        group.appendChild(row);
+        groupAdded += 1;
+        anyAdded += 1;
+      }
     }
 
     if (!groupAdded){
@@ -6912,7 +7089,7 @@ function renderGrid(){
   }
   try{ qgSyncFaiLabelsToGroupY(); }catch(e){}
   try{ qgSyncGroupYBox(); }catch(e){}
-  try{ requestAnimationFrame(()=>{ try{ qgSyncFaiLabelsToGroupY(); }catch(e2){} try{ qgSyncGroupYBox(); }catch(e3){} }); }catch(e){}
+  try{ requestAnimationFrame(()=>{ try{ qgSyncFaiLabelsToGroupY(); }catch(e2){} try{ qgSyncGroupYBox(); }catch(e3){} try{ qgUpdateGroupYBox(); }catch(e4){} }); }catch(e){}
 }
 
 
@@ -6981,7 +7158,7 @@ function qgSyncGroupYBox(){
     box.style.bottom = 'auto';
     box.style.height = height + 'px';
     box.style.width = '30px';
-    box.style.pointerEvents = 'none';
+    box.style.pointerEvents = 'auto';
     const txt = qs('.qg-group-y-text', box);
     if (txt){
       txt.style.transform = 'rotate(-90deg)';
