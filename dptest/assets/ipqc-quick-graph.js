@@ -7315,6 +7315,8 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
   const panelW = (innerW - gap*(nP-1)) / nP;
 
   // y range across all panels (tool x cavity x date)
+  // Keep the auto axis data-driven. Reference lines (USL/LSL/OOC) should not
+  // stretch the axis and crush the plotted points when a saved spec is far away.
   let yMin = Infinity, yMax = -Infinity;
   for (const tool of tools){
     for (const cav of cavs){
@@ -7328,10 +7330,17 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       }
     }
   }
-  if (opt && opt.lsl !== null) yMin = Math.min(yMin, opt.lsl);
-  if (opt && opt.usl !== null) yMax = Math.max(yMax, opt.usl);
-  if (opt && opt.oocLsl !== null && opt.oocLsl !== undefined) yMin = Math.min(yMin, opt.oocLsl);
-  if (opt && opt.oocUsl !== null && opt.oocUsl !== undefined) yMax = Math.max(yMax, opt.oocUsl);
+  if (!isFinite(yMin) || !isFinite(yMax)) {
+    const refVals = [];
+    if (opt && opt.lsl !== null && opt.lsl !== undefined && isFinite(opt.lsl)) refVals.push(Number(opt.lsl));
+    if (opt && opt.usl !== null && opt.usl !== undefined && isFinite(opt.usl)) refVals.push(Number(opt.usl));
+    if (opt && opt.oocLsl !== null && opt.oocLsl !== undefined && isFinite(opt.oocLsl)) refVals.push(Number(opt.oocLsl));
+    if (opt && opt.oocUsl !== null && opt.oocUsl !== undefined && isFinite(opt.oocUsl)) refVals.push(Number(opt.oocUsl));
+    if (refVals.length){
+      yMin = Math.min.apply(null, refVals);
+      yMax = Math.max.apply(null, refVals);
+    }
+  }
 
   const hasYMinO = !!(opt && opt.yMinO !== null && opt.yMinO !== undefined && isFinite(opt.yMinO));
   const hasYMaxO = !!(opt && opt.yMaxO !== null && opt.yMaxO !== undefined && isFinite(opt.yMaxO));
@@ -8441,6 +8450,8 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
     const panelW = (innerW - gap*(nC-1)) / nC;
 
     // y range across all selected cavs/dates
+    // Keep the auto axis data-driven. Reference lines (USL/LSL/OOC) should not
+    // stretch the axis and crush the plotted points when a saved spec is far away.
     let yMin = Infinity, yMax = -Infinity;
     for (const cav of cavs){
       const s = ((QG.series||{})[tool]||{})[cav]||{};
@@ -8452,10 +8463,17 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
         yMax = Math.max(yMax, p.max, p.mean);
       }
     }
-    if (opt && opt.lsl !== null) yMin = Math.min(yMin, opt.lsl);
-    if (opt && opt.usl !== null) yMax = Math.max(yMax, opt.usl);
-    if (opt && opt.oocLsl !== null && opt.oocLsl !== undefined) yMin = Math.min(yMin, opt.oocLsl);
-    if (opt && opt.oocUsl !== null && opt.oocUsl !== undefined) yMax = Math.max(yMax, opt.oocUsl);
+    if (!isFinite(yMin) || !isFinite(yMax)) {
+      const refVals = [];
+      if (opt && opt.lsl !== null && opt.lsl !== undefined && isFinite(opt.lsl)) refVals.push(Number(opt.lsl));
+      if (opt && opt.usl !== null && opt.usl !== undefined && isFinite(opt.usl)) refVals.push(Number(opt.usl));
+      if (opt && opt.oocLsl !== null && opt.oocLsl !== undefined && isFinite(opt.oocLsl)) refVals.push(Number(opt.oocLsl));
+      if (opt && opt.oocUsl !== null && opt.oocUsl !== undefined && isFinite(opt.oocUsl)) refVals.push(Number(opt.oocUsl));
+      if (refVals.length){
+        yMin = Math.min.apply(null, refVals);
+        yMax = Math.max.apply(null, refVals);
+      }
+    }
 
     const hasYMinO = !!(opt && opt.yMinO !== null && opt.yMinO !== undefined && isFinite(opt.yMinO));
     const hasYMaxO = !!(opt && opt.yMaxO !== null && opt.yMaxO !== undefined && isFinite(opt.yMaxO));
