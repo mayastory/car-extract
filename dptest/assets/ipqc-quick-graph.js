@@ -6910,8 +6910,46 @@ function renderGrid(){
     e.textContent = '표시할 데이터가 없습니다.';
     grid.appendChild(e);
   }
+  try{ qgSyncFaiLabelsToGroupY(); }catch(e){}
   try{ qgSyncGroupYBox(); }catch(e){}
-  try{ requestAnimationFrame(()=>{ try{ qgSyncGroupYBox(); }catch(e2){} }); }catch(e){}
+  try{ requestAnimationFrame(()=>{ try{ qgSyncFaiLabelsToGroupY(); }catch(e2){} try{ qgSyncGroupYBox(); }catch(e3){} }); }catch(e){}
+}
+
+
+function qgSyncFaiLabelsToGroupY(){
+  try{
+    const grid = qs('#qgGrid');
+    const box = qs('#qgGroupYBox');
+    if (!grid || !box) return;
+    const labels = qsa('.qg-row-label', grid).filter(Boolean);
+    if (!labels.length) return;
+    const txt = qs('.qg-group-y-text', box);
+    const boxCs = window.getComputedStyle ? window.getComputedStyle(box) : null;
+    const txtCs = (txt && window.getComputedStyle) ? window.getComputedStyle(txt) : null;
+    if (!boxCs) return;
+    const bg = String(boxCs.backgroundColor || boxCs.background || '').trim();
+    const bdColor = String(boxCs.borderColor || '').trim();
+    const bdWidth = String(boxCs.borderWidth || '').trim();
+    const bdStyle = String(boxCs.borderStyle || '').trim();
+    const fg = String((txtCs && (txtCs.color || '')) || boxCs.color || '').trim();
+    const txtOpacity = String((txtCs && txtCs.opacity) || '1').trim();
+    for (const el of labels){
+      try{
+        if (bg) el.style.background = bg;
+        if (bdColor) el.style.borderColor = bdColor;
+        if (bdWidth) el.style.borderWidth = bdWidth;
+        if (bdStyle) el.style.borderStyle = bdStyle;
+        if (fg) el.style.color = fg;
+      }catch(e){}
+      try{
+        const vtxt = el.querySelector ? el.querySelector('.vtxt') : null;
+        if (vtxt){
+          if (fg) vtxt.style.color = fg;
+          if (txtOpacity) vtxt.style.opacity = txtOpacity;
+        }
+      }catch(e){}
+    }
+  }catch(e){}
 }
 
 
