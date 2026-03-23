@@ -4878,6 +4878,17 @@ function qgGetGroupYVars(){
   return qgEnsureGroupYState().slice();
 }
 
+function qgGetGroupYLayoutMetrics(){
+  const vars = qgGetGroupYVars();
+  if (!vars.length){
+    return { valueW:20, fieldW:20, totalW:30, gridPad:30 };
+  }
+  const valueW = 18;
+  const fieldW = 18;
+  const totalW = vars.length * (valueW + fieldW);
+  return { valueW, fieldW, totalW, gridPad: totalW + 10 };
+}
+
 function qgGetXAxisVars(){
   const gy = qgGetGroupYVars();
   return ['tool','cavity'].filter(v => gy.indexOf(v) < 0);
@@ -4961,16 +4972,19 @@ function qgRenderGroupYBox(){
   const grid = qs('#qgGrid');
   if (!box) return;
   const vars = qgGetGroupYVars();
+  const metrics = qgGetGroupYLayoutMetrics();
   try{ box.classList.toggle('has-var', vars.length > 0); }catch(e){}
   try{ box.classList.toggle('has-vars', vars.length > 0); }catch(e){}
   if (!vars.length){
     box.innerHTML = '<span class="qg-group-y-text">그룹 Y</span>';
+    box.style.width = metrics.totalW + 'px';
     return;
   }
   const rows = qsa('.qg-fai-row', grid).filter(Boolean);
   const boxRect = box.getBoundingClientRect();
   if (!rows.length || !boxRect || boxRect.height <= 0){
     box.innerHTML = '';
+    box.style.width = metrics.totalW + 'px';
     return;
   }
   const rowMeta = rows.map((row)=>{
@@ -4987,24 +5001,23 @@ function qgRenderGroupYBox(){
   }).filter(r => isFinite(r.top) && isFinite(r.bottom) && r.bottom > r.top + 0.5);
   if (!rowMeta.length){
     box.innerHTML = '';
+    box.style.width = metrics.totalW + 'px';
     return;
   }
 
-  const VALUE_W = 20;
-  const FIELD_W = 20;
   const stripVars = vars.slice().reverse();
-  const totalW = stripVars.length * (VALUE_W + FIELD_W);
-  box.style.width = totalW + 'px';
+  box.style.width = metrics.totalW + 'px';
 
   const host = document.createElement('div');
   host.className = 'qg-group-y-strips';
 
   let left = 0;
-  for (const varKey of stripVars){
+  for (let si = 0; si < stripVars.length; si++){
+    const varKey = stripVars[si];
     const valStrip = document.createElement('div');
     valStrip.className = 'qg-group-y-strip qg-group-y-strip-values';
     valStrip.style.left = left + 'px';
-    valStrip.style.width = VALUE_W + 'px';
+    valStrip.style.width = metrics.valueW + 'px';
     const bands = qgBuildGroupYValueBands(rowMeta, varKey);
     for (let i = 0; i < bands.length; i++){
       const band = bands[i];
@@ -5019,12 +5032,12 @@ function qgRenderGroupYBox(){
       valStrip.appendChild(el);
     }
     host.appendChild(valStrip);
-    left += VALUE_W;
+    left += metrics.valueW;
 
     const fldStrip = document.createElement('div');
     fldStrip.className = 'qg-group-y-strip qg-group-y-strip-field';
     fldStrip.style.left = left + 'px';
-    fldStrip.style.width = FIELD_W + 'px';
+    fldStrip.style.width = metrics.fieldW + 'px';
     const fldBand = document.createElement('div');
     fldBand.className = 'qg-group-y-band qg-group-y-band-field';
     fldBand.style.top = '0px';
@@ -5034,8 +5047,9 @@ function qgRenderGroupYBox(){
     fldTx.textContent = qgDockVarLabel(varKey);
     fldBand.appendChild(fldTx);
     fldStrip.appendChild(fldBand);
+    if (si === stripVars.length - 1) fldStrip.style.borderRight = '1px solid #cfcfcf';
     host.appendChild(fldStrip);
-    left += FIELD_W;
+    left += metrics.fieldW;
   }
 
   box.innerHTML = '';
@@ -6874,10 +6888,11 @@ function qgBuildTopHeaderSvg(toolsRow, cavs){
     const y0 = 0, y1 = 20, y2 = 42, y3 = 60, y4 = 82, H = y4;
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
     svg.setAttribute('height', String(H));
+    try{ svg.style.height = H + 'px'; }catch(e){}
     rect(0, 0, W, H, '#ffffff', null, 0);
     rect(padL, y0, innerW, H, '#ffffff', '#cfcfcf', 1);
     rect(padL, y0, innerW, y1 - y0, '#dedbcf', null, 0);
-    rect(padL, y1, innerW, y2 - y1, '#f8f8f8', null, 0);
+    rect(padL, y1, innerW, y2 - y1, '#f6f4ea', null, 0);
     rect(padL, y2, innerW, y3 - y2, '#dedbcf', null, 0);
     rect(padL, y3, innerW, y4 - y3, '#dedbcf', null, 0);
     line(padL, y1, W - padR, y1, '#cfcfcf', 1);
@@ -6912,10 +6927,11 @@ function qgBuildTopHeaderSvg(toolsRow, cavs){
     const y0 = 0, y1 = 22, y2 = 52, H = y2;
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
     svg.setAttribute('height', String(H));
+    try{ svg.style.height = H + 'px'; }catch(e){}
     rect(0, 0, W, H, '#ffffff', null, 0);
     rect(padL, y0, innerW, H, '#ffffff', '#cfcfcf', 1);
     rect(padL, y0, innerW, y1 - y0, '#dedbcf', null, 0);
-    rect(padL, y1, innerW, y2 - y1, '#f8f8f8', null, 0);
+    rect(padL, y1, innerW, y2 - y1, '#f6f4ea', null, 0);
     line(padL, y1, W - padR, y1, '#cfcfcf', 1);
     const title = text(padL + innerW / 2, (y0 + y1) / 2, qgDockVarLabel(xVar), { size:11, weight:700 });
     bindDrag(title, xVar);
@@ -6929,13 +6945,14 @@ function qgBuildTopHeaderSvg(toolsRow, cavs){
     return svg;
   }
 
-  const H = 26;
+  const H = 22;
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.setAttribute('height', String(H));
+  try{ svg.style.height = H + 'px'; }catch(e){}
   rect(0, 0, W, H, '#ffffff', null, 0);
-  rect(padL, 0, innerW, H, '#ffffff', '#cfcfcf', 1);
-  rect(padL, 0, innerW, H, '#f8f8f8', null, 0);
-  text(padL + innerW / 2, H / 2, 'Date', { size:11, weight:700, fill:'#555' });
+  rect(padL, 0, innerW, H, '#ffffff', null, 0);
+  line(padL, H - 1, W - padR, H - 1, '#cfcfcf', 1);
+  text(padL + innerW / 2, H / 2, '그룹 X', { size:11, weight:700, fill:'#b8b8b8' });
   return svg;
 }
 
@@ -6987,8 +7004,12 @@ function renderGrid(){
     }catch(e){ return 16; }
   })();
 
+  const gyMetrics = qgGetGroupYLayoutMetrics();
+  try{ grid.style.paddingRight = (gyMetrics.gridPad || 26) + 'px'; }catch(e){}
   const gridW = (grid && grid.clientWidth) ? grid.clientWidth : (main ? main.clientWidth : 1200);
-  const plotW = Math.max(520, gridW - 34);
+  let gridPadR = 0;
+  try{ gridPadR = parseFloat(getComputedStyle(grid).paddingRight || '0') || 0; }catch(e){}
+  const plotW = Math.max(520, gridW - gridPadR - 8);
   const xVars = qgGetXAxisVars();
   const groupYVars = qgGetGroupYVars();
   const allAssignments = qgGetGroupYAssignments(selTools2, selCavs2);
@@ -7219,6 +7240,8 @@ function qgSyncGroupYBox(){
     const main = qs('#qgOverlay .qg-main');
     const grid = qs('#qgGrid');
     if (!box || !main || !grid) return;
+    const metrics = qgGetGroupYLayoutMetrics();
+    try{ grid.style.paddingRight = (metrics.gridPad || 26) + 'px'; }catch(e){}
     const rows = qsa('.qg-fai-row', grid).filter(Boolean);
     if (!rows.length){
       box.style.display = 'none';
@@ -7235,14 +7258,12 @@ function qgSyncGroupYBox(){
     let height = Math.round((botRect.bottom - insetBottom) - (topRect.top + insetTop));
     if (!isFinite(top)) top = 0;
     if (!isFinite(height) || height < 48) height = 48;
-    const vars = qgGetGroupYVars();
-    const stripW = vars.length ? (vars.length * 40) : 30;
     box.style.display = 'flex';
-    box.style.right = '-1px';
+    box.style.right = '0px';
     box.style.top = Math.max(0, top) + 'px';
     box.style.bottom = 'auto';
     box.style.height = height + 'px';
-    box.style.width = stripW + 'px';
+    box.style.width = metrics.totalW + 'px';
     box.style.pointerEvents = 'auto';
     const txt = qs('.qg-group-y-text', box);
     if (txt){

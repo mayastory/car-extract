@@ -268,7 +268,7 @@ if (!function_exists('h')) {
   #qgOverlay #qgGroupYBox .qg-group-y-vtxt{
     display:block;
     writing-mode:vertical-rl;
-    transform:rotate(180deg);
+    transform:none;
     transform-origin:center center;
     white-space:nowrap;
     font-size:11px;
