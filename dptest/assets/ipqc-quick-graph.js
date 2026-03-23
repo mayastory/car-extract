@@ -6964,8 +6964,8 @@ function qgSyncGroupYBox(){
       box.style.display = 'none';
       return;
     }
-    const firstPlot = qs('.qg-fai-one', rows[0]) || qs('.qg-row-label', rows[0]) || rows[0];
-    const lastPlot = qs('.qg-fai-one', rows[rows.length - 1]) || qs('.qg-row-label', rows[rows.length - 1]) || rows[rows.length - 1];
+    const firstPlot = qs('.qg-row-label', rows[0]) || qs('.qg-fai-one', rows[0]) || rows[0];
+    const lastPlot = qs('.qg-row-label', rows[rows.length - 1]) || qs('.qg-fai-one', rows[rows.length - 1]) || rows[rows.length - 1];
     const mainRect = main.getBoundingClientRect();
     const topRect = firstPlot.getBoundingClientRect();
     const botRect = lastPlot.getBoundingClientRect();
