@@ -6955,6 +6955,16 @@ function qgBuildTopHeaderSvg(toolsRow, cavs){
     line(padL, y1, W - padR, y1, '#cfcfcf', 1);
     line(padL, y2, W - padR, y2, '#cfcfcf', 1);
     line(padL, y3, W - padR, y3, '#cfcfcf', 1);
+    const toolDragZone = rect(padL, y0, innerW, y2 - y0, 'transparent', null, 0);
+    const cavityDragZone = rect(padL, y2, innerW, y4 - y2, 'transparent', null, 0);
+    try{
+      toolDragZone.setAttribute('pointer-events', 'all');
+      toolDragZone.style.cursor = 'grab';
+      cavityDragZone.setAttribute('pointer-events', 'all');
+      cavityDragZone.style.cursor = 'grab';
+    }catch(e){}
+    bindDrag(toolDragZone, 'tool');
+    bindDrag(cavityDragZone, 'cavity');
     const tTool = text(padL + innerW / 2, (y0 + y1) / 2, 'Tool', { size:11, weight:700 });
     const tCav = text(padL + innerW / 2, (y2 + y3) / 2, 'Cavity', { size:11, weight:700 });
     bindDrag(tTool, 'tool');
@@ -6990,6 +7000,12 @@ function qgBuildTopHeaderSvg(toolsRow, cavs){
     rect(padL, y0, innerW, y1 - y0, '#dedbcf', null, 0);
     rect(padL, y1, innerW, y2 - y1, '#f6f4ea', null, 0);
     line(padL, y1, W - padR, y1, '#cfcfcf', 1);
+    const headDragZone = rect(padL, y0, innerW, y2 - y0, 'transparent', null, 0);
+    try{
+      headDragZone.setAttribute('pointer-events', 'all');
+      headDragZone.style.cursor = 'grab';
+    }catch(e){}
+    bindDrag(headDragZone, xVar);
     const title = text(padL + innerW / 2, (y0 + y1) / 2, qgDockVarLabel(xVar), { size:11, weight:700 });
     bindDrag(title, xVar);
     for (let i = 0; i < n; i++){
