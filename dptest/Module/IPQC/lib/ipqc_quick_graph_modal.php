@@ -175,7 +175,7 @@ if (!function_exists('h')) {
   #qgOverlay .qg-main,
   #qgOverlay .qg-legend{ position:relative; z-index:1; }
   /* Reduce inner padding so the plot starts closer to the left and gains width */
-  #qgOverlay .qg-main{ padding:2px; overflow:auto; position:relative; }
+  #qgOverlay .qg-main{ padding:2px; overflow-y:auto; overflow-x:hidden; position:relative; min-width:0; }
 
     /* JMP-like right-edge Group Y tab */
   #qgOverlay #qgGroupYBox{
