@@ -1151,6 +1151,14 @@ if (!function_exists('h')) {
             <div class="qg-row">
               <input id="qgLSL" class="qg-input" placeholder="LSL (빈칸=NULL)">
             </div>
+            <div class="qg-row" style="margin-top:8px; margin-bottom:2px; display:flex; align-items:center; gap:8px;">
+              <label for="qgUSLLSLLabelAlign" style="min-width:42px; color:inherit;">정렬 :</label>
+              <select id="qgUSLLSLLabelAlign" class="qg-input" style="max-width:140px;">
+                <option value="left">왼쪽</option>
+                <option value="center">가운데</option>
+                <option value="right">오른쪽</option>
+              </select>
+            </div>
 
             <div class="qg-hint" style="margin-top:10px; margin-bottom:8px;">· OOC SPEC</div>
             <div class="qg-row" style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
