@@ -7744,16 +7744,17 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
         clip(ln);
         svg.appendChild(ln);
 
-        // Label at the line end (like USL/LSL)
+        // Label at the line end, but positioned above the line to avoid overlap
         if (_vLblOn && pi === nP - 1){
           const tx = document.createElementNS(ns,'text');
           const _fontPx = 10;
           const _lblX = right - 2;
-          const _lblY = Math.max(padT + _fontPx, Math.min(padT + innerH - 2, y));
+          const _lineGap = 4;
+          const _lblY = Math.max(padT + _fontPx, Math.min(padT + innerH - 2, y - _lineGap));
           tx.setAttribute('x', String(_lblX));
           tx.setAttribute('y', String(_lblY));
           tx.setAttribute('text-anchor','end');
-          tx.setAttribute('dominant-baseline','middle');
+          tx.setAttribute('dominant-baseline','alphabetic');
           tx.setAttribute('font-size', String(_fontPx));
           tx.setAttribute('fill','rgba(0,0,0,0.70)');
           try{ tx.setAttribute('opacity', String(_vOpacity)); }catch(e){}
