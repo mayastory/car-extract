@@ -156,6 +156,7 @@
     oocSpecByCol: {}, // {colKey: pct} per-FAI OOC SPEC percentage (100 = current base/input USL/LSL, default slider value stays 85)
     oocLineVisibleByCol: {}, // {colKey:boolean} per-FAI OOC reference line visibility
     limitBaseByCol: {}, // {colKey:{baseUsl,baseLsl}} per-FAI base limits before OOC scaling
+    limitLabelAlignByCol: {}, // {colKey:'left'|'center'|'right'} per-FAI USL/LSL label alignment
     editingOocSpec: false,
     plotElems: { points:true, line:true, box:true }, // toolbar elements (Shift multi-select)
     captionByColKey: {}, // {colKey:{enabled,stats:[...],xPos,yPos}} (display only)
@@ -992,7 +993,7 @@ function qgNormVarPrefix(x){
   return (!s || s === 'V') ? 'OOC/OOS' : s;
 }
 
-function qgNormVarLabelAlign(x){
+function qgNormTextAlign(x){
   const s = String((x===undefined||x===null) ? '' : x).trim().toLowerCase();
   return (s === 'left' || s === 'center' || s === 'right') ? s : 'right';
 }
@@ -1662,7 +1663,6 @@ function qgBindHoverTip(){
     if (v.dash === undefined || v.dash === null) v.dash = '10 3 2 3';
     if (v.showLabel === undefined) v.showLabel = true;
     if (!v.labelPrefix) v.labelPrefix = 'OOC/OOS';
-    if (!v.labelAlign) v.labelAlign = 'right';
     try{
       const b = QG.userStyle.box;
       const s = Number(b.widthScale);
@@ -1705,7 +1705,6 @@ function qgBindHoverTip(){
     const vStyle = qs('#qgUD_var_style');
     const vLbl   = qs('#qgUD_var_label');
     const vPref  = qs('#qgUD_var_prefix');
-    const vAlign = qs('#qgUD_var_align');
 
     // box style (icon is visual only)
     const bColor = qs('#qgUD_box_color');
@@ -1784,7 +1783,6 @@ function qgBindHoverTip(){
     }
     if (vLbl) vLbl.checked = !!v.showLabel;
     if (vPref) vPref.value = qgNormVarPrefix(v.labelPrefix);
-    if (vAlign) vAlign.value = qgNormVarLabelAlign(v.labelAlign);
 
     // init mean line style inputs (per active FAI)
     function ensureMeanStyle(k){
@@ -2687,7 +2685,6 @@ function qgBindHoverTip(){
         if (vStyle) vv.dash = qgVarDashFromStyleKey(vStyle.value);
         if (vLbl) vv.showLabel = !!vLbl.checked;
         if (vPref) vv.labelPrefix = qgNormVarPrefix(vPref.value);
-        if (vAlign) vv.labelAlign = qgNormVarLabelAlign(vAlign.value);
         try{
           if (bTh){
             const p = Number(String(bTh.value||'').trim());
@@ -5744,6 +5741,17 @@ try{
 
     if (uslEl && !uslEl._qg){ uslEl._qg=true; uslEl.addEventListener('input', onLimitInput); uslEl.addEventListener('focus', onLimitFocus); uslEl.addEventListener('blur', onLimitBlur); }
     if (lslEl && !lslEl._qg){ lslEl._qg=true; lslEl.addEventListener('input', onLimitInput); lslEl.addEventListener('focus', onLimitFocus); lslEl.addEventListener('blur', onLimitBlur); }
+    try{
+      const limitAlignEl = qs('#qgUSLLSLLabelAlign');
+      if (limitAlignEl && !limitAlignEl._qg){
+        limitAlignEl._qg = true;
+        limitAlignEl.addEventListener('change', ()=>{
+          applyLimitLabelAlignInputToState();
+          renderGrid();
+        });
+      }
+      syncLimitLabelAlignInput(true);
+    }catch(e){}
 
     // Grid hide toggle (default hidden) - applies to all panels
     try{
@@ -6193,11 +6201,14 @@ function renderFacetList(rootId, items, selSet){
     if (!QG.oocSpecByCol) QG.oocSpecByCol = {};
     if (!QG.oocLineVisibleByCol) QG.oocLineVisibleByCol = {};
     if (!QG.limitBaseByCol) QG.limitBaseByCol = {};
+    if (!QG.limitLabelAlignByCol) QG.limitLabelAlignByCol = {};
     const key = String(col.key || '');
     const savedPct = (QG.oocSpecByCol[key] !== undefined) ? QG.oocSpecByCol[key] : ((col.oocSpecPct !== undefined) ? col.oocSpecPct : 85);
     const savedLineVisible = (QG.oocLineVisibleByCol[key] !== undefined) ? !!QG.oocLineVisibleByCol[key] : ((col.oocLineVisible !== undefined) ? !!col.oocLineVisible : false);
+    const savedLabelAlign = (QG.limitLabelAlignByCol[key] !== undefined) ? QG.limitLabelAlignByCol[key] : ((col.limitLabelAlign !== undefined) ? col.limitLabelAlign : 'right');
     col.oocSpecPct = qgClampOocSpecPct(savedPct);
     col.oocLineVisible = savedLineVisible;
+    col.limitLabelAlign = qgNormTextAlign(savedLabelAlign);
     const savedBaseRaw = QG.limitBaseByCol[key] || null;
     const rawUsl = (col.th && col.th.dataset && col.th.dataset.usl !== undefined) ? num(col.th.dataset.usl) : ((col.baseUsl !== undefined) ? col.baseUsl : col.usl);
     const rawLsl = (col.th && col.th.dataset && col.th.dataset.lsl !== undefined) ? num(col.th.dataset.lsl) : ((col.baseLsl !== undefined) ? col.baseLsl : col.lsl);
@@ -6213,6 +6224,7 @@ function renderFacetList(rootId, items, selSet){
     }
     QG.oocSpecByCol[key] = col.oocSpecPct;
     QG.oocLineVisibleByCol[key] = !!col.oocLineVisible;
+    QG.limitLabelAlignByCol[key] = qgNormTextAlign(col.limitLabelAlign);
     return col;
   }
 
@@ -6415,6 +6427,31 @@ function renderFacetList(rootId, items, selSet){
     if (lslEl) lslEl.value = (lslV !== null && lslV !== undefined) ? fmt(lslV) : '';
   }
 
+  function syncLimitLabelAlignInput(force){
+    if (!force && QG.editingLimits) return;
+    const col = qgEnsureColSpecState(qgGetColByKey(QG.sel.primaryColKey));
+    const selEl = qs('#qgUSLLSLLabelAlign');
+    if (!selEl) return;
+    selEl.value = qgNormTextAlign(col ? col.limitLabelAlign : 'right');
+  }
+
+  function applyLimitLabelAlignInputToState(){
+    const col = qgEnsureColSpecState(qgGetColByKey(QG.sel.primaryColKey));
+    const selEl = qs('#qgUSLLSLLabelAlign');
+    if (!col || !selEl) return;
+    const align = qgNormTextAlign(selEl.value);
+    col.limitLabelAlign = align;
+    if (!QG.limitLabelAlignByCol) QG.limitLabelAlignByCol = {};
+    QG.limitLabelAlignByCol[String(col.key || '')] = align;
+  }
+
+  function qgGetLimitLabelPlacement(opt, rowLeft, rowRight){
+    const align = qgNormTextAlign(opt && opt.limitLabelAlign);
+    if (align === 'left') return { x: rowLeft + 4, anchor: 'start' };
+    if (align === 'center') return { x: rowLeft + ((rowRight - rowLeft) / 2), anchor: 'middle' };
+    return { x: rowRight - 2, anchor: 'end' };
+  }
+
   function getAxisState(colKey){
     const k = (colKey || '').toString();
     if (!k) return { yMin: null, yMax: null };
@@ -6479,6 +6516,7 @@ function renderFacetList(rootId, items, selSet){
     renderFacetList('qgCavityList', QG.cavities, QG.sel.cavities);
 
     syncLimitInputs(false);
+    syncLimitLabelAlignInput(false);
     syncAxisInputs(false);
     syncOocSpecInputs(false);
     syncOocLineInputs(false);
@@ -7221,7 +7259,7 @@ function renderGrid(){
         QG.series = series;
         const seriesColor = QG_SERIES_COLORS[ki % QG_SERIES_COLORS.length];
         const ax = getAxisState(colKey);
-        drawMatrixSvg(svg, rowTools, rowCavs, dates, { usl, lsl, oocUsl: oocLim.usl, oocLsl: oocLim.lsl, yMinO: ax.yMin, yMaxO: ax.yMax, showXLabels: isLastRowOfGroup, h: rowSvgH, color: seriesColor, colKey: colKey, label: qgGetDisplayLabel(colKey), rowIndex: rowIndex, rowCount: rowsN });
+        drawMatrixSvg(svg, rowTools, rowCavs, dates, { usl, lsl, oocUsl: oocLim.usl, oocLsl: oocLim.lsl, yMinO: ax.yMin, yMaxO: ax.yMax, showXLabels: isLastRowOfGroup, h: rowSvgH, color: seriesColor, colKey: colKey, label: qgGetDisplayLabel(colKey), rowIndex: rowIndex, rowCount: rowsN, limitLabelAlign: qgNormTextAlign(col && col.limitLabelAlign) });
         QG.series = prevSeries;
 
         wrap.appendChild(svg);
@@ -7698,14 +7736,12 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       if (st.showLabel === false) return;
       const tx = document.createElementNS(ns,'text');
       const _fontPx = 10;
-      const _specX = right - 2;
-      // Keep the label inside the last cavity panel, but sit it just above the spec line
-      // so the text does not overlap the dashed line or stick to the bottom edge.
       const _labelGap = 4;
       const _specY = Math.max(padT + _fontPx + 1, Math.min(padT + innerH - 4, y - _labelGap));
-      tx.setAttribute('x', String(_specX));
+      const _limPos = qgGetLimitLabelPlacement(opt, padL, W - padR);
+      tx.setAttribute('x', String(_limPos.x));
       tx.setAttribute('y', String(_specY));
-      tx.setAttribute('text-anchor', 'end');
+      tx.setAttribute('text-anchor', _limPos.anchor);
       tx.setAttribute('dominant-baseline', 'alphabetic');
       tx.setAttribute('font-size', String(_fontPx));
       tx.setAttribute('fill','rgba(0,0,0,0.70)');
@@ -7753,27 +7789,16 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
         clip(ln);
         svg.appendChild(ln);
 
-        // Label above the line, aligned against the full row span (not a single cavity panel)
+        // Label at the line end, but positioned above the line to avoid overlap
         if (_vLblOn && pi === nP - 1){
           const tx = document.createElementNS(ns,'text');
           const _fontPx = 10;
+          const _lblX = right - 2;
           const _lineGap = 4;
           const _lblY = Math.max(padT + _fontPx, Math.min(padT + innerH - 2, y - _lineGap));
-          const _rowLeft = padL;
-          const _rowRight = W - padR;
-          const _align = qgNormVarLabelAlign(_vs.labelAlign);
-          let _lblX = _rowRight - 2;
-          let _anchor = 'end';
-          if (_align === 'left'){
-            _lblX = _rowLeft + 4;
-            _anchor = 'start';
-          }else if (_align === 'center'){
-            _lblX = _rowLeft + ((_rowRight - _rowLeft) / 2);
-            _anchor = 'middle';
-          }
           tx.setAttribute('x', String(_lblX));
           tx.setAttribute('y', String(_lblY));
-          tx.setAttribute('text-anchor', _anchor);
+          tx.setAttribute('text-anchor','end');
           tx.setAttribute('dominant-baseline','alphabetic');
           tx.setAttribute('font-size', String(_fontPx));
           tx.setAttribute('fill','rgba(0,0,0,0.70)');
@@ -8772,12 +8797,13 @@ const clip = (el)=>{ try{ el.setAttribute('clip-path', clipUrl); }catch(e){} };
 
         const tx = document.createElementNS(ns,'text');
         const _fontPx = 10;
-        const _specX = right - 4;
-        const _specY = Math.max(padT + _fontPx, Math.min(padT + innerH - 2, y));
-        tx.setAttribute('x', String(_specX));
+        const _lineGap = 4;
+        const _specY = Math.max(padT + _fontPx + 1, Math.min(padT + innerH - 4, y - _lineGap));
+        const _limPos = qgGetLimitLabelPlacement(opt, padL, W - padR);
+        tx.setAttribute('x', String(_limPos.x));
         tx.setAttribute('y', String(_specY));
-        tx.setAttribute('text-anchor', 'end');
-        tx.setAttribute('dominant-baseline', 'middle');
+        tx.setAttribute('text-anchor', _limPos.anchor);
+        tx.setAttribute('dominant-baseline', 'alphabetic');
         tx.setAttribute('font-size', String(_fontPx));
         tx.setAttribute('fill','rgba(0,0,0,0.70)');
         if (st.labelOpacity !== undefined && st.labelOpacity !== null){
