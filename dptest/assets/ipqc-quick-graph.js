@@ -6255,13 +6255,6 @@ function renderFacetList(rootId, items, selSet){
       baseLsl: (src.baseLsl !== undefined) ? src.baseLsl : rawL,
     };
 
-    const ratio = qgClampOocSpecPct(pct) / 100;
-    const hasSavedBase = (src.baseUsl !== undefined) || (src.baseLsl !== undefined);
-    if (!hasSavedBase && ratio > 0 && ratio < 1){
-      if (qgIsVisibleLimitValue(rawU)) next.baseUsl = Number(rawU) / ratio;
-      if (qgIsVisibleLimitValue(rawL)) next.baseLsl = Number(rawL) / ratio;
-    }
-
     const scaled = qgCalcScaledOocLimitsFromBase(rawU, rawL, pct);
     const epsU = qgSpecLegacyScaledEps(rawU, scaled.usl);
     const epsL = qgSpecLegacyScaledEps(rawL, scaled.lsl);
@@ -6278,6 +6271,23 @@ function renderFacetList(rootId, items, selSet){
     }
     if (!qgIsVisibleLimitValue(rawL) && (rawL === null || rawL === undefined || Math.abs(Number(rawL) || 0) <= 1e-12)){
       next.baseLsl = rawL;
+    }
+
+    const ratio = qgClampOocSpecPct(pct) / 100;
+    const hasU = qgIsVisibleLimitValue(rawU);
+    const hasL = qgIsVisibleLimitValue(rawL);
+    const savedUEqualsRaw = (src.baseUsl === undefined || src.baseUsl === null || qgSpecApproxEqual(Number(src.baseUsl), Number(rawU), qgSpecLegacyScaledEps(src.baseUsl, rawU)));
+    const savedLEqualsRaw = (src.baseLsl === undefined || src.baseLsl === null || qgSpecApproxEqual(Number(src.baseLsl), Number(rawL), qgSpecLegacyScaledEps(src.baseLsl, rawL)));
+
+    // Legacy one-sided specs in the pivot can still arrive pre-scaled by the current OOC percent.
+    // Only restore the 100% base when exactly one side exists; two-sided specs should keep the raw pair as-is.
+    if (ratio > 0 && ratio < 1){
+      if (hasU && !hasL && savedUEqualsRaw){
+        next.baseUsl = Number(rawU) / ratio;
+      }
+      if (hasL && !hasU && savedLEqualsRaw){
+        next.baseLsl = Number(rawL) / ratio;
+      }
     }
 
     return next;
@@ -7315,8 +7325,6 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
   const panelW = (innerW - gap*(nP-1)) / nP;
 
   // y range across all panels (tool x cavity x date)
-  // Keep the auto axis data-driven. Reference lines (USL/LSL/OOC) should not
-  // stretch the axis and crush the plotted points when a saved spec is far away.
   let yMin = Infinity, yMax = -Infinity;
   for (const tool of tools){
     for (const cav of cavs){
@@ -7330,17 +7338,10 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       }
     }
   }
-  if (!isFinite(yMin) || !isFinite(yMax)) {
-    const refVals = [];
-    if (opt && opt.lsl !== null && opt.lsl !== undefined && isFinite(opt.lsl)) refVals.push(Number(opt.lsl));
-    if (opt && opt.usl !== null && opt.usl !== undefined && isFinite(opt.usl)) refVals.push(Number(opt.usl));
-    if (opt && opt.oocLsl !== null && opt.oocLsl !== undefined && isFinite(opt.oocLsl)) refVals.push(Number(opt.oocLsl));
-    if (opt && opt.oocUsl !== null && opt.oocUsl !== undefined && isFinite(opt.oocUsl)) refVals.push(Number(opt.oocUsl));
-    if (refVals.length){
-      yMin = Math.min.apply(null, refVals);
-      yMax = Math.max.apply(null, refVals);
-    }
-  }
+  if (opt && opt.lsl !== null) yMin = Math.min(yMin, opt.lsl);
+  if (opt && opt.usl !== null) yMax = Math.max(yMax, opt.usl);
+  if (opt && opt.oocLsl !== null && opt.oocLsl !== undefined) yMin = Math.min(yMin, opt.oocLsl);
+  if (opt && opt.oocUsl !== null && opt.oocUsl !== undefined) yMax = Math.max(yMax, opt.oocUsl);
 
   const hasYMinO = !!(opt && opt.yMinO !== null && opt.yMinO !== undefined && isFinite(opt.yMinO));
   const hasYMaxO = !!(opt && opt.yMaxO !== null && opt.yMaxO !== undefined && isFinite(opt.yMaxO));
@@ -8450,8 +8451,6 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
     const panelW = (innerW - gap*(nC-1)) / nC;
 
     // y range across all selected cavs/dates
-    // Keep the auto axis data-driven. Reference lines (USL/LSL/OOC) should not
-    // stretch the axis and crush the plotted points when a saved spec is far away.
     let yMin = Infinity, yMax = -Infinity;
     for (const cav of cavs){
       const s = ((QG.series||{})[tool]||{})[cav]||{};
@@ -8463,17 +8462,10 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
         yMax = Math.max(yMax, p.max, p.mean);
       }
     }
-    if (!isFinite(yMin) || !isFinite(yMax)) {
-      const refVals = [];
-      if (opt && opt.lsl !== null && opt.lsl !== undefined && isFinite(opt.lsl)) refVals.push(Number(opt.lsl));
-      if (opt && opt.usl !== null && opt.usl !== undefined && isFinite(opt.usl)) refVals.push(Number(opt.usl));
-      if (opt && opt.oocLsl !== null && opt.oocLsl !== undefined && isFinite(opt.oocLsl)) refVals.push(Number(opt.oocLsl));
-      if (opt && opt.oocUsl !== null && opt.oocUsl !== undefined && isFinite(opt.oocUsl)) refVals.push(Number(opt.oocUsl));
-      if (refVals.length){
-        yMin = Math.min.apply(null, refVals);
-        yMax = Math.max.apply(null, refVals);
-      }
-    }
+    if (opt && opt.lsl !== null) yMin = Math.min(yMin, opt.lsl);
+    if (opt && opt.usl !== null) yMax = Math.max(yMax, opt.usl);
+    if (opt && opt.oocLsl !== null && opt.oocLsl !== undefined) yMin = Math.min(yMin, opt.oocLsl);
+    if (opt && opt.oocUsl !== null && opt.oocUsl !== undefined) yMax = Math.max(yMax, opt.oocUsl);
 
     const hasYMinO = !!(opt && opt.yMinO !== null && opt.yMinO !== undefined && isFinite(opt.yMinO));
     const hasYMaxO = !!(opt && opt.yMaxO !== null && opt.yMaxO !== undefined && isFinite(opt.yMaxO));
