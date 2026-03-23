@@ -7090,149 +7090,135 @@ function renderGrid(){
 
     let groupAdded = 0;
 
-    const renderRow = (colKey, ki, asn, ai)=>{
-      const series = QG.seriesByCol[colKey];
-      if (!series) return;
-      const col = QG.cols.find(c => c.key === colKey) || null;
-      const usl = col ? qgGetBaseLimitValueForCol(col, 'usl') : null;
-      const lsl = col ? qgGetBaseLimitValueForCol(col, 'lsl') : null;
-      const oocLim = (col && qgGetColOocLineVisible(col)) ? qgGetScaledOocLimitsForCol(col) : { usl: null, lsl: null };
+    for (let ai=0; ai<rowAssignments.length; ai++){
+      const asn = rowAssignments[ai] || {};
       const rowTools = asn.tool ? [asn.tool] : toolsRow;
       const rowCavs  = asn.cavity ? [asn.cavity] : cavsRow;
 
-      const dateMap = new Map();
-      for (const tool of rowTools){
-        for (const cav of rowCavs){
-          const s = (((series||{}))[tool]||{})[cav]||{};
-          for (const d of Object.keys(s)){
-            const di = normalizeDateKey(d);
-            if (!di.key) continue;
-            const ex = dateMap.get(di.key);
-            if (!ex){
-              di._alts = [d];
-              dateMap.set(di.key, di);
-            }else{
-              if (!ex._alts) ex._alts = [];
-              if (ex._alts.indexOf(d) === -1) ex._alts.push(d);
+      for (let ki=0; ki<keys.length; ki++){
+        const colKey = keys[ki];
+        const series = QG.seriesByCol[colKey];
+        if (!series) continue;
+        const col = QG.cols.find(c => c.key === colKey) || null;
+        const usl = col ? qgGetBaseLimitValueForCol(col, 'usl') : null;
+        const lsl = col ? qgGetBaseLimitValueForCol(col, 'lsl') : null;
+        const oocLim = (col && qgGetColOocLineVisible(col)) ? qgGetScaledOocLimitsForCol(col) : { usl: null, lsl: null };
+
+        const dateMap = new Map();
+        for (const tool of rowTools){
+          for (const cav of rowCavs){
+            const s = (((series||{}))[tool]||{})[cav]||{};
+            for (const d of Object.keys(s)){
+              const di = normalizeDateKey(d);
+              if (!di.key) continue;
+              const ex = dateMap.get(di.key);
+              if (!ex){
+                di._alts = [d];
+                dateMap.set(di.key, di);
+              }else{
+                if (!ex._alts) ex._alts = [];
+                if (ex._alts.indexOf(d) === -1) ex._alts.push(d);
+              }
             }
           }
         }
-      }
-      const dates = Array.from(dateMap.values()).sort(sortDateInfo);
-      if (!dates.length) return;
+        const dates = Array.from(dateMap.values()).sort(sortDateInfo);
+        if (!dates.length) continue;
 
-      const row = document.createElement('div');
-      row.className = 'qg-fai-row';
-      try{ row.dataset.colKey = String(colKey); }catch(e){}
-      const labelText = qgGetDisplayLabel(colKey);
-      row.innerHTML = `
-        <div class="qg-row-label"><div class="vtxt">${escapeHtml(labelText)}</div></div>
-        <div class="qg-fai-one"></div>
-      `;
-      try{
-        if (asn.tool !== undefined && asn.tool !== null) row.dataset.groupyTool = String(asn.tool);
-        else if (rowTools.length === 1) row.dataset.groupyTool = String(rowTools[0]);
-        else delete row.dataset.groupyTool;
-        if (asn.cavity !== undefined && asn.cavity !== null) row.dataset.groupyCavity = String(asn.cavity);
-        else if (rowCavs.length === 1) row.dataset.groupyCavity = String(rowCavs[0]);
-        else delete row.dataset.groupyCavity;
-      }catch(e){}
-      const wrap = qs('.qg-fai-one', row);
-      const lblEl = qs('.qg-row-label', row);
+        const row = document.createElement('div');
+        row.className = 'qg-fai-row';
+        try{ row.dataset.colKey = String(colKey); }catch(e){}
+        const labelText = qgGetDisplayLabel(colKey);
+        row.innerHTML = `
+          <div class="qg-row-label"><div class="vtxt">${escapeHtml(labelText)}</div></div>
+          <div class="qg-fai-one"></div>
+        `;
+        try{
+          if (asn.tool !== undefined && asn.tool !== null) row.dataset.groupyTool = String(asn.tool);
+          else if (rowTools.length === 1) row.dataset.groupyTool = String(rowTools[0]);
+          else delete row.dataset.groupyTool;
+          if (asn.cavity !== undefined && asn.cavity !== null) row.dataset.groupyCavity = String(asn.cavity);
+          else if (rowCavs.length === 1) row.dataset.groupyCavity = String(rowCavs[0]);
+          else delete row.dataset.groupyCavity;
+        }catch(e){}
+        const wrap = qs('.qg-fai-one', row);
+        const lblEl = qs('.qg-row-label', row);
 
-      if (lblEl && !lblEl._qgRename){
-        lblEl._qgRename = true;
-        try{ lblEl.style.cursor = 'text'; }catch(e){}
-        lblEl.addEventListener('dblclick', (ev)=>{
-          try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){}
-          const k = String(colKey || '');
-          const col0 = (QG.cols || []).find(c => String(c.key) === k) || null;
-          const base = col0 ? String(col0.label || k) : k;
-          const cur = qgGetDisplayLabel(k);
-          qgOpenRenameDlg({ colKey: k, base: base, cur: cur });
-        }, { passive:false });
-      }
-
-      try{
-        row.style.margin = '0';
-        row.style.padding = '0';
-        row.style.minHeight = '0';
-        row.style.overflow = 'hidden';
-        wrap.style.margin = '0';
-        wrap.style.padding = '0';
-        wrap.style.minHeight = '0';
-        wrap.style.overflow = 'hidden';
-        wrap.style.lineHeight = '0';
-        if (lblEl){
-          lblEl.style.minHeight = '0';
-          lblEl.style.overflow = 'hidden';
-          lblEl.style.borderRadius = '0';
+        if (lblEl && !lblEl._qgRename){
+          lblEl._qgRename = true;
+          try{ lblEl.style.cursor = 'text'; }catch(e){}
+          lblEl.addEventListener('dblclick', (ev)=>{
+            try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){}
+            const k = String(colKey || '');
+            const col0 = (QG.cols || []).find(c => String(c.key) === k) || null;
+            const base = col0 ? String(col0.label || k) : k;
+            const cur = qgGetDisplayLabel(k);
+            qgOpenRenameDlg({ colKey: k, base: base, cur: cur });
+          }, { passive:false });
         }
-      }catch(e){}
 
-      const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
-      svg.classList.add('qg-svg');
-      try{ svg.dataset.colKey = String(colKey); svg.setAttribute('data-col-key', String(colKey)); }catch(e){}
-      svg.setAttribute('viewBox', '0 0 1200 320');
-      svg.setAttribute('preserveAspectRatio','none');
-      svg.style.height = '320px';
-      svg.style.pointerEvents = 'all';
+        try{
+          row.style.margin = '0';
+          row.style.padding = '0';
+          row.style.minHeight = '0';
+          row.style.overflow = 'hidden';
+          wrap.style.margin = '0';
+          wrap.style.padding = '0';
+          wrap.style.minHeight = '0';
+          wrap.style.overflow = 'hidden';
+          wrap.style.lineHeight = '0';
+          if (lblEl){
+            lblEl.style.minHeight = '0';
+            lblEl.style.overflow = 'hidden';
+            lblEl.style.borderRadius = '0';
+          }
+        }catch(e){}
 
-      if (!svg._qgPick){
-        svg._qgPick = true;
-        svg.addEventListener('pointerdown', (ev)=>{
-          try{
-            if (ev.button !== undefined && ev.button !== 0) return;
-          }catch(e){}
-          setPrimaryColKey(colKey);
-          renderFaiList();
-        }, { passive:true });
-      }
+        const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+        svg.classList.add('qg-svg');
+        try{ svg.dataset.colKey = String(colKey); svg.setAttribute('data-col-key', String(colKey)); }catch(e){}
+        svg.setAttribute('viewBox', '0 0 1200 320');
+        svg.setAttribute('preserveAspectRatio','none');
+        svg.style.height = '320px';
+        svg.style.pointerEvents = 'all';
 
-      const isLastRowOfGroup = (ai === rowAssignments.length - 1) && (ki === keys.length - 1);
-      const rowOrder = (ai * keys.length) + ki;
-      const rowSvgH = rowPlotH + (isLastRowOfGroup ? footerH : 0);
-      svg.setAttribute('viewBox', `0 0 1200 ${rowSvgH}`);
-      svg.style.height = rowSvgH + 'px';
-      svg.style.display = 'block';
-      try{
-        row.style.height = rowSvgH + 'px';
-        wrap.style.height = rowSvgH + 'px';
-        if (lblEl){
-          lblEl.style.height = rowPlotH + 'px';
-          lblEl.style.alignSelf = 'start';
+        if (!svg._qgPick){
+          svg._qgPick = true;
+          svg.addEventListener('pointerdown', (ev)=>{
+            try{
+              if (ev.button !== undefined && ev.button !== 0) return;
+            }catch(e){}
+            setPrimaryColKey(colKey);
+            renderFaiList();
+          }, { passive:true });
         }
-      }catch(e){}
 
-      const prevSeries = QG.series;
-      QG.series = series;
-      const seriesColor = QG_SERIES_COLORS[ki % QG_SERIES_COLORS.length];
-      const ax = getAxisState(colKey);
-      drawMatrixSvg(svg, rowTools, rowCavs, dates, { usl, lsl, oocUsl: oocLim.usl, oocLsl: oocLim.lsl, yMinO: ax.yMin, yMaxO: ax.yMax, showXLabels: isLastRowOfGroup, h: rowSvgH, color: seriesColor, colKey: colKey, label: qgGetDisplayLabel(colKey), rowIndex: rowOrder, rowCount: rowsN });
-      QG.series = prevSeries;
+        const isLastRowOfGroup = (ai === rowAssignments.length - 1) && (ki === keys.length - 1);
+        const rowIndex = (ai * keys.length) + ki;
+        const rowSvgH = rowPlotH + (isLastRowOfGroup ? footerH : 0);
+        svg.setAttribute('viewBox', `0 0 1200 ${rowSvgH}`);
+        svg.style.height = rowSvgH + 'px';
+        svg.style.display = 'block';
+        try{
+          row.style.height = rowSvgH + 'px';
+          wrap.style.height = rowSvgH + 'px';
+          if (lblEl){
+            lblEl.style.height = rowPlotH + 'px';
+            lblEl.style.alignSelf = 'start';
+          }
+        }catch(e){}
 
-      wrap.appendChild(svg);
-      group.appendChild(row);
-      groupAdded += 1;
-      anyAdded += 1;
-    };
+        const prevSeries = QG.series;
+        QG.series = series;
+        const seriesColor = QG_SERIES_COLORS[ki % QG_SERIES_COLORS.length];
+        const ax = getAxisState(colKey);
+        drawMatrixSvg(svg, rowTools, rowCavs, dates, { usl, lsl, oocUsl: oocLim.usl, oocLsl: oocLim.lsl, yMinO: ax.yMin, yMaxO: ax.yMax, showXLabels: isLastRowOfGroup, h: rowSvgH, color: seriesColor, colKey: colKey, label: qgGetDisplayLabel(colKey), rowIndex: rowIndex, rowCount: rowsN });
+        QG.series = prevSeries;
 
-    const groupByAssignments = !!(groupYVars.length && xVars.length !== 2);
-    if (groupByAssignments){
-      for (let ai=0; ai<rowAssignments.length; ai++){
-        const asn = rowAssignments[ai] || {};
-        for (let ki=0; ki<keys.length; ki++){
-          const colKey = keys[ki];
-          renderRow(colKey, ki, asn, ai);
-        }
-      }
-    }else{
-      for (let ki=0; ki<keys.length; ki++){
-        const colKey = keys[ki];
-        for (let ai=0; ai<rowAssignments.length; ai++){
-          const asn = rowAssignments[ai] || {};
-          renderRow(colKey, ki, asn, ai);
-        }
+        wrap.appendChild(svg);
+        group.appendChild(row);
+        groupAdded += 1;
+        anyAdded += 1;
       }
     }
 
