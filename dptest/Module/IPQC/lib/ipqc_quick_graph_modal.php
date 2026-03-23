@@ -206,6 +206,12 @@ if (!function_exists('h')) {
   #qgOverlay #qgGroupYBox.has-var{
     cursor:grab;
   }
+  #qgOverlay #qgGroupYBox.has-vars{
+    background:transparent;
+    border:none;
+    box-shadow:none;
+    overflow:visible;
+  }
   #qgOverlay #qgGroupYBox .qg-group-y-text{
     display:block;
     writing-mode:horizontal-tb;
@@ -217,6 +223,60 @@ if (!function_exists('h')) {
     letter-spacing:0;
     line-height:1;
     user-select:none;
+  }
+  #qgOverlay #qgGroupYBox .qg-group-y-strips{
+    position:relative;
+    width:100%;
+    height:100%;
+    display:block;
+    box-sizing:border-box;
+  }
+  #qgOverlay #qgGroupYBox .qg-group-y-strip{
+    position:absolute;
+    top:0;
+    bottom:0;
+    box-sizing:border-box;
+    border-left:1px solid #cfcfcf;
+    border-top:1px solid #cfcfcf;
+    border-bottom:1px solid #cfcfcf;
+    overflow:hidden;
+  }
+  #qgOverlay #qgGroupYBox .qg-group-y-strip-values{
+    background:#f6f4ea;
+  }
+  #qgOverlay #qgGroupYBox .qg-group-y-strip-field{
+    background:#dedbcf;
+  }
+  #qgOverlay #qgGroupYBox .qg-group-y-band{
+    position:absolute;
+    left:0;
+    right:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+    box-sizing:border-box;
+  }
+  #qgOverlay #qgGroupYBox .qg-group-y-band-value{
+    border-top:1px solid #cfcfcf;
+    background:#f6f4ea;
+  }
+  #qgOverlay #qgGroupYBox .qg-group-y-band-field{
+    border-top:none;
+    background:#dedbcf;
+  }
+  #qgOverlay #qgGroupYBox .qg-group-y-vtxt{
+    display:block;
+    writing-mode:vertical-rl;
+    transform:rotate(180deg);
+    transform-origin:center center;
+    white-space:nowrap;
+    font-size:11px;
+    font-weight:700;
+    line-height:1;
+    color:#222222;
+    user-select:none;
+    letter-spacing:0;
   }
 
 

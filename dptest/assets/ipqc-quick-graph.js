@@ -4927,15 +4927,123 @@ function qgGetGroupYAssignments(selTools, selCavs){
   return out;
 }
 
-function qgUpdateGroupYBox(){
+function qgFormatGroupYValue(varKey, value){
+  const vk = qgNormalizeDockVar(varKey);
+  let vv = String(value == null ? '' : value);
+  if (vk === 'cavity' && vv){
+    const up = vv.toUpperCase();
+    if (!up.includes('CAV')) vv += 'CAV';
+  }
+  return vv;
+}
+
+function qgBuildGroupYValueBands(rows, varKey){
+  const out = [];
+  const list = Array.isArray(rows) ? rows : [];
+  let cur = null;
+  for (const row of list){
+    if (!row) continue;
+    const raw = (varKey === 'tool') ? row.tool : row.cavity;
+    const val = qgFormatGroupYValue(varKey, raw);
+    if (!cur || cur.value !== val){
+      cur = { value: val, top: row.top, bottom: row.bottom };
+      out.push(cur);
+    }else{
+      cur.bottom = row.bottom;
+    }
+  }
+  return out;
+}
+
+function qgRenderGroupYBox(){
   qgEnsureGroupYState();
   const box = qs('#qgGroupYBox');
+  const grid = qs('#qgGrid');
   if (!box) return;
-  const txt = qs('.qg-group-y-text', box);
-  if (!txt) return;
   const vars = qgGetGroupYVars();
-  txt.textContent = vars.length ? ('그룹 Y : ' + vars.map(qgDockVarLabel).join(' / ')) : '그룹 Y';
   try{ box.classList.toggle('has-var', vars.length > 0); }catch(e){}
+  try{ box.classList.toggle('has-vars', vars.length > 0); }catch(e){}
+  if (!vars.length){
+    box.innerHTML = '<span class="qg-group-y-text">그룹 Y</span>';
+    return;
+  }
+  const rows = qsa('.qg-fai-row', grid).filter(Boolean);
+  const boxRect = box.getBoundingClientRect();
+  if (!rows.length || !boxRect || boxRect.height <= 0){
+    box.innerHTML = '';
+    return;
+  }
+  const rowMeta = rows.map((row)=>{
+    const ref = qs('.qg-row-label', row) || row;
+    const rr = ref.getBoundingClientRect();
+    const top = Math.max(0, rr.top - boxRect.top);
+    const bottom = Math.min(boxRect.height, rr.bottom - boxRect.top);
+    return {
+      top,
+      bottom,
+      tool: String((row.dataset && row.dataset.groupyTool) ? row.dataset.groupyTool : ''),
+      cavity: String((row.dataset && row.dataset.groupyCavity) ? row.dataset.groupyCavity : '')
+    };
+  }).filter(r => isFinite(r.top) && isFinite(r.bottom) && r.bottom > r.top + 0.5);
+  if (!rowMeta.length){
+    box.innerHTML = '';
+    return;
+  }
+
+  const VALUE_W = 20;
+  const FIELD_W = 20;
+  const stripVars = vars.slice().reverse();
+  const totalW = stripVars.length * (VALUE_W + FIELD_W);
+  box.style.width = totalW + 'px';
+
+  const host = document.createElement('div');
+  host.className = 'qg-group-y-strips';
+
+  let left = 0;
+  for (const varKey of stripVars){
+    const valStrip = document.createElement('div');
+    valStrip.className = 'qg-group-y-strip qg-group-y-strip-values';
+    valStrip.style.left = left + 'px';
+    valStrip.style.width = VALUE_W + 'px';
+    const bands = qgBuildGroupYValueBands(rowMeta, varKey);
+    for (let i = 0; i < bands.length; i++){
+      const band = bands[i];
+      const el = document.createElement('div');
+      el.className = 'qg-group-y-band qg-group-y-band-value';
+      el.style.top = Math.round(band.top) + 'px';
+      el.style.height = Math.max(1, Math.round(band.bottom - band.top)) + 'px';
+      const tx = document.createElement('span');
+      tx.className = 'qg-group-y-vtxt';
+      tx.textContent = band.value;
+      el.appendChild(tx);
+      valStrip.appendChild(el);
+    }
+    host.appendChild(valStrip);
+    left += VALUE_W;
+
+    const fldStrip = document.createElement('div');
+    fldStrip.className = 'qg-group-y-strip qg-group-y-strip-field';
+    fldStrip.style.left = left + 'px';
+    fldStrip.style.width = FIELD_W + 'px';
+    const fldBand = document.createElement('div');
+    fldBand.className = 'qg-group-y-band qg-group-y-band-field';
+    fldBand.style.top = '0px';
+    fldBand.style.height = '100%';
+    const fldTx = document.createElement('span');
+    fldTx.className = 'qg-group-y-vtxt';
+    fldTx.textContent = qgDockVarLabel(varKey);
+    fldBand.appendChild(fldTx);
+    fldStrip.appendChild(fldBand);
+    host.appendChild(fldStrip);
+    left += FIELD_W;
+  }
+
+  box.innerHTML = '';
+  box.appendChild(host);
+}
+
+function qgUpdateGroupYBox(){
+  qgRenderGroupYBox();
 }
 
 function qgSetGroupYVar(varKey){
@@ -6990,12 +7098,19 @@ function renderGrid(){
         const row = document.createElement('div');
         row.className = 'qg-fai-row';
         try{ row.dataset.colKey = String(colKey); }catch(e){}
-        const gySuffix = qgFormatGroupYAssignment(asn);
-        const labelText = gySuffix ? (qgGetDisplayLabel(colKey) + ' · ' + gySuffix) : qgGetDisplayLabel(colKey);
+        const labelText = qgGetDisplayLabel(colKey);
         row.innerHTML = `
           <div class="qg-row-label"><div class="vtxt">${escapeHtml(labelText)}</div></div>
           <div class="qg-fai-one"></div>
         `;
+        try{
+          if (asn.tool !== undefined && asn.tool !== null) row.dataset.groupyTool = String(asn.tool);
+          else if (rowTools.length === 1) row.dataset.groupyTool = String(rowTools[0]);
+          else delete row.dataset.groupyTool;
+          if (asn.cavity !== undefined && asn.cavity !== null) row.dataset.groupyCavity = String(asn.cavity);
+          else if (rowCavs.length === 1) row.dataset.groupyCavity = String(rowCavs[0]);
+          else delete row.dataset.groupyCavity;
+        }catch(e){}
         const wrap = qs('.qg-fai-one', row);
         const lblEl = qs('.qg-row-label', row);
 
@@ -7094,39 +7209,7 @@ function renderGrid(){
 
 
 function qgSyncFaiLabelsToGroupY(){
-  try{
-    const grid = qs('#qgGrid');
-    const box = qs('#qgGroupYBox');
-    if (!grid || !box) return;
-    const labels = qsa('.qg-row-label', grid).filter(Boolean);
-    if (!labels.length) return;
-    const txt = qs('.qg-group-y-text', box);
-    const boxCs = window.getComputedStyle ? window.getComputedStyle(box) : null;
-    const txtCs = (txt && window.getComputedStyle) ? window.getComputedStyle(txt) : null;
-    if (!boxCs) return;
-    const bg = String(boxCs.backgroundColor || boxCs.background || '').trim();
-    const bdColor = String(boxCs.borderColor || '').trim();
-    const bdWidth = String(boxCs.borderWidth || '').trim();
-    const bdStyle = String(boxCs.borderStyle || '').trim();
-    const fg = String((txtCs && (txtCs.color || '')) || boxCs.color || '').trim();
-    const txtOpacity = String((txtCs && txtCs.opacity) || '1').trim();
-    for (const el of labels){
-      try{
-        if (bg) el.style.background = bg;
-        if (bdColor) el.style.borderColor = bdColor;
-        if (bdWidth) el.style.borderWidth = bdWidth;
-        if (bdStyle) el.style.borderStyle = bdStyle;
-        if (fg) el.style.color = fg;
-      }catch(e){}
-      try{
-        const vtxt = el.querySelector ? el.querySelector('.vtxt') : null;
-        if (vtxt){
-          if (fg) vtxt.style.color = fg;
-          if (txtOpacity) vtxt.style.opacity = txtOpacity;
-        }
-      }catch(e){}
-    }
-  }catch(e){}
+  return;
 }
 
 
@@ -7152,18 +7235,21 @@ function qgSyncGroupYBox(){
     let height = Math.round((botRect.bottom - insetBottom) - (topRect.top + insetTop));
     if (!isFinite(top)) top = 0;
     if (!isFinite(height) || height < 48) height = 48;
+    const vars = qgGetGroupYVars();
+    const stripW = vars.length ? (vars.length * 40) : 30;
     box.style.display = 'flex';
     box.style.right = '-1px';
     box.style.top = Math.max(0, top) + 'px';
     box.style.bottom = 'auto';
     box.style.height = height + 'px';
-    box.style.width = '30px';
+    box.style.width = stripW + 'px';
     box.style.pointerEvents = 'auto';
     const txt = qs('.qg-group-y-text', box);
     if (txt){
       txt.style.transform = 'rotate(-90deg)';
       txt.style.transformOrigin = 'center center';
     }
+    try{ qgRenderGroupYBox(); }catch(e){}
     if (!QG._groupYResizeBound){
       QG._groupYResizeBound = true;
       window.addEventListener('resize', ()=>{ try{ qgSyncGroupYBox(); }catch(e){} }, { passive:true });
