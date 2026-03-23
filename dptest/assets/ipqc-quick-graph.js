@@ -5022,6 +5022,7 @@ function qgRenderGroupYBox(){
     const varKey = stripVars[si];
     const valStrip = document.createElement('div');
     valStrip.className = 'qg-group-y-strip qg-group-y-strip-values';
+    valStrip.dataset.varkey = varKey;
     valStrip.style.left = left + 'px';
     valStrip.style.width = metrics.valueW + 'px';
     const bands = qgBuildGroupYValueBands(rowMeta, varKey);
@@ -5042,6 +5043,7 @@ function qgRenderGroupYBox(){
 
     const fldStrip = document.createElement('div');
     fldStrip.className = 'qg-group-y-strip qg-group-y-strip-field';
+    fldStrip.dataset.varkey = varKey;
     fldStrip.style.left = left + 'px';
     fldStrip.style.width = metrics.fieldW + 'px';
     const fldBand = document.createElement('div');
@@ -5060,6 +5062,7 @@ function qgRenderGroupYBox(){
 
   box.innerHTML = '';
   box.appendChild(host);
+  try{ qgBindGroupYStripDrags(); }catch(e){}
 }
 
 function qgUpdateGroupYBox(){
@@ -5101,9 +5104,23 @@ function qgPickGroupYBoxAt(x, y){
   return null;
 }
 
+function qgPickGroupXBoxAt(x, y){
+  const bodies = qsa('.qg-tophead-body');
+  for (const el of bodies){
+    if (!el) continue;
+    const r = el.getBoundingClientRect();
+    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return el;
+  }
+  return null;
+}
+
 function qgClearVarDropHover(){
   qgClearDockHover();
   try{ const gy = qs('#qgGroupYBox'); if (gy) gy.classList.remove('hover'); }catch(e){}
+  qsa('.qg-tophead-body.qg-var-drop-hover').forEach(el=>{
+    try{ el.classList.remove('qg-var-drop-hover'); }catch(e){}
+    try{ el.style.boxShadow = ''; }catch(e){}
+  });
 }
 
 function qgPickVarDropTargetAt(x, y){
@@ -5113,13 +5130,112 @@ function qgPickVarDropTargetAt(x, y){
   }
   const gy = qgPickGroupYBoxAt(x, y);
   if (gy) return { type:'groupY', el:gy };
+  const gx = qgPickGroupXBoxAt(x, y);
+  if (gx) return { type:'groupX', el:gx };
   return null;
 }
 
 function qgMarkVarDropHover(target){
   qgClearVarDropHover();
   if (!target || !target.el) return;
-  try{ target.el.classList.add('hover'); }catch(e){}
+  try{
+    if (target.type === 'groupX'){
+      target.el.classList.add('qg-var-drop-hover');
+      target.el.style.boxShadow = 'inset 0 0 0 2px rgba(61,111,227,0.38)';
+    }else{
+      target.el.classList.add('hover');
+    }
+  }catch(e){}
+}
+
+
+function qgBindGroupYStripDragHandle(el, varKey, label){
+  if (!el || el._qgGroupYDragBound) return;
+  el._qgGroupYDragBound = true;
+  try{
+    if (el.style){
+      el.style.cursor = 'grab';
+      el.style.userSelect = 'none';
+      el.style.webkitUserSelect = 'none';
+    }
+  }catch(e){}
+
+  el.addEventListener('pointerdown', (ev)=>{
+    try{
+      if (!ev || (ev.button !== undefined && ev.button !== 0)) return;
+    }catch(e){}
+    const vk = qgNormalizeDockVar(varKey);
+    if (vk !== 'tool' && vk !== 'cavity') return;
+
+    const pid = ev.pointerId;
+    const st = {
+      pid,
+      src: el,
+      varKey: vk,
+      label: (label || qgDockVarLabel(vk)).toString(),
+      startX: ev.clientX,
+      startY: ev.clientY,
+      dragging: false,
+      overTarget: null
+    };
+    QG._groupYVarPtr = st;
+
+    try{ el.setPointerCapture && el.setPointerCapture(pid); }catch(e){}
+    const ghost = qgEnsureVarGhost();
+
+    const onMove = (mv)=>{
+      const s = QG._groupYVarPtr;
+      if (!s || s.pid !== mv.pointerId) return;
+      const dx = mv.clientX - s.startX;
+      const dy = mv.clientY - s.startY;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (!s.dragging){
+        if (dist < 6) return;
+        s.dragging = true;
+        ghost.textContent = s.label;
+        ghost.style.display = 'block';
+        try{ mv.preventDefault(); mv.stopPropagation(); }catch(e){}
+      }
+      ghost.style.left = (mv.clientX + 12) + 'px';
+      ghost.style.top  = (mv.clientY + 10) + 'px';
+      const target = qgPickVarDropTargetAt(mv.clientX, mv.clientY);
+      qgMarkVarDropHover(target);
+      s.overTarget = target;
+    };
+
+    const onUp = (up)=>{
+      const s = QG._groupYVarPtr;
+      if (!s || s.pid !== up.pointerId) return;
+      try{ document.removeEventListener('pointermove', onMove, true); }catch(e){}
+      try{ document.removeEventListener('pointerup', onUp, true); }catch(e){}
+      try{ document.removeEventListener('pointercancel', onUp, true); }catch(e){}
+      const didDrag = !!s.dragging;
+      const target = s.overTarget;
+      QG._groupYVarPtr = null;
+      qgClearVarDropHover();
+      ghost.style.display = 'none';
+      if (didDrag){
+        try{ up.preventDefault(); up.stopPropagation(); }catch(e){}
+        if (target){
+          if (target.type === 'groupX') qgClearGroupYVar(s.varKey);
+          else if (target.type === 'dock' && target.dockKey) qgSetDockVar(target.dockKey, s.varKey);
+        }
+        QG._dragVarSuppressClickUntil = Date.now() + 300;
+      }
+    };
+
+    document.addEventListener('pointermove', onMove, true);
+    document.addEventListener('pointerup', onUp, true);
+    document.addEventListener('pointercancel', onUp, true);
+  }, true);
+}
+
+function qgBindGroupYStripDrags(){
+  qsa('#qgGroupYBox .qg-group-y-strip[data-varkey]').forEach(el=>{
+    const vk = qgNormalizeDockVar(el.dataset ? el.dataset.varkey : '');
+    if (!vk) return;
+    try{ qgBindGroupYStripDragHandle(el, vk, qgDockVarLabel(vk)); }catch(e){}
+  });
 }
 
 function qgBindGroupYBoxInteractions(){
