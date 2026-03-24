@@ -5404,54 +5404,100 @@ function qgHideVarDropMarker(){
   }catch(e){}
 }
 
+function qgRoundedPolygonClipPath(points, radius){
+  const pts = Array.isArray(points) ? points.filter(p => p && isFinite(p.x) && isFinite(p.y)) : [];
+  if (pts.length < 3) return 'none';
+  const q = (n)=> String(Math.round(Number(n || 0) * 100) / 100);
+  const dist = (a, b)=> Math.hypot((b.x - a.x), (b.y - a.y));
+  const unit = (dx, dy)=>{
+    const d = Math.hypot(dx, dy) || 1;
+    return { x:(dx / d), y:(dy / d) };
+  };
+  const rr = Math.max(0, Number(radius) || 0);
+  const ins = [];
+  const outs = [];
+  for (let i = 0; i < pts.length; i++){
+    const cur = pts[i];
+    const prev = pts[(i - 1 + pts.length) % pts.length];
+    const next = pts[(i + 1) % pts.length];
+    const lim = Math.min(rr, dist(prev, cur) * 0.5, dist(cur, next) * 0.5);
+    const up = unit(prev.x - cur.x, prev.y - cur.y);
+    const un = unit(next.x - cur.x, next.y - cur.y);
+    ins.push({ x:(cur.x + up.x * lim), y:(cur.y + up.y * lim) });
+    outs.push({ x:(cur.x + un.x * lim), y:(cur.y + un.y * lim) });
+  }
+  const segs = [`M ${q(outs[0].x)} ${q(outs[0].y)}`];
+  for (let i = 1; i < pts.length; i++){
+    segs.push(`L ${q(ins[i].x)} ${q(ins[i].y)}`);
+    segs.push(`Q ${q(pts[i].x)} ${q(pts[i].y)} ${q(outs[i].x)} ${q(outs[i].y)}`);
+  }
+  segs.push(`L ${q(ins[0].x)} ${q(ins[0].y)}`);
+  segs.push(`Q ${q(pts[0].x)} ${q(pts[0].y)} ${q(outs[0].x)} ${q(outs[0].y)}`);
+  segs.push('Z');
+  return `path('${segs.join(' ')}')`;
+}
+
 function qgBuildVarDropClipPath(kind, slotIndex, width, height){
   const idx = Math.max(0, Math.min(2, Number(slotIndex) || 0));
   const w = Math.max(12, Number(width) || 0);
   const h = Math.max(12, Number(height) || 0);
-  const q = (n)=> String(Math.round(n * 100) / 100);
-
-  // Shared outer shape, with one long center slot and short caps.
-  // Keep the joins rounded and shallow so the preview does not turn into
-  // the old sharp "cutter" wedge shape.
-  const rr = Math.max(8, Math.min(18, Math.min(w, h) * 0.18));
-  const jr = Math.max(3, Math.min(10, Math.min(w, h) * 0.06));
+  const rr = Math.max(4, Math.min(10, Math.min(w, h) * 0.10));
 
   if (kind === 'groupY'){
     const y1L = h * 0.18;
     const y1R = h * 0.46;
     const y2L = h * 0.54;
     const y2R = h * 0.82;
-
-    const c1rx = w * 0.72;
-    const c1lx = w * 0.22;
-    const c2rx = w * 0.72;
-    const c2lx = w * 0.22;
-
     if (idx === 0){
-      return `path('M ${q(rr)} 0 H ${q(w - rr)} Q ${q(w)} 0 ${q(w)} ${q(rr)} V ${q(Math.max(rr, y1R - jr))} Q ${q(w)} ${q(y1R)} ${q(w - jr)} ${q(y1R)} C ${q(c1rx)} ${q(y1R)} ${q(c1lx)} ${q(y1L)} ${q(jr)} ${q(y1L)} Q 0 ${q(y1L)} 0 ${q(Math.max(rr, y1L - jr))} V ${q(rr)} Q 0 0 ${q(rr)} 0 Z')`;
+      return qgRoundedPolygonClipPath([
+        { x:0, y:0 },
+        { x:w, y:0 },
+        { x:w, y:y1R },
+        { x:0, y:y1L }
+      ], rr);
     }
     if (idx === 1){
-      return `path('M 0 ${q(Math.max(0, y1L + jr))} Q 0 ${q(y1L)} ${q(jr)} ${q(y1L)} C ${q(c1lx)} ${q(y1L)} ${q(c1rx)} ${q(y1R)} ${q(w - jr)} ${q(y1R)} Q ${q(w)} ${q(y1R)} ${q(w)} ${q(Math.min(h, y1R + jr))} V ${q(Math.max(0, y2R - jr))} Q ${q(w)} ${q(y2R)} ${q(w - jr)} ${q(y2R)} C ${q(c2rx)} ${q(y2R)} ${q(c2lx)} ${q(y2L)} ${q(jr)} ${q(y2L)} Q 0 ${q(y2L)} 0 ${q(Math.max(0, y2L - jr))} Z')`;
+      return qgRoundedPolygonClipPath([
+        { x:0, y:y1L },
+        { x:w, y:y1R },
+        { x:w, y:y2R },
+        { x:0, y:y2L }
+      ], rr);
     }
-    return `path('M 0 ${q(Math.max(0, y2L + jr))} Q 0 ${q(y2L)} ${q(jr)} ${q(y2L)} C ${q(c2lx)} ${q(y2L)} ${q(c2rx)} ${q(y2R)} ${q(w - jr)} ${q(y2R)} Q ${q(w)} ${q(y2R)} ${q(w)} ${q(Math.min(h - rr, y2R + jr))} V ${q(h - rr)} Q ${q(w)} ${q(h)} ${q(w - rr)} ${q(h)} H ${q(rr)} Q 0 ${q(h)} 0 ${q(h - rr)} Z')`;
+    return qgRoundedPolygonClipPath([
+      { x:0, y:y2L },
+      { x:w, y:y2R },
+      { x:w, y:h },
+      { x:0, y:h }
+    ], rr);
   }
 
   const x1T = w * 0.18;
   const x1B = w * 0.46;
   const x2T = w * 0.54;
   const x2B = w * 0.82;
-  const c1ty = h * 0.22;
-  const c1by = h * 0.72;
-  const c2ty = h * 0.22;
-  const c2by = h * 0.72;
-
   if (idx === 0){
-    return `path('M ${q(rr)} 0 H ${q(Math.max(rr, x1T - jr))} Q ${q(x1T)} 0 ${q(x1T)} ${q(jr)} C ${q(x1T)} ${q(c1ty)} ${q(x1B)} ${q(c1by)} ${q(x1B)} ${q(h - jr)} Q ${q(x1B)} ${q(h)} ${q(Math.max(rr, x1B - jr))} ${q(h)} H ${q(rr)} Q 0 ${q(h)} 0 ${q(h - rr)} V ${q(rr)} Q 0 0 ${q(rr)} 0 Z')`;
+    return qgRoundedPolygonClipPath([
+      { x:0, y:0 },
+      { x:x1T, y:0 },
+      { x:x1B, y:h },
+      { x:0, y:h }
+    ], rr);
   }
   if (idx === 1){
-    return `path('M ${q(Math.max(0, x1T + jr))} 0 Q ${q(x1T)} 0 ${q(x1T)} ${q(jr)} C ${q(x1T)} ${q(c1ty)} ${q(x1B)} ${q(c1by)} ${q(x1B)} ${q(h - jr)} Q ${q(x1B)} ${q(h)} ${q(Math.min(w, x1B + jr))} ${q(h)} H ${q(Math.max(0, x2T - jr))} Q ${q(x2T)} ${q(h)} ${q(x2T)} ${q(h - jr)} C ${q(x2T)} ${q(c2by)} ${q(x2B)} ${q(c2ty)} ${q(x2B)} ${q(jr)} Q ${q(x2B)} 0 ${q(Math.max(0, x2B - jr))} 0 Z')`;
+    return qgRoundedPolygonClipPath([
+      { x:x1T, y:0 },
+      { x:x2T, y:0 },
+      { x:x2B, y:h },
+      { x:x1B, y:h }
+    ], rr);
   }
-  return `path('M ${q(Math.min(w, x2T + jr))} 0 Q ${q(x2T)} 0 ${q(x2T)} ${q(jr)} C ${q(x2T)} ${q(c2ty)} ${q(x2B)} ${q(c2by)} ${q(x2B)} ${q(h - jr)} Q ${q(x2B)} ${q(h)} ${q(Math.min(w - rr, x2B + jr))} ${q(h)} H ${q(w - rr)} Q ${q(w)} ${q(h)} ${q(w)} ${q(h - rr)} V ${q(rr)} Q ${q(w)} 0 ${q(w - rr)} 0 Z')`;
+  return qgRoundedPolygonClipPath([
+    { x:x2T, y:0 },
+    { x:w, y:0 },
+    { x:w, y:h },
+    { x:x2B, y:h }
+  ], rr);
 }
 
 function qgShowVarDropMarker(target){
