@@ -5178,38 +5178,33 @@ function qgPickGroupYBoxAt(x, y){
   const vars = qgGetGroupYVars();
   const count = Array.isArray(vars) ? vars.length : 0;
   if (!count){
-    return { el, rect:r, pos:'after', insertIndex:0, marker:'full', count:0 };
+    return { el, rect:r, pos:'after', insertIndex:0, marker:'full', count:0, slotIndex:0, slotCount:1, slotRect:r };
   }
 
+  const slotCount = Math.max(2, count + (count >= 2 ? 1 : 1));
   const localX = Math.max(0, Math.min(r.width, x - r.left));
-  let insertIndex = 0;
-  let slotRect = null;
-
-  if (count >= 2){
-    const slotW = Math.max(8, r.width / Math.max(1, count));
-    const slotIndex = (localX < (r.width / 2)) ? 0 : 1;
-    insertIndex = slotIndex;
-    slotRect = {
-      left: r.left + (slotIndex * slotW),
-      top: r.top,
-      width: slotW,
-      height: r.height,
-      right: r.left + ((slotIndex + 1) * slotW),
-      bottom: r.bottom
-    };
-  }else{
-    insertIndex = (localX < (r.width / 2)) ? 0 : 1;
-  }
-
-  const pos = (insertIndex <= 0) ? 'before' : 'after';
+  const slotW = Math.max(8, r.width / Math.max(1, slotCount));
+  const slotIndex = Math.max(0, Math.min(slotCount - 1, Math.floor(localX / slotW)));
+  const insertIndex = Math.max(0, Math.min(count, slotIndex));
+  const slotRect = {
+    left: r.left + (slotIndex * slotW),
+    top: r.top,
+    width: slotW,
+    height: r.height,
+    right: r.left + ((slotIndex + 1) * slotW),
+    bottom: r.bottom
+  };
+  const pos = (insertIndex <= 0) ? 'before' : ((insertIndex >= count) ? 'after' : 'between');
 
   return {
     el,
     rect:r,
     pos,
     insertIndex,
-    marker: slotRect ? 'groupY-slot-' + insertIndex : 'full',
+    marker: 'groupY-slot-' + slotIndex,
     count,
+    slotIndex,
+    slotCount,
     slotRect
   };
 }
@@ -5241,38 +5236,33 @@ function qgPickGroupXBoxAt(x, y){
   const vars = qgGetXAxisVars();
   const count = Array.isArray(vars) ? vars.length : 0;
   if (!count){
-    return { el:body, rect:r, pos:'before', insertIndex:0, marker:'full', count:0 };
+    return { el:body, rect:r, pos:'before', insertIndex:0, marker:'full', count:0, slotIndex:0, slotCount:1, slotRect:r };
   }
 
+  const slotCount = Math.max(2, count + (count >= 2 ? 1 : 1));
   const localY = Math.max(0, Math.min(r.height, y - r.top));
-  let insertIndex = 0;
-  let slotRect = null;
-
-  if (count >= 2){
-    const bandH = Math.max(8, r.height / Math.max(1, count));
-    const slotIndex = (localY < (r.height / 2)) ? 0 : 1;
-    insertIndex = slotIndex;
-    slotRect = {
-      left: r.left,
-      top: r.top + (slotIndex * bandH),
-      width: r.width,
-      height: bandH,
-      right: r.right,
-      bottom: r.top + ((slotIndex + 1) * bandH)
-    };
-  }else{
-    insertIndex = (localY < (r.height / 2)) ? 0 : 1;
-  }
-
-  const pos = (insertIndex <= 0) ? 'before' : 'after';
+  const slotH = Math.max(8, r.height / Math.max(1, slotCount));
+  const slotIndex = Math.max(0, Math.min(slotCount - 1, Math.floor(localY / slotH)));
+  const insertIndex = Math.max(0, Math.min(count, slotIndex));
+  const slotRect = {
+    left: r.left,
+    top: r.top + (slotIndex * slotH),
+    width: r.width,
+    height: slotH,
+    right: r.right,
+    bottom: r.top + ((slotIndex + 1) * slotH)
+  };
+  const pos = (insertIndex <= 0) ? 'before' : ((insertIndex >= count) ? 'after' : 'between');
 
   return {
     el:body,
     rect:r,
     pos,
     insertIndex,
-    marker: slotRect ? 'groupX-slot-' + insertIndex : 'full',
+    marker: 'groupX-slot-' + slotIndex,
     count,
+    slotIndex,
+    slotCount,
     slotRect
   };
 }
@@ -5290,11 +5280,11 @@ function qgEnsureVarDropMarker(){
       el.style.display = 'none';
       el.style.pointerEvents = 'none';
       el.style.zIndex = '2147483647';
-      el.style.borderRadius = '12px';
-      el.style.background = 'rgba(120,170,255,0.14)';
+      el.style.borderRadius = '14px';
+      el.style.background = 'rgba(120,170,255,0.16)';
       el.style.border = '2px solid rgba(70,120,255,0.95)';
       el.style.boxSizing = 'border-box';
-      el.style.boxShadow = '0 0 0 1px rgba(255,255,255,0.18) inset';
+      el.style.boxShadow = '0 0 0 1px rgba(255,255,255,0.16) inset';
       overlay.appendChild(el);
     }catch(e){ el = null; }
   }
@@ -5316,16 +5306,14 @@ function qgShowVarDropMarker(target){
   const el = qgEnsureVarDropMarker();
   const baseRect = target && target.rect ? target.rect : null;
   if (!el || !baseRect) return;
+  if (target.type !== 'groupX' && target.type !== 'groupY') return;
 
   const inset = 2;
-  const slot = (target && target.slotRect) ? target.slotRect : null;
-  const rect = slot || baseRect;
-  let left = rect.left + inset;
-  let top = rect.top + inset;
-  let width = Math.max(8, (rect.width || (rect.right - rect.left)) - inset * 2);
-  let height = Math.max(8, (rect.height || (rect.bottom - rect.top)) - inset * 2);
-
-  if (target.type !== 'groupX' && target.type !== 'groupY') return;
+  const slot = (target && target.slotRect) ? target.slotRect : baseRect;
+  let left = slot.left + inset;
+  let top = slot.top + inset;
+  let width = Math.max(8, (slot.width || (slot.right - slot.left)) - inset * 2);
+  let height = Math.max(8, (slot.height || (slot.bottom - slot.top)) - inset * 2);
 
   left = Math.round(left);
   top = Math.round(top);
@@ -5337,7 +5325,7 @@ function qgShowVarDropMarker(target){
     el.style.top = top + 'px';
     el.style.width = width + 'px';
     el.style.height = height + 'px';
-    el.style.borderRadius = '10px';
+    el.style.borderRadius = '14px';
     el.style.clipPath = 'none';
     el.style.webkitClipPath = 'none';
     el.style.display = 'block';
