@@ -5408,44 +5408,45 @@ function qgBuildVarDropClipPath(kind, slotIndex, width, height){
   const idx = Math.max(0, Math.min(2, Number(slotIndex) || 0));
   const w = Math.max(12, Number(width) || 0);
   const h = Math.max(12, Number(height) || 0);
-  const r = Math.max(6, Math.min(12, Math.min(w, h) * 0.18));
-  const topCap = Math.max(r + 2, h * 0.14);
-  const topDiag = Math.max(8, h * 0.16);
-  const bottomDiagTop = Math.max(topCap + topDiag + 8, h * 0.70);
-  const bottomDiagBottom = Math.max(bottomDiagTop + 8, h * 0.84);
-  const leftCap = Math.max(r + 2, w * 0.14);
-  const leftDiag = Math.max(8, w * 0.16);
-  const rightDiagLeft = Math.max(leftCap + leftDiag + 8, w * 0.70);
-  const rightCap = Math.max(rightDiagLeft + 8, w * 0.84);
-  function qfmt(n){ return String(Math.round(n * 100) / 100); }
-  function pathYTop(){
-    return `path('M ${qfmt(r)} 0 H ${qfmt(w-r)} Q ${qfmt(w)} 0 ${qfmt(w)} ${qfmt(r)} V ${qfmt(topDiag)} L 0 ${qfmt(topCap)} V ${qfmt(r)} Q 0 0 ${qfmt(r)} 0 Z')`;
-  }
-  function pathYMid(){
-    return `path('M 0 ${qfmt(topCap)} L ${qfmt(w)} ${qfmt(topDiag)} V ${qfmt(bottomDiagTop)} L 0 ${qfmt(bottomDiagBottom)} Z')`;
-  }
-  function pathYBottom(){
-    return `path('M 0 ${qfmt(bottomDiagBottom)} L ${qfmt(w)} ${qfmt(bottomDiagTop)} V ${qfmt(h-r)} Q ${qfmt(w)} ${qfmt(h)} ${qfmt(w-r)} ${qfmt(h)} H ${qfmt(r)} Q 0 ${qfmt(h)} 0 ${qfmt(h-r)} Z')`;
-  }
-  function pathXLeft(){
-    return `path('M ${qfmt(r)} 0 H ${qfmt(leftCap)} L ${qfmt(leftDiag)} ${qfmt(h)} H ${qfmt(r)} Q 0 ${qfmt(h)} 0 ${qfmt(h-r)} V ${qfmt(r)} Q 0 0 ${qfmt(r)} 0 Z')`;
-  }
-  function pathXMid(){
-    return `path('M ${qfmt(leftCap)} 0 H ${qfmt(rightCap)} L ${qfmt(rightDiagLeft)} ${qfmt(h)} H ${qfmt(leftDiag)} Z')`;
-  }
-  function pathXRight(){
-    return `path('M ${qfmt(rightCap)} 0 H ${qfmt(w-r)} Q ${qfmt(w)} 0 ${qfmt(w)} ${qfmt(r)} V ${qfmt(h-r)} Q ${qfmt(w)} ${qfmt(h)} ${qfmt(w-r)} ${qfmt(h)} H ${qfmt(rightDiagLeft)} Z')`;
-  }
-  if (kind === 'groupY'){
-    if (idx === 0) return pathYTop();
-    if (idx === 2) return pathYBottom();
-    return pathYMid();
-  }
-  if (idx === 0) return pathXLeft();
-  if (idx === 2) return pathXRight();
-  return pathXMid();
-}
+  const r = Math.max(7, Math.min(14, Math.min(w * 0.42, h * 0.12)));
+  const q = (n)=> String(Math.round(n * 100) / 100);
 
+  if (kind === 'groupY'){
+    const cap = Math.max(r + 2, h * 0.17);
+    const join = Math.max(cap + 4, h * 0.28);
+    const cap2 = Math.min(h - r - 2, h * 0.83);
+    const join2 = Math.min(cap2 - 4, h * 0.72);
+    const lx = Math.max(1, w * 0.08);
+    const mx = Math.max(lx + 2, w * 0.22);
+    const rx = Math.min(w - 1, w * 0.92);
+    const rx2 = Math.min(w - 2, w * 0.78);
+
+    if (idx === 0){
+      return `path('M ${q(r)} 0 H ${q(w-r)} Q ${q(w)} 0 ${q(w)} ${q(r)} V ${q(join-3)} C ${q(w)} ${q(join+1)} ${q(rx)} ${q(join+2)} ${q(rx2)} ${q(join+4)} L ${q(mx)} ${q(cap+2)} C ${q(mx-3)} ${q(cap+1)} ${q(lx)} ${q(cap)} ${q(lx)} ${q(cap)} V ${q(r)} Q ${q(lx)} 0 ${q(r)} 0 Z')`;
+    }
+    if (idx === 2){
+      return `path('M ${q(lx)} ${q(cap2)} C ${q(lx)} ${q(cap2)} ${q(mx-3)} ${q(cap2-1)} ${q(mx)} ${q(cap2-2)} L ${q(rx2)} ${q(join2-4)} C ${q(rx)} ${q(join2-2)} ${q(w)} ${q(join2-1)} ${q(w)} ${q(join2+3)} V ${q(h-r)} Q ${q(w)} ${q(h)} ${q(w-r)} ${q(h)} H ${q(r)} Q ${q(lx)} ${q(h)} ${q(lx)} ${q(h-r)} Z')`;
+    }
+    return `path('M ${q(lx)} ${q(cap+1)} C ${q(lx)} ${q(cap+1)} ${q(mx-2)} ${q(cap)} ${q(mx)} ${q(cap+1)} L ${q(rx2)} ${q(join-3)} C ${q(rx)} ${q(join-2)} ${q(w)} ${q(join)} ${q(w)} ${q(join+3)} V ${q(join2-3)} C ${q(w)} ${q(join2)} ${q(rx)} ${q(join2+2)} ${q(rx2)} ${q(join2+3)} L ${q(mx)} ${q(cap2-1)} C ${q(mx-2)} ${q(cap2)} ${q(lx)} ${q(cap2+1)} ${q(lx)} ${q(cap2+1)} Z')`;
+  }
+
+  const cap = Math.max(r + 2, w * 0.17);
+  const join = Math.max(cap + 4, w * 0.28);
+  const cap2 = Math.min(w - r - 2, w * 0.83);
+  const join2 = Math.min(cap2 - 4, w * 0.72);
+  const ty = Math.max(1, h * 0.08);
+  const my = Math.max(ty + 2, h * 0.22);
+  const by = Math.min(h - 1, h * 0.92);
+  const by2 = Math.min(h - 2, h * 0.78);
+
+  if (idx === 0){
+    return `path('M ${q(r)} ${q(ty)} H ${q(cap)} C ${q(cap+1)} ${q(ty)} ${q(cap+2)} ${q(my-3)} ${q(cap+4)} ${q(my)} L ${q(join+4)} ${q(by2)} C ${q(join+2)} ${q(by)} ${q(join+1)} ${q(h)} ${q(join-3)} ${q(h)} H ${q(r)} Q 0 ${q(h)} 0 ${q(h-r)} V ${q(r)} Q 0 ${q(ty)} ${q(r)} ${q(ty)} Z')`;
+  }
+  if (idx === 2){
+    return `path('M ${q(cap2)} ${q(ty)} C ${q(cap2)} ${q(ty)} ${q(cap2+1)} ${q(my-2)} ${q(cap2+2)} ${q(my)} L ${q(join2-4)} ${q(by2)} C ${q(join2-2)} ${q(by)} ${q(join2-1)} ${q(h)} ${q(join2+3)} ${q(h)} H ${q(w-r)} Q ${q(w)} ${q(h)} ${q(w)} ${q(h-r)} V ${q(r)} Q ${q(w)} ${q(ty)} ${q(w-r)} ${q(ty)} Z')`;
+  }
+  return `path('M ${q(cap+1)} ${q(ty)} C ${q(cap+1)} ${q(ty)} ${q(cap)} ${q(my-2)} ${q(cap+1)} ${q(my)} L ${q(join-3)} ${q(by2)} C ${q(join)} ${q(by)} ${q(join+2)} ${q(h)} ${q(join+3)} ${q(h)} H ${q(join2-3)} C ${q(join2)} ${q(h)} ${q(join2+2)} ${q(by)} ${q(join2+3)} ${q(by2)} L ${q(cap2-1)} ${q(my)} C ${q(cap2)} ${q(my-2)} ${q(cap2+1)} ${q(ty)} ${q(cap2+1)} ${q(ty)} Z')`;
+}
 function qgShowVarDropMarker(target){
   const el = qgEnsureVarDropMarker();
   const baseRect = target && target.rect ? target.rect : null;
