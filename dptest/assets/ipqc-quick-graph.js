@@ -5408,44 +5408,43 @@ function qgBuildVarDropClipPath(kind, slotIndex, width, height){
   const idx = Math.max(0, Math.min(2, Number(slotIndex) || 0));
   const w = Math.max(12, Number(width) || 0);
   const h = Math.max(12, Number(height) || 0);
-  const r = Math.max(7, Math.min(14, Math.min(w * 0.42, h * 0.12)));
   const q = (n)=> String(Math.round(n * 100) / 100);
 
-  if (kind === 'groupY'){
-    const cap = Math.max(r + 2, h * 0.17);
-    const join = Math.max(cap + 4, h * 0.28);
-    const cap2 = Math.min(h - r - 2, h * 0.83);
-    const join2 = Math.min(cap2 - 4, h * 0.72);
-    const lx = Math.max(1, w * 0.08);
-    const mx = Math.max(lx + 2, w * 0.22);
-    const rx = Math.min(w - 1, w * 0.92);
-    const rx2 = Math.min(w - 2, w * 0.78);
+  const buildGroupY = ()=>{
+    const rr = Math.max(7, Math.min(15, Math.min(w * 0.34, h * 0.08)));
+    const soft = Math.max(4, Math.min(10, w * 0.28));
+    const y1L = h * 0.18;
+    const y1R = h * 0.31;
+    const y2L = h * 0.69;
+    const y2R = h * 0.82;
 
     if (idx === 0){
-      return `path('M ${q(r)} 0 H ${q(w-r)} Q ${q(w)} 0 ${q(w)} ${q(r)} V ${q(join-3)} C ${q(w)} ${q(join+1)} ${q(rx)} ${q(join+2)} ${q(rx2)} ${q(join+4)} L ${q(mx)} ${q(cap+2)} C ${q(mx-3)} ${q(cap+1)} ${q(lx)} ${q(cap)} ${q(lx)} ${q(cap)} V ${q(r)} Q ${q(lx)} 0 ${q(r)} 0 Z')`;
+      return `path('M ${q(rr)} 0 H ${q(w-rr)} Q ${q(w)} 0 ${q(w)} ${q(rr)} V ${q(y1R-soft)} Q ${q(w)} ${q(y1R)} ${q(w-soft)} ${q(y1R-soft*0.18)} L ${q(soft)} ${q(y1L+soft*0.18)} Q 0 ${q(y1L)} 0 ${q(y1L-soft)} V ${q(rr)} Q 0 0 ${q(rr)} 0 Z')`;
     }
     if (idx === 2){
-      return `path('M ${q(lx)} ${q(cap2)} C ${q(lx)} ${q(cap2)} ${q(mx-3)} ${q(cap2-1)} ${q(mx)} ${q(cap2-2)} L ${q(rx2)} ${q(join2-4)} C ${q(rx)} ${q(join2-2)} ${q(w)} ${q(join2-1)} ${q(w)} ${q(join2+3)} V ${q(h-r)} Q ${q(w)} ${q(h)} ${q(w-r)} ${q(h)} H ${q(r)} Q ${q(lx)} ${q(h)} ${q(lx)} ${q(h-r)} Z')`;
+      return `path('M 0 ${q(y2L+soft)} Q 0 ${q(y2L)} ${q(soft)} ${q(y2L+soft*0.18)} L ${q(w-soft)} ${q(y2R-soft*0.18)} Q ${q(w)} ${q(y2R)} ${q(w)} ${q(y2R+soft)} V ${q(h-rr)} Q ${q(w)} ${q(h)} ${q(w-rr)} ${q(h)} H ${q(rr)} Q 0 ${q(h)} 0 ${q(h-rr)} Z')`;
     }
-    return `path('M ${q(lx)} ${q(cap+1)} C ${q(lx)} ${q(cap+1)} ${q(mx-2)} ${q(cap)} ${q(mx)} ${q(cap+1)} L ${q(rx2)} ${q(join-3)} C ${q(rx)} ${q(join-2)} ${q(w)} ${q(join)} ${q(w)} ${q(join+3)} V ${q(join2-3)} C ${q(w)} ${q(join2)} ${q(rx)} ${q(join2+2)} ${q(rx2)} ${q(join2+3)} L ${q(mx)} ${q(cap2-1)} C ${q(mx-2)} ${q(cap2)} ${q(lx)} ${q(cap2+1)} ${q(lx)} ${q(cap2+1)} Z')`;
-  }
+    return `path('M 0 ${q(y1L+soft)} Q 0 ${q(y1L)} ${q(soft)} ${q(y1L+soft*0.16)} L ${q(w-soft)} ${q(y1R-soft*0.16)} Q ${q(w)} ${q(y1R)} ${q(w)} ${q(y1R+soft)} V ${q(y2R-soft)} Q ${q(w)} ${q(y2R)} ${q(w-soft)} ${q(y2R-soft*0.16)} L ${q(soft)} ${q(y2L+soft*0.16)} Q 0 ${q(y2L)} 0 ${q(y2L-soft)} Z')`;
+  };
 
-  const cap = Math.max(r + 2, w * 0.17);
-  const join = Math.max(cap + 4, w * 0.28);
-  const cap2 = Math.min(w - r - 2, w * 0.83);
-  const join2 = Math.min(cap2 - 4, w * 0.72);
-  const ty = Math.max(1, h * 0.08);
-  const my = Math.max(ty + 2, h * 0.22);
-  const by = Math.min(h - 1, h * 0.92);
-  const by2 = Math.min(h - 2, h * 0.78);
+  const buildGroupX = ()=>{
+    const rr = Math.max(7, Math.min(15, Math.min(h * 0.34, w * 0.08)));
+    const soft = Math.max(4, Math.min(10, h * 0.28));
+    const x1T = w * 0.18;
+    const x1B = w * 0.31;
+    const x2T = w * 0.69;
+    const x2B = w * 0.82;
 
-  if (idx === 0){
-    return `path('M ${q(r)} ${q(ty)} H ${q(cap)} C ${q(cap+1)} ${q(ty)} ${q(cap+2)} ${q(my-3)} ${q(cap+4)} ${q(my)} L ${q(join+4)} ${q(by2)} C ${q(join+2)} ${q(by)} ${q(join+1)} ${q(h)} ${q(join-3)} ${q(h)} H ${q(r)} Q 0 ${q(h)} 0 ${q(h-r)} V ${q(r)} Q 0 ${q(ty)} ${q(r)} ${q(ty)} Z')`;
-  }
-  if (idx === 2){
-    return `path('M ${q(cap2)} ${q(ty)} C ${q(cap2)} ${q(ty)} ${q(cap2+1)} ${q(my-2)} ${q(cap2+2)} ${q(my)} L ${q(join2-4)} ${q(by2)} C ${q(join2-2)} ${q(by)} ${q(join2-1)} ${q(h)} ${q(join2+3)} ${q(h)} H ${q(w-r)} Q ${q(w)} ${q(h)} ${q(w)} ${q(h-r)} V ${q(r)} Q ${q(w)} ${q(ty)} ${q(w-r)} ${q(ty)} Z')`;
-  }
-  return `path('M ${q(cap+1)} ${q(ty)} C ${q(cap+1)} ${q(ty)} ${q(cap)} ${q(my-2)} ${q(cap+1)} ${q(my)} L ${q(join-3)} ${q(by2)} C ${q(join)} ${q(by)} ${q(join+2)} ${q(h)} ${q(join+3)} ${q(h)} H ${q(join2-3)} C ${q(join2)} ${q(h)} ${q(join2+2)} ${q(by)} ${q(join2+3)} ${q(by2)} L ${q(cap2-1)} ${q(my)} C ${q(cap2)} ${q(my-2)} ${q(cap2+1)} ${q(ty)} ${q(cap2+1)} ${q(ty)} Z')`;
+    if (idx === 0){
+      return `path('M 0 ${q(rr)} Q 0 0 ${q(rr)} 0 H ${q(x1T-soft)} Q ${q(x1T)} 0 ${q(x1T+soft*0.18)} ${q(soft)} L ${q(x1B-soft*0.18)} ${q(h-soft)} Q ${q(x1B)} ${q(h)} ${q(x1B+soft)} ${q(h)} H ${q(rr)} Q 0 ${q(h)} 0 ${q(h-rr)} Z')`;
+    }
+    if (idx === 2){
+      return `path('M ${q(x2T-soft)} 0 Q ${q(x2T)} 0 ${q(x2T+soft*0.18)} ${q(soft)} L ${q(x2B-soft*0.18)} ${q(h-soft)} Q ${q(x2B)} ${q(h)} ${q(x2B+soft)} ${q(h)} H ${q(w-rr)} Q ${q(w)} ${q(h)} ${q(w)} ${q(h-rr)} V ${q(rr)} Q ${q(w)} 0 ${q(w-rr)} 0 Z')`;
+    }
+    return `path('M ${q(x1T+soft)} 0 Q ${q(x1T)} 0 ${q(x1T+soft*0.16)} ${q(soft)} L ${q(x1B-soft*0.16)} ${q(h-soft)} Q ${q(x1B)} ${q(h)} ${q(x1B+soft)} ${q(h)} H ${q(x2T-soft)} Q ${q(x2T)} ${q(h)} ${q(x2T+soft*0.16)} ${q(h-soft)} L ${q(x2B-soft*0.16)} ${q(soft)} Q ${q(x2B)} 0 ${q(x2B-soft)} 0 Z')`;
+  };
+
+  return (kind === 'groupY') ? buildGroupY() : buildGroupX();
 }
 function qgShowVarDropMarker(target){
   const el = qgEnsureVarDropMarker();
