@@ -5409,42 +5409,45 @@ function qgBuildVarDropClipPath(kind, slotIndex, width, height){
   const w = Math.max(12, Number(width) || 0);
   const h = Math.max(12, Number(height) || 0);
   const q = (n)=> String(Math.round(n * 100) / 100);
+  const rr = Math.max(7, Math.min(14, Math.min(w, h) * 0.22));
+  const ix = Math.max(1, Math.min(3, w * 0.05));
+  const iy = Math.max(1, Math.min(3, h * 0.05));
 
-  const buildGroupY = ()=>{
-    const rr = Math.max(7, Math.min(15, Math.min(w * 0.34, h * 0.08)));
-    const soft = Math.max(4, Math.min(10, w * 0.28));
-    const y1L = h * 0.18;
-    const y1R = h * 0.31;
-    const y2L = h * 0.69;
-    const y2R = h * 0.82;
-
-    if (idx === 0){
-      return `path('M ${q(rr)} 0 H ${q(w-rr)} Q ${q(w)} 0 ${q(w)} ${q(rr)} V ${q(y1R-soft)} Q ${q(w)} ${q(y1R)} ${q(w-soft)} ${q(y1R-soft*0.18)} L ${q(soft)} ${q(y1L+soft*0.18)} Q 0 ${q(y1L)} 0 ${q(y1L-soft)} V ${q(rr)} Q 0 0 ${q(rr)} 0 Z')`;
-    }
-    if (idx === 2){
-      return `path('M 0 ${q(y2L+soft)} Q 0 ${q(y2L)} ${q(soft)} ${q(y2L+soft*0.18)} L ${q(w-soft)} ${q(y2R-soft*0.18)} Q ${q(w)} ${q(y2R)} ${q(w)} ${q(y2R+soft)} V ${q(h-rr)} Q ${q(w)} ${q(h)} ${q(w-rr)} ${q(h)} H ${q(rr)} Q 0 ${q(h)} 0 ${q(h-rr)} Z')`;
-    }
-    return `path('M 0 ${q(y1L+soft)} Q 0 ${q(y1L)} ${q(soft)} ${q(y1L+soft*0.16)} L ${q(w-soft)} ${q(y1R-soft*0.16)} Q ${q(w)} ${q(y1R)} ${q(w)} ${q(y1R+soft)} V ${q(y2R-soft)} Q ${q(w)} ${q(y2R)} ${q(w-soft)} ${q(y2R-soft*0.16)} L ${q(soft)} ${q(y2L+soft*0.16)} Q 0 ${q(y2L)} 0 ${q(y2L-soft)} Z')`;
-  };
-
-  const buildGroupX = ()=>{
-    const rr = Math.max(7, Math.min(15, Math.min(h * 0.34, w * 0.08)));
-    const soft = Math.max(4, Math.min(10, h * 0.28));
-    const x1T = w * 0.18;
-    const x1B = w * 0.31;
-    const x2T = w * 0.69;
-    const x2B = w * 0.82;
+  // JMP-like proportions:
+  // - center slot is longer
+  // - first/last slots are short caps
+  // - dividers are gentle diagonals, not sharp triangles
+  if (kind === 'groupY'){
+    const xL = ix;
+    const xR = w - ix;
+    const yTopL = h * 0.31;
+    const yTopR = h * 0.19;
+    const yBotL = h * 0.69;
+    const yBotR = h * 0.81;
+    const c = Math.max(3, w * 0.16);
 
     if (idx === 0){
-      return `path('M 0 ${q(rr)} Q 0 0 ${q(rr)} 0 H ${q(x1T-soft)} Q ${q(x1T)} 0 ${q(x1T+soft*0.18)} ${q(soft)} L ${q(x1B-soft*0.18)} ${q(h-soft)} Q ${q(x1B)} ${q(h)} ${q(x1B+soft)} ${q(h)} H ${q(rr)} Q 0 ${q(h)} 0 ${q(h-rr)} Z')`;
+      return `path('M ${q(rr)} 0 H ${q(w-rr)} Q ${q(w)} 0 ${q(w)} ${q(rr)} V ${q(yTopR-c)} Q ${q(w)} ${q(yTopR)} ${q(xR)} ${q(yTopR)} L ${q(xL)} ${q(yTopL)} Q ${q(0)} ${q(yTopL)} ${q(0)} ${q(yTopL+c)} V ${q(rr)} Q ${q(0)} 0 ${q(rr)} 0 Z')`;
     }
-    if (idx === 2){
-      return `path('M ${q(x2T-soft)} 0 Q ${q(x2T)} 0 ${q(x2T+soft*0.18)} ${q(soft)} L ${q(x2B-soft*0.18)} ${q(h-soft)} Q ${q(x2B)} ${q(h)} ${q(x2B+soft)} ${q(h)} H ${q(w-rr)} Q ${q(w)} ${q(h)} ${q(w)} ${q(h-rr)} V ${q(rr)} Q ${q(w)} 0 ${q(w-rr)} 0 Z')`;
+    if (idx === 1){
+      return `path('M ${q(xL)} ${q(yTopL)} Q ${q(xL + c*0.4)} ${q(yTopL)} ${q(xL + c)} ${q(yTopL - c*0.25)} L ${q(xR - c)} ${q(yTopR + c*0.25)} Q ${q(xR)} ${q(yTopR)} ${q(w)} ${q(yTopR)} L ${q(w)} ${q(yBotR)} Q ${q(xR)} ${q(yBotR)} ${q(xR - c)} ${q(yBotR - c*0.25)} L ${q(xL + c)} ${q(yBotL + c*0.25)} Q ${q(xL)} ${q(yBotL)} ${q(0)} ${q(yBotL)} L ${q(0)} ${q(yTopL)} Z')`;
     }
-    return `path('M ${q(x1T+soft)} 0 Q ${q(x1T)} 0 ${q(x1T+soft*0.16)} ${q(soft)} L ${q(x1B-soft*0.16)} ${q(h-soft)} Q ${q(x1B)} ${q(h)} ${q(x1B+soft)} ${q(h)} H ${q(x2T-soft)} Q ${q(x2T)} ${q(h)} ${q(x2T+soft*0.16)} ${q(h-soft)} L ${q(x2B-soft*0.16)} ${q(soft)} Q ${q(x2B)} 0 ${q(x2B-soft)} 0 Z')`;
-  };
+    return `path('M ${q(0)} ${q(yBotL-c)} Q ${q(0)} ${q(yBotL)} ${q(xL)} ${q(yBotL)} L ${q(xR)} ${q(yBotR)} Q ${q(w)} ${q(yBotR)} ${q(w)} ${q(yBotR+c)} V ${q(h-rr)} Q ${q(w)} ${q(h)} ${q(w-rr)} ${q(h)} H ${q(rr)} Q ${q(0)} ${q(h)} ${q(0)} ${q(h-rr)} Z')`;
+  }
 
-  return (kind === 'groupY') ? buildGroupY() : buildGroupX();
+  const xTopL = w * 0.19;
+  const xTopR = w * 0.31;
+  const xBotL = w * 0.81;
+  const xBotR = w * 0.69;
+  const c = Math.max(3, h * 0.16);
+
+  if (idx === 0){
+    return `path('M ${q(rr)} 0 H ${q(xTopL-c)} Q ${q(xTopL)} 0 ${q(xTopL)} ${q(iy)} L ${q(xTopR)} ${q(h-iy)} Q ${q(xTopR)} ${q(h)} ${q(xTopR+c)} ${q(h)} H ${q(rr)} Q 0 ${q(h)} 0 ${q(h-rr)} V ${q(rr)} Q 0 0 ${q(rr)} 0 Z')`;
+  }
+  if (idx === 1){
+    return `path('M ${q(xTopL)} ${q(iy)} Q ${q(xTopL)} ${q(0)} ${q(xTopL+c)} ${q(0)} L ${q(xBotR-c)} ${q(0)} Q ${q(xBotR)} ${q(0)} ${q(xBotR)} ${q(iy)} L ${q(xBotL)} ${q(h-iy)} Q ${q(xBotL)} ${q(h)} ${q(xBotL-c)} ${q(h)} L ${q(xTopR+c)} ${q(h)} Q ${q(xTopR)} ${q(h)} ${q(xTopR)} ${q(h-iy)} Z')`;
+  }
+  return `path('M ${q(xBotR-c)} 0 H ${q(w-rr)} Q ${q(w)} 0 ${q(w)} ${q(rr)} V ${q(h-rr)} Q ${q(w)} ${q(h)} ${q(w-rr)} ${q(h)} H ${q(xBotL+c)} Q ${q(xBotL)} ${q(h)} ${q(xBotL)} ${q(h-iy)} L ${q(xBotR)} ${q(iy)} Q ${q(xBotR)} 0 ${q(xBotR-c)} 0 Z')`;
 }
 function qgShowVarDropMarker(target){
   const el = qgEnsureVarDropMarker();
