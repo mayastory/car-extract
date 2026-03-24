@@ -5431,8 +5431,8 @@ function qgEnsureVarDropMarker(){
       svg.style.overflow = 'visible';
 
       const path = document.createElementNS(ns, 'path');
-      path.setAttribute('fill', 'rgba(120,170,255,0.22)');
-      path.setAttribute('stroke', 'rgba(70,120,255,0.95)');
+      path.setAttribute('fill', 'rgba(120,170,255,0.16)');
+      path.setAttribute('stroke', 'rgba(70,120,255,0.98)');
       path.setAttribute('stroke-linecap', 'round');
       path.setAttribute('stroke-linejoin', 'round');
       path.setAttribute('vector-effect', 'non-scaling-stroke');
@@ -5524,62 +5524,94 @@ function qgBuildVarDropShapeData(kind, slotIndex, width, height){
   const idx = Math.max(0, Math.min(2, Number(slotIndex) || 0));
   const w = Math.max(12, Number(width) || 0);
   const h = Math.max(12, Number(height) || 0);
-  const rr = Math.max(5, Math.min(14, Math.min(w, h) * 0.16));
+  const minSide = Math.max(12, Math.min(w, h));
+  const outerPad = Math.max(2, Math.min(8, minSide * 0.07));
+  const slotGap = Math.max(1.5, Math.min(7, minSide * 0.045));
+  const rr = Math.max(6, Math.min(16, minSide * 0.22));
+  const clampBand = (v, lo, hi)=> Math.max(lo, Math.min(hi, v));
 
   if (kind === 'groupY'){
-    const y1L = h * 0.15;
-    const y1R = h * 0.29;
-    const y2L = h * 0.71;
-    const y2R = h * 0.85;
+    const x0 = outerPad;
+    const x1 = w - outerPad;
+    const y0 = outerPad;
+    const y3 = h - outerPad;
+    const span = Math.max(8, y3 - y0);
+    const y1L = y0 + span * 0.15;
+    const y1R = y0 + span * 0.29;
+    const y2L = y0 + span * 0.71;
+    const y2R = y0 + span * 0.85;
+    const topL = clampBand(y1L - slotGap, y0 + 1, y2L - slotGap - 1);
+    const topR = clampBand(y1R - slotGap, y0 + 1, y2R - slotGap - 1);
+    const midTopL = clampBand(y1L + slotGap, topL + 1, y2L - slotGap - 1);
+    const midTopR = clampBand(y1R + slotGap, topR + 1, y2R - slotGap - 1);
+    const midBotL = clampBand(y2L - slotGap, midTopL + 1, y3 - 1);
+    const midBotR = clampBand(y2R - slotGap, midTopR + 1, y3 - 1);
+    const botL = clampBand(y2L + slotGap, midBotL + 1, y3 - 1);
+    const botR = clampBand(y2R + slotGap, midBotR + 1, y3 - 1);
+
     if (idx === 0){
       return qgBuildRoundedPolygonPathData([
-        { x: 0, y: 0 },
-        { x: w, y: 0 },
-        { x: w, y: y1R },
-        { x: 0, y: y1L }
+        { x: x0, y: y0 },
+        { x: x1, y: y0 },
+        { x: x1, y: topR },
+        { x: x0, y: topL }
       ], rr);
     }
     if (idx === 1){
       return qgBuildRoundedPolygonPathData([
-        { x: 0, y: y1L },
-        { x: w, y: y1R },
-        { x: w, y: y2R },
-        { x: 0, y: y2L }
+        { x: x0, y: midTopL },
+        { x: x1, y: midTopR },
+        { x: x1, y: midBotR },
+        { x: x0, y: midBotL }
       ], rr);
     }
     return qgBuildRoundedPolygonPathData([
-      { x: 0, y: y2L },
-      { x: w, y: y2R },
-      { x: w, y: h },
-      { x: 0, y: h }
+      { x: x0, y: botL },
+      { x: x1, y: botR },
+      { x: x1, y: y3 },
+      { x: x0, y: y3 }
     ], rr);
   }
 
-  const x1T = w * 0.15;
-  const x1B = w * 0.29;
-  const x2T = w * 0.71;
-  const x2B = w * 0.85;
+  const x0 = outerPad;
+  const x3 = w - outerPad;
+  const y0 = outerPad;
+  const y1 = h - outerPad;
+  const span = Math.max(8, x3 - x0);
+  const x1T = x0 + span * 0.15;
+  const x1B = x0 + span * 0.29;
+  const x2T = x0 + span * 0.71;
+  const x2B = x0 + span * 0.85;
+  const leftTop = clampBand(x1T - slotGap, x0 + 1, x2T - slotGap - 1);
+  const leftBot = clampBand(x1B - slotGap, x0 + 1, x2B - slotGap - 1);
+  const midLeftTop = clampBand(x1T + slotGap, leftTop + 1, x2T - slotGap - 1);
+  const midLeftBot = clampBand(x1B + slotGap, leftBot + 1, x2B - slotGap - 1);
+  const midRightTop = clampBand(x2T - slotGap, midLeftTop + 1, x3 - 1);
+  const midRightBot = clampBand(x2B - slotGap, midLeftBot + 1, x3 - 1);
+  const rightTop = clampBand(x2T + slotGap, midRightTop + 1, x3 - 1);
+  const rightBot = clampBand(x2B + slotGap, midRightBot + 1, x3 - 1);
+
   if (idx === 0){
     return qgBuildRoundedPolygonPathData([
-      { x: 0, y: 0 },
-      { x: x1T, y: 0 },
-      { x: x1B, y: h },
-      { x: 0, y: h }
+      { x: x0, y: y0 },
+      { x: leftTop, y: y0 },
+      { x: leftBot, y: y1 },
+      { x: x0, y: y1 }
     ], rr);
   }
   if (idx === 1){
     return qgBuildRoundedPolygonPathData([
-      { x: x1T, y: 0 },
-      { x: x2T, y: 0 },
-      { x: x2B, y: h },
-      { x: x1B, y: h }
+      { x: midLeftTop, y: y0 },
+      { x: midRightTop, y: y0 },
+      { x: midRightBot, y: y1 },
+      { x: midLeftBot, y: y1 }
     ], rr);
   }
   return qgBuildRoundedPolygonPathData([
-    { x: x2T, y: 0 },
-    { x: w, y: 0 },
-    { x: w, y: h },
-    { x: x2B, y: h }
+    { x: rightTop, y: y0 },
+    { x: x3, y: y0 },
+    { x: x3, y: y1 },
+    { x: rightBot, y: y1 }
   ], rr);
 }
 
@@ -5589,7 +5621,7 @@ function qgShowVarDropMarker(target){
   if (!el || !baseRect) return;
   if (target.type !== 'groupX' && target.type !== 'groupY') return;
 
-  const inset = 3;
+  const inset = 2;
   const wholeRect = {
     left: baseRect.left + inset,
     top: baseRect.top + inset,
@@ -5602,8 +5634,9 @@ function qgShowVarDropMarker(target){
   const width = Math.max(8, Math.round(wholeRect.width));
   const height = Math.max(8, Math.round(wholeRect.height));
   const isFull = !target.count || !target.slotCount || target.slotCount <= 1;
+  const fullPad = Math.max(2, Math.min(8, Math.min(width, height) * 0.08));
   const d = isFull
-    ? qgRoundedRectPathData(1, 1, Math.max(2, width - 2), Math.max(2, height - 2), Math.min(12, Math.min(width, height) * 0.18))
+    ? qgRoundedRectPathData(fullPad, fullPad, Math.max(2, width - fullPad * 2), Math.max(2, height - fullPad * 2), Math.min(14, Math.min(width, height) * 0.22))
     : qgBuildVarDropShapeData(target.type, target.slotIndex, width, height);
 
   try{
@@ -5617,7 +5650,7 @@ function qgShowVarDropMarker(target){
       el._qgSvg.setAttribute('height', String(height));
     }
     if (el._qgPath){
-      const strokeW = Math.max(3, Math.min(8, Math.min(width, height) * 0.11));
+      const strokeW = Math.max(2.5, Math.min(7, Math.min(width, height) * 0.095));
       el._qgPath.setAttribute('d', d || '');
       el._qgPath.setAttribute('stroke-width', String(Math.round(strokeW * 100) / 100));
     }
