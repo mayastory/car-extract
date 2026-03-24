@@ -5406,23 +5406,28 @@ function qgHideVarDropMarker(){
 
 function qgBuildVarDropClipPath(kind, slotIndex){
   const idx = Math.max(0, Math.min(2, Number(slotIndex) || 0));
+  // JMP-like preview shape:
+  // - short top/bottom caps
+  // - longer center slot
+  // - shallower diagonals (less pointy than the old web version)
+  const cap = 8;
+  const diag = 5;
   if (kind === 'groupY'){
-    const cap = 13;
-    const diag = 11;
-    const lower = 100 - cap - diag;
-    const bottomCap = 100 - cap;
-    if (idx === 0) return `polygon(0% 0%, 100% 0%, 100% ${cap}%, 0% ${cap + diag}%)`;
-    if (idx === 2) return `polygon(0% ${bottomCap}%, 100% ${lower}%, 100% 100%, 0% 100%)`;
-    return `polygon(0% ${cap + diag}%, 100% ${cap}%, 100% ${lower}%, 0% ${bottomCap}%)`;
+    const upper = cap;
+    const leftBreak = cap + diag;
+    const rightBreak = 100 - cap - diag;
+    const lower = 100 - cap;
+    if (idx === 0) return `polygon(0% 0%, 100% 0%, 100% ${upper}%, 0% ${leftBreak}%)`;
+    if (idx === 2) return `polygon(0% ${lower}%, 100% ${rightBreak}%, 100% 100%, 0% 100%)`;
+    return `polygon(0% ${leftBreak}%, 100% ${upper}%, 100% ${rightBreak}%, 0% ${lower}%)`;
   }
-  const cap = 13;
-  const diag = 11;
-  const inner = cap + diag;
-  const rightInner = 100 - cap - diag;
+  const leftCap = cap;
+  const leftBreak = cap + diag;
+  const rightBreak = 100 - cap - diag;
   const rightCap = 100 - cap;
-  if (idx === 0) return `polygon(0% 0%, ${cap}% 0%, ${inner}% 100%, 0% 100%)`;
-  if (idx === 2) return `polygon(${rightCap}% 0%, 100% 0%, 100% 100%, ${rightInner}% 100%)`;
-  return `polygon(${cap}% 0%, ${rightCap}% 0%, ${rightInner}% 100%, ${inner}% 100%)`;
+  if (idx === 0) return `polygon(0% 0%, ${leftCap}% 0%, ${leftBreak}% 100%, 0% 100%)`;
+  if (idx === 2) return `polygon(${rightCap}% 0%, 100% 0%, 100% 100%, ${rightBreak}% 100%)`;
+  return `polygon(${leftCap}% 0%, ${rightCap}% 0%, ${rightBreak}% 100%, ${leftBreak}% 100%)`;
 }
 
 function qgShowVarDropMarker(target){
