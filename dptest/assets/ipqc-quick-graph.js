@@ -5242,11 +5242,24 @@ function qgPickGroupYBoxAt(x, y){
     }
   }catch(e){}
 
-  const slotCount = Math.max(2, count + 1);
+  const slotCount = 3;
   const localY = Math.max(0, Math.min(baseRect.height, y - baseRect.top));
-  const slotH = Math.max(8, baseRect.height / Math.max(1, slotCount));
+  const slotH = Math.max(8, baseRect.height / slotCount);
   const slotIndex = Math.max(0, Math.min(slotCount - 1, Math.floor(localY / slotH)));
-  const insertIndex = Math.max(0, Math.min(count, slotIndex));
+  let insertIndex = null;
+  let pos = 'current';
+  if (count <= 1){
+    if (slotIndex === 0){
+      insertIndex = 0;
+      pos = 'before';
+    }else if (slotIndex === 2){
+      insertIndex = count;
+      pos = 'after';
+    }
+  }else{
+    insertIndex = Math.max(0, Math.min(count, slotIndex));
+    pos = (insertIndex <= 0) ? 'before' : ((insertIndex >= count) ? 'after' : 'between');
+  }
   const slotRect = {
     left: baseRect.left,
     top: baseRect.top + (slotIndex * slotH),
@@ -5255,7 +5268,6 @@ function qgPickGroupYBoxAt(x, y){
     right: baseRect.right,
     bottom: baseRect.top + ((slotIndex + 1) * slotH)
   };
-  const pos = (insertIndex <= 0) ? 'before' : ((insertIndex >= count) ? 'after' : 'between');
 
   return {
     el,
@@ -5300,24 +5312,65 @@ function qgPickGroupXBoxAt(x, y){
     return { el:body, rect:r, pos:'before', insertIndex:0, marker:'full', count:0, slotIndex:0, slotCount:1, slotRect:r };
   }
 
-  const slotCount = Math.max(2, count + (count >= 2 ? 1 : 1));
-  const localY = Math.max(0, Math.min(r.height, y - r.top));
-  const slotH = Math.max(8, r.height / Math.max(1, slotCount));
-  const slotIndex = Math.max(0, Math.min(slotCount - 1, Math.floor(localY / slotH)));
-  const insertIndex = Math.max(0, Math.min(count, slotIndex));
+  let baseRect = r;
+  try{
+    const hits = qsa('.qg-tophead-bandhit[data-varkey]', body).filter(Boolean);
+    if (hits.length){
+      let bestHit = null;
+      let bestDist = Infinity;
+      for (const hit of hits){
+        const hr = hit.getBoundingClientRect();
+        if (!hr || !(hr.width > 0) || !(hr.height > 0)) continue;
+        const inside = (x >= hr.left && x <= hr.right && y >= hr.top && y <= hr.bottom);
+        if (inside){
+          bestHit = hr;
+          bestDist = -1;
+          break;
+        }
+        const cx = Math.max(hr.left, Math.min(hr.right, x));
+        const cy = Math.max(hr.top, Math.min(hr.bottom, y));
+        const dx = x - cx;
+        const dy = y - cy;
+        const dist = dx * dx + dy * dy;
+        if (dist < bestDist){
+          bestDist = dist;
+          bestHit = hr;
+        }
+      }
+      if (bestHit) baseRect = bestHit;
+    }
+  }catch(e){}
+
+  const slotCount = 3;
+  const localX = Math.max(0, Math.min(baseRect.width, x - baseRect.left));
+  const slotW = Math.max(8, baseRect.width / slotCount);
+  const slotIndex = Math.max(0, Math.min(slotCount - 1, Math.floor(localX / slotW)));
+  let insertIndex = null;
+  let pos = 'current';
+  if (count <= 1){
+    if (slotIndex === 0){
+      insertIndex = 0;
+      pos = 'before';
+    }else if (slotIndex === 2){
+      insertIndex = count;
+      pos = 'after';
+    }
+  }else{
+    insertIndex = Math.max(0, Math.min(count, slotIndex));
+    pos = (insertIndex <= 0) ? 'before' : ((insertIndex >= count) ? 'after' : 'between');
+  }
   const slotRect = {
-    left: r.left,
-    top: r.top + (slotIndex * slotH),
-    width: r.width,
-    height: slotH,
-    right: r.right,
-    bottom: r.top + ((slotIndex + 1) * slotH)
+    left: baseRect.left + (slotIndex * slotW),
+    top: baseRect.top,
+    width: slotW,
+    height: baseRect.height,
+    right: baseRect.left + ((slotIndex + 1) * slotW),
+    bottom: baseRect.bottom
   };
-  const pos = (insertIndex <= 0) ? 'before' : ((insertIndex >= count) ? 'after' : 'between');
 
   return {
     el:body,
-    rect:r,
+    rect:baseRect,
     pos,
     insertIndex,
     marker: 'groupX-slot-' + slotIndex,
@@ -5341,11 +5394,11 @@ function qgEnsureVarDropMarker(){
       el.style.display = 'none';
       el.style.pointerEvents = 'none';
       el.style.zIndex = '2147483647';
-      el.style.borderRadius = '14px';
-      el.style.background = 'rgba(120,170,255,0.16)';
-      el.style.border = '2px solid rgba(70,120,255,0.95)';
+      el.style.borderRadius = '4px';
+      el.style.background = 'rgba(120,170,255,0.18)';
+      el.style.border = '1px solid rgba(70,120,255,0.95)';
       el.style.boxSizing = 'border-box';
-      el.style.boxShadow = '0 0 0 1px rgba(255,255,255,0.16) inset';
+      el.style.boxShadow = 'none';
       overlay.appendChild(el);
     }catch(e){ el = null; }
   }
@@ -5359,7 +5412,7 @@ function qgHideVarDropMarker(){
     el.style.display = 'none';
     el.style.clipPath = 'none';
     el.style.webkitClipPath = 'none';
-    el.style.borderRadius = '12px';
+    el.style.borderRadius = '4px';
   }catch(e){}
 }
 
@@ -5386,7 +5439,7 @@ function qgShowVarDropMarker(target){
     el.style.top = top + 'px';
     el.style.width = width + 'px';
     el.style.height = height + 'px';
-    el.style.borderRadius = '14px';
+    el.style.borderRadius = '4px';
     el.style.clipPath = 'none';
     el.style.webkitClipPath = 'none';
     el.style.display = 'block';
@@ -5754,8 +5807,8 @@ function qgBindVarDockDragHandle(el, varKey, label){
         try{ up.preventDefault(); up.stopPropagation(); }catch(e){}
         if (target){
           if (target.type === 'dock' && target.dockKey) qgSetDockVar(target.dockKey, s.varKey);
-          else if (target.type === 'groupY') qgSetGroupYVar(s.varKey, target.insertIndex);
-          else if (target.type === 'groupX') qgSetGroupXVar(s.varKey, target.insertIndex);
+          else if (target.type === 'groupY' && target.insertIndex !== null && target.insertIndex !== undefined) qgSetGroupYVar(s.varKey, target.insertIndex);
+          else if (target.type === 'groupX' && target.insertIndex !== null && target.insertIndex !== undefined) qgSetGroupXVar(s.varKey, target.insertIndex);
         }
         QG._dragVarSuppressClickUntil = Date.now() + 300;
       }
@@ -7283,6 +7336,8 @@ function qgBuildTopHeaderSvg(toolsRow, cavs){
       const hit = rect(x, y, w, h, '#ffffff', null, 0);
       hit.setAttribute('fill-opacity', '0.001');
       hit.setAttribute('pointer-events', 'all');
+      hit.setAttribute('class', 'qg-tophead-bandhit');
+      hit.setAttribute('data-varkey', String(varKey || ''));
       bindDrag(hit, varKey);
       return hit;
     }catch(e){ return null; }
