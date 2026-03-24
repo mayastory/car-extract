@@ -5410,44 +5410,48 @@ function qgBuildVarDropClipPath(kind, slotIndex, width, height){
   const h = Math.max(12, Number(height) || 0);
   const q = (n)=> String(Math.round(n * 100) / 100);
 
-  // Shared outer block proportions based on JMP preview:
-  // - one outer rounded block
-  // - shorter caps, longer center
-  // - divider joins are curved, not sharp triangles
-  const rr = Math.max(8, Math.min(16, Math.min(w, h) * 0.18));
-  const jr = Math.max(5, Math.min(12, Math.min(w, h) * 0.12));
-  const cap = h * 0.18;
-  const slope = h * 0.16;
-  const xcap = w * 0.18;
-  const xslope = w * 0.16;
+  // Shared outer shape, with one long center slot and short caps.
+  // Keep the joins rounded and shallow so the preview does not turn into
+  // the old sharp "cutter" wedge shape.
+  const rr = Math.max(8, Math.min(18, Math.min(w, h) * 0.18));
+  const jr = Math.max(3, Math.min(10, Math.min(w, h) * 0.06));
 
   if (kind === 'groupY'){
-    const y1L = cap;
-    const y1R = cap + slope;
-    const y2L = h - cap - slope;
-    const y2R = h - cap;
+    const y1L = h * 0.18;
+    const y1R = h * 0.46;
+    const y2L = h * 0.54;
+    const y2R = h * 0.82;
+
+    const c1rx = w * 0.72;
+    const c1lx = w * 0.22;
+    const c2rx = w * 0.72;
+    const c2lx = w * 0.22;
 
     if (idx === 0){
-      return `path('M ${q(rr)} 0 H ${q(w - rr)} Q ${q(w)} 0 ${q(w)} ${q(rr)} V ${q(Math.max(rr, y1R - jr))} Q ${q(w)} ${q(y1R)} ${q(Math.max(rr, w - jr))} ${q(y1R)} L ${q(jr)} ${q(y1L)} Q 0 ${q(y1L)} 0 ${q(Math.max(rr, y1L - jr))} V ${q(rr)} Q 0 0 ${q(rr)} 0 Z')`;
+      return `path('M ${q(rr)} 0 H ${q(w - rr)} Q ${q(w)} 0 ${q(w)} ${q(rr)} V ${q(Math.max(rr, y1R - jr))} Q ${q(w)} ${q(y1R)} ${q(w - jr)} ${q(y1R)} C ${q(c1rx)} ${q(y1R)} ${q(c1lx)} ${q(y1L)} ${q(jr)} ${q(y1L)} Q 0 ${q(y1L)} 0 ${q(Math.max(rr, y1L - jr))} V ${q(rr)} Q 0 0 ${q(rr)} 0 Z')`;
     }
     if (idx === 1){
-      return `path('M 0 ${q(Math.max(0, y1L - jr))} Q 0 ${q(y1L)} ${q(jr)} ${q(y1L)} L ${q(Math.max(jr, w - jr))} ${q(y1R)} Q ${q(w)} ${q(y1R)} ${q(w)} ${q(Math.min(h, y1R + jr))} V ${q(Math.max(0, y2R - jr))} Q ${q(w)} ${q(y2R)} ${q(Math.max(jr, w - jr))} ${q(y2R)} L ${q(jr)} ${q(y2L)} Q 0 ${q(y2L)} 0 ${q(Math.max(0, y2L - jr))} Z')`;
+      return `path('M 0 ${q(Math.max(0, y1L + jr))} Q 0 ${q(y1L)} ${q(jr)} ${q(y1L)} C ${q(c1lx)} ${q(y1L)} ${q(c1rx)} ${q(y1R)} ${q(w - jr)} ${q(y1R)} Q ${q(w)} ${q(y1R)} ${q(w)} ${q(Math.min(h, y1R + jr))} V ${q(Math.max(0, y2R - jr))} Q ${q(w)} ${q(y2R)} ${q(w - jr)} ${q(y2R)} C ${q(c2rx)} ${q(y2R)} ${q(c2lx)} ${q(y2L)} ${q(jr)} ${q(y2L)} Q 0 ${q(y2L)} 0 ${q(Math.max(0, y2L - jr))} Z')`;
     }
-    return `path('M 0 ${q(Math.max(0, y2L - jr))} Q 0 ${q(y2L)} ${q(jr)} ${q(y2L)} L ${q(Math.max(rr, w - jr))} ${q(y2R)} Q ${q(w)} ${q(y2R)} ${q(w)} ${q(Math.min(h - rr, y2R + jr))} V ${q(h - rr)} Q ${q(w)} ${q(h)} ${q(w - rr)} ${q(h)} H ${q(rr)} Q 0 ${q(h)} 0 ${q(h - rr)} Z')`;
+    return `path('M 0 ${q(Math.max(0, y2L + jr))} Q 0 ${q(y2L)} ${q(jr)} ${q(y2L)} C ${q(c2lx)} ${q(y2L)} ${q(c2rx)} ${q(y2R)} ${q(w - jr)} ${q(y2R)} Q ${q(w)} ${q(y2R)} ${q(w)} ${q(Math.min(h - rr, y2R + jr))} V ${q(h - rr)} Q ${q(w)} ${q(h)} ${q(w - rr)} ${q(h)} H ${q(rr)} Q 0 ${q(h)} 0 ${q(h - rr)} Z')`;
   }
 
-  const x1T = xcap;
-  const x1B = xcap + xslope;
-  const x2T = w - xcap - xslope;
-  const x2B = w - xcap;
+  const x1T = w * 0.18;
+  const x1B = w * 0.46;
+  const x2T = w * 0.54;
+  const x2B = w * 0.82;
+  const c1ty = h * 0.22;
+  const c1by = h * 0.72;
+  const c2ty = h * 0.22;
+  const c2by = h * 0.72;
 
   if (idx === 0){
-    return `path('M ${q(rr)} 0 H ${q(x1T)} Q ${q(x1B)} 0 ${q(x1B)} ${q(jr)} V ${q(Math.max(jr, h - jr))} Q ${q(x1B)} ${q(h)} ${q(x1T)} ${q(h)} H ${q(rr)} Q 0 ${q(h)} 0 ${q(h - rr)} V ${q(rr)} Q 0 0 ${q(rr)} 0 Z')`;
+    return `path('M ${q(rr)} 0 H ${q(Math.max(rr, x1T - jr))} Q ${q(x1T)} 0 ${q(x1T)} ${q(jr)} C ${q(x1T)} ${q(c1ty)} ${q(x1B)} ${q(c1by)} ${q(x1B)} ${q(h - jr)} Q ${q(x1B)} ${q(h)} ${q(Math.max(rr, x1B - jr))} ${q(h)} H ${q(rr)} Q 0 ${q(h)} 0 ${q(h - rr)} V ${q(rr)} Q 0 0 ${q(rr)} 0 Z')`;
   }
   if (idx === 1){
-    return `path('M ${q(Math.max(0, x1T - jr))} 0 Q ${q(x1T)} 0 ${q(x1T)} ${q(jr)} V ${q(Math.max(jr, h - jr))} Q ${q(x1T)} ${q(h)} ${q(x1B)} ${q(h)} H ${q(Math.max(0, x2T))} Q ${q(x2B)} ${q(h)} ${q(x2B)} ${q(h - jr)} V ${q(jr)} Q ${q(x2B)} 0 ${q(x2T)} 0 Z')`;
+    return `path('M ${q(Math.max(0, x1T + jr))} 0 Q ${q(x1T)} 0 ${q(x1T)} ${q(jr)} C ${q(x1T)} ${q(c1ty)} ${q(x1B)} ${q(c1by)} ${q(x1B)} ${q(h - jr)} Q ${q(x1B)} ${q(h)} ${q(Math.min(w, x1B + jr))} ${q(h)} H ${q(Math.max(0, x2T - jr))} Q ${q(x2T)} ${q(h)} ${q(x2T)} ${q(h - jr)} C ${q(x2T)} ${q(c2by)} ${q(x2B)} ${q(c2ty)} ${q(x2B)} ${q(jr)} Q ${q(x2B)} 0 ${q(Math.max(0, x2B - jr))} 0 Z')`;
   }
-  return `path('M ${q(x2T)} 0 H ${q(w - rr)} Q ${q(w)} 0 ${q(w)} ${q(rr)} V ${q(h - rr)} Q ${q(w)} ${q(h)} ${q(w - rr)} ${q(h)} H ${q(x2B)} Q ${q(x2T)} ${q(h)} ${q(x2T)} ${q(h - jr)} V ${q(jr)} Q ${q(x2T)} 0 ${q(x2B)} 0 Z')`;
+  return `path('M ${q(Math.min(w, x2T + jr))} 0 Q ${q(x2T)} 0 ${q(x2T)} ${q(jr)} C ${q(x2T)} ${q(c2ty)} ${q(x2B)} ${q(c2by)} ${q(x2B)} ${q(h - jr)} Q ${q(x2B)} ${q(h)} ${q(Math.min(w - rr, x2B + jr))} ${q(h)} H ${q(w - rr)} Q ${q(w)} ${q(h)} ${q(w)} ${q(h - rr)} V ${q(rr)} Q ${q(w)} 0 ${q(w - rr)} 0 Z')`;
 }
 
 function qgShowVarDropMarker(target){
