@@ -5409,39 +5409,47 @@ function qgBuildVarDropClipPath(kind, slotIndex, width, height){
   const w = Math.max(12, Number(width) || 0);
   const h = Math.max(12, Number(height) || 0);
   const q = (n)=> String(Math.round(n * 100) / 100);
-  const rr = Math.max(8, Math.min(14, w * 0.34));
 
-  // JMP-like preview uses one shared rounded outer block.
-  // Slot 0/1/2 are cut from that same outer block by two straight, gentle dividers.
-  // The middle slot stays longest; top/bottom are shorter caps.
+  // Shared outer block proportions based on JMP preview:
+  // - one outer rounded block
+  // - shorter caps, longer center
+  // - divider joins are curved, not sharp triangles
+  const rr = Math.max(8, Math.min(16, Math.min(w, h) * 0.18));
+  const jr = Math.max(5, Math.min(12, Math.min(w, h) * 0.12));
+  const cap = h * 0.18;
+  const slope = h * 0.16;
+  const xcap = w * 0.18;
+  const xslope = w * 0.16;
+
   if (kind === 'groupY'){
-    const y1L = h * 0.22;
-    const y1R = h * 0.38;
-    const y2L = h * 0.62;
-    const y2R = h * 0.78;
+    const y1L = cap;
+    const y1R = cap + slope;
+    const y2L = h - cap - slope;
+    const y2R = h - cap;
 
     if (idx === 0){
-      return `path('M ${q(rr)} 0 H ${q(w - rr)} Q ${q(w)} 0 ${q(w)} ${q(rr)} V ${q(y1R)} L 0 ${q(y1L)} V ${q(rr)} Q 0 0 ${q(rr)} 0 Z')`;
+      return `path('M ${q(rr)} 0 H ${q(w - rr)} Q ${q(w)} 0 ${q(w)} ${q(rr)} V ${q(Math.max(rr, y1R - jr))} Q ${q(w)} ${q(y1R)} ${q(Math.max(rr, w - jr))} ${q(y1R)} L ${q(jr)} ${q(y1L)} Q 0 ${q(y1L)} 0 ${q(Math.max(rr, y1L - jr))} V ${q(rr)} Q 0 0 ${q(rr)} 0 Z')`;
     }
     if (idx === 1){
-      return `path('M 0 ${q(y1L)} L ${q(w)} ${q(y1R)} V ${q(y2R)} L 0 ${q(y2L)} Z')`;
+      return `path('M 0 ${q(Math.max(0, y1L - jr))} Q 0 ${q(y1L)} ${q(jr)} ${q(y1L)} L ${q(Math.max(jr, w - jr))} ${q(y1R)} Q ${q(w)} ${q(y1R)} ${q(w)} ${q(Math.min(h, y1R + jr))} V ${q(Math.max(0, y2R - jr))} Q ${q(w)} ${q(y2R)} ${q(Math.max(jr, w - jr))} ${q(y2R)} L ${q(jr)} ${q(y2L)} Q 0 ${q(y2L)} 0 ${q(Math.max(0, y2L - jr))} Z')`;
     }
-    return `path('M 0 ${q(y2L)} L ${q(w)} ${q(y2R)} V ${q(h - rr)} Q ${q(w)} ${q(h)} ${q(w - rr)} ${q(h)} H ${q(rr)} Q 0 ${q(h)} 0 ${q(h - rr)} Z')`;
+    return `path('M 0 ${q(Math.max(0, y2L - jr))} Q 0 ${q(y2L)} ${q(jr)} ${q(y2L)} L ${q(Math.max(rr, w - jr))} ${q(y2R)} Q ${q(w)} ${q(y2R)} ${q(w)} ${q(Math.min(h - rr, y2R + jr))} V ${q(h - rr)} Q ${q(w)} ${q(h)} ${q(w - rr)} ${q(h)} H ${q(rr)} Q 0 ${q(h)} 0 ${q(h - rr)} Z')`;
   }
 
-  const x1T = w * 0.22;
-  const x1B = w * 0.38;
-  const x2T = w * 0.62;
-  const x2B = w * 0.78;
+  const x1T = xcap;
+  const x1B = xcap + xslope;
+  const x2T = w - xcap - xslope;
+  const x2B = w - xcap;
 
   if (idx === 0){
-    return `path('M ${q(rr)} 0 H ${q(x1T)} L ${q(x1B)} ${q(h)} H ${q(rr)} Q 0 ${q(h)} 0 ${q(h - rr)} V ${q(rr)} Q 0 0 ${q(rr)} 0 Z')`;
+    return `path('M ${q(rr)} 0 H ${q(x1T)} Q ${q(x1B)} 0 ${q(x1B)} ${q(jr)} V ${q(Math.max(jr, h - jr))} Q ${q(x1B)} ${q(h)} ${q(x1T)} ${q(h)} H ${q(rr)} Q 0 ${q(h)} 0 ${q(h - rr)} V ${q(rr)} Q 0 0 ${q(rr)} 0 Z')`;
   }
   if (idx === 1){
-    return `path('M ${q(x1T)} 0 L ${q(x1B)} ${q(h)} H ${q(x2B)} L ${q(x2T)} 0 Z')`;
+    return `path('M ${q(Math.max(0, x1T - jr))} 0 Q ${q(x1T)} 0 ${q(x1T)} ${q(jr)} V ${q(Math.max(jr, h - jr))} Q ${q(x1T)} ${q(h)} ${q(x1B)} ${q(h)} H ${q(Math.max(0, x2T))} Q ${q(x2B)} ${q(h)} ${q(x2B)} ${q(h - jr)} V ${q(jr)} Q ${q(x2B)} 0 ${q(x2T)} 0 Z')`;
   }
-  return `path('M ${q(x2T)} 0 H ${q(w - rr)} Q ${q(w)} 0 ${q(w)} ${q(rr)} V ${q(h - rr)} Q ${q(w)} ${q(h)} ${q(w - rr)} ${q(h)} H ${q(x2B)} Z')`;
+  return `path('M ${q(x2T)} 0 H ${q(w - rr)} Q ${q(w)} 0 ${q(w)} ${q(rr)} V ${q(h - rr)} Q ${q(w)} ${q(h)} ${q(w - rr)} ${q(h)} H ${q(x2B)} Q ${q(x2T)} ${q(h)} ${q(x2T)} ${q(h - jr)} V ${q(jr)} Q ${q(x2T)} 0 ${q(x2B)} 0 Z')`;
 }
+
 function qgShowVarDropMarker(target){
   const el = qgEnsureVarDropMarker();
   const baseRect = target && target.rect ? target.rect : null;
