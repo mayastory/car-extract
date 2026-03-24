@@ -5181,13 +5181,26 @@ function qgPickGroupYBoxAt(x, y){
     return { el, rect:r, pos:'after', insertIndex:0, marker:'full', count:0 };
   }
 
-  const thirdW = r.width / 3;
-  let seg = Math.floor((x - r.left) / Math.max(1, thirdW));
-  if (!isFinite(seg)) seg = 1;
-  seg = Math.max(0, Math.min(2, seg));
+  const localX = Math.max(0, Math.min(r.width, x - r.left));
+  let insertIndex = 0;
+  let slotRect = null;
 
-  const idxMap = (count >= 2) ? [0, 1, count] : [0, 1, count];
-  const insertIndex = Math.max(0, Math.min(count, idxMap[seg]));
+  if (count >= 2){
+    const slotW = Math.max(8, r.width / Math.max(1, count));
+    const slotIndex = (localX < (r.width / 2)) ? 0 : 1;
+    insertIndex = slotIndex;
+    slotRect = {
+      left: r.left + (slotIndex * slotW),
+      top: r.top,
+      width: slotW,
+      height: r.height,
+      right: r.left + ((slotIndex + 1) * slotW),
+      bottom: r.bottom
+    };
+  }else{
+    insertIndex = (localX < (r.width / 2)) ? 0 : 1;
+  }
+
   const pos = (insertIndex <= 0) ? 'before' : 'after';
 
   return {
@@ -5195,8 +5208,9 @@ function qgPickGroupYBoxAt(x, y){
     rect:r,
     pos,
     insertIndex,
-    marker:'groupY-seg-' + seg,
-    count
+    marker: slotRect ? 'groupY-slot-' + insertIndex : 'full',
+    count,
+    slotRect
   };
 }
 
@@ -5230,13 +5244,26 @@ function qgPickGroupXBoxAt(x, y){
     return { el:body, rect:r, pos:'before', insertIndex:0, marker:'full', count:0 };
   }
 
-  const thirdH = r.height / 3;
-  let seg = Math.floor((y - r.top) / Math.max(1, thirdH));
-  if (!isFinite(seg)) seg = 1;
-  seg = Math.max(0, Math.min(2, seg));
+  const localY = Math.max(0, Math.min(r.height, y - r.top));
+  let insertIndex = 0;
+  let slotRect = null;
 
-  const idxMap = (count >= 2) ? [0, 1, count] : [0, 1, count];
-  const insertIndex = Math.max(0, Math.min(count, idxMap[seg]));
+  if (count >= 2){
+    const bandH = Math.max(8, r.height / Math.max(1, count));
+    const slotIndex = (localY < (r.height / 2)) ? 0 : 1;
+    insertIndex = slotIndex;
+    slotRect = {
+      left: r.left,
+      top: r.top + (slotIndex * bandH),
+      width: r.width,
+      height: bandH,
+      right: r.right,
+      bottom: r.top + ((slotIndex + 1) * bandH)
+    };
+  }else{
+    insertIndex = (localY < (r.height / 2)) ? 0 : 1;
+  }
+
   const pos = (insertIndex <= 0) ? 'before' : 'after';
 
   return {
@@ -5244,8 +5271,9 @@ function qgPickGroupXBoxAt(x, y){
     rect:r,
     pos,
     insertIndex,
-    marker:'groupX-seg-' + seg,
-    count
+    marker: slotRect ? 'groupX-slot-' + insertIndex : 'full',
+    count,
+    slotRect
   };
 }
 
@@ -5286,72 +5314,32 @@ function qgHideVarDropMarker(){
 
 function qgShowVarDropMarker(target){
   const el = qgEnsureVarDropMarker();
-  const rect = target && target.rect ? target.rect : null;
-  if (!el || !rect) return;
+  const baseRect = target && target.rect ? target.rect : null;
+  if (!el || !baseRect) return;
 
-  const inset = 1;
+  const inset = 2;
+  const slot = (target && target.slotRect) ? target.slotRect : null;
+  const rect = slot || baseRect;
   let left = rect.left + inset;
   let top = rect.top + inset;
-  let width = Math.max(8, rect.width - inset*2);
-  let height = Math.max(8, rect.height - inset*2);
-  let clip = 'none';
-  let radius = '12px';
-  const marker = String((target && target.marker) || 'full');
-  const count = Math.max(0, Number(target && target.count) || 0);
+  let width = Math.max(8, (rect.width || (rect.right - rect.left)) - inset * 2);
+  let height = Math.max(8, (rect.height || (rect.bottom - rect.top)) - inset * 2);
 
-  const m = marker.match(/group([XY])-seg-(\d)/i);
-  const seg = m ? Math.max(0, Math.min(2, parseInt(m[2], 10) || 0)) : -1;
+  if (target.type !== 'groupX' && target.type !== 'groupY') return;
 
-  if (target.type === 'groupX'){
-    if (count <= 0 || seg < 0){
-      clip = 'none';
-    }else{
-      const third = height / 3;
-      const over = Math.max(6, Math.round(height * 0.06));
-      if (seg === 0){
-        height = Math.min(height, Math.round(third + over));
-        clip = 'polygon(0 0, 100% 0, 100% 30%, 74% 100%, 0 100%)';
-      }else if (seg === 1){
-        top += Math.round(third - over * 0.5);
-        height = Math.min(height - (top - (rect.top + inset)), Math.round(third + over));
-        clip = 'polygon(0 12%, 22% 0, 100% 0, 100% 88%, 78% 100%, 0 100%)';
-      }else{
-        top += Math.round((third * 2) - over);
-        height = Math.max(8, Math.round((rect.top + inset + height) - top));
-        clip = 'polygon(0 0, 74% 0, 100% 70%, 100% 100%, 0 100%)';
-      }
-    }
-  }else if (target.type === 'groupY'){
-    if (count <= 0 || seg < 0){
-      clip = 'none';
-    }else{
-      const third = width / 3;
-      const over = Math.max(6, Math.round(width * 0.06));
-      if (seg === 0){
-        width = Math.min(width, Math.round(third + over));
-        clip = 'polygon(0 0, 100% 0, 100% 74%, 30% 100%, 0 100%)';
-      }else if (seg === 1){
-        left += Math.round(third - over * 0.5);
-        width = Math.min(width - (left - (rect.left + inset)), Math.round(third + over));
-        clip = 'polygon(12% 0, 100% 0, 100% 100%, 0 100%, 0 12%, 78% 0)';
-      }else{
-        left += Math.round((third * 2) - over);
-        width = Math.max(8, Math.round((rect.left + inset + width) - left));
-        clip = 'polygon(0 0, 70% 0, 100% 30%, 100% 100%, 0 100%)';
-      }
-    }
-  }else{
-    return;
-  }
+  left = Math.round(left);
+  top = Math.round(top);
+  width = Math.max(8, Math.round(width));
+  height = Math.max(8, Math.round(height));
 
   try{
-    el.style.left = Math.round(left) + 'px';
-    el.style.top = Math.round(top) + 'px';
-    el.style.width = Math.round(width) + 'px';
-    el.style.height = Math.round(height) + 'px';
-    el.style.borderRadius = radius;
-    el.style.clipPath = clip;
-    el.style.webkitClipPath = clip;
+    el.style.left = left + 'px';
+    el.style.top = top + 'px';
+    el.style.width = width + 'px';
+    el.style.height = height + 'px';
+    el.style.borderRadius = '10px';
+    el.style.clipPath = 'none';
+    el.style.webkitClipPath = 'none';
     el.style.display = 'block';
   }catch(e){}
 }
