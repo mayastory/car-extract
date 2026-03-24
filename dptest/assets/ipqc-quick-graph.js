@@ -156,6 +156,7 @@
     oocSpecByCol: {}, // {colKey: pct} per-FAI OOC SPEC percentage (100 = current base/input USL/LSL, default slider value stays 85)
     oocLineVisibleByCol: {}, // {colKey:boolean} per-FAI OOC reference line visibility
     limitBaseByCol: {}, // {colKey:{baseUsl,baseLsl}} per-FAI base limits before OOC scaling
+    limitLabelAlignByCol: {}, // {colKey:'left'|'center'|'right'} per-FAI USL/LSL label alignment
     editingOocSpec: false,
     plotElems: { points:true, line:true, box:true }, // toolbar elements (Shift multi-select)
     captionByColKey: {}, // {colKey:{enabled,stats:[...],xPos,yPos}} (display only)
@@ -995,6 +996,21 @@ function qgNormVarPrefix(x){
 function qgNormVarLabelAlign(x){
   const s = String((x===undefined||x===null) ? '' : x).trim().toLowerCase();
   return (s === 'left' || s === 'center' || s === 'right') ? s : 'right';
+}
+
+function qgGetLimitLabelAlign(colKey){
+  const k = String(colKey || '');
+  if (!QG.limitLabelAlignByCol) QG.limitLabelAlignByCol = {};
+  return qgNormVarLabelAlign(QG.limitLabelAlignByCol[k]);
+}
+
+function qgSetLimitLabelAlign(colKey, align){
+  const k = String(colKey || '');
+  if (!k) return 'right';
+  if (!QG.limitLabelAlignByCol) QG.limitLabelAlignByCol = {};
+  const next = qgNormVarLabelAlign(align);
+  QG.limitLabelAlignByCol[k] = next;
+  return next;
 }
 
 function sortDateInfo(a,b){
@@ -2805,6 +2821,7 @@ function qgBindHoverTip(){
     function liveApply(preserveValue){
       try{ applyStyleFromInputs(); }catch(e){}
       try{ applyVarValueFromInput(); }catch(e){}
+      try{ syncVarLabelAlignInput(); }catch(e){}
       try{ renderLegend(); renderGrid(); }catch(e){}
       try{ refreshVarUi(!!preserveValue); }catch(e){}
     }
@@ -4000,9 +4017,11 @@ function getBase(){
     QG.editingLimits = false;
     QG.editingAxis = false;
     syncLimitInputs(true);
+    syncLimitLabelAlignInput();
     syncAxisInputs(true);
     syncOocSpecInputs(true);
     syncOocLineInputs(true);
+    syncVarLabelAlignInput();
   
     try{ qgSyncCaptionUi(); }catch(e){}
   }
@@ -5746,6 +5765,31 @@ try{
     if (uslEl && !uslEl._qg){ uslEl._qg=true; uslEl.addEventListener('input', onLimitInput); uslEl.addEventListener('focus', onLimitFocus); uslEl.addEventListener('blur', onLimitBlur); }
     if (lslEl && !lslEl._qg){ lslEl._qg=true; lslEl.addEventListener('input', onLimitInput); lslEl.addEventListener('focus', onLimitFocus); lslEl.addEventListener('blur', onLimitBlur); }
 
+    try{
+      const limitAlignEl = qs('#qgLimitLabelAlign');
+      if (limitAlignEl && !limitAlignEl._qg){
+        limitAlignEl._qg = true;
+        limitAlignEl.addEventListener('change', ()=>{
+          applyLimitLabelAlignInputToState();
+          renderGrid();
+        });
+      }
+      syncLimitLabelAlignInput();
+    }catch(e){}
+
+    try{
+      const varAlignEl = qs('#qgVarLabelAlign');
+      if (varAlignEl && !varAlignEl._qg){
+        varAlignEl._qg = true;
+        varAlignEl.addEventListener('change', ()=>{
+          applyVarLabelAlignInputToState();
+          renderLegend();
+          renderGrid();
+        });
+      }
+      syncVarLabelAlignInput();
+    }catch(e){}
+
     // Grid hide toggle (default hidden) - applies to all panels
     try{
       const hg = qs('#qgHideGrid');
@@ -6077,11 +6121,13 @@ try{
         // limits inputs follow primary selection
         QG.editingLimits = false;
         syncLimitInputs(true);
+        syncLimitLabelAlignInput();
         QG.editingAxis = false;
         syncAxisInputs(true);
         QG.editingOocSpec = false;
         syncOocSpecInputs(true);
         syncOocLineInputs(true);
+        syncVarLabelAlignInput();
 
         refresh();
       });
@@ -6416,6 +6462,35 @@ function renderFacetList(rootId, items, selSet){
     if (lslEl) lslEl.value = (lslV !== null && lslV !== undefined) ? fmt(lslV) : '';
   }
 
+  function syncLimitLabelAlignInput(){
+    const el = qs('#qgLimitLabelAlign');
+    if (!el) return;
+    el.value = qgGetLimitLabelAlign(QG.sel.primaryColKey || '');
+  }
+
+  function applyLimitLabelAlignInputToState(){
+    const k = String(QG.sel.primaryColKey || '');
+    const el = qs('#qgLimitLabelAlign');
+    if (!k || !el) return;
+    qgSetLimitLabelAlign(k, el.value);
+  }
+
+  function syncVarLabelAlignInput(){
+    const el = qs('#qgVarLabelAlign');
+    if (!el) return;
+    const st = qgEnsureUserStyle();
+    el.value = qgNormVarLabelAlign(st && st.varline ? st.varline.labelAlign : 'right');
+  }
+
+  function applyVarLabelAlignInputToState(){
+    const el = qs('#qgVarLabelAlign');
+    if (!el) return;
+    const st = qgEnsureUserStyle();
+    if (st && st.varline) st.varline.labelAlign = qgNormVarLabelAlign(el.value);
+    const dlgSel = qs('#qgUD_var_align');
+    if (dlgSel) dlgSel.value = qgNormVarLabelAlign(el.value);
+  }
+
   function getAxisState(colKey){
     const k = (colKey || '').toString();
     if (!k) return { yMin: null, yMax: null };
@@ -6480,9 +6555,11 @@ function renderFacetList(rootId, items, selSet){
     renderFacetList('qgCavityList', QG.cavities, QG.sel.cavities);
 
     syncLimitInputs(false);
+    syncLimitLabelAlignInput();
     syncAxisInputs(false);
     syncOocSpecInputs(false);
     syncOocLineInputs(false);
+    syncVarLabelAlignInput();
     renderGrid();
   }
 
@@ -6898,6 +6975,15 @@ function qgBuildTopHeaderSvg(toolsRow, cavs){
       qgBindVarDockDragHandle(el, varKey, qgDockVarLabel(varKey));
     }catch(e){}
   };
+  const bandDrag = (x, y, w, h, varKey)=>{
+    try{
+      const hit = rect(x, y, w, h, '#ffffff', null, 0);
+      hit.setAttribute('fill-opacity', '0.001');
+      hit.setAttribute('pointer-events', 'all');
+      bindDrag(hit, varKey);
+      return hit;
+    }catch(e){ return null; }
+  };
 
   if (xVars.length === 2){
     const nT = Math.max(1, Array.isArray(toolsRow) ? toolsRow.length : 0);
@@ -6936,6 +7022,8 @@ function qgBuildTopHeaderSvg(toolsRow, cavs){
       text(left + panelW / 2, (y3 + y4) / 2, lab, { size:11, weight:700 });
       if (pi > 0 && (pi % nC) !== 0) line(left, y3, left, y4, '#cfcfcf', 1);
     }
+    bandDrag(padL, y0, innerW, y2 - y0, 'tool');
+    bandDrag(padL, y2, innerW, y4 - y2, 'cavity');
     return svg;
   }
 
@@ -6962,6 +7050,7 @@ function qgBuildTopHeaderSvg(toolsRow, cavs){
       text(left + cellW / 2, (y1 + y2) / 2, lab, { size:11, weight:700 });
       if (i > 0) line(left, y1, left, y2, '#cfcfcf', 1);
     }
+    bandDrag(padL, y0, innerW, y2 - y0, xVar);
     return svg;
   }
 
@@ -7699,14 +7788,24 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       if (st.showLabel === false) return;
       const tx = document.createElementNS(ns,'text');
       const _fontPx = 10;
-      const _specX = right - 2;
-      // Keep the label inside the last cavity panel, but sit it just above the spec line
-      // so the text does not overlap the dashed line or stick to the bottom edge.
+      const _rowLeft = padL;
+      const _rowRight = W - padR;
+      const _align = qgGetLimitLabelAlign(_colKey);
+      let _specX = _rowRight - 2;
+      let _anchor = 'end';
+      if (_align === 'left'){
+        _specX = _rowLeft + 4;
+        _anchor = 'start';
+      }else if (_align === 'center'){
+        _specX = _rowLeft + ((_rowRight - _rowLeft) / 2);
+        _anchor = 'middle';
+      }
+      // Keep the label above the line and align it against the full graph width.
       const _labelGap = 4;
       const _specY = Math.max(padT + _fontPx + 1, Math.min(padT + innerH - 4, y - _labelGap));
       tx.setAttribute('x', String(_specX));
       tx.setAttribute('y', String(_specY));
-      tx.setAttribute('text-anchor', 'end');
+      tx.setAttribute('text-anchor', _anchor);
       tx.setAttribute('dominant-baseline', 'alphabetic');
       tx.setAttribute('font-size', String(_fontPx));
       tx.setAttribute('fill','rgba(0,0,0,0.70)');
@@ -8773,12 +8872,24 @@ const clip = (el)=>{ try{ el.setAttribute('clip-path', clipUrl); }catch(e){} };
 
         const tx = document.createElementNS(ns,'text');
         const _fontPx = 10;
-        const _specX = right - 4;
-        const _specY = Math.max(padT + _fontPx, Math.min(padT + innerH - 2, y));
+        const _rowLeft = padL;
+        const _rowRight = W - padR;
+        const _align = qgGetLimitLabelAlign(_colKey);
+        let _specX = _rowRight - 2;
+        let _anchor = 'end';
+        if (_align === 'left'){
+          _specX = _rowLeft + 4;
+          _anchor = 'start';
+        }else if (_align === 'center'){
+          _specX = _rowLeft + ((_rowRight - _rowLeft) / 2);
+          _anchor = 'middle';
+        }
+        const _labelGap = 4;
+        const _specY = Math.max(padT + _fontPx + 1, Math.min(padT + innerH - 4, y - _labelGap));
         tx.setAttribute('x', String(_specX));
         tx.setAttribute('y', String(_specY));
-        tx.setAttribute('text-anchor', 'end');
-        tx.setAttribute('dominant-baseline', 'middle');
+        tx.setAttribute('text-anchor', _anchor);
+        tx.setAttribute('dominant-baseline', 'alphabetic');
         tx.setAttribute('font-size', String(_fontPx));
         tx.setAttribute('fill','rgba(0,0,0,0.70)');
         if (st.labelOpacity !== undefined && st.labelOpacity !== null){

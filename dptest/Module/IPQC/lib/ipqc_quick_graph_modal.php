@@ -1151,6 +1151,14 @@ if (!function_exists('h')) {
             <div class="qg-row">
               <input id="qgLSL" class="qg-input" placeholder="LSL (빈칸=NULL)">
             </div>
+            <div class="qg-hint" style="margin-top:8px; margin-bottom:8px;">· USL/LSL 정렬</div>
+            <div class="qg-row">
+              <select id="qgLimitLabelAlign" class="qg-input" aria-label="USL/LSL 정렬">
+                <option value="left">왼쪽</option>
+                <option value="center">가운데</option>
+                <option value="right">오른쪽</option>
+              </select>
+            </div>
 
             <div class="qg-hint" style="margin-top:10px; margin-bottom:8px;">· OOC SPEC</div>
             <div class="qg-row" style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
@@ -1172,6 +1180,14 @@ if (!function_exists('h')) {
               </label>
             </div>
 
+            <div class="qg-hint" style="margin-top:10px; margin-bottom:8px;">· 기준선 정렬</div>
+            <div class="qg-row">
+              <select id="qgVarLabelAlign" class="qg-input" aria-label="기준선 정렬">
+                <option value="left">왼쪽</option>
+                <option value="center">가운데</option>
+                <option value="right">오른쪽</option>
+              </select>
+            </div>
 
           </div>
         </details>
