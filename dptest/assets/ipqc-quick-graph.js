@@ -5441,62 +5441,64 @@ function qgBuildVarDropClipPath(kind, slotIndex, width, height){
   const idx = Math.max(0, Math.min(2, Number(slotIndex) || 0));
   const w = Math.max(12, Number(width) || 0);
   const h = Math.max(12, Number(height) || 0);
-  const rr = Math.max(4, Math.min(10, Math.min(w, h) * 0.10));
+  // Keep the 3-slot rule, but bias the shared shape toward a larger middle slot
+  // so the end caps stay shorter like JMP.
+  const rr = Math.max(4, Math.min(11, Math.min(w, h) * 0.085));
 
   if (kind === 'groupY'){
-    const y1L = h * 0.18;
-    const y1R = h * 0.46;
-    const y2L = h * 0.54;
-    const y2R = h * 0.82;
+    const y1L = h * 0.14;
+    const y1R = h * 0.30;
+    const y2L = h * 0.62;
+    const y2R = h * 0.86;
     if (idx === 0){
       return qgRoundedPolygonClipPath([
-        { x:0, y:0 },
-        { x:w, y:0 },
-        { x:w, y:y1R },
-        { x:0, y:y1L }
+        { x: 0, y: 0 },
+        { x: w, y: 0 },
+        { x: w, y: y1R },
+        { x: 0, y: y1L }
       ], rr);
     }
     if (idx === 1){
       return qgRoundedPolygonClipPath([
-        { x:0, y:y1L },
-        { x:w, y:y1R },
-        { x:w, y:y2R },
-        { x:0, y:y2L }
+        { x: 0, y: y1L },
+        { x: w, y: y1R },
+        { x: w, y: y2R },
+        { x: 0, y: y2L }
       ], rr);
     }
     return qgRoundedPolygonClipPath([
-      { x:0, y:y2L },
-      { x:w, y:y2R },
-      { x:w, y:h },
-      { x:0, y:h }
+      { x: 0, y: y2L },
+      { x: w, y: y2R },
+      { x: w, y: h },
+      { x: 0, y: h }
     ], rr);
   }
 
-  const x1T = w * 0.18;
-  const x1B = w * 0.46;
-  const x2T = w * 0.54;
-  const x2B = w * 0.82;
+  const x1T = w * 0.14;
+  const x1B = w * 0.30;
+  const x2T = w * 0.62;
+  const x2B = w * 0.86;
   if (idx === 0){
     return qgRoundedPolygonClipPath([
-      { x:0, y:0 },
-      { x:x1T, y:0 },
-      { x:x1B, y:h },
-      { x:0, y:h }
+      { x: 0, y: 0 },
+      { x: x1T, y: 0 },
+      { x: x1B, y: h },
+      { x: 0, y: h }
     ], rr);
   }
   if (idx === 1){
     return qgRoundedPolygonClipPath([
-      { x:x1T, y:0 },
-      { x:x2T, y:0 },
-      { x:x2B, y:h },
-      { x:x1B, y:h }
+      { x: x1T, y: 0 },
+      { x: x2T, y: 0 },
+      { x: x2B, y: h },
+      { x: x1B, y: h }
     ], rr);
   }
   return qgRoundedPolygonClipPath([
-    { x:x2T, y:0 },
-    { x:w, y:0 },
-    { x:w, y:h },
-    { x:x2B, y:h }
+    { x: x2T, y: 0 },
+    { x: w, y: 0 },
+    { x: w, y: h },
+    { x: x2B, y: h }
   ], rr);
 }
 
@@ -5526,7 +5528,9 @@ function qgShowVarDropMarker(target){
     el.style.top = top + 'px';
     el.style.width = width + 'px';
     el.style.height = height + 'px';
-    el.style.borderRadius = '10px';
+    // Let the shared slot clip-path control the silhouette. Keeping a box border-radius
+    // here makes the preview collapse into a long rounded rectangle in some browsers.
+    el.style.borderRadius = isFull ? '10px' : '0';
     el.style.clipPath = clip;
     el.style.webkitClipPath = clip;
     el.style.display = 'block';
