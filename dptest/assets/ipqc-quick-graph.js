@@ -4898,9 +4898,7 @@ function qgEnsureDockState(){
 }
 
 function qgEnsureGroupYState(){
-  if (!Array.isArray(QG.groupYVars)) QG.groupYVars = [];
-  QG.groupYVars = Array.from(new Set((QG.groupYVars || []).map(qgNormalizeDockVar).filter(Boolean))).slice(0, 2);
-  return QG.groupYVars;
+  return qgEnsureAxisLayoutState().groupY;
 }
 
 function qgGetGroupYVars(){
@@ -4918,9 +4916,56 @@ function qgGetGroupYLayoutMetrics(){
   return { valueW, fieldW, totalW, gridPad: totalW };
 }
 
+function qgEnsureAxisLayoutState(){
+  const all = ['tool','cavity'];
+  let gy = Array.isArray(QG.groupYVars) ? QG.groupYVars.map(qgNormalizeDockVar).filter(v => all.indexOf(v) >= 0) : [];
+  gy = Array.from(new Set(gy)).slice(0, 2);
+
+  let gx = Array.isArray(QG.groupXVars) ? QG.groupXVars.map(qgNormalizeDockVar).filter(v => all.indexOf(v) >= 0 && gy.indexOf(v) < 0) : [];
+  gx = Array.from(new Set(gx));
+
+  const missing = all.filter(v => gy.indexOf(v) < 0 && gx.indexOf(v) < 0);
+  gx = gx.concat(missing).slice(0, 2);
+
+  QG.groupYVars = gy;
+  QG.groupXVars = gx;
+  return { groupX: gx.slice(), groupY: gy.slice() };
+}
+
+function qgMoveAxisVarToGroup(groupKey, varKey, insertPos){
+  const vk = qgNormalizeDockVar(varKey);
+  const gk = String(groupKey || '');
+  if (!vk || (gk !== 'groupX' && gk !== 'groupY')) return;
+
+  const st = qgEnsureAxisLayoutState();
+  let gx = Array.isArray(st.groupX) ? st.groupX.slice() : [];
+  let gy = Array.isArray(st.groupY) ? st.groupY.slice() : [];
+
+  gx = gx.filter(v => v !== vk);
+  gy = gy.filter(v => v !== vk);
+
+  const target = (gk === 'groupY') ? gy : gx;
+  const rawPos = (insertPos === undefined || insertPos === null) ? 'after' : insertPos;
+  let insertIndex = null;
+  if (typeof rawPos === 'number' && isFinite(rawPos)){
+    insertIndex = Number(rawPos);
+  }else if (/^\d+$/.test(String(rawPos))){
+    insertIndex = parseInt(String(rawPos), 10);
+  }
+  if (insertIndex === null){
+    const pos = (String(rawPos || '').toLowerCase() === 'before') ? 'before' : 'after';
+    insertIndex = (pos === 'before') ? 0 : target.length;
+  }
+  insertIndex = Math.max(0, Math.min(target.length, Math.round(insertIndex)));
+  target.splice(insertIndex, 0, vk);
+
+  QG.groupXVars = gx.slice(0, 2);
+  QG.groupYVars = gy.slice(0, 2);
+  qgEnsureAxisLayoutState();
+}
+
 function qgGetXAxisVars(){
-  const gy = qgGetGroupYVars();
-  return ['tool','cavity'].filter(v => gy.indexOf(v) < 0);
+  return qgEnsureAxisLayoutState().groupX;
 }
 
 function qgFormatPanelVarValue(varKey, value){
@@ -5089,14 +5134,10 @@ function qgUpdateGroupYBox(){
   qgRenderGroupYBox();
 }
 
-function qgSetGroupYVar(varKey){
+function qgSetGroupYVar(varKey, insertPos){
   const vk = qgNormalizeDockVar(varKey);
   if (!vk) return;
-  const arr = qgEnsureGroupYState();
-  const idx = arr.indexOf(vk);
-  if (idx >= 0) arr.splice(idx, 1);
-  arr.push(vk);
-  QG.groupYVars = Array.from(new Set(arr)).slice(-2);
+  qgMoveAxisVarToGroup('groupY', vk, insertPos);
   qgUpdateGroupYBox();
   try{ renderGrid(); }catch(e){}
   try{ renderLegend(); }catch(e){}
@@ -5111,6 +5152,16 @@ function qgClearGroupYVar(varKey){
     const vk = qgNormalizeDockVar(varKey);
     QG.groupYVars = arr.filter(v => v !== vk);
   }
+  qgEnsureAxisLayoutState();
+  qgUpdateGroupYBox();
+  try{ renderGrid(); }catch(e){}
+  try{ renderLegend(); }catch(e){}
+}
+
+function qgSetGroupXVar(varKey, insertPos){
+  const vk = qgNormalizeDockVar(varKey);
+  if (!vk) return;
+  qgMoveAxisVarToGroup('groupX', vk, insertPos);
   qgUpdateGroupYBox();
   try{ renderGrid(); }catch(e){}
   try{ renderLegend(); }catch(e){}
@@ -5120,12 +5171,158 @@ function qgPickGroupYBoxAt(x, y){
   const el = qs('#qgGroupYBox');
   if (!el) return null;
   const r = el.getBoundingClientRect();
-  if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return el;
-  return null;
+  if (!(x >= r.left && x <= r.right && y >= r.top && y <= r.bottom)) return null;
+
+  const vars = qgGetGroupYVars();
+  const count = Array.isArray(vars) ? vars.length : 0;
+  if (!count){
+    return { el, rect:r, pos:'after', insertIndex:0, marker:'full', count:0 };
+  }
+
+  const thirdW = r.width / 3;
+  let seg = Math.floor((x - r.left) / Math.max(1, thirdW));
+  if (!isFinite(seg)) seg = 1;
+  seg = Math.max(0, Math.min(2, seg));
+
+  // Group Y strips are rendered from inside->outside using reverse(vars),
+  // so visible left -> right maps to stored end -> start.
+  const idxMap = (count >= 2) ? [count, 1, 0] : [count, 1, 0];
+  const insertIndex = Math.max(0, Math.min(count, idxMap[seg]));
+  const pos = (insertIndex <= 0) ? 'before' : 'after';
+
+  return {
+    el,
+    rect:r,
+    pos,
+    insertIndex,
+    marker:'groupY-seg-' + seg,
+    count
+  };
+}
+
+function qgPickGroupXBoxAt(x, y){
+  let el = null;
+  try{ el = document.elementFromPoint(x, y); }catch(e){ el = null; }
+  if (!el || !el.closest) return null;
+  const head = el.closest('.qg-tophead');
+  if (!head || !head.closest || !head.closest('#qgGrid')) return null;
+  const body = qs('.qg-tophead-body', head) || head;
+  const r = body.getBoundingClientRect();
+  if (!(x >= r.left && x <= r.right && y >= r.top && y <= r.bottom)) return null;
+
+  const vars = qgGetXAxisVars();
+  const count = Array.isArray(vars) ? vars.length : 0;
+  if (!count){
+    return { el:body, rect:r, pos:'before', insertIndex:0, marker:'full', count:0 };
+  }
+
+  const thirdH = r.height / 3;
+  let seg = Math.floor((y - r.top) / Math.max(1, thirdH));
+  if (!isFinite(seg)) seg = 1;
+  seg = Math.max(0, Math.min(2, seg));
+
+  const idxMap = (count >= 2) ? [0, 1, count] : [0, 1, count];
+  const insertIndex = Math.max(0, Math.min(count, idxMap[seg]));
+  const pos = (insertIndex <= 0) ? 'before' : 'after';
+
+  return {
+    el:body,
+    rect:r,
+    pos,
+    insertIndex,
+    marker:'groupX-seg-' + seg,
+    count
+  };
+}
+
+function qgEnsureVarDropMarker(){
+  let el = null;
+  try{ el = qs('#qgVarDropMarker'); }catch(e){ el = null; }
+  if (!el){
+    try{
+      const overlay = qs('#qgOverlay') || document.body;
+      el = document.createElement('div');
+      el.id = 'qgVarDropMarker';
+      el.setAttribute('aria-hidden', 'true');
+      el.style.position = 'fixed';
+      el.style.display = 'none';
+      el.style.pointerEvents = 'none';
+      el.style.zIndex = '2147483647';
+      el.style.borderRadius = '10px';
+      el.style.background = 'rgba(120,170,255,0.18)';
+      el.style.border = '3px solid rgba(70,120,255,0.95)';
+      el.style.boxSizing = 'border-box';
+      overlay.appendChild(el);
+    }catch(e){ el = null; }
+  }
+  return el;
+}
+
+function qgHideVarDropMarker(){
+  const el = qgEnsureVarDropMarker();
+  if (!el) return;
+  try{
+    el.style.display = 'none';
+    el.style.clipPath = 'none';
+    el.style.webkitClipPath = 'none';
+    el.style.borderRadius = '10px';
+  }catch(e){}
+}
+
+function qgShowVarDropMarker(target){
+  const el = qgEnsureVarDropMarker();
+  const rect = target && target.rect ? target.rect : null;
+  if (!el || !rect) return;
+
+  const inset = 1;
+  let left = rect.left + inset;
+  let top = rect.top + inset;
+  let width = Math.max(8, rect.width - inset*2);
+  let height = Math.max(8, rect.height - inset*2);
+  let clip = 'none';
+  let radius = '10px';
+  const marker = String((target && target.marker) || 'full');
+  const count = Math.max(0, Number(target && target.count) || 0);
+
+  if (target.type === 'groupX'){
+    if (count <= 0){
+      clip = 'none';
+    }else if (marker === 'groupX-seg-0'){
+      clip = 'polygon(0 0, 100% 0, 82% 100%, 0 100%)';
+    }else if (marker === 'groupX-seg-1'){
+      clip = 'polygon(14% 0, 100% 0, 86% 100%, 0 100%)';
+    }else if (marker === 'groupX-seg-2'){
+      clip = 'polygon(0 0, 100% 0, 100% 100%, 18% 100%)';
+    }
+  }else if (target.type === 'groupY'){
+    if (count <= 0){
+      clip = 'none';
+    }else if (marker === 'groupY-seg-0'){
+      clip = 'polygon(0 0, 100% 0, 100% 100%, 0 82%)';
+    }else if (marker === 'groupY-seg-1'){
+      clip = 'polygon(0 14%, 100% 0, 100% 86%, 0 100%)';
+    }else if (marker === 'groupY-seg-2'){
+      clip = 'polygon(0 0, 100% 18%, 100% 100%, 0 100%)';
+    }
+  }else{
+    return;
+  }
+
+  try{
+    el.style.left = Math.round(left) + 'px';
+    el.style.top = Math.round(top) + 'px';
+    el.style.width = Math.round(width) + 'px';
+    el.style.height = Math.round(height) + 'px';
+    el.style.borderRadius = radius;
+    el.style.clipPath = clip;
+    el.style.webkitClipPath = clip;
+    el.style.display = 'block';
+  }catch(e){}
 }
 
 function qgClearVarDropHover(){
   qgClearDockHover();
+  qgHideVarDropMarker();
   try{ const gy = qs('#qgGroupYBox'); if (gy) gy.classList.remove('hover'); }catch(e){}
 }
 
@@ -5134,14 +5331,20 @@ function qgPickVarDropTargetAt(x, y){
   if (dockEl){
     return { type:'dock', el:dockEl, dockKey:(dockEl.dataset && dockEl.dataset.dock) ? String(dockEl.dataset.dock) : null };
   }
+  const gx = qgPickGroupXBoxAt(x, y);
+  if (gx) return { type:'groupX', el:gx.el, rect:gx.rect, pos:gx.pos, insertIndex:gx.insertIndex, marker:gx.marker, count:gx.count };
   const gy = qgPickGroupYBoxAt(x, y);
-  if (gy) return { type:'groupY', el:gy };
+  if (gy) return { type:'groupY', el:gy.el, rect:gy.rect, pos:gy.pos, insertIndex:gy.insertIndex, marker:gy.marker, count:gy.count };
   return null;
 }
 
 function qgMarkVarDropHover(target){
   qgClearVarDropHover();
   if (!target || !target.el) return;
+  if (target.type === 'groupX' || target.type === 'groupY'){
+    qgShowVarDropMarker(target);
+    return;
+  }
   try{ target.el.classList.add('hover'); }catch(e){}
 }
 
@@ -5452,7 +5655,8 @@ function qgBindVarDockDragHandle(el, varKey, label){
         try{ up.preventDefault(); up.stopPropagation(); }catch(e){}
         if (target){
           if (target.type === 'dock' && target.dockKey) qgSetDockVar(target.dockKey, s.varKey);
-          else if (target.type === 'groupY') qgSetGroupYVar(s.varKey);
+          else if (target.type === 'groupY') qgSetGroupYVar(s.varKey, target.insertIndex);
+          else if (target.type === 'groupX') qgSetGroupXVar(s.varKey, target.insertIndex);
         }
         QG._dragVarSuppressClickUntil = Date.now() + 300;
       }
