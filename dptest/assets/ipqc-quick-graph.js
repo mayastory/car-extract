@@ -5061,7 +5061,6 @@ function qgRenderGroupYBox(){
     box.style.width = metrics.totalW + 'px';
     return;
   }
-
   const rowMeta = rows.map((row)=>{
     const ref = qs('.qg-row-label', row) || row;
     const rr = ref.getBoundingClientRect();
@@ -5089,15 +5088,11 @@ function qgRenderGroupYBox(){
   let left = 0;
   for (let si = 0; si < stripVars.length; si++){
     const varKey = stripVars[si];
-    const logicalIndex = Math.max(0, vars.indexOf(varKey));
-    const blockW = metrics.valueW + metrics.fieldW;
-
     const valStrip = document.createElement('div');
     valStrip.className = 'qg-group-y-strip qg-group-y-strip-values';
+    valStrip.setAttribute('data-varkey', String(varKey || ''));
     valStrip.style.left = left + 'px';
     valStrip.style.width = metrics.valueW + 'px';
-    valStrip.dataset.varKey = String(varKey || '');
-    valStrip.dataset.varIndex = String(logicalIndex);
     const bands = qgBuildGroupYValueBands(rowMeta, varKey);
     for (let i = 0; i < bands.length; i++){
       const band = bands[i];
@@ -5117,12 +5112,9 @@ function qgRenderGroupYBox(){
 
     const fldStrip = document.createElement('div');
     fldStrip.className = 'qg-group-y-strip qg-group-y-strip-field';
+    fldStrip.setAttribute('data-varkey', String(varKey || ''));
     fldStrip.style.left = left + 'px';
     fldStrip.style.width = metrics.fieldW + 'px';
-    fldStrip.dataset.varKey = String(varKey || '');
-    fldStrip.dataset.varIndex = String(logicalIndex);
-    fldStrip.dataset.blockLeft = String(left - metrics.valueW);
-    fldStrip.dataset.blockWidth = String(blockW);
     const fldBands = (bands && bands.length) ? bands : [{ top:0, bottom:boxRect.height }];
     for (let bi = 0; bi < fldBands.length; bi++){
       const band = fldBands[bi] || {};
@@ -5183,27 +5175,6 @@ function qgSetGroupXVar(varKey, insertPos){
   try{ renderLegend(); }catch(e){}
 }
 
-function qgResolveAxisSlotTarget(blockIndex, slotIndex, count){
-  const idx = Math.max(0, Number(blockIndex) || 0);
-  const n = Math.max(0, Number(count) || 0);
-  const slot = Math.max(0, Math.min(2, Number(slotIndex) || 0));
-  if (slot === 0) return { pos:'before', insertIndex: idx };
-  if (slot === 2) return { pos:'after', insertIndex: Math.min(n, idx + 1) };
-  return { pos:'current', insertIndex: null };
-}
-
-function qgGetVarMarkerClipPath(axisType, slotIndex){
-  const slot = Math.max(0, Math.min(2, Number(slotIndex) || 0));
-  if (axisType === 'groupY'){
-    if (slot === 0) return 'polygon(0% 0%, 100% 0%, 100% 50%, 0% 33.333%)';
-    if (slot === 1) return 'polygon(0% 33.333%, 100% 50%, 100% 66.667%, 0% 50%)';
-    return 'polygon(0% 50%, 100% 66.667%, 100% 100%, 0% 100%)';
-  }
-  if (slot === 0) return 'polygon(0% 0%, 50% 0%, 33.333% 100%, 0% 100%)';
-  if (slot === 1) return 'polygon(33.333% 0%, 50% 0%, 66.667% 100%, 50% 100%)';
-  return 'polygon(50% 0%, 100% 0%, 100% 100%, 66.667% 100%)';
-}
-
 function qgPickGroupYBoxAt(x, y){
   const el = qs('#qgGroupYBox');
   if (!el) return null;
@@ -5213,57 +5184,48 @@ function qgPickGroupYBoxAt(x, y){
   const vars = qgGetGroupYVars();
   const count = Array.isArray(vars) ? vars.length : 0;
   if (!count){
-    return { el, rect:r, pos:'after', insertIndex:0, marker:'full', count:0, slotIndex:0, slotCount:1, slotRect:r, logicalIndex:0 };
+    return { el, rect:r, pos:'after', insertIndex:0, marker:'full', count:0, slotIndex:0, slotCount:1, slotRect:r };
   }
 
   let baseRect = r;
-  let logicalIndex = 0;
   try{
-    const strips = qsa('.qg-group-y-strip[data-var-index]', el).filter(Boolean);
+    const strips = qsa('.qg-group-y-strip[data-varkey]', el).filter(Boolean);
     if (strips.length){
-      const groups = new Map();
-      for (const strip of strips){
-        const key = String((strip.dataset && strip.dataset.varIndex) ? strip.dataset.varIndex : '');
-        if (!key) continue;
-        if (!groups.has(key)) groups.set(key, []);
-        groups.get(key).push(strip);
-      }
-      let bestRect = null;
+      let bestVarKey = '';
       let bestDist = Infinity;
-      let bestIndex = 0;
-      for (const [key, nodes] of groups.entries()){
-        let gl = Infinity, gt = Infinity, gr = -Infinity, gb = -Infinity;
-        for (const node of nodes){
-          const nr = node.getBoundingClientRect();
-          if (!nr || !(nr.width > 0) || !(nr.height > 0)) continue;
-          gl = Math.min(gl, nr.left);
-          gt = Math.min(gt, nr.top);
-          gr = Math.max(gr, nr.right);
-          gb = Math.max(gb, nr.bottom);
-        }
-        if (!isFinite(gl) || !isFinite(gt) || !isFinite(gr) || !isFinite(gb)) continue;
-        const rect = { left:gl, top:gt, right:gr, bottom:gb, width:Math.max(0, gr-gl), height:Math.max(0, gb-gt) };
-        const inside = (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom);
+      for (const strip of strips){
+        const sr = strip.getBoundingClientRect();
+        if (!sr || !(sr.width > 0) || !(sr.height > 0)) continue;
+        const inside = (x >= sr.left && x <= sr.right && y >= sr.top && y <= sr.bottom);
         if (inside){
-          bestRect = rect;
+          bestVarKey = String(strip.getAttribute('data-varkey') || '');
           bestDist = -1;
-          bestIndex = Math.max(0, Number(key) || 0);
           break;
         }
-        const cx = Math.max(rect.left, Math.min(rect.right, x));
-        const cy = Math.max(rect.top, Math.min(rect.bottom, y));
+        const cx = Math.max(sr.left, Math.min(sr.right, x));
+        const cy = Math.max(sr.top, Math.min(sr.bottom, y));
         const dx = x - cx;
         const dy = y - cy;
         const dist = dx * dx + dy * dy;
         if (dist < bestDist){
           bestDist = dist;
-          bestRect = rect;
-          bestIndex = Math.max(0, Number(key) || 0);
+          bestVarKey = String(strip.getAttribute('data-varkey') || '');
         }
       }
-      if (bestRect){
-        baseRect = bestRect;
-        logicalIndex = bestIndex;
+      if (bestVarKey){
+        const pair = strips.filter(node => String(node.getAttribute('data-varkey') || '') === bestVarKey);
+        let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
+        pair.forEach((node)=>{
+          const pr = node.getBoundingClientRect();
+          if (!pr || !(pr.width > 0) || !(pr.height > 0)) return;
+          left = Math.min(left, pr.left);
+          top = Math.min(top, pr.top);
+          right = Math.max(right, pr.right);
+          bottom = Math.max(bottom, pr.bottom);
+        });
+        if (isFinite(left) && isFinite(top) && isFinite(right) && isFinite(bottom) && right > left && bottom > top){
+          baseRect = { left, top, right, bottom, width:(right-left), height:(bottom-top) };
+        }
       }
     }
   }catch(e){}
@@ -5272,6 +5234,20 @@ function qgPickGroupYBoxAt(x, y){
   const localY = Math.max(0, Math.min(baseRect.height, y - baseRect.top));
   const slotH = Math.max(8, baseRect.height / slotCount);
   const slotIndex = Math.max(0, Math.min(slotCount - 1, Math.floor(localY / slotH)));
+  let insertIndex = null;
+  let pos = 'current';
+  if (count <= 1){
+    if (slotIndex === 0){
+      insertIndex = 0;
+      pos = 'before';
+    }else if (slotIndex === 2){
+      insertIndex = count;
+      pos = 'after';
+    }
+  }else{
+    insertIndex = Math.max(0, Math.min(count, slotIndex));
+    pos = (insertIndex <= 0) ? 'before' : ((insertIndex >= count) ? 'after' : 'between');
+  }
   const slotRect = {
     left: baseRect.left,
     top: baseRect.top + (slotIndex * slotH),
@@ -5280,19 +5256,17 @@ function qgPickGroupYBoxAt(x, y){
     right: baseRect.right,
     bottom: baseRect.top + ((slotIndex + 1) * slotH)
   };
-  const picked = qgResolveAxisSlotTarget(logicalIndex, slotIndex, count);
 
   return {
     el,
     rect:baseRect,
-    pos:picked.pos,
-    insertIndex:picked.insertIndex,
-    marker:'groupY-slot-' + slotIndex,
+    pos,
+    insertIndex,
+    marker: 'groupY-slot-' + slotIndex,
     count,
     slotIndex,
     slotCount,
-    slotRect,
-    logicalIndex
+    slotRect
   };
 }
 
@@ -5323,27 +5297,22 @@ function qgPickGroupXBoxAt(x, y){
   const vars = qgGetXAxisVars();
   const count = Array.isArray(vars) ? vars.length : 0;
   if (!count){
-    return { el:body, rect:r, pos:'before', insertIndex:0, marker:'full', count:0, slotIndex:0, slotCount:1, slotRect:r, logicalIndex:0 };
+    return { el:body, rect:r, pos:'before', insertIndex:0, marker:'full', count:0, slotIndex:0, slotCount:1, slotRect:r };
   }
 
   let baseRect = r;
-  let logicalIndex = 0;
   try{
     const hits = qsa('.qg-tophead-bandhit[data-varkey]', body).filter(Boolean);
     if (hits.length){
       let bestHit = null;
       let bestDist = Infinity;
-      let bestIndex = 0;
       for (const hit of hits){
         const hr = hit.getBoundingClientRect();
         if (!hr || !(hr.width > 0) || !(hr.height > 0)) continue;
-        const varKey = String((hit.dataset && hit.dataset.varkey) ? hit.dataset.varkey : '');
-        const idx = Math.max(0, vars.indexOf(varKey));
         const inside = (x >= hr.left && x <= hr.right && y >= hr.top && y <= hr.bottom);
         if (inside){
           bestHit = hr;
           bestDist = -1;
-          bestIndex = idx;
           break;
         }
         const cx = Math.max(hr.left, Math.min(hr.right, x));
@@ -5354,13 +5323,9 @@ function qgPickGroupXBoxAt(x, y){
         if (dist < bestDist){
           bestDist = dist;
           bestHit = hr;
-          bestIndex = idx;
         }
       }
-      if (bestHit){
-        baseRect = bestHit;
-        logicalIndex = bestIndex;
-      }
+      if (bestHit) baseRect = bestHit;
     }
   }catch(e){}
 
@@ -5368,6 +5333,20 @@ function qgPickGroupXBoxAt(x, y){
   const localX = Math.max(0, Math.min(baseRect.width, x - baseRect.left));
   const slotW = Math.max(8, baseRect.width / slotCount);
   const slotIndex = Math.max(0, Math.min(slotCount - 1, Math.floor(localX / slotW)));
+  let insertIndex = null;
+  let pos = 'current';
+  if (count <= 1){
+    if (slotIndex === 0){
+      insertIndex = 0;
+      pos = 'before';
+    }else if (slotIndex === 2){
+      insertIndex = count;
+      pos = 'after';
+    }
+  }else{
+    insertIndex = Math.max(0, Math.min(count, slotIndex));
+    pos = (insertIndex <= 0) ? 'before' : ((insertIndex >= count) ? 'after' : 'between');
+  }
   const slotRect = {
     left: baseRect.left + (slotIndex * slotW),
     top: baseRect.top,
@@ -5376,19 +5355,17 @@ function qgPickGroupXBoxAt(x, y){
     right: baseRect.left + ((slotIndex + 1) * slotW),
     bottom: baseRect.bottom
   };
-  const picked = qgResolveAxisSlotTarget(logicalIndex, slotIndex, count);
 
   return {
     el:body,
     rect:baseRect,
-    pos:picked.pos,
-    insertIndex:picked.insertIndex,
-    marker:'groupX-slot-' + slotIndex,
+    pos,
+    insertIndex,
+    marker: 'groupX-slot-' + slotIndex,
     count,
     slotIndex,
     slotCount,
-    slotRect,
-    logicalIndex
+    slotRect
   };
 }
 
@@ -5427,6 +5404,27 @@ function qgHideVarDropMarker(){
   }catch(e){}
 }
 
+function qgBuildVarDropClipPath(kind, slotIndex){
+  const idx = Math.max(0, Math.min(2, Number(slotIndex) || 0));
+  if (kind === 'groupY'){
+    const cap = 13;
+    const diag = 11;
+    const lower = 100 - cap - diag;
+    const bottomCap = 100 - cap;
+    if (idx === 0) return `polygon(0% 0%, 100% 0%, 100% ${cap}%, 0% ${cap + diag}%)`;
+    if (idx === 2) return `polygon(0% ${bottomCap}%, 100% ${lower}%, 100% 100%, 0% 100%)`;
+    return `polygon(0% ${cap + diag}%, 100% ${cap}%, 100% ${lower}%, 0% ${bottomCap}%)`;
+  }
+  const cap = 13;
+  const diag = 11;
+  const inner = cap + diag;
+  const rightInner = 100 - cap - diag;
+  const rightCap = 100 - cap;
+  if (idx === 0) return `polygon(0% 0%, ${cap}% 0%, ${inner}% 100%, 0% 100%)`;
+  if (idx === 2) return `polygon(${rightCap}% 0%, 100% 0%, 100% 100%, ${rightInner}% 100%)`;
+  return `polygon(${cap}% 0%, ${rightCap}% 0%, ${rightInner}% 100%, ${inner}% 100%)`;
+}
+
 function qgShowVarDropMarker(target){
   const el = qgEnsureVarDropMarker();
   const baseRect = target && target.rect ? target.rect : null;
@@ -5434,25 +5432,26 @@ function qgShowVarDropMarker(target){
   if (target.type !== 'groupX' && target.type !== 'groupY') return;
 
   const inset = 2;
-  let left = baseRect.left + inset;
-  let top = baseRect.top + inset;
-  let width = Math.max(8, (baseRect.width || (baseRect.right - baseRect.left)) - inset * 2);
-  let height = Math.max(8, (baseRect.height || (baseRect.bottom - baseRect.top)) - inset * 2);
-  const count = Math.max(0, Number(target && target.count) || 0);
-  const slotIndex = Math.max(0, Math.min(2, Number(target && target.slotIndex) || 0));
-  const clip = (count > 0) ? qgGetVarMarkerClipPath(target.type, slotIndex) : 'none';
+  const wholeRect = {
+    left: baseRect.left + inset,
+    top: baseRect.top + inset,
+    width: Math.max(8, (baseRect.width || (baseRect.right - baseRect.left)) - inset * 2),
+    height: Math.max(8, (baseRect.height || (baseRect.bottom - baseRect.top)) - inset * 2)
+  };
 
-  left = Math.round(left);
-  top = Math.round(top);
-  width = Math.max(8, Math.round(width));
-  height = Math.max(8, Math.round(height));
+  const left = Math.round(wholeRect.left);
+  const top = Math.round(wholeRect.top);
+  const width = Math.max(8, Math.round(wholeRect.width));
+  const height = Math.max(8, Math.round(wholeRect.height));
+  const isFull = !target.count || !target.slotCount || target.slotCount <= 1;
+  const clip = isFull ? 'none' : qgBuildVarDropClipPath(target.type, target.slotIndex);
 
   try{
     el.style.left = left + 'px';
     el.style.top = top + 'px';
     el.style.width = width + 'px';
     el.style.height = height + 'px';
-    el.style.borderRadius = Math.max(10, Math.round(Math.min(width, height) * 0.12)) + 'px';
+    el.style.borderRadius = '10px';
     el.style.clipPath = clip;
     el.style.webkitClipPath = clip;
     el.style.display = 'block';
