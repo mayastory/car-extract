@@ -5105,6 +5105,7 @@ function qgRenderGroupYBox(){
       el.appendChild(tx);
       valStrip.appendChild(el);
     }
+    try{ qgBindVarDockDragHandle(valStrip, varKey, qgDockVarLabel(varKey)); }catch(e){}
     host.appendChild(valStrip);
     left += metrics.valueW;
 
@@ -5121,6 +5122,7 @@ function qgRenderGroupYBox(){
     fldTx.textContent = qgDockVarLabel(varKey);
     fldBand.appendChild(fldTx);
     fldStrip.appendChild(fldBand);
+    try{ qgBindVarDockDragHandle(fldStrip, varKey, qgDockVarLabel(varKey)); }catch(e){}
     if (si === stripVars.length - 1) fldStrip.style.borderRight = '1px solid #cfcfcf';
     host.appendChild(fldStrip);
     left += metrics.fieldW;
@@ -5184,9 +5186,7 @@ function qgPickGroupYBoxAt(x, y){
   if (!isFinite(seg)) seg = 1;
   seg = Math.max(0, Math.min(2, seg));
 
-  // Group Y strips are rendered from inside->outside using reverse(vars),
-  // so visible left -> right maps to stored end -> start.
-  const idxMap = (count >= 2) ? [count, 1, 0] : [count, 1, 0];
+  const idxMap = (count >= 2) ? [0, 1, count] : [0, 1, count];
   const insertIndex = Math.max(0, Math.min(count, idxMap[seg]));
   const pos = (insertIndex <= 0) ? 'before' : 'after';
 
@@ -5201,12 +5201,26 @@ function qgPickGroupYBoxAt(x, y){
 }
 
 function qgPickGroupXBoxAt(x, y){
-  let el = null;
-  try{ el = document.elementFromPoint(x, y); }catch(e){ el = null; }
-  if (!el || !el.closest) return null;
-  const head = el.closest('.qg-tophead');
-  if (!head || !head.closest || !head.closest('#qgGrid')) return null;
-  const body = qs('.qg-tophead-body', head) || head;
+  let body = null;
+  try{
+    const stack = (document.elementsFromPoint ? document.elementsFromPoint(x, y) : null) || [];
+    for (const node of stack){
+      if (!node || !node.closest) continue;
+      const head = node.closest('.qg-tophead');
+      if (!head || !head.closest || !head.closest('#qgGrid')) continue;
+      body = qs('.qg-tophead-body', head) || head;
+      if (body) break;
+    }
+  }catch(e){ body = null; }
+  if (!body){
+    let el = null;
+    try{ el = document.elementFromPoint(x, y); }catch(e){ el = null; }
+    if (el && el.closest){
+      const head = el.closest('.qg-tophead');
+      if (head && head.closest && head.closest('#qgGrid')) body = qs('.qg-tophead-body', head) || head;
+    }
+  }
+  if (!body) return null;
   const r = body.getBoundingClientRect();
   if (!(x >= r.left && x <= r.right && y >= r.top && y <= r.bottom)) return null;
 
@@ -5248,10 +5262,11 @@ function qgEnsureVarDropMarker(){
       el.style.display = 'none';
       el.style.pointerEvents = 'none';
       el.style.zIndex = '2147483647';
-      el.style.borderRadius = '10px';
-      el.style.background = 'rgba(120,170,255,0.18)';
-      el.style.border = '3px solid rgba(70,120,255,0.95)';
+      el.style.borderRadius = '12px';
+      el.style.background = 'rgba(120,170,255,0.14)';
+      el.style.border = '2px solid rgba(70,120,255,0.95)';
       el.style.boxSizing = 'border-box';
+      el.style.boxShadow = '0 0 0 1px rgba(255,255,255,0.18) inset';
       overlay.appendChild(el);
     }catch(e){ el = null; }
   }
@@ -5265,7 +5280,7 @@ function qgHideVarDropMarker(){
     el.style.display = 'none';
     el.style.clipPath = 'none';
     el.style.webkitClipPath = 'none';
-    el.style.borderRadius = '10px';
+    el.style.borderRadius = '12px';
   }catch(e){}
 }
 
@@ -5280,29 +5295,50 @@ function qgShowVarDropMarker(target){
   let width = Math.max(8, rect.width - inset*2);
   let height = Math.max(8, rect.height - inset*2);
   let clip = 'none';
-  let radius = '10px';
+  let radius = '12px';
   const marker = String((target && target.marker) || 'full');
   const count = Math.max(0, Number(target && target.count) || 0);
 
+  const m = marker.match(/group([XY])-seg-(\d)/i);
+  const seg = m ? Math.max(0, Math.min(2, parseInt(m[2], 10) || 0)) : -1;
+
   if (target.type === 'groupX'){
-    if (count <= 0){
+    if (count <= 0 || seg < 0){
       clip = 'none';
-    }else if (marker === 'groupX-seg-0'){
-      clip = 'polygon(0 0, 100% 0, 82% 100%, 0 100%)';
-    }else if (marker === 'groupX-seg-1'){
-      clip = 'polygon(14% 0, 100% 0, 86% 100%, 0 100%)';
-    }else if (marker === 'groupX-seg-2'){
-      clip = 'polygon(0 0, 100% 0, 100% 100%, 18% 100%)';
+    }else{
+      const third = height / 3;
+      const over = Math.max(6, Math.round(height * 0.06));
+      if (seg === 0){
+        height = Math.min(height, Math.round(third + over));
+        clip = 'polygon(0 0, 100% 0, 100% 30%, 74% 100%, 0 100%)';
+      }else if (seg === 1){
+        top += Math.round(third - over * 0.5);
+        height = Math.min(height - (top - (rect.top + inset)), Math.round(third + over));
+        clip = 'polygon(0 12%, 22% 0, 100% 0, 100% 88%, 78% 100%, 0 100%)';
+      }else{
+        top += Math.round((third * 2) - over);
+        height = Math.max(8, Math.round((rect.top + inset + height) - top));
+        clip = 'polygon(0 0, 74% 0, 100% 70%, 100% 100%, 0 100%)';
+      }
     }
   }else if (target.type === 'groupY'){
-    if (count <= 0){
+    if (count <= 0 || seg < 0){
       clip = 'none';
-    }else if (marker === 'groupY-seg-0'){
-      clip = 'polygon(0 0, 100% 0, 100% 100%, 0 82%)';
-    }else if (marker === 'groupY-seg-1'){
-      clip = 'polygon(0 14%, 100% 0, 100% 86%, 0 100%)';
-    }else if (marker === 'groupY-seg-2'){
-      clip = 'polygon(0 0, 100% 18%, 100% 100%, 0 100%)';
+    }else{
+      const third = width / 3;
+      const over = Math.max(6, Math.round(width * 0.06));
+      if (seg === 0){
+        width = Math.min(width, Math.round(third + over));
+        clip = 'polygon(0 0, 100% 0, 100% 74%, 30% 100%, 0 100%)';
+      }else if (seg === 1){
+        left += Math.round(third - over * 0.5);
+        width = Math.min(width - (left - (rect.left + inset)), Math.round(third + over));
+        clip = 'polygon(12% 0, 100% 0, 100% 100%, 0 100%, 0 12%, 78% 0)';
+      }else{
+        left += Math.round((third * 2) - over);
+        width = Math.max(8, Math.round((rect.left + inset + width) - left));
+        clip = 'polygon(0 0, 70% 0, 100% 30%, 100% 100%, 0 100%)';
+      }
     }
   }else{
     return;
