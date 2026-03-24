@@ -5113,15 +5113,19 @@ function qgRenderGroupYBox(){
     fldStrip.className = 'qg-group-y-strip qg-group-y-strip-field';
     fldStrip.style.left = left + 'px';
     fldStrip.style.width = metrics.fieldW + 'px';
-    const fldBand = document.createElement('div');
-    fldBand.className = 'qg-group-y-band qg-group-y-band-field';
-    fldBand.style.top = '0px';
-    fldBand.style.height = '100%';
-    const fldTx = document.createElement('span');
-    fldTx.className = 'qg-group-y-vtxt';
-    fldTx.textContent = qgDockVarLabel(varKey);
-    fldBand.appendChild(fldTx);
-    fldStrip.appendChild(fldBand);
+    const fldBands = (bands && bands.length) ? bands : [{ top:0, bottom:boxRect.height }];
+    for (let bi = 0; bi < fldBands.length; bi++){
+      const band = fldBands[bi] || {};
+      const fldBand = document.createElement('div');
+      fldBand.className = 'qg-group-y-band qg-group-y-band-field';
+      fldBand.style.top = Math.round(Number(band.top) || 0) + 'px';
+      fldBand.style.height = Math.max(1, Math.round((Number(band.bottom) || boxRect.height) - (Number(band.top) || 0))) + 'px';
+      const fldTx = document.createElement('span');
+      fldTx.className = 'qg-group-y-vtxt';
+      fldTx.textContent = qgDockVarLabel(varKey);
+      fldBand.appendChild(fldTx);
+      fldStrip.appendChild(fldBand);
+    }
     try{ qgBindVarDockDragHandle(fldStrip, varKey, qgDockVarLabel(varKey)); }catch(e){}
     if (si === stripVars.length - 1) fldStrip.style.borderRight = '1px solid #cfcfcf';
     host.appendChild(fldStrip);
@@ -5181,24 +5185,81 @@ function qgPickGroupYBoxAt(x, y){
     return { el, rect:r, pos:'after', insertIndex:0, marker:'full', count:0, slotIndex:0, slotCount:1, slotRect:r };
   }
 
-  const slotCount = Math.max(2, count + (count >= 2 ? 1 : 1));
-  const localX = Math.max(0, Math.min(r.width, x - r.left));
-  const slotW = Math.max(8, r.width / Math.max(1, slotCount));
-  const slotIndex = Math.max(0, Math.min(slotCount - 1, Math.floor(localX / slotW)));
+  let baseRect = r;
+  try{
+    const strips = qsa('.qg-group-y-strip-field', el).filter(Boolean);
+    if (strips.length){
+      let bestStrip = null;
+      let bestStripDist = Infinity;
+      for (const strip of strips){
+        const sr = strip.getBoundingClientRect();
+        if (!sr || !(sr.width > 0) || !(sr.height > 0)) continue;
+        const inside = (x >= sr.left && x <= sr.right && y >= sr.top && y <= sr.bottom);
+        if (inside){
+          bestStrip = strip;
+          bestStripDist = -1;
+          break;
+        }
+        const cx = Math.max(sr.left, Math.min(sr.right, x));
+        const cy = Math.max(sr.top, Math.min(sr.bottom, y));
+        const dx = x - cx;
+        const dy = y - cy;
+        const dist = dx * dx + dy * dy;
+        if (dist < bestStripDist){
+          bestStripDist = dist;
+          bestStrip = strip;
+        }
+      }
+      if (bestStrip){
+        let bestBand = null;
+        let bestBandDist = Infinity;
+        const bands = qsa('.qg-group-y-band-field', bestStrip).filter(Boolean);
+        for (const band of bands){
+          const br = band.getBoundingClientRect();
+          if (!br || !(br.width > 0) || !(br.height > 0)) continue;
+          const inside = (x >= br.left && x <= br.right && y >= br.top && y <= br.bottom);
+          if (inside){
+            bestBand = br;
+            bestBandDist = -1;
+            break;
+          }
+          const cx = Math.max(br.left, Math.min(br.right, x));
+          const cy = Math.max(br.top, Math.min(br.bottom, y));
+          const dx = x - cx;
+          const dy = y - cy;
+          const dist = dx * dx + dy * dy;
+          if (dist < bestBandDist){
+            bestBandDist = dist;
+            bestBand = br;
+          }
+        }
+        if (bestBand) baseRect = bestBand;
+        else {
+          const sr = bestStrip.getBoundingClientRect();
+          if (sr && sr.width > 0 && sr.height > 0) baseRect = sr;
+        }
+      }
+    }
+  }catch(e){}
+
+  const slotCount = Math.max(2, count + 1);
+  const localY = Math.max(0, Math.min(baseRect.height, y - baseRect.top));
+  const slotH = Math.max(8, baseRect.height / Math.max(1, slotCount));
+  const slotIndex = Math.max(0, Math.min(slotCount - 1, Math.floor(localY / slotH)));
   const insertIndex = Math.max(0, Math.min(count, slotIndex));
   const slotRect = {
-    left: r.left + (slotIndex * slotW),
-    top: r.top,
-    width: slotW,
-    height: r.height,
-    right: r.left + ((slotIndex + 1) * slotW),
-    bottom: r.bottom
+    left: baseRect.left,
+    top: baseRect.top + (slotIndex * slotH),
+    width: baseRect.width,
+    height: slotH,
+    right: baseRect.right,
+    bottom: baseRect.top + ((slotIndex + 1) * slotH)
   };
   const pos = (insertIndex <= 0) ? 'before' : ((insertIndex >= count) ? 'after' : 'between');
 
   return {
     el,
-    rect:r,
+    rect:baseRect,
     pos,
     insertIndex,
     marker: 'groupY-slot-' + slotIndex,
@@ -5344,9 +5405,35 @@ function qgPickVarDropTargetAt(x, y){
     return { type:'dock', el:dockEl, dockKey:(dockEl.dataset && dockEl.dataset.dock) ? String(dockEl.dataset.dock) : null };
   }
   const gx = qgPickGroupXBoxAt(x, y);
-  if (gx) return { type:'groupX', el:gx.el, rect:gx.rect, pos:gx.pos, insertIndex:gx.insertIndex, marker:gx.marker, count:gx.count };
+  if (gx){
+    return {
+      type:'groupX',
+      el:gx.el,
+      rect:gx.rect,
+      pos:gx.pos,
+      insertIndex:gx.insertIndex,
+      marker:gx.marker,
+      count:gx.count,
+      slotIndex:gx.slotIndex,
+      slotCount:gx.slotCount,
+      slotRect:gx.slotRect
+    };
+  }
   const gy = qgPickGroupYBoxAt(x, y);
-  if (gy) return { type:'groupY', el:gy.el, rect:gy.rect, pos:gy.pos, insertIndex:gy.insertIndex, marker:gy.marker, count:gy.count };
+  if (gy){
+    return {
+      type:'groupY',
+      el:gy.el,
+      rect:gy.rect,
+      pos:gy.pos,
+      insertIndex:gy.insertIndex,
+      marker:gy.marker,
+      count:gy.count,
+      slotIndex:gy.slotIndex,
+      slotCount:gy.slotCount,
+      slotRect:gy.slotRect
+    };
+  }
   return null;
 }
 
