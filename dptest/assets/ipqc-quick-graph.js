@@ -5412,37 +5412,45 @@ function qgBuildVarDropClipPath(kind, slotIndex, width, height){
   const rr = Math.max(8, Math.min(14, Math.min(w, h) * 0.18));
 
   // JMP-like slot preview:
-  // - the outer target area is one shared rounded block
-  // - the middle slot is the longest
+  // - one shared rounded outer block
+  // - center slot is longest
   // - top/bottom caps are shorter
-  // - dividers are gentle diagonals, not sharp cutter-like points
+  // - divider edges are soft, rounded diagonals (not cutter-like points)
   if (kind === 'groupY'){
-    const yTopL = h * 0.22;
-    const yTopR = h * 0.35;
-    const yBotR = h * 0.65;
-    const yBotL = h * 0.78;
+    const yTopL = h * 0.18;
+    const yTopR = h * 0.30;
+    const yBotR = h * 0.70;
+    const yBotL = h * 0.82;
+    const midY1 = (yTopL + yTopR) * 0.5;
+    const midY2 = (yBotL + yBotR) * 0.5;
+    const cx1 = w * 0.28;
+    const cx2 = w * 0.70;
 
     if (idx === 0){
-      return `path('M ${q(rr)} 0 H ${q(w - rr)} Q ${q(w)} 0 ${q(w)} ${q(rr)} V ${q(yTopR)} L 0 ${q(yTopL)} V ${q(rr)} Q 0 0 ${q(rr)} 0 Z')`;
+      return `path('M ${q(rr)} 0 H ${q(w - rr)} Q ${q(w)} 0 ${q(w)} ${q(rr)} V ${q(yTopR - rr * 0.15)} C ${q(w)} ${q(midY1)} ${q(cx2)} ${q(midY1)} ${q(cx1)} ${q(yTopL + rr * 0.1)} C ${q(cx1 * 0.5)} ${q(yTopL + rr * 0.05)} 0 ${q(yTopL + rr * 0.25)} 0 ${q(yTopL)} V ${q(rr)} Q 0 0 ${q(rr)} 0 Z')`;
     }
     if (idx === 1){
-      return `path('M 0 ${q(yTopL)} L ${q(w)} ${q(yTopR)} L ${q(w)} ${q(yBotR)} L 0 ${q(yBotL)} Z')`;
+      return `path('M 0 ${q(yTopL)} C ${q(cx1 * 0.5)} ${q(yTopL + rr * 0.25)} ${q(cx1)} ${q(midY1)} ${q(w)} ${q(yTopR)} V ${q(yBotR)} C ${q(cx2)} ${q(midY2)} ${q(cx1 * 0.5)} ${q(yBotL - rr * 0.25)} 0 ${q(yBotL)} Z')`;
     }
-    return `path('M 0 ${q(yBotL)} L ${q(w)} ${q(yBotR)} V ${q(h - rr)} Q ${q(w)} ${q(h)} ${q(w - rr)} ${q(h)} H ${q(rr)} Q 0 ${q(h)} 0 ${q(h - rr)} Z')`;
+    return `path('M 0 ${q(yBotL)} C ${q(cx1 * 0.5)} ${q(yBotL - rr * 0.05)} ${q(cx1)} ${q(midY2)} ${q(cx2)} ${q(yBotR + rr * 0.1)} C ${q(w)} ${q(midY2)} ${q(w)} ${q(midY2)} ${q(w)} ${q(yBotR)} V ${q(h - rr)} Q ${q(w)} ${q(h)} ${q(w - rr)} ${q(h)} H ${q(rr)} Q 0 ${q(h)} 0 ${q(h - rr)} Z')`;
   }
 
-  const xLeftT = w * 0.22;
-  const xMidL = w * 0.35;
-  const xMidR = w * 0.65;
-  const xRightB = w * 0.78;
+  const xLeftT = w * 0.18;
+  const xMidL = w * 0.30;
+  const xMidR = w * 0.70;
+  const xRightB = w * 0.82;
+  const midX1 = (xLeftT + xMidL) * 0.5;
+  const midX2 = (xMidR + xRightB) * 0.5;
+  const cy1 = h * 0.28;
+  const cy2 = h * 0.70;
 
   if (idx === 0){
-    return `path('M ${q(rr)} 0 H ${q(xLeftT)} L ${q(xMidL)} ${q(h)} H ${q(rr)} Q 0 ${q(h)} 0 ${q(h - rr)} V ${q(rr)} Q 0 0 ${q(rr)} 0 Z')`;
+    return `path('M ${q(rr)} 0 H ${q(xLeftT)} C ${q(midX1)} 0 ${q(midX1)} ${q(cy1)} ${q(xMidL)} ${q(cy2)} C ${q(xMidL + rr * 0.1)} ${q(h)} ${q(xMidL * 0.55)} ${q(h)} ${q(rr)} ${q(h)} Q 0 ${q(h)} 0 ${q(h - rr)} V ${q(rr)} Q 0 0 ${q(rr)} 0 Z')`;
   }
   if (idx === 1){
-    return `path('M ${q(xLeftT)} 0 H ${q(xMidR)} L ${q(xRightB)} ${q(h)} H ${q(xMidL)} Z')`;
+    return `path('M ${q(xLeftT)} 0 C ${q(midX1)} 0 ${q(midX1)} ${q(cy1)} ${q(xMidL)} ${q(cy2)} L ${q(xMidR)} ${q(cy2)} C ${q(midX2)} ${q(cy2)} ${q(midX2)} ${q(cy1)} ${q(xRightB)} 0 Z')`;
   }
-  return `path('M ${q(xMidR)} 0 H ${q(w - rr)} Q ${q(w)} 0 ${q(w)} ${q(rr)} V ${q(h - rr)} Q ${q(w)} ${q(h)} ${q(w - rr)} ${q(h)} H ${q(xRightB)} Z')`;
+  return `path('M ${q(xMidR)} ${q(cy2)} C ${q(midX2)} ${q(cy2)} ${q(midX2)} 0 ${q(xRightB)} 0 H ${q(w - rr)} Q ${q(w)} 0 ${q(w)} ${q(rr)} V ${q(h - rr)} Q ${q(w)} ${q(h)} ${q(w - rr)} ${q(h)} H ${q(xMidL + rr * 0.1)} C ${q(xMidR)} ${q(h)} ${q(xMidR)} ${q(cy2)} ${q(xMidR)} ${q(cy2)} Z')`;
 }
 function qgShowVarDropMarker(target){
   const el = qgEnsureVarDropMarker();
