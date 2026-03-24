@@ -5404,30 +5404,46 @@ function qgHideVarDropMarker(){
   }catch(e){}
 }
 
-function qgBuildVarDropClipPath(kind, slotIndex){
+function qgBuildVarDropClipPath(kind, slotIndex, width, height){
   const idx = Math.max(0, Math.min(2, Number(slotIndex) || 0));
-  // JMP-like preview shape:
-  // - short top/bottom caps
-  // - longer center slot
-  // - shallower diagonals (less pointy than the old web version)
-  const cap = 8;
-  const diag = 5;
-  if (kind === 'groupY'){
-    const upper = cap;
-    const leftBreak = cap + diag;
-    const rightBreak = 100 - cap - diag;
-    const lower = 100 - cap;
-    if (idx === 0) return `polygon(0% 0%, 100% 0%, 100% ${upper}%, 0% ${leftBreak}%)`;
-    if (idx === 2) return `polygon(0% ${lower}%, 100% ${rightBreak}%, 100% 100%, 0% 100%)`;
-    return `polygon(0% ${leftBreak}%, 100% ${upper}%, 100% ${rightBreak}%, 0% ${lower}%)`;
+  const w = Math.max(12, Number(width) || 0);
+  const h = Math.max(12, Number(height) || 0);
+  const r = Math.max(6, Math.min(12, Math.min(w, h) * 0.18));
+  const topCap = Math.max(r + 2, h * 0.14);
+  const topDiag = Math.max(8, h * 0.16);
+  const bottomDiagTop = Math.max(topCap + topDiag + 8, h * 0.70);
+  const bottomDiagBottom = Math.max(bottomDiagTop + 8, h * 0.84);
+  const leftCap = Math.max(r + 2, w * 0.14);
+  const leftDiag = Math.max(8, w * 0.16);
+  const rightDiagLeft = Math.max(leftCap + leftDiag + 8, w * 0.70);
+  const rightCap = Math.max(rightDiagLeft + 8, w * 0.84);
+  function qfmt(n){ return String(Math.round(n * 100) / 100); }
+  function pathYTop(){
+    return `path('M ${qfmt(r)} 0 H ${qfmt(w-r)} Q ${qfmt(w)} 0 ${qfmt(w)} ${qfmt(r)} V ${qfmt(topDiag)} L 0 ${qfmt(topCap)} V ${qfmt(r)} Q 0 0 ${qfmt(r)} 0 Z')`;
   }
-  const leftCap = cap;
-  const leftBreak = cap + diag;
-  const rightBreak = 100 - cap - diag;
-  const rightCap = 100 - cap;
-  if (idx === 0) return `polygon(0% 0%, ${leftCap}% 0%, ${leftBreak}% 100%, 0% 100%)`;
-  if (idx === 2) return `polygon(${rightCap}% 0%, 100% 0%, 100% 100%, ${rightBreak}% 100%)`;
-  return `polygon(${leftCap}% 0%, ${rightCap}% 0%, ${rightBreak}% 100%, ${leftBreak}% 100%)`;
+  function pathYMid(){
+    return `path('M 0 ${qfmt(topCap)} L ${qfmt(w)} ${qfmt(topDiag)} V ${qfmt(bottomDiagTop)} L 0 ${qfmt(bottomDiagBottom)} Z')`;
+  }
+  function pathYBottom(){
+    return `path('M 0 ${qfmt(bottomDiagBottom)} L ${qfmt(w)} ${qfmt(bottomDiagTop)} V ${qfmt(h-r)} Q ${qfmt(w)} ${qfmt(h)} ${qfmt(w-r)} ${qfmt(h)} H ${qfmt(r)} Q 0 ${qfmt(h)} 0 ${qfmt(h-r)} Z')`;
+  }
+  function pathXLeft(){
+    return `path('M ${qfmt(r)} 0 H ${qfmt(leftCap)} L ${qfmt(leftDiag)} ${qfmt(h)} H ${qfmt(r)} Q 0 ${qfmt(h)} 0 ${qfmt(h-r)} V ${qfmt(r)} Q 0 0 ${qfmt(r)} 0 Z')`;
+  }
+  function pathXMid(){
+    return `path('M ${qfmt(leftCap)} 0 H ${qfmt(rightCap)} L ${qfmt(rightDiagLeft)} ${qfmt(h)} H ${qfmt(leftDiag)} Z')`;
+  }
+  function pathXRight(){
+    return `path('M ${qfmt(rightCap)} 0 H ${qfmt(w-r)} Q ${qfmt(w)} 0 ${qfmt(w)} ${qfmt(r)} V ${qfmt(h-r)} Q ${qfmt(w)} ${qfmt(h)} ${qfmt(w-r)} ${qfmt(h)} H ${qfmt(rightDiagLeft)} Z')`;
+  }
+  if (kind === 'groupY'){
+    if (idx === 0) return pathYTop();
+    if (idx === 2) return pathYBottom();
+    return pathYMid();
+  }
+  if (idx === 0) return pathXLeft();
+  if (idx === 2) return pathXRight();
+  return pathXMid();
 }
 
 function qgShowVarDropMarker(target){
@@ -5449,7 +5465,7 @@ function qgShowVarDropMarker(target){
   const width = Math.max(8, Math.round(wholeRect.width));
   const height = Math.max(8, Math.round(wholeRect.height));
   const isFull = !target.count || !target.slotCount || target.slotCount <= 1;
-  const clip = isFull ? 'none' : qgBuildVarDropClipPath(target.type, target.slotIndex);
+  const clip = isFull ? 'none' : qgBuildVarDropClipPath(target.type, target.slotIndex, width, height);
 
   try{
     el.style.left = left + 'px';
