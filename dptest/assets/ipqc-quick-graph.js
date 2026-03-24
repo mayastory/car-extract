@@ -5175,6 +5175,40 @@ function qgSetGroupXVar(varKey, insertPos){
   try{ renderLegend(); }catch(e){}
 }
 
+
+function qgGetVarDropSlotFractions(kind){
+  const k = String(kind || '').toLowerCase();
+  if (k === 'groupx' || k === 'groupy') return [0, 0.22, 0.78, 1];
+  return [0, (1/3), (2/3), 1];
+}
+
+function qgResolveVarDropSlot(kind, localPos, totalSize){
+  const total = Math.max(1, Number(totalSize) || 0);
+  const local = Math.max(0, Math.min(total, Number(localPos) || 0));
+  const fracs = qgGetVarDropSlotFractions(kind);
+  const bounds = fracs.map((v)=> Math.round(total * Math.max(0, Math.min(1, Number(v) || 0))));
+  bounds[0] = 0;
+  bounds[bounds.length - 1] = total;
+  let slotIndex = 0;
+  for (let i = 0; i < fracs.length - 1; i++){
+    const start = bounds[i];
+    const end = (i === fracs.length - 2) ? total : bounds[i + 1];
+    if (local >= start && local <= end){
+      slotIndex = i;
+      break;
+    }
+  }
+  const start = bounds[slotIndex];
+  const end = (slotIndex === fracs.length - 2) ? total : bounds[slotIndex + 1];
+  return {
+    slotIndex,
+    slotCount:(fracs.length - 1),
+    start,
+    end,
+    size:Math.max(8, end - start)
+  };
+}
+
 function qgPickGroupYBoxAt(x, y){
   const el = qs('#qgGroupYBox');
   if (!el) return null;
@@ -5230,10 +5264,9 @@ function qgPickGroupYBoxAt(x, y){
     }
   }catch(e){}
 
-  const slotCount = 3;
-  const localY = Math.max(0, Math.min(baseRect.height, y - baseRect.top));
-  const slotH = Math.max(8, baseRect.height / slotCount);
-  const slotIndex = Math.max(0, Math.min(slotCount - 1, Math.floor(localY / slotH)));
+  const slotInfo = qgResolveVarDropSlot('groupY', (y - baseRect.top), baseRect.height);
+  const slotIndex = slotInfo.slotIndex;
+  const slotCount = slotInfo.slotCount;
   let insertIndex = null;
   let pos = 'current';
   if (count <= 1){
@@ -5250,11 +5283,11 @@ function qgPickGroupYBoxAt(x, y){
   }
   const slotRect = {
     left: baseRect.left,
-    top: baseRect.top + (slotIndex * slotH),
+    top: baseRect.top + slotInfo.start,
     width: baseRect.width,
-    height: slotH,
+    height: slotInfo.size,
     right: baseRect.right,
-    bottom: baseRect.top + ((slotIndex + 1) * slotH)
+    bottom: baseRect.top + slotInfo.end
   };
 
   return {
@@ -5329,10 +5362,9 @@ function qgPickGroupXBoxAt(x, y){
     }
   }catch(e){}
 
-  const slotCount = 3;
-  const localX = Math.max(0, Math.min(baseRect.width, x - baseRect.left));
-  const slotW = Math.max(8, baseRect.width / slotCount);
-  const slotIndex = Math.max(0, Math.min(slotCount - 1, Math.floor(localX / slotW)));
+  const slotInfo = qgResolveVarDropSlot('groupX', (x - baseRect.left), baseRect.width);
+  const slotIndex = slotInfo.slotIndex;
+  const slotCount = slotInfo.slotCount;
   let insertIndex = null;
   let pos = 'current';
   if (count <= 1){
@@ -5348,11 +5380,11 @@ function qgPickGroupXBoxAt(x, y){
     pos = (insertIndex <= 0) ? 'before' : ((insertIndex >= count) ? 'after' : 'between');
   }
   const slotRect = {
-    left: baseRect.left + (slotIndex * slotW),
+    left: baseRect.left + slotInfo.start,
     top: baseRect.top,
-    width: slotW,
+    width: slotInfo.size,
     height: baseRect.height,
-    right: baseRect.left + ((slotIndex + 1) * slotW),
+    right: baseRect.left + slotInfo.end,
     bottom: baseRect.bottom
   };
 
@@ -5382,11 +5414,33 @@ function qgEnsureVarDropMarker(){
       el.style.display = 'none';
       el.style.pointerEvents = 'none';
       el.style.zIndex = '2147483647';
-      el.style.borderRadius = '4px';
-      el.style.background = 'rgba(120,170,255,0.18)';
-      el.style.border = '1px solid rgba(70,120,255,0.95)';
       el.style.boxSizing = 'border-box';
-      el.style.boxShadow = 'none';
+      el.style.background = 'none';
+      el.style.border = '0';
+      el.style.overflow = 'visible';
+
+      const ns = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(ns, 'svg');
+      svg.setAttribute('aria-hidden', 'true');
+      svg.setAttribute('focusable', 'false');
+      svg.style.position = 'absolute';
+      svg.style.left = '0';
+      svg.style.top = '0';
+      svg.style.width = '100%';
+      svg.style.height = '100%';
+      svg.style.overflow = 'visible';
+
+      const path = document.createElementNS(ns, 'path');
+      path.setAttribute('fill', 'rgba(120,170,255,0.22)');
+      path.setAttribute('stroke', 'rgba(70,120,255,0.95)');
+      path.setAttribute('stroke-linecap', 'round');
+      path.setAttribute('stroke-linejoin', 'round');
+      path.setAttribute('vector-effect', 'non-scaling-stroke');
+      svg.appendChild(path);
+
+      el.appendChild(svg);
+      el._qgSvg = svg;
+      el._qgPath = path;
       overlay.appendChild(el);
     }catch(e){ el = null; }
   }
@@ -5398,15 +5452,13 @@ function qgHideVarDropMarker(){
   if (!el) return;
   try{
     el.style.display = 'none';
-    el.style.clipPath = 'none';
-    el.style.webkitClipPath = 'none';
-    el.style.borderRadius = '4px';
+    if (el._qgPath) el._qgPath.setAttribute('d', '');
   }catch(e){}
 }
 
-function qgRoundedPolygonClipPath(points, radius){
+function qgBuildRoundedPolygonPathData(points, radius){
   const pts = Array.isArray(points) ? points.filter(p => p && isFinite(p.x) && isFinite(p.y)) : [];
-  if (pts.length < 3) return 'none';
+  if (pts.length < 3) return '';
   const q = (n)=> String(Math.round(Number(n || 0) * 100) / 100);
   const dist = (a, b)=> Math.hypot((b.x - a.x), (b.y - a.y));
   const unit = (dx, dy)=>{
@@ -5434,24 +5486,53 @@ function qgRoundedPolygonClipPath(points, radius){
   segs.push(`L ${q(ins[0].x)} ${q(ins[0].y)}`);
   segs.push(`Q ${q(pts[0].x)} ${q(pts[0].y)} ${q(outs[0].x)} ${q(outs[0].y)}`);
   segs.push('Z');
-  return `path('${segs.join(' ')}')`;
+  return segs.join(' ');
 }
 
-function qgBuildVarDropClipPath(kind, slotIndex, width, height){
+function qgRoundedPolygonClipPath(points, radius){
+  const d = qgBuildRoundedPolygonPathData(points, radius);
+  return d ? `path('${d}')` : 'none';
+}
+
+function qgRoundedRectPathData(x, y, width, height, radius){
+  const w = Math.max(1, Number(width) || 0);
+  const h = Math.max(1, Number(height) || 0);
+  const rr = Math.max(0, Math.min(Number(radius) || 0, w * 0.5, h * 0.5));
+  const x0 = Number(x) || 0;
+  const y0 = Number(y) || 0;
+  const x1 = x0 + w;
+  const y1 = y0 + h;
+  const q = (n)=> String(Math.round(Number(n || 0) * 100) / 100);
+  if (rr <= 0){
+    return `M ${q(x0)} ${q(y0)} H ${q(x1)} V ${q(y1)} H ${q(x0)} Z`;
+  }
+  return [
+    `M ${q(x0 + rr)} ${q(y0)}`,
+    `H ${q(x1 - rr)}`,
+    `Q ${q(x1)} ${q(y0)} ${q(x1)} ${q(y0 + rr)}`,
+    `V ${q(y1 - rr)}`,
+    `Q ${q(x1)} ${q(y1)} ${q(x1 - rr)} ${q(y1)}`,
+    `H ${q(x0 + rr)}`,
+    `Q ${q(x0)} ${q(y1)} ${q(x0)} ${q(y1 - rr)}`,
+    `V ${q(y0 + rr)}`,
+    `Q ${q(x0)} ${q(y0)} ${q(x0 + rr)} ${q(y0)}`,
+    'Z'
+  ].join(' ');
+}
+
+function qgBuildVarDropShapeData(kind, slotIndex, width, height){
   const idx = Math.max(0, Math.min(2, Number(slotIndex) || 0));
   const w = Math.max(12, Number(width) || 0);
   const h = Math.max(12, Number(height) || 0);
-  // Keep the 3-slot rule, but bias the shared shape toward a larger middle slot
-  // so the end caps stay shorter like JMP.
-  const rr = Math.max(4, Math.min(11, Math.min(w, h) * 0.085));
+  const rr = Math.max(5, Math.min(14, Math.min(w, h) * 0.16));
 
   if (kind === 'groupY'){
-    const y1L = h * 0.14;
-    const y1R = h * 0.30;
-    const y2L = h * 0.62;
-    const y2R = h * 0.86;
+    const y1L = h * 0.15;
+    const y1R = h * 0.29;
+    const y2L = h * 0.71;
+    const y2R = h * 0.85;
     if (idx === 0){
-      return qgRoundedPolygonClipPath([
+      return qgBuildRoundedPolygonPathData([
         { x: 0, y: 0 },
         { x: w, y: 0 },
         { x: w, y: y1R },
@@ -5459,14 +5540,14 @@ function qgBuildVarDropClipPath(kind, slotIndex, width, height){
       ], rr);
     }
     if (idx === 1){
-      return qgRoundedPolygonClipPath([
+      return qgBuildRoundedPolygonPathData([
         { x: 0, y: y1L },
         { x: w, y: y1R },
         { x: w, y: y2R },
         { x: 0, y: y2L }
       ], rr);
     }
-    return qgRoundedPolygonClipPath([
+    return qgBuildRoundedPolygonPathData([
       { x: 0, y: y2L },
       { x: w, y: y2R },
       { x: w, y: h },
@@ -5474,12 +5555,12 @@ function qgBuildVarDropClipPath(kind, slotIndex, width, height){
     ], rr);
   }
 
-  const x1T = w * 0.14;
-  const x1B = w * 0.30;
-  const x2T = w * 0.62;
-  const x2B = w * 0.86;
+  const x1T = w * 0.15;
+  const x1B = w * 0.29;
+  const x2T = w * 0.71;
+  const x2B = w * 0.85;
   if (idx === 0){
-    return qgRoundedPolygonClipPath([
+    return qgBuildRoundedPolygonPathData([
       { x: 0, y: 0 },
       { x: x1T, y: 0 },
       { x: x1B, y: h },
@@ -5487,14 +5568,14 @@ function qgBuildVarDropClipPath(kind, slotIndex, width, height){
     ], rr);
   }
   if (idx === 1){
-    return qgRoundedPolygonClipPath([
+    return qgBuildRoundedPolygonPathData([
       { x: x1T, y: 0 },
       { x: x2T, y: 0 },
       { x: x2B, y: h },
       { x: x1B, y: h }
     ], rr);
   }
-  return qgRoundedPolygonClipPath([
+  return qgBuildRoundedPolygonPathData([
     { x: x2T, y: 0 },
     { x: w, y: 0 },
     { x: w, y: h },
@@ -5508,7 +5589,7 @@ function qgShowVarDropMarker(target){
   if (!el || !baseRect) return;
   if (target.type !== 'groupX' && target.type !== 'groupY') return;
 
-  const inset = 2;
+  const inset = 3;
   const wholeRect = {
     left: baseRect.left + inset,
     top: baseRect.top + inset,
@@ -5521,22 +5602,28 @@ function qgShowVarDropMarker(target){
   const width = Math.max(8, Math.round(wholeRect.width));
   const height = Math.max(8, Math.round(wholeRect.height));
   const isFull = !target.count || !target.slotCount || target.slotCount <= 1;
-  const clip = isFull ? 'none' : qgBuildVarDropClipPath(target.type, target.slotIndex, width, height);
+  const d = isFull
+    ? qgRoundedRectPathData(1, 1, Math.max(2, width - 2), Math.max(2, height - 2), Math.min(12, Math.min(width, height) * 0.18))
+    : qgBuildVarDropShapeData(target.type, target.slotIndex, width, height);
 
   try{
     el.style.left = left + 'px';
     el.style.top = top + 'px';
     el.style.width = width + 'px';
     el.style.height = height + 'px';
-    // Let the shared slot clip-path control the silhouette. Keeping a box border-radius
-    // here makes the preview collapse into a long rounded rectangle in some browsers.
-    el.style.borderRadius = isFull ? '10px' : '0';
-    el.style.clipPath = clip;
-    el.style.webkitClipPath = clip;
+    if (el._qgSvg){
+      el._qgSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      el._qgSvg.setAttribute('width', String(width));
+      el._qgSvg.setAttribute('height', String(height));
+    }
+    if (el._qgPath){
+      const strokeW = Math.max(3, Math.min(8, Math.min(width, height) * 0.11));
+      el._qgPath.setAttribute('d', d || '');
+      el._qgPath.setAttribute('stroke-width', String(Math.round(strokeW * 100) / 100));
+    }
     el.style.display = 'block';
   }catch(e){}
 }
-
 function qgClearVarDropHover(){
   qgClearDockHover();
   qgHideVarDropMarker();
