@@ -8166,6 +8166,39 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
     if (!isFinite(maxV) && vals.length) maxV = Math.max.apply(null, vals);
     return { vals, min:minV, max:maxV, mean:meanV };
   };
+  const qgGetCellDatePoint = (toolVal, cavityVal, dateInfo)=>{
+    if (toolVal === null || toolVal === undefined) return null;
+    if (cavityVal === null || cavityVal === undefined) return null;
+    const s = ((QG.series||{})[toolVal]||{})[cavityVal]||{};
+    const p = qgPickDatePoint(s, dateInfo);
+    if (!p) return null;
+    const vals = Array.isArray(p.vals) ? p.vals.filter(v => isFinite(v)).map(v => Number(v)) : [];
+    let minV = isFinite(p.min) ? Number(p.min) : Infinity;
+    let maxV = isFinite(p.max) ? Number(p.max) : -Infinity;
+    let meanV = isFinite(p.mean) ? Number(p.mean) : NaN;
+    if (!vals.length && isFinite(meanV)) vals.push(meanV);
+    if (!isFinite(minV) && vals.length) minV = Math.min.apply(null, vals);
+    if (!isFinite(maxV) && vals.length) maxV = Math.max.apply(null, vals);
+    if (!isFinite(meanV) && vals.length) meanV = vals.reduce((sum, vv)=> sum + Number(vv || 0), 0) / vals.length;
+    if (!vals.length && !isFinite(minV) && !isFinite(maxV) && !isFinite(meanV)) return null;
+    return { vals, min:minV, max:maxV, mean:meanV };
+  };
+
+  const qgGetToolOnlyCavityPoints = (panelDef, dateInfo)=>{
+    const def = panelDef || null;
+    if (!def || !Array.isArray(def.tools) || def.tools.length !== 1) return [];
+    const cavsForPanel = Array.isArray(def.cavities) ? def.cavities.slice() : [];
+    if (!cavsForPanel.length) return [];
+    const toolVal = def.tools[0];
+    const out = [];
+    for (const cavityVal of cavsForPanel){
+      const point = qgGetCellDatePoint(toolVal, cavityVal, dateInfo);
+      if (!point) continue;
+      out.push({ tool: toolVal, cavity: cavityVal, point });
+    }
+    return out;
+  };
+
   const qgGetPanelRawValues = (panelDef)=>{
     const out = [];
     const def = panelDef || null;
@@ -8722,6 +8755,51 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       }
     }catch(e){}
 
+    const isToolOnlyComposite = (xVars.length === 1 && outerVar === 'tool' && innerVar === null && panel && Array.isArray(panel.tools) && panel.tools.length === 1 && Array.isArray(panel.cavities) && panel.cavities.length > 1);
+
+    const drawRangeBox = (xPos, pointInfo, strokeColor, fillColor, dateInfo, dateKey, extraTip)=>{
+      if (!_showBox || !pointInfo) return;
+      const yMinV = yAt(pointInfo.min);
+      const yMaxV = yAt(pointInfo.max);
+      const top = Math.min(yMinV, yMaxV);
+      const bot = Math.max(yMinV, yMaxV);
+      const h = Math.max(1, bot - top);
+      const rect = document.createElementNS(ns,'rect');
+      rect.setAttribute('x', String(xPos - boxW/2));
+      rect.setAttribute('y', String(top));
+      rect.setAttribute('width', String(boxW));
+      rect.setAttribute('height', String(h));
+      if (_boxFill){ rect.setAttribute('fill', fillColor); rect.setAttribute('fill-opacity', String(_boxFillOpacity)); } else { rect.setAttribute('fill','none'); rect.removeAttribute('fill-opacity'); }
+      rect.setAttribute('stroke', strokeColor);
+      try{ rect.setAttribute('stroke-opacity', String(_boxOpacity)); }catch(e){}
+      rect.setAttribute('stroke-width', String(_boxStrokeW));
+      try{
+        const _n = Array.isArray(pointInfo.vals) ? pointInfo.vals.length : 0;
+        let tip = '최소값: ' + qgFmtPointValue(pointInfo.min) + '\n최대값: ' + qgFmtPointValue(pointInfo.max) + '\nDate: ' + (dateInfo && (dateInfo.label||dateInfo.key) ? String(dateInfo.label||dateInfo.key) : String(dateKey)) + '\nN: ' + String(_n);
+        if (extraTip) tip += '\n' + String(extraTip);
+        rect.setAttribute('data-qg-tip', tip);
+      }catch(e){}
+      clip(rect);
+      svg.appendChild(rect);
+    };
+
+    const drawPointDots = (xPos, pointInfo, markerShape, dotColor, dateInfo, dateKey, extraTip)=>{
+      if (!_showPts || _hideDataDots || !pointInfo) return;
+      const vals = (pointInfo.vals||[]).slice(0,3);
+      for (let vi=0; vi<vals.length; vi++){
+        const v = vals[vi];
+        const cy = yAt(v);
+        let tip = 'Data ' + String(vi+1) + ': ' + qgFmtPointValue(v) + '\nDate: ' + (dateInfo && (dateInfo.label||dateInfo.key) ? String(dateInfo.label||dateInfo.key) : String(dateKey));
+        if (extraTip) tip += '\n' + String(extraTip);
+        qgAppendMarkerShape(svg, markerShape, xPos, cy, _dataDotSize, {
+          fill: dotColor,
+          stroke: dotColor,
+          opacity: _dataDotOpacity,
+          clip,
+          tip
+        });
+      }
+    };
 
     for (let di=0; di<dates.length; di++){
       const d = dates[di];
@@ -8730,44 +8808,33 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       if (!p) continue;
 
       const x = left + xInPanel(di);
-      const yMinV = yAt(p.min);
-      const yMaxV = yAt(p.max);
+      const cavityPoints = isToolOnlyComposite ? qgGetToolOnlyCavityPoints(panel, d) : [];
+      const useCompositeBoxes = cavityPoints.length > 1;
 
-      const top = Math.min(yMinV, yMaxV);
-      const bot = Math.max(yMinV, yMaxV);
-      const h = Math.max(1, bot - top);
-
-      if (_showBox){
-      const rect = document.createElementNS(ns,'rect');
-      rect.setAttribute('x', String(x - boxW/2));
-      rect.setAttribute('y', String(top));
-      rect.setAttribute('width', String(boxW));
-      rect.setAttribute('height', String(h));
-      if (_boxFill){ rect.setAttribute('fill', _boxFillColor); rect.setAttribute('fill-opacity', String(_boxFillOpacity)); } else { rect.setAttribute('fill','none'); rect.removeAttribute('fill-opacity'); }
-      rect.setAttribute('stroke', _boxColor);
-      try{ rect.setAttribute('stroke-opacity', String(_boxOpacity)); }catch(e){}
-      rect.setAttribute('stroke-width', String(_boxStrokeW));
-      try{
-        const _n = Array.isArray(p.vals) ? p.vals.length : 0;
-        rect.setAttribute('data-qg-tip', '최소값: ' + qgFmtPointValue(p.min) + '\n최대값: ' + qgFmtPointValue(p.max) + '\nDate: ' + (d && (d.label||d.key) ? String(d.label||d.key) : String(dk)) + '\nN: ' + String(_n));
-      }catch(e){}
-      clip(rect);
-      svg.appendChild(rect);
-      }
-
-	      if (_showPts && !_hideDataDots){
-        const vals = (p.vals||[]).slice(0,3);
-        for (let vi=0; vi<vals.length; vi++){
-          const v = vals[vi];
-          const cy = yAt(v);
-          qgAppendMarkerShape(svg, panelShape, x, cy, _dataDotSize, {
-            fill: _dataDotColor,
-            stroke: _dataDotColor,
-            opacity: _dataDotOpacity,
-            clip,
-            tip: 'Data ' + String(vi+1) + ': ' + qgFmtPointValue(v) + '\nDate: ' + (d && (d.label||d.key) ? String(d.label||d.key) : String(dk))
-          });
+      if (useCompositeBoxes){
+        const clusterStep = Math.min(18, Math.max(boxW + 2, 6));
+        for (let ci=0; ci<cavityPoints.length; ci++){
+          const cp = cavityPoints[ci];
+          const xCell = x + (ci - (cavityPoints.length - 1) / 2) * clusterStep;
+          let cellStrokeColor = _boxColor;
+          let cellFillColor = _boxFillColor;
+          let cellDotColor = _dataDotColor;
+          let cellShape = panelShape;
+          if (colorVar === 'cavity'){
+            cellStrokeColor = qgGetCavityColorByValue(cp.cavity);
+            cellFillColor = cellStrokeColor;
+            cellDotColor = cellStrokeColor;
+          }
+          if (shapeVar === 'cavity'){
+            cellShape = qgGetCavityShapeByValue(cp.cavity);
+          }
+          const cavTip = 'Cavity: ' + qgFormatGroupYValue('cavity', cp.cavity);
+          drawRangeBox(xCell, cp.point, cellStrokeColor, cellFillColor, d, dk, cavTip);
+          drawPointDots(xCell, cp.point, cellShape, cellDotColor, d, dk, cavTip);
         }
+      }else{
+        drawRangeBox(x, p, _boxColor, _boxFillColor, d, dk, '');
+        drawPointDots(x, p, panelShape, _dataDotColor, d, dk, '');
       }
 
       if (_showLine) meanPts.push({ x, y: yAt(p.mean), d, v: p.mean });
