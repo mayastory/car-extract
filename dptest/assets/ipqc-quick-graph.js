@@ -7756,30 +7756,12 @@ function renderGrid(){
   const groupYVars = qgGetGroupYVars();
   const allAssignments = qgGetGroupYAssignments(selTools2, selCavs2);
 
-  let layoutGroups = [];
-  const outerXVar = xVars.length ? xVars[0] : null;
-  if (outerXVar === 'tool'){
-    const minOuterW = (xVars.length >= 2) ? Math.max(220, (selCavs2.length * 70) + 40) : 220;
-    let perRow = Math.max(1, Math.floor(plotW / minOuterW));
-    if (selTools2.length <= 3) perRow = selTools2.length;
-    perRow = Math.min(selTools2.length, perRow);
-    if (perRow < 1) perRow = 1;
-    for (let i=0; i<selTools2.length; i+=perRow){
-      layoutGroups.push({ tools: selTools2.slice(i, i+perRow), cavs: selCavs2.slice() });
-    }
-  }else if (outerXVar === 'cavity'){
-    const minOuterW = (xVars.length >= 2) ? Math.max(180, (selTools2.length * 70) + 40) : 180;
-    let perRow = Math.max(1, Math.floor(plotW / minOuterW));
-    if (selCavs2.length <= 4) perRow = selCavs2.length;
-    perRow = Math.min(selCavs2.length, perRow);
-    if (perRow < 1) perRow = 1;
-    for (let i=0; i<selCavs2.length; i+=perRow){
-      layoutGroups.push({ tools: selTools2.slice(), cavs: selCavs2.slice(i, i+perRow) });
-    }
-  }else{
-    layoutGroups = [{ tools: selTools2.slice(), cavs: selCavs2.slice() }];
-  }
-  if (!layoutGroups.length) layoutGroups = [{ tools: selTools2.slice(), cavs: selCavs2.slice() }];
+  // JMP-like axis composition: Group X / Group Y determine the matrix structure directly.
+  // Do not auto-wrap Tool/Cavity levels into multiple responsive blocks based on viewport width,
+  // because that changes the nesting structure depending on screen size.
+  // Keep a single continuous group so Tool-only / Cavity-only / Tool→Cavity / Cavity→Tool
+  // always render from the explicit axis state.
+  const layoutGroups = [{ tools: selTools2.slice(), cavs: selCavs2.slice() }];
 
   const groupCount = Math.max(1, layoutGroups.length);
   const gridGapY = 0;
