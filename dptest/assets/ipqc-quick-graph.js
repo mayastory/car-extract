@@ -8763,7 +8763,16 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       }
     }catch(e){}
 
-    const isToolOnlyComposite = (xVars.length === 1 && outerVar === 'tool' && innerVar === null && panel && Array.isArray(panel.tools) && panel.tools.length === 1 && Array.isArray(panel.cavities) && panel.cavities.length > 1);
+    const groupYVars = qgGetGroupYVars();
+    const isToolOnlyComposite = (
+      panel &&
+      Array.isArray(panel.tools) && panel.tools.length === 1 &&
+      Array.isArray(panel.cavities) && panel.cavities.length > 1 &&
+      (
+        (xVars.length === 1 && outerVar === 'tool' && innerVar === null) ||
+        (xVars.length === 0 && groupYVars.length === 1 && groupYVars[0] === 'tool')
+      )
+    );
 
     const drawRangeBox = (xPos, pointInfo, strokeColor, fillColor, dateInfo, dateKey, extraTip)=>{
       if (!_showBox || !pointInfo) return;
@@ -8820,38 +8829,20 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       const useCompositeBoxes = cavityPoints.length > 1;
 
       if (useCompositeBoxes){
-        const clusterStep = Math.min(18, Math.max(boxW + 2, 6));
+        // Tool-only composite: keep a single date bucket and draw each cavity inside the same x column.
+        // Do NOT fan cavities out into separate x positions, otherwise a single date turns into multiple columns.
         for (let ci=0; ci<cavityPoints.length; ci++){
           const cp = cavityPoints[ci];
-          const xCell = x + (ci - (cavityPoints.length - 1) / 2) * clusterStep;
-          let cellStrokeColor = _boxColor;
-          let cellFillColor = _boxFillColor;
-          let cellDotColor = _dataDotColor;
-          let cellShape = panelShape;
-          if (colorVar === 'cavity' || !colorVar){
-            cellStrokeColor = qgGetCavityColorByValue(cp.cavity);
-            cellFillColor = cellStrokeColor;
-            cellDotColor = cellStrokeColor;
-          }
-          if (shapeVar === 'cavity' || (!shapeVar && !overlayVar)){
-            cellShape = qgGetCavityShapeByValue(cp.cavity);
-          }
+          const xCell = x;
+          const cellStrokeColor = '#000000';
+          const cellFillColor = '#000000';
+          const cellDotColor = '#000000';
+          const cellShape = 'circle';
           const cavTip = 'Cavity: ' + qgFormatGroupYValue('cavity', cp.cavity);
           drawRangeBox(xCell, cp.point, cellStrokeColor, cellFillColor, d, dk, cavTip);
           drawPointDots(xCell, cp.point, cellShape, cellDotColor, d, dk, cavTip);
-          if (_showLine && isFinite(cp.point && cp.point.mean)){
-            const seriesPts = getCompositeSeriesForCavity(cp.cavity);
-            seriesPts.push({
-              x: xCell,
-              y: yAt(cp.point.mean),
-              d,
-              v: cp.point.mean,
-              cavity: cp.cavity,
-              color: cellStrokeColor,
-              shape: cellShape
-            });
-          }
         }
+        if (_showLine) meanPts.push({ x, y: yAt(p.mean), d, v: p.mean });
       }else{
         drawRangeBox(x, p, _boxColor, _boxFillColor, d, dk, '');
         drawPointDots(x, p, panelShape, _dataDotColor, d, dk, '');
