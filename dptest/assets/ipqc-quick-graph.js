@@ -348,14 +348,24 @@
 
   // Plot element toggles (JMP-like toolbar: click=single, Shift=multi)
   function qgEnsurePlotElems(){
-    // Default like JMP user's expectation here: raw data points + mean line.
-    // Default closer to the JMP graph-builder screenshots used in this workflow:
-    // show raw points + mean line + min/max box from first open.
+    // Default closer to the JMP screenshots used in this workflow:
+    // first open should show raw data points + mean line + min/max box.
     if (!QG.plotElems) QG.plotElems = { points:true, line:true, box:true };
     const st = QG.plotElems;
     if (st.points === undefined) st.points = true;
     if (st.line === undefined) st.line = true;
-    if (st.box === undefined) st.box = false;
+    if (st.box === undefined) st.box = true;
+
+    // Legacy line-only default migration:
+    // some flows still arrived here with {points:true,line:true,box:false} even on first open.
+    // Only auto-flip once per dialog lifetime so later user toggles are respected.
+    if (!QG._plotElemsDefaultMigrated){
+      QG._plotElemsDefaultMigrated = true;
+      if (st.points === true && st.line === true && st.box === false){
+        st.box = true;
+      }
+    }
+
     if (!st.points && !st.line && !st.box) st.points = true;
     return st;
   }
