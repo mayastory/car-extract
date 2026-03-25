@@ -169,7 +169,9 @@
       busy: false,
       forceAutoFill: false,
     },
-    groupYVars: [],
+    axisLayoutInitialized: false,
+    groupXVars: null,
+    groupYVars: null,
   };
 
   function qs(sel, root){ return (root||document).querySelector(sel); }
@@ -4920,19 +4922,27 @@ function qgGetGroupYLayoutMetrics(){
 
 function qgEnsureAxisLayoutState(){
   const all = ['tool','cavity'];
-  const hasGy = Array.isArray(QG.groupYVars);
-  const hasGx = Array.isArray(QG.groupXVars);
 
-  let gy = hasGy ? QG.groupYVars.map(qgNormalizeDockVar).filter(v => all.indexOf(v) >= 0) : [];
+  let gy = Array.isArray(QG.groupYVars)
+    ? QG.groupYVars.map(qgNormalizeDockVar).filter(v => all.indexOf(v) >= 0)
+    : [];
+  let gx = Array.isArray(QG.groupXVars)
+    ? QG.groupXVars.map(qgNormalizeDockVar).filter(v => all.indexOf(v) >= 0)
+    : [];
+
   gy = Array.from(new Set(gy)).slice(0, 2);
+  gx = Array.from(new Set(gx)).slice(0, 2);
 
-  let gx = hasGx ? QG.groupXVars.map(qgNormalizeDockVar).filter(v => all.indexOf(v) >= 0) : null;
-  if (!hasGx && !hasGy){
-    gx = all.slice();
-  }else if (!Array.isArray(gx)){
-    gx = [];
+  // First open only: keep the legacy/default JMP-like starting layout as Group X = Tool / Cavity.
+  // After the user starts dragging variables, preserve the explicit state instead of auto-restoring.
+  if (!QG.axisLayoutInitialized){
+    QG.axisLayoutInitialized = true;
+    if (!gx.length && !gy.length){
+      gx = all.slice();
+    }
   }
-  gx = Array.from(new Set(gx)).filter(v => gy.indexOf(v) < 0).slice(0, 2);
+
+  gx = gx.filter(v => gy.indexOf(v) < 0).slice(0, 2);
 
   QG.groupYVars = gy;
   QG.groupXVars = gx;
