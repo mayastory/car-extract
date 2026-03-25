@@ -4607,8 +4607,10 @@ function qgGetPanelCountForSvg(svg){
   try{
     const group = svg.closest ? svg.closest('.qg-tool-group') : null;
     if (!group) return 0;
-    const cavs = group.querySelectorAll ? group.querySelectorAll('.qg-tophead-cav') : null;
-    nP = cavs ? cavs.length : 0;
+    const headSvg = group.querySelector ? group.querySelector('.qg-tophead-svg[data-panel-count]') : null;
+    if (headSvg && headSvg.dataset && headSvg.dataset.panelCount){
+      nP = Math.max(0, parseInt(String(headSvg.dataset.panelCount), 10) || 0);
+    }
   }catch(e){ nP = 0; }
   return nP;
 }
@@ -4918,14 +4920,19 @@ function qgGetGroupYLayoutMetrics(){
 
 function qgEnsureAxisLayoutState(){
   const all = ['tool','cavity'];
-  let gy = Array.isArray(QG.groupYVars) ? QG.groupYVars.map(qgNormalizeDockVar).filter(v => all.indexOf(v) >= 0) : [];
+  const hasGy = Array.isArray(QG.groupYVars);
+  const hasGx = Array.isArray(QG.groupXVars);
+
+  let gy = hasGy ? QG.groupYVars.map(qgNormalizeDockVar).filter(v => all.indexOf(v) >= 0) : [];
   gy = Array.from(new Set(gy)).slice(0, 2);
 
-  let gx = Array.isArray(QG.groupXVars) ? QG.groupXVars.map(qgNormalizeDockVar).filter(v => all.indexOf(v) >= 0 && gy.indexOf(v) < 0) : [];
-  gx = Array.from(new Set(gx));
-
-  const missing = all.filter(v => gy.indexOf(v) < 0 && gx.indexOf(v) < 0);
-  gx = gx.concat(missing).slice(0, 2);
+  let gx = hasGx ? QG.groupXVars.map(qgNormalizeDockVar).filter(v => all.indexOf(v) >= 0) : null;
+  if (!hasGx && !hasGy){
+    gx = all.slice();
+  }else if (!Array.isArray(gx)){
+    gx = [];
+  }
+  gx = Array.from(new Set(gx)).filter(v => gy.indexOf(v) < 0).slice(0, 2);
 
   QG.groupYVars = gy;
   QG.groupXVars = gx;
@@ -7553,17 +7560,33 @@ function qgBuildTopHeaderSvg(toolsRow, cavs){
       return hit;
     }catch(e){ return null; }
   };
+  const levelLabel = (varKey, value)=>{
+    let lab = String(value == null ? '' : value);
+    if (String(varKey || '') === 'cavity' && lab && !lab.toUpperCase().includes('CAV')) lab += 'CAV';
+    return lab;
+  };
+  const setPanelMeta = (panelCount, innerCount)=>{
+    try{
+      svg.dataset.panelCount = String(Math.max(0, Number(panelCount) || 0));
+      svg.dataset.innerCount = String(Math.max(0, Number(innerCount) || 0));
+    }catch(e){}
+  };
 
   if (xVars.length === 2){
-    const nT = Math.max(1, Array.isArray(toolsRow) ? toolsRow.length : 0);
-    const nC = Math.max(1, Array.isArray(cavs) ? cavs.length : 0);
-    const nP = Math.max(1, nT * nC);
+    const outerVar = xVars[0];
+    const innerVar = xVars[1];
+    const outerLevels = (outerVar === 'tool') ? (Array.isArray(toolsRow) ? toolsRow : []) : (Array.isArray(cavs) ? cavs : []);
+    const innerLevels = (innerVar === 'tool') ? (Array.isArray(toolsRow) ? toolsRow : []) : (Array.isArray(cavs) ? cavs : []);
+    const nOuter = Math.max(1, outerLevels.length || 0);
+    const nInner = Math.max(1, innerLevels.length || 0);
+    const nP = Math.max(1, nOuter * nInner);
     const panelW = innerW / nP;
-    const toolW = panelW * nC;
+    const outerW = panelW * nInner;
     const y0 = 0, y1 = 20, y2 = 42, y3 = 60, y4 = 82, H = y4;
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
     svg.setAttribute('height', String(H));
     try{ svg.style.height = H + 'px'; }catch(e){}
+    setPanelMeta(nP, nInner);
     rect(0, 0, W, H, '#ffffff', null, 0);
     rect(padL, y0, innerW, H, '#ffffff', '#cfcfcf', 1);
     rect(padL, y0, innerW, y1 - y0, '#dedbcf', null, 0);
@@ -7573,26 +7596,26 @@ function qgBuildTopHeaderSvg(toolsRow, cavs){
     line(padL, y1, W - padR, y1, '#cfcfcf', 1);
     line(padL, y2, W - padR, y2, '#cfcfcf', 1);
     line(padL, y3, W - padR, y3, '#cfcfcf', 1);
-    const tTool = text(padL + innerW / 2, (y0 + y1) / 2, 'Tool', { size:11, weight:700 });
-    const tCav = text(padL + innerW / 2, (y2 + y3) / 2, 'Cavity', { size:11, weight:700 });
-    bindDrag(tTool, 'tool');
-    bindDrag(tCav, 'cavity');
-    for (let ti = 0; ti < nT; ti++){
-      const left = padL + ti * toolW;
-      const mid = left + toolW / 2;
-      text(mid, (y1 + y2) / 2, toolsRow[ti], { size:11, weight:700 });
-      if (ti > 0) line(left, y1, left, y4, '#cfcfcf', 1.5);
+
+    const tOuter = text(padL + innerW / 2, (y0 + y1) / 2, qgDockVarLabel(outerVar), { size:11, weight:700 });
+    const tInner = text(padL + innerW / 2, (y2 + y3) / 2, qgDockVarLabel(innerVar), { size:11, weight:700 });
+    bindDrag(tOuter, outerVar);
+    bindDrag(tInner, innerVar);
+
+    for (let oi = 0; oi < nOuter; oi++){
+      const left = padL + oi * outerW;
+      const mid = left + outerW / 2;
+      text(mid, (y1 + y2) / 2, levelLabel(outerVar, outerLevels[oi]), { size:11, weight:700 });
+      if (oi > 0) line(left, y1, left, y4, '#cfcfcf', 1.5);
     }
     for (let pi = 0; pi < nP; pi++){
       const left = padL + pi * panelW;
-      const cav = cavs[pi % nC];
-      const lab0 = String(cav == null ? '' : cav);
-      const lab = lab0.toUpperCase().includes('CAV') ? lab0 : (lab0 + 'CAV');
-      text(left + panelW / 2, (y3 + y4) / 2, lab, { size:11, weight:700 });
-      if (pi > 0 && (pi % nC) !== 0) line(left, y3, left, y4, '#cfcfcf', 1);
+      const innerVal = innerLevels[pi % nInner];
+      text(left + panelW / 2, (y3 + y4) / 2, levelLabel(innerVar, innerVal), { size:11, weight:700 });
+      if (pi > 0 && (pi % nInner) !== 0) line(left, y3, left, y4, '#cfcfcf', 1);
     }
-    bandDrag(padL, y0, innerW, y2 - y0, 'tool');
-    bandDrag(padL, y2, innerW, y4 - y2, 'cavity');
+    bandDrag(padL, y0, innerW, y2 - y0, outerVar);
+    bandDrag(padL, y2, innerW, y4 - y2, innerVar);
     return svg;
   }
 
@@ -7605,6 +7628,7 @@ function qgBuildTopHeaderSvg(toolsRow, cavs){
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
     svg.setAttribute('height', String(H));
     try{ svg.style.height = H + 'px'; }catch(e){}
+    setPanelMeta(n, 0);
     rect(0, 0, W, H, '#ffffff', null, 0);
     rect(padL, y0, innerW, H, '#ffffff', '#cfcfcf', 1);
     rect(padL, y0, innerW, y1 - y0, '#dedbcf', null, 0);
@@ -7627,6 +7651,7 @@ function qgBuildTopHeaderSvg(toolsRow, cavs){
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.setAttribute('height', String(H));
   try{ svg.style.height = H + 'px'; }catch(e){}
+  setPanelMeta(1, 0);
   rect(0, 0, W, H, '#ffffff', null, 0);
   rect(padL, 0, innerW, H, '#efefef', '#a9a9a9', 1);
   text(padL + innerW / 2, H / 2, '그룹 X', { size:11, weight:700, fill:'#666666' });
@@ -7692,23 +7717,24 @@ function renderGrid(){
   const allAssignments = qgGetGroupYAssignments(selTools2, selCavs2);
 
   let layoutGroups = [];
-  if (!groupYVars.length || xVars.length === 2){
-    const minToolW = Math.max(220, (selCavs2.length * 70) + 40);
-    let toolsPerRow = Math.max(1, Math.floor(plotW / minToolW));
-    if (selTools2.length <= 3) toolsPerRow = selTools2.length;
-    toolsPerRow = Math.min(selTools2.length, toolsPerRow);
-    if (toolsPerRow < 1) toolsPerRow = 1;
-    for (let i=0; i<selTools2.length; i+=toolsPerRow){
-      layoutGroups.push({ tools: selTools2.slice(i, i+toolsPerRow), cavs: selCavs2.slice() });
+  const outerXVar = xVars.length ? xVars[0] : null;
+  if (outerXVar === 'tool'){
+    const minOuterW = (xVars.length >= 2) ? Math.max(220, (selCavs2.length * 70) + 40) : 220;
+    let perRow = Math.max(1, Math.floor(plotW / minOuterW));
+    if (selTools2.length <= 3) perRow = selTools2.length;
+    perRow = Math.min(selTools2.length, perRow);
+    if (perRow < 1) perRow = 1;
+    for (let i=0; i<selTools2.length; i+=perRow){
+      layoutGroups.push({ tools: selTools2.slice(i, i+perRow), cavs: selCavs2.slice() });
     }
-  }else if (xVars.length === 1 && xVars[0] === 'tool'){
-    const minToolW = 220;
-    let toolsPerRow = Math.max(1, Math.floor(plotW / minToolW));
-    if (selTools2.length <= 3) toolsPerRow = selTools2.length;
-    toolsPerRow = Math.min(selTools2.length, toolsPerRow);
-    if (toolsPerRow < 1) toolsPerRow = 1;
-    for (let i=0; i<selTools2.length; i+=toolsPerRow){
-      layoutGroups.push({ tools: selTools2.slice(i, i+toolsPerRow), cavs: selCavs2.slice() });
+  }else if (outerXVar === 'cavity'){
+    const minOuterW = (xVars.length >= 2) ? Math.max(180, (selTools2.length * 70) + 40) : 180;
+    let perRow = Math.max(1, Math.floor(plotW / minOuterW));
+    if (selCavs2.length <= 4) perRow = selCavs2.length;
+    perRow = Math.min(selCavs2.length, perRow);
+    if (perRow < 1) perRow = 1;
+    for (let i=0; i<selCavs2.length; i+=perRow){
+      layoutGroups.push({ tools: selTools2.slice(), cavs: selCavs2.slice(i, i+perRow) });
     }
   }else{
     layoutGroups = [{ tools: selTools2.slice(), cavs: selCavs2.slice() }];
@@ -7987,11 +8013,103 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
 
   qgSetPadCssVars(padL, padR, W);
 
-  const nT = Math.max(1, tools.length);
-  const nC = Math.max(1, cavs.length);
-  const nP = nT * nC;
+  const xVars = qgGetXAxisVars();
   const gap = 0;
+  const panelDefs = [];
+  const outerVar = xVars.length >= 1 ? xVars[0] : null;
+  const innerVar = xVars.length >= 2 ? xVars[1] : null;
+  const toolList = Array.isArray(tools) ? tools.slice() : [];
+  const cavList = Array.isArray(cavs) ? cavs.slice() : [];
+  const pushPanelDef = (cfg)=>{
+    const def = Object.assign({
+      tool:null,
+      cavity:null,
+      tools:[],
+      cavities:[],
+      outerIndex:0,
+      innerIndex:0,
+      outerValue:null,
+      innerValue:null
+    }, cfg || {});
+    if (!Array.isArray(def.tools)) def.tools = [];
+    if (!Array.isArray(def.cavities)) def.cavities = [];
+    panelDefs.push(def);
+  };
+
+  if (xVars.length >= 2){
+    const outerLevels = (outerVar === 'tool') ? toolList : cavList;
+    const innerLevels = (innerVar === 'tool') ? toolList : cavList;
+    for (let oi = 0; oi < outerLevels.length; oi++){
+      for (let ii = 0; ii < innerLevels.length; ii++){
+        const oVal = outerLevels[oi];
+        const iVal = innerLevels[ii];
+        if (outerVar === 'tool'){
+          pushPanelDef({ tool:oVal, cavity:iVal, tools:[oVal], cavities:[iVal], outerIndex:oi, innerIndex:ii, outerValue:oVal, innerValue:iVal });
+        }else{
+          pushPanelDef({ tool:iVal, cavity:oVal, tools:[iVal], cavities:[oVal], outerIndex:oi, innerIndex:ii, outerValue:oVal, innerValue:iVal });
+        }
+      }
+    }
+  }else if (xVars.length === 1 && outerVar === 'tool'){
+    for (let oi = 0; oi < toolList.length; oi++){
+      const tVal = toolList[oi];
+      pushPanelDef({ tool:tVal, cavity:null, tools:[tVal], cavities:cavList.slice(), outerIndex:oi, innerIndex:0, outerValue:tVal, innerValue:null });
+    }
+  }else if (xVars.length === 1 && outerVar === 'cavity'){
+    for (let oi = 0; oi < cavList.length; oi++){
+      const cVal = cavList[oi];
+      pushPanelDef({ tool:null, cavity:cVal, tools:toolList.slice(), cavities:[cVal], outerIndex:oi, innerIndex:0, outerValue:cVal, innerValue:null });
+    }
+  }else{
+    pushPanelDef({ tool:null, cavity:null, tools:toolList.slice(), cavities:cavList.slice(), outerIndex:0, innerIndex:0, outerValue:null, innerValue:null });
+  }
+
+  const nT = Math.max(1, toolList.length);
+  const nC = Math.max(1, cavList.length);
+  const nP = Math.max(1, panelDefs.length);
+  const innerCount = (xVars.length >= 2) ? Math.max(1, (innerVar === 'tool' ? toolList.length : cavList.length)) : 1;
   const panelW = (innerW - gap*(nP-1)) / nP;
+  const qgGetPanelDatePoint = (panelDef, dateInfo)=>{
+    const def = panelDef || null;
+    if (!def) return null;
+    const vals = [];
+    let minV = Infinity;
+    let maxV = -Infinity;
+    for (const tVal of (def.tools || [])){
+      for (const cVal of (def.cavities || [])){
+        const s = ((QG.series||{})[tVal]||{})[cVal]||{};
+        const p = qgPickDatePoint(s, dateInfo);
+        if (!p) continue;
+        if (isFinite(p.min)) minV = Math.min(minV, Number(p.min));
+        if (isFinite(p.max)) maxV = Math.max(maxV, Number(p.max));
+        if (Array.isArray(p.vals) && p.vals.length){
+          for (const vv of p.vals){ if (isFinite(vv)) vals.push(Number(vv)); }
+        }else if (isFinite(p.mean)){
+          vals.push(Number(p.mean));
+        }
+      }
+    }
+    if (!vals.length && !isFinite(minV) && !isFinite(maxV)) return null;
+    const meanV = vals.length ? (vals.reduce((sum, vv)=> sum + Number(vv || 0), 0) / vals.length) : NaN;
+    if (!isFinite(minV) && vals.length) minV = Math.min.apply(null, vals);
+    if (!isFinite(maxV) && vals.length) maxV = Math.max.apply(null, vals);
+    return { vals, min:minV, max:maxV, mean:meanV };
+  };
+  const qgGetPanelRawValues = (panelDef)=>{
+    const out = [];
+    const def = panelDef || null;
+    if (!def) return out;
+    for (const d of dates){
+      const p = qgGetPanelDatePoint(def, d);
+      if (!p) continue;
+      if (Array.isArray(p.vals) && p.vals.length){
+        for (const vv of p.vals){ if (isFinite(vv)) out.push(Number(vv)); }
+      }else if (isFinite(p.mean)){
+        out.push(Number(p.mean));
+      }
+    }
+    return out;
+  };
 
   // y range across all panels (tool x cavity x date)
   let yMin = Infinity, yMax = -Infinity;
@@ -8000,7 +8118,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       const s = ((QG.series||{})[tool]||{})[cav]||{};
       for (const d of dates){
         const dk = (d && d.key) ? d.key : d;
-        const p = qgPickDatePoint(s, d);
+        const p = qgGetPanelDatePoint({ tools:[tool], cavities:[cav] }, d);
         if (!p) continue;
         yMin = Math.min(yMin, p.min, p.mean);
         yMax = Math.max(yMax, p.max, p.mean);
@@ -8306,33 +8424,35 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
   rightEdge.setAttribute('stroke-width', '1');
   svg.appendChild(rightEdge);
 
-  // vertical separators (between cavities and between tools)
+  // vertical separators (between inner panels and between outer groups)
   for (let i=1; i<nP; i++){
     const x = padL + i*panelW;
-    const isToolBoundary = (i % nC) === 0;
+    const prev = panelDefs[i - 1] || null;
+    const cur = panelDefs[i] || null;
+    const isOuterBoundary = !!(prev && cur && prev.outerIndex !== cur.outerIndex);
     const ln = document.createElementNS(ns,'line');
     ln.setAttribute('x1', String(x)); ln.setAttribute('x2', String(x));
     ln.setAttribute('y1', String(padT)); ln.setAttribute('y2', String(padT + innerH));
-    ln.setAttribute('stroke', isToolBoundary ? '#bdbdbd' : '#d4d4d4');
-    ln.setAttribute('stroke-width', isToolBoundary ? '2' : '1');
+    ln.setAttribute('stroke', isOuterBoundary ? '#bdbdbd' : '#d4d4d4');
+    ln.setAttribute('stroke-width', isOuterBoundary ? '2' : '1');
     clip(ln);
     svg.appendChild(ln);
   }
 
-  // panels: tool x cavity
+  // panels follow the current Group X combination (none / single / nested)
   for (let pi=0; pi<nP; pi++){
-    const ti = Math.floor(pi / nC);
-    const tool = tools[ti];
-    const cav  = cavs[pi % nC];
+    const panel = panelDefs[pi] || null;
+    const tool = panel ? panel.tool : null;
+    const cav  = panel ? panel.cavity : null;
     let panelColor = seriesColor;
-    if (colorVar === 'tool') panelColor = qgGetToolColorByValue(tool);
-    else if (colorVar === 'cavity') panelColor = qgGetCavityColorByValue(cav);
-    else if (!colorVar && overlayVar === 'tool') panelColor = qgGetToolColorByValue(tool);
-    else if (!colorVar && overlayVar === 'cavity') panelColor = qgGetCavityColorByValue(cav);
+    if (colorVar === 'tool' && tool !== null && tool !== undefined) panelColor = qgGetToolColorByValue(tool);
+    else if (colorVar === 'cavity' && cav !== null && cav !== undefined) panelColor = qgGetCavityColorByValue(cav);
+    else if (!colorVar && overlayVar === 'tool' && tool !== null && tool !== undefined) panelColor = qgGetToolColorByValue(tool);
+    else if (!colorVar && overlayVar === 'cavity' && cav !== null && cav !== undefined) panelColor = qgGetCavityColorByValue(cav);
 
     let panelShape = 'circle';
-    if (shapeVar === 'tool') panelShape = qgGetToolShapeByValue(tool);
-    else if (shapeVar === 'cavity') panelShape = qgGetCavityShapeByValue(cav);
+    if (shapeVar === 'tool' && tool !== null && tool !== undefined) panelShape = qgGetToolShapeByValue(tool);
+    else if (shapeVar === 'cavity' && cav !== null && cav !== undefined) panelShape = qgGetCavityShapeByValue(cav);
 
     const left = padL + pi*(panelW + gap);
     const right = left + panelW;
@@ -8456,8 +8576,6 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
     }
 
 
-    const s = ((QG.series||{})[tool]||{})[cav]||{};
-
     const meanPts = [];
     const baseBoxW = Math.max(8, Math.min(12, panelW * 0.20));
     let boxW = baseBoxW;
@@ -8537,7 +8655,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
     for (let di=0; di<dates.length; di++){
       const d = dates[di];
       const dk = (d && d.key) ? d.key : d;
-      const p = qgPickDatePoint(s, d);
+      const p = qgGetPanelDatePoint(panel, d);
       if (!p) continue;
 
       const x = left + xInPanel(di);
@@ -8786,16 +8904,16 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
               const yConst = yForConstBlock(useKinds.length);
 
               for (let pi=0; pi<nP; pi++){
-                const tool = tools[Math.floor(pi / nC)];
-                const cav  = cavs[pi % nC];
-                const s = ((QG.series||{})[tool]||{})[cav]||{};
+                const panel = panelDefs[pi] || null;
+                const tool = panel ? panel.tool : null;
+                const cav  = panel ? panel.cavity : null;
                 const left = padL + pi*(panelW + gap);
 
                 const emitValueBlock = (di, kindList, forceConst, yConstOverride)=>{
                   if (!kindList || !kindList.length) return null;
                   const d = dates[di];
                   const dk = (d && d.key) ? d.key : d;
-                  const p0 = qgPickDatePoint(s, d);
+                  const p0 = qgGetPanelDatePoint(panel, d);
                   if (!p0) return;
 
                   const raw = [];
@@ -8972,21 +9090,11 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
 // Mode: Axis reference line (draw statistic as data-based reference line)
           if (mode === 'axis_refline'){
             for (let pi=0; pi<nP; pi++){
-              const tool = tools[Math.floor(pi / nC)];
-              const cav  = cavs[pi % nC];
-              const s = ((QG.series||{})[tool]||{})[cav]||{};
+              const panel = panelDefs[pi] || null;
+              const tool = panel ? panel.tool : null;
+              const cav  = panel ? panel.cavity : null;
 
-              const rawVals = [];
-              for (const d of dates){
-                const dk = (d && d.key) ? d.key : d;
-                const p = qgPickDatePoint(s, d);
-                if (!p) continue;
-                if (Array.isArray(p.vals) && p.vals.length){
-                  for (const vv of p.vals){ if (isFinite(vv)) rawVals.push(Number(vv)); }
-                }else if (isFinite(p.mean)){
-                  rawVals.push(Number(p.mean));
-                }
-              }
+              const rawVals = qgGetPanelRawValues(panel);
 
               const left = padL + pi*(panelW + gap);
               const right = left + panelW;
@@ -9029,21 +9137,11 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
           if (mode === 'graph'){
             const yAxis = padT + innerH;
             for (let pi=0; pi<nP; pi++){
-              const tool = tools[Math.floor(pi / nC)];
-              const cav  = cavs[pi % nC];
-              const s = ((QG.series||{})[tool]||{})[cav]||{};
+              const panel = panelDefs[pi] || null;
+              const tool = panel ? panel.tool : null;
+              const cav  = panel ? panel.cavity : null;
 
-              const rawVals = [];
-              for (const d of dates){
-                const dk = (d && d.key) ? d.key : d;
-                const p = qgPickDatePoint(s, d);
-                if (!p) continue;
-                if (Array.isArray(p.vals) && p.vals.length){
-                  for (const vv of p.vals){ if (isFinite(vv)) rawVals.push(Number(vv)); }
-                }else if (isFinite(p.mean)){
-                  rawVals.push(Number(p.mean));
-                }
-              }
+              const rawVals = qgGetPanelRawValues(panel);
 
               const lines = [];
               for (const kind of kinds){
