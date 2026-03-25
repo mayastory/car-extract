@@ -8774,12 +8774,51 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       )
     );
 
+    const qgBuildAggregateBoxPoint = (pointInfo)=>{
+      if (!pointInfo) return null;
+      const vals = Array.isArray(pointInfo.vals) ? pointInfo.vals.filter(v => isFinite(v)).map(v => Number(v)) : [];
+      if (!vals.length) return pointInfo;
+      const sorted = qgSortedNums(vals);
+      if (!sorted.length) return pointInfo;
+      const q1 = qgQuantileSorted(sorted, 0.25);
+      const med = qgQuantileSorted(sorted, 0.5);
+      const q3 = qgQuantileSorted(sorted, 0.75);
+      let low = sorted[0];
+      let high = sorted[sorted.length - 1];
+      try{
+        const iqr = (isFinite(q1) && isFinite(q3)) ? (q3 - q1) : NaN;
+        if (isFinite(iqr)){
+          const loFence = q1 - (1.5 * iqr);
+          const hiFence = q3 + (1.5 * iqr);
+          const inliers = sorted.filter(v => v >= loFence && v <= hiFence);
+          if (inliers.length){
+            low = inliers[0];
+            high = inliers[inliers.length - 1];
+          }
+        }
+      }catch(e){}
+      return {
+        vals: sorted.slice(),
+        min: low,
+        max: high,
+        mean: isFinite(pointInfo.mean) ? Number(pointInfo.mean) : (sorted.reduce((a,b)=>a+b,0) / sorted.length),
+        q1,
+        median: med,
+        q3,
+        showAllDots: true,
+        boxplot: true
+      };
+    };
+
     const drawRangeBox = (xPos, pointInfo, strokeColor, fillColor, dateInfo, dateKey, extraTip)=>{
       if (!_showBox || !pointInfo) return;
-      const yMinV = yAt(pointInfo.min);
-      const yMaxV = yAt(pointInfo.max);
-      const top = Math.min(yMinV, yMaxV);
-      const bot = Math.max(yMinV, yMaxV);
+      const hasBoxplot = isFinite(pointInfo.q1) && isFinite(pointInfo.q3);
+      const boxTopVal = hasBoxplot ? Number(pointInfo.q3) : Number(pointInfo.max);
+      const boxBotVal = hasBoxplot ? Number(pointInfo.q1) : Number(pointInfo.min);
+      const yTop = yAt(boxTopVal);
+      const yBot = yAt(boxBotVal);
+      const top = Math.min(yTop, yBot);
+      const bot = Math.max(yTop, yBot);
       const h = Math.max(1, bot - top);
       const rect = document.createElementNS(ns,'rect');
       rect.setAttribute('x', String(xPos - boxW/2));
@@ -8792,17 +8831,46 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       rect.setAttribute('stroke-width', String(_boxStrokeW));
       try{
         const _n = Array.isArray(pointInfo.vals) ? pointInfo.vals.length : 0;
-        let tip = '최소값: ' + qgFmtPointValue(pointInfo.min) + '\n최대값: ' + qgFmtPointValue(pointInfo.max) + '\nDate: ' + (dateInfo && (dateInfo.label||dateInfo.key) ? String(dateInfo.label||dateInfo.key) : String(dateKey)) + '\nN: ' + String(_n);
+        let tip = (hasBoxplot
+          ? ('Q1: ' + qgFmtPointValue(pointInfo.q1) + '\n중앙값: ' + qgFmtPointValue(pointInfo.median) + '\nQ3: ' + qgFmtPointValue(pointInfo.q3) + '\n수염 하한: ' + qgFmtPointValue(pointInfo.min) + '\n수염 상한: ' + qgFmtPointValue(pointInfo.max))
+          : ('최소값: ' + qgFmtPointValue(pointInfo.min) + '\n최대값: ' + qgFmtPointValue(pointInfo.max)))
+          + '\nDate: ' + (dateInfo && (dateInfo.label||dateInfo.key) ? String(dateInfo.label||dateInfo.key) : String(dateKey))
+          + '\nN: ' + String(_n);
         if (extraTip) tip += '\n' + String(extraTip);
         rect.setAttribute('data-qg-tip', tip);
       }catch(e){}
       clip(rect);
       svg.appendChild(rect);
+
+      if (hasBoxplot){
+        const yMinV = yAt(pointInfo.min);
+        const yMaxV = yAt(pointInfo.max);
+        const yMedV = yAt(pointInfo.median);
+        const capW = Math.max(6, boxW * 0.6);
+        const mkLine = (x1,y1,x2,y2)=>{
+          const ln = document.createElementNS(ns,'line');
+          ln.setAttribute('x1', String(x1));
+          ln.setAttribute('y1', String(y1));
+          ln.setAttribute('x2', String(x2));
+          ln.setAttribute('y2', String(y2));
+          ln.setAttribute('stroke', strokeColor);
+          try{ ln.setAttribute('stroke-opacity', String(_boxOpacity)); }catch(e){}
+          ln.setAttribute('stroke-width', String(_boxStrokeW));
+          clip(ln);
+          svg.appendChild(ln);
+        };
+        mkLine(xPos, yAt(pointInfo.q3), xPos, yMaxV);
+        mkLine(xPos, yAt(pointInfo.q1), xPos, yMinV);
+        mkLine(xPos - capW/2, yMaxV, xPos + capW/2, yMaxV);
+        mkLine(xPos - capW/2, yMinV, xPos + capW/2, yMinV);
+        mkLine(xPos - boxW/2, yMedV, xPos + boxW/2, yMedV);
+      }
     };
 
     const drawPointDots = (xPos, pointInfo, markerShape, dotColor, dateInfo, dateKey, extraTip)=>{
       if (!_showPts || _hideDataDots || !pointInfo) return;
-      const vals = (pointInfo.vals||[]).slice(0,3);
+      const srcVals = Array.isArray(pointInfo.vals) ? pointInfo.vals : [];
+      const vals = pointInfo && pointInfo.showAllDots ? srcVals.slice() : srcVals.slice(0,3);
       for (let vi=0; vi<vals.length; vi++){
         const v = vals[vi];
         const cy = yAt(v);
@@ -8825,24 +8893,12 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       if (!p) continue;
 
       const x = left + xInPanel(di);
-      const cavityPoints = isToolOnlyComposite ? qgGetToolOnlyCavityPoints(panel, d) : [];
-      const useCompositeBoxes = cavityPoints.length > 1;
+      const compositePoint = isToolOnlyComposite ? qgBuildAggregateBoxPoint(p) : null;
 
-      if (useCompositeBoxes){
-        // Tool-only composite: keep a single date bucket and draw each cavity inside the same x column.
-        // Do NOT fan cavities out into separate x positions, otherwise a single date turns into multiple columns.
-        for (let ci=0; ci<cavityPoints.length; ci++){
-          const cp = cavityPoints[ci];
-          const xCell = x;
-          const cellStrokeColor = '#000000';
-          const cellFillColor = '#000000';
-          const cellDotColor = '#000000';
-          const cellShape = 'circle';
-          const cavTip = 'Cavity: ' + qgFormatGroupYValue('cavity', cp.cavity);
-          drawRangeBox(xCell, cp.point, cellStrokeColor, cellFillColor, d, dk, cavTip);
-          drawPointDots(xCell, cp.point, cellShape, cellDotColor, d, dk, cavTip);
-        }
-        if (_showLine) meanPts.push({ x, y: yAt(p.mean), d, v: p.mean });
+      if (compositePoint){
+        drawRangeBox(x, compositePoint, _boxColor, _boxFillColor, d, dk, '');
+        drawPointDots(x, compositePoint, panelShape, _dataDotColor, d, dk, '');
+        if (_showLine) meanPts.push({ x, y: yAt(compositePoint.mean), d, v: compositePoint.mean });
       }else{
         drawRangeBox(x, p, _boxColor, _boxFillColor, d, dk, '');
         drawPointDots(x, p, panelShape, _dataDotColor, d, dk, '');
