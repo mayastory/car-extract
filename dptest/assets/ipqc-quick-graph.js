@@ -8681,6 +8681,14 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
 
 
     const meanPts = [];
+    const compositeMeanSeries = Object.create(null);
+    const getCompositeSeriesForCavity = (cavityVal)=>{
+      const key = String(cavityVal == null ? '' : cavityVal);
+      if (!compositeMeanSeries[key]){
+        compositeMeanSeries[key] = [];
+      }
+      return compositeMeanSeries[key];
+    };
     const baseBoxW = Math.max(8, Math.min(12, panelW * 0.20));
     let boxW = baseBoxW;
     try{
@@ -8820,36 +8828,47 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
           let cellFillColor = _boxFillColor;
           let cellDotColor = _dataDotColor;
           let cellShape = panelShape;
-          if (colorVar === 'cavity'){
+          if (colorVar === 'cavity' || !colorVar){
             cellStrokeColor = qgGetCavityColorByValue(cp.cavity);
             cellFillColor = cellStrokeColor;
             cellDotColor = cellStrokeColor;
           }
-          if (shapeVar === 'cavity'){
+          if (shapeVar === 'cavity' || (!shapeVar && !overlayVar)){
             cellShape = qgGetCavityShapeByValue(cp.cavity);
           }
           const cavTip = 'Cavity: ' + qgFormatGroupYValue('cavity', cp.cavity);
           drawRangeBox(xCell, cp.point, cellStrokeColor, cellFillColor, d, dk, cavTip);
           drawPointDots(xCell, cp.point, cellShape, cellDotColor, d, dk, cavTip);
+          if (_showLine && isFinite(cp.point && cp.point.mean)){
+            const seriesPts = getCompositeSeriesForCavity(cp.cavity);
+            seriesPts.push({
+              x: xCell,
+              y: yAt(cp.point.mean),
+              d,
+              v: cp.point.mean,
+              cavity: cp.cavity,
+              color: cellStrokeColor,
+              shape: cellShape
+            });
+          }
         }
       }else{
         drawRangeBox(x, p, _boxColor, _boxFillColor, d, dk, '');
         drawPointDots(x, p, panelShape, _dataDotColor, d, dk, '');
+        if (_showLine) meanPts.push({ x, y: yAt(p.mean), d, v: p.mean });
       }
-
-      if (_showLine) meanPts.push({ x, y: yAt(p.mean), d, v: p.mean });
     }
 
-    // mean line path
-    if (_showLine && meanPts.length){
+    const drawMeanSeries = (pts, strokeColor, markerShape, tipLabel)=>{
+      if (!_showLine || !Array.isArray(pts) || !pts.length) return;
       let dPath = '';
-      for (let i=0;i<meanPts.length;i++){
-        dPath += (i===0 ? 'M' : 'L') + meanPts[i].x + ' ' + meanPts[i].y + ' ';
+      for (let i=0;i<pts.length;i++){
+        dPath += (i===0 ? 'M' : 'L') + pts[i].x + ' ' + pts[i].y + ' ';
       }
       const path = document.createElementNS(ns,'path');
       path.setAttribute('d', dPath.trim());
       path.setAttribute('fill','none');
-      path.setAttribute('stroke', _meanColor);
+      path.setAttribute('stroke', strokeColor);
       path.setAttribute('stroke-width', String(_meanWidth));
       try{ path.setAttribute('stroke-opacity', String(_meanOpacity)); }catch(e){}
       const _md = (_meanDash && _meanDash.trim() !== '') ? _meanDash.trim() : '';
@@ -8858,20 +8877,35 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       path.setAttribute('stroke-linecap', (_md === '2 4') ? 'round' : 'butt');
       clip(path);
       svg.appendChild(path);
-      try{ path.setAttribute('data-qg-tip', '평균선: ' + String(_label||_colKey||'') ); }catch(e){}
+      try{ path.setAttribute('data-qg-tip', String(tipLabel || ('평균선: ' + String(_label||_colKey||'')))); }catch(e){}
 
-	      if (!_hideMeanDots){
-	        for (const mp of meanPts){
-	          const _d = (mp && mp.d) ? mp.d : null;
-	          qgAppendMarkerShape(svg, panelShape, mp.x, mp.y, _meanDotSize, {
-	            fill: _meanDotColor,
-	            stroke: _meanDotColor,
-	            opacity: _meanDotOpacity,
-	            clip,
-	            tip: 'Mean: ' + fmtTick(mp && mp.v !== undefined ? mp.v : NaN) + '\nDate: ' + (_d && (_d.label||_d.key) ? String(_d.label||_d.key) : '')
-	          });
-	        }
-	      }
+      if (!_hideMeanDots){
+        for (const mp of pts){
+          const _d = (mp && mp.d) ? mp.d : null;
+          qgAppendMarkerShape(svg, markerShape, mp.x, mp.y, _meanDotSize, {
+            fill: strokeColor,
+            stroke: strokeColor,
+            opacity: _meanDotOpacity,
+            clip,
+            tip: 'Mean: ' + fmtTick(mp && mp.v !== undefined ? mp.v : NaN) + '\nDate: ' + (_d && (_d.label||_d.key) ? String(_d.label||_d.key) : '')
+          });
+        }
+      }
+    };
+
+    if (_showLine){
+      const compositeKeys = Object.keys(compositeMeanSeries);
+      if (compositeKeys.length){
+        for (const cavKey of compositeKeys){
+          const pts = compositeMeanSeries[cavKey];
+          if (!Array.isArray(pts) || !pts.length) continue;
+          const color = String((pts[0] && pts[0].color) || _meanColor);
+          const shape = String((pts[0] && pts[0].shape) || panelShape);
+          drawMeanSeries(pts, color, shape, '평균선: Cavity ' + qgFormatGroupYValue('cavity', cavKey));
+        }
+      }else if (meanPts.length){
+        drawMeanSeries(meanPts, _meanDotColor, panelShape, '평균선: ' + String(_label||_colKey||''));
+      }
     }
 
 }
