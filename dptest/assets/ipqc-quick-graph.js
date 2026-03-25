@@ -4931,6 +4931,39 @@ function qgGetGroupYLayoutMetrics(){
   return { valueW, fieldW, totalW, gridPad: totalW };
 }
 
+function qgGetRightDockReserve(){
+  try{
+    const main = qs('#qgOverlay .qg-main');
+    if (!main || !main.getBoundingClientRect) return 0;
+    const items = qsa('.qg-dropdock-item[data-dock]').filter((el)=>{
+      try{
+        if (!el || !el.getBoundingClientRect) return false;
+        const cs = getComputedStyle(el);
+        if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+        const r = el.getBoundingClientRect();
+        return !!(r && r.width > 4 && r.height > 4);
+      }catch(e){ return false; }
+    });
+    if (!items.length) return 0;
+    const mr = main.getBoundingClientRect();
+    let left = Infinity;
+    let right = -Infinity;
+    for (const el of items){
+      try{
+        const r = el.getBoundingClientRect();
+        if (!r || !(r.width > 4) || !(r.height > 4)) continue;
+        left = Math.min(left, r.left);
+        right = Math.max(right, r.right);
+      }catch(e){}
+    }
+    if (!isFinite(left) || !isFinite(right) || right <= left) return 0;
+    const reserve = Math.max(0, Math.ceil(mr.right - left));
+    return reserve;
+  }catch(e){
+    return 0;
+  }
+}
+
 function qgEnsureAxisLayoutState(){
   const all = ['tool','cavity'];
 
@@ -7758,7 +7791,8 @@ function renderGrid(){
   })();
 
   const gyMetrics = qgGetGroupYLayoutMetrics();
-  try{ grid.style.paddingRight = (gyMetrics.gridPad || 26) + 'px'; }catch(e){}
+  const rightDockReserve = qgGetRightDockReserve();
+  try{ grid.style.paddingRight = ((gyMetrics.gridPad || 26) + rightDockReserve) + 'px'; }catch(e){}
   const gridW = (grid && grid.clientWidth) ? grid.clientWidth : (main ? main.clientWidth : 1200);
   let gridPadR = 0;
   try{ gridPadR = parseFloat(getComputedStyle(grid).paddingRight || '0') || 0; }catch(e){}
@@ -7978,7 +8012,8 @@ function qgSyncGroupYBox(){
     const grid = qs('#qgGrid');
     if (!box || !main || !grid) return;
     const metrics = qgGetGroupYLayoutMetrics();
-    try{ grid.style.paddingRight = (metrics.gridPad || 26) + 'px'; }catch(e){}
+    const rightDockReserve = qgGetRightDockReserve();
+    try{ grid.style.paddingRight = ((metrics.gridPad || 26) + rightDockReserve) + 'px'; }catch(e){}
     const rows = qsa('.qg-fai-row', grid).filter(Boolean);
     if (!rows.length){
       box.style.display = 'none';
@@ -7996,7 +8031,7 @@ function qgSyncGroupYBox(){
     if (!isFinite(top)) top = 0;
     if (!isFinite(height) || height < 48) height = 48;
     box.style.display = 'flex';
-    box.style.right = '0px';
+    box.style.right = rightDockReserve + 'px';
     box.style.top = Math.max(0, top) + 'px';
     box.style.bottom = 'auto';
     box.style.height = height + 'px';
