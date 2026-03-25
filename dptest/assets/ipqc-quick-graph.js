@@ -5183,6 +5183,21 @@ function qgClearGroupYVar(varKey){
   try{ renderLegend(); }catch(e){}
 }
 
+function qgClearGroupXVar(varKey){
+  const st = qgEnsureAxisLayoutState();
+  const arr = Array.isArray(st.groupX) ? st.groupX.slice() : [];
+  if (!arr.length) return;
+  if (!varKey){
+    QG.groupXVars = [];
+  }else{
+    const vk = qgNormalizeDockVar(varKey);
+    QG.groupXVars = arr.filter(v => v !== vk);
+  }
+  qgEnsureAxisLayoutState();
+  try{ renderGrid(); }catch(e){}
+  try{ renderLegend(); }catch(e){}
+}
+
 function qgSetGroupXVar(varKey, insertPos){
   const vk = qgNormalizeDockVar(varKey);
   if (!vk) return;
@@ -5966,6 +5981,16 @@ function qgEnsureVarGhost(){
   return g;
 }
 
+function qgResolveVarDragSource(el){
+  try{
+    if (!el || !el.closest) return '';
+    if (el.closest('#qgGroupYBox')) return 'groupY';
+    if (el.closest('.qg-tophead')) return 'groupX';
+    if (el.closest('.qg-dropdock-item[data-dock]')) return 'dock';
+  }catch(e){}
+  return 'palette';
+}
+
 function qgBindVarDockDragHandle(el, varKey, label){
   if (!el || el._qgVarDockDragBound) return;
   el._qgVarDockDragBound = true;
@@ -5988,6 +6013,7 @@ function qgBindVarDockDragHandle(el, varKey, label){
     const st = {
       pid,
       src: el,
+      source: qgResolveVarDragSource(el),
       varKey: vk,
       label: (label || (vk==='cavity'?'Cavity':'Tool')).toString(),
       startX: ev.clientX,
@@ -6037,6 +6063,10 @@ function qgBindVarDockDragHandle(el, varKey, label){
           if (target.type === 'dock' && target.dockKey) qgSetDockVar(target.dockKey, s.varKey);
           else if (target.type === 'groupY' && target.insertIndex !== null && target.insertIndex !== undefined) qgSetGroupYVar(s.varKey, target.insertIndex);
           else if (target.type === 'groupX' && target.insertIndex !== null && target.insertIndex !== undefined) qgSetGroupXVar(s.varKey, target.insertIndex);
+        }else if (s.source === 'groupY'){
+          qgClearGroupYVar(s.varKey);
+        }else if (s.source === 'groupX'){
+          qgClearGroupXVar(s.varKey);
         }
         QG._dragVarSuppressClickUntil = Date.now() + 300;
       }
