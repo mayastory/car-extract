@@ -5744,21 +5744,9 @@ function qgPickVarDropTargetAt(x, y){
   if (dockEl){
     return { type:'dock', el:dockEl, dockKey:(dockEl.dataset && dockEl.dataset.dock) ? String(dockEl.dataset.dock) : null };
   }
-  const gx = qgPickGroupXBoxAt(x, y);
-  if (gx){
-    return {
-      type:'groupX',
-      el:gx.el,
-      rect:gx.rect,
-      pos:gx.pos,
-      insertIndex:gx.insertIndex,
-      marker:gx.marker,
-      count:gx.count,
-      slotIndex:gx.slotIndex,
-      slotCount:gx.slotCount,
-      slotRect:gx.slotRect
-    };
-  }
+  // Group Y must win when its vertical strip overlaps the grid/top header in screen space.
+  // The current DOM stack can still expose .qg-tophead behind Group Y via elementsFromPoint(),
+  // so checking Group X first misroutes a valid Group Y drop into Group X.
   const gy = qgPickGroupYBoxAt(x, y);
   if (gy){
     return {
@@ -5772,6 +5760,21 @@ function qgPickVarDropTargetAt(x, y){
       slotIndex:gy.slotIndex,
       slotCount:gy.slotCount,
       slotRect:gy.slotRect
+    };
+  }
+  const gx = qgPickGroupXBoxAt(x, y);
+  if (gx){
+    return {
+      type:'groupX',
+      el:gx.el,
+      rect:gx.rect,
+      pos:gx.pos,
+      insertIndex:gx.insertIndex,
+      marker:gx.marker,
+      count:gx.count,
+      slotIndex:gx.slotIndex,
+      slotCount:gx.slotCount,
+      slotRect:gx.slotRect
     };
   }
   return null;
