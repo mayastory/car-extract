@@ -178,11 +178,11 @@ if (!function_exists('jtgpt_planner_extract_cavity')) {
 }
 
 if (!function_exists('jtgpt_planner_extract_limit')) {
-    function jtgpt_planner_extract_limit(string $message): int {
-        if (preg_match('/\btop\s*(\d{1,2})\b/iu', $message, $m)) return max(1, min(30, (int)$m[1]));
-        if (preg_match('/상위\s*(\d{1,2})/u', $message, $m)) return max(1, min(30, (int)$m[1]));
-        if (preg_match('/(\d{1,2})\s*개/u', $message, $m)) return max(1, min(30, (int)$m[1]));
-        return 5;
+    function jtgpt_planner_extract_limit(string $message): ?int {
+        if (preg_match('/\btop\s*(\d{1,3})\b/iu', $message, $m)) return max(1, min(500, (int)$m[1]));
+        if (preg_match('/상위\s*(\d{1,3})/u', $message, $m)) return max(1, min(500, (int)$m[1]));
+        if (preg_match('/(\d{1,3})\s*개/u', $message, $m)) return max(1, min(500, (int)$m[1]));
+        return null;
     }
 }
 

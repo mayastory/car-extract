@@ -223,7 +223,7 @@ if (!function_exists('jtgpt_tool_quality_base_where')) {
 
 if (!function_exists('jtgpt_quality_bind_limit')) {
     function jtgpt_quality_bind_limit(PDOStatement $st, int $limit): void {
-        $st->bindValue(':limit_n', max(1, min(50, $limit)), PDO::PARAM_INT);
+        $st->bindValue(':limit_n', max(1, min(500, $limit)), PDO::PARAM_INT);
     }
 }
 
@@ -305,7 +305,9 @@ if (!function_exists('jtgpt_tool_quality_recent_ng_rows')) {
         }
 
         $schema = $base['schema'];
-        $limit = (int)($args['limit'] ?? 10);
+        $limit = array_key_exists('limit', $args) && $args['limit'] !== null && $args['limit'] !== ''
+            ? (int)$args['limit']
+            : null;
         $partExpr = !empty($schema['part_col']) ? "h.`{$schema['part_col']}`" : "''";
         $kindExpr = !empty($schema['kind_col']) ? "h.`{$schema['kind_col']}`" : "''";
         $toolCavityExpr = jtgpt_quality_tool_cavity_expr($schema);
@@ -315,10 +317,15 @@ if (!function_exists('jtgpt_tool_quality_recent_ng_rows')) {
         $lslExpr = !empty($schema['lsl_col']) ? "r.`{$schema['lsl_col']}`" : 'NULL';
         $fromClause = jtgpt_quality_from_clause($schema, strtolower($module));
 
-        $sql = "SELECT h.`{$schema['date_col']}` AS event_date, {$pointExpr} AS point_no, {$partExpr} AS part_name, {$kindExpr} AS kind, {$toolCavityExpr} AS tool_cavity, {$valueExpr} AS value, {$uslExpr} AS usl, {$lslExpr} AS lsl {$fromClause} {$base['sql']} ORDER BY h.`{$schema['date_col']}` DESC, h.`{$schema['header_pk_col']}` DESC LIMIT :limit_n";
+        $sql = "SELECT h.`{$schema['date_col']}` AS event_date, {$pointExpr} AS point_no, {$partExpr} AS part_name, {$kindExpr} AS kind, {$toolCavityExpr} AS tool_cavity, {$valueExpr} AS value, {$uslExpr} AS usl, {$lslExpr} AS lsl {$fromClause} {$base['sql']} ORDER BY h.`{$schema['date_col']}` DESC, h.`{$schema['header_pk_col']}` DESC";
+        if ($limit !== null && $limit > 0) {
+            $sql .= ' LIMIT :limit_n';
+        }
         $st = $pdo->prepare($sql);
         foreach ($base['params'] as $k => $v) $st->bindValue($k, $v);
-        jtgpt_quality_bind_limit($st, $limit);
+        if ($limit !== null && $limit > 0) {
+            jtgpt_quality_bind_limit($st, $limit);
+        }
         $st->execute();
         $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
         return ['found' => !empty($rows), 'module' => $schema['module'], 'label' => $schema['label'], 'rows' => $rows];
@@ -345,7 +352,11 @@ if (!function_exists('jtgpt_tool_quality_point_detail')) {
             return ['found' => false, 'module' => $schema['module'], 'label' => $schema['label'], 'summary' => null, 'latest_rows' => []];
         }
 
-        $latest = jtgpt_tool_quality_recent_ng_rows($pdo, $module, array_merge($args, ['limit' => max(5, (int)($args['limit'] ?? 5))]));
+        $detailArgs = $args;
+        if (!array_key_exists('limit', $detailArgs)) {
+            $detailArgs['limit'] = null;
+        }
+        $latest = jtgpt_tool_quality_recent_ng_rows($pdo, $module, $detailArgs);
         return ['found' => true, 'module' => $schema['module'], 'label' => $schema['label'], 'summary' => $summary, 'latest_rows' => $latest['rows'] ?? []];
     }
 }
