@@ -8918,7 +8918,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       const compositePoint = isToolOnlyComposite ? qgBuildAggregateBoxPoint(p) : null;
 
       if (compositePoint){
-        const compositeBoxStyle = { boxFillEnabled:false, boxFillOpacity:1, boxOpacity:1, boxStrokeWidth:_boxStrokeW };
+        const compositeBoxStyle = { boxFillEnabled:_boxFill, boxFillOpacity:_boxFillOpacity, boxOpacity:_boxOpacity, boxStrokeWidth:_boxStrokeW };
         drawRangeBox(x, compositePoint, _boxColor, _boxFillColor, d, dk, '', compositeBoxStyle);
         drawPointDots(x, compositePoint, panelShape, _dataDotColor, d, dk, '');
         drawRangeWhiskers(x, compositePoint, _boxColor, compositeBoxStyle);
