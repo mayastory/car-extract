@@ -208,7 +208,8 @@
     const fill = (opt && opt.fill !== undefined && opt.fill !== null) ? String(opt.fill) : '#2b5bd7';
     const stroke = (opt && opt.stroke !== undefined && opt.stroke !== null) ? String(opt.stroke) : fill;
     const opacity = qgClamp01(opt && opt.opacity !== undefined && opt.opacity !== null ? opt.opacity : 1);
-    const strokeW = Math.max(0.8, Number(opt && opt.strokeWidth) || 1.2);
+    const rawStrokeW = (opt && opt.strokeWidth !== undefined && opt.strokeWidth !== null) ? Number(opt.strokeWidth) : NaN;
+    const strokeW = isFinite(rawStrokeW) ? Math.max(0, rawStrokeW) : 1.2;
     const marker = String(shape || 'circle').toLowerCase();
 
     const g = document.createElementNS(ns, 'g');
@@ -231,19 +232,18 @@
         node.setAttribute('stroke-linecap', 'round');
         node.setAttribute('stroke-linejoin', 'round');
       }else{
-        const noStroke = !!(opt && (opt.noStroke === true || String(opt.stroke || '').toLowerCase() === 'none' || Number(opt.strokeWidth) === 0));
         node.setAttribute('fill', fill);
         node.setAttribute('fill-opacity', String(opacity));
-        if (noStroke){
-          node.setAttribute('stroke', 'none');
-          node.removeAttribute('stroke-width');
-          node.removeAttribute('stroke-opacity');
-        }else{
+        if (strokeW > 0 && stroke !== 'none'){
           node.setAttribute('stroke', stroke);
-          node.setAttribute('stroke-width', String(Math.max(0.8, strokeW * 0.7)));
+          node.setAttribute('stroke-width', String(strokeW));
           node.setAttribute('stroke-opacity', String(opacity));
-          node.setAttribute('stroke-linejoin', 'round');
+        }else{
+          node.setAttribute('stroke', 'none');
+          node.setAttribute('stroke-width', '0');
+          node.removeAttribute('stroke-opacity');
         }
+        node.setAttribute('stroke-linejoin', 'round');
       }
       g.appendChild(node);
     };
@@ -8790,20 +8790,8 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       const q1 = qgQuantileSorted(sorted, 0.25);
       const med = qgQuantileSorted(sorted, 0.5);
       const q3 = qgQuantileSorted(sorted, 0.75);
-      let low = sorted[0];
-      let high = sorted[sorted.length - 1];
-      try{
-        const iqr = (isFinite(q1) && isFinite(q3)) ? (q3 - q1) : NaN;
-        if (isFinite(iqr)){
-          const loFence = q1 - (1.5 * iqr);
-          const hiFence = q3 + (1.5 * iqr);
-          const inliers = sorted.filter(v => v >= loFence && v <= hiFence);
-          if (inliers.length){
-            low = inliers[0];
-            high = inliers[inliers.length - 1];
-          }
-        }
-      }catch(e){}
+      const low = sorted[0];
+      const high = sorted[sorted.length - 1];
       return {
         vals: sorted.slice(),
         min: low,
@@ -8828,9 +8816,11 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
     const qgGetBoxRectGeom = (xPos, styleOverride)=>{
       const strokeW = qgBoxStrokeWidth(styleOverride);
       const cx = qgGetCenterX(xPos, styleOverride);
-      const width = Math.max(2, Math.round(boxW));
-      const left = cx - (width / 2);
-      const right = left + width;
+      let width = Math.max(2, Math.round(Number(boxW) || 0));
+      if (width % 2 !== 0) width += 1;
+      const half = width / 2;
+      const left = cx - half;
+      const right = cx + half;
       return { strokeW, cx, left, right, width };
     };
 
@@ -8853,7 +8843,6 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       rect.setAttribute('y', String(top));
       rect.setAttribute('width', String(geom.width));
       rect.setAttribute('height', String(h));
-      rect.setAttribute('shape-rendering', 'crispEdges');
       if (useFill){ rect.setAttribute('fill', fillColor); rect.setAttribute('fill-opacity', String(useFillOpacity)); } else { rect.setAttribute('fill','none'); rect.removeAttribute('fill-opacity'); }
       rect.setAttribute('stroke', strokeColor);
       try{ rect.setAttribute('stroke-opacity', String(useStrokeOpacity)); }catch(e){}
@@ -8881,7 +8870,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       const yMinV = qgSnapForStroke(yAt(pointInfo.min), geom.strokeW);
       const yMaxV = qgSnapForStroke(yAt(pointInfo.max), geom.strokeW);
       const yMedV = qgSnapForStroke(yAt(pointInfo.median), geom.strokeW);
-      const capW = Math.max(12, boxW * 1.5);
+      const capW = Math.max(6, geom.width + 2);
       const capLeft = qgSnapForStroke(geom.cx - capW/2, geom.strokeW);
       const capRight = qgSnapForStroke(geom.cx + capW/2, geom.strokeW);
       const useStrokeOpacity = (styleOverride && styleOverride.boxOpacity !== undefined && styleOverride.boxOpacity !== null) ? qgClamp01(styleOverride.boxOpacity) : _boxOpacity;
@@ -8905,11 +8894,11 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       mkLine(geom.left, yMedV, geom.right, yMedV);
     };
 
-    const drawPointDots = (xPos, pointInfo, markerShape, dotColor, dateInfo, dateKey, extraTip)=>{
+    const drawPointDots = (xPos, pointInfo, markerShape, dotColor, dateInfo, dateKey, extraTip, styleOverride)=>{
       if (!_showPts || _hideDataDots || !pointInfo) return;
       const srcVals = Array.isArray(pointInfo.vals) ? pointInfo.vals : [];
       const vals = pointInfo && pointInfo.showAllDots ? srcVals.slice() : srcVals.slice(0,3);
-      const dotX = qgGetCenterX(xPos, null);
+      const dotX = qgGetBoxRectGeom(xPos, styleOverride).cx;
       for (let vi=0; vi<vals.length; vi++){
         const v = vals[vi];
         const cy = yAt(v);
@@ -8917,9 +8906,8 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
         if (extraTip) tip += '\n' + String(extraTip);
         qgAppendMarkerShape(svg, markerShape, dotX, cy, _dataDotSize, {
           fill: dotColor,
-          stroke: dotColor,
+          stroke: 'none',
           strokeWidth: 0,
-          noStroke: true,
           opacity: _dataDotOpacity,
           clip,
           tip
@@ -8939,12 +8927,12 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       if (compositePoint){
         const compositeBoxStyle = { boxFillEnabled:_boxFill, boxFillOpacity:_boxFillOpacity, boxOpacity:_boxOpacity, boxStrokeWidth:_boxStrokeW };
         drawRangeBox(x, compositePoint, _boxColor, _boxFillColor, d, dk, '', compositeBoxStyle);
-        drawPointDots(x, compositePoint, panelShape, _dataDotColor, d, dk, '');
+        drawPointDots(x, compositePoint, panelShape, _dataDotColor, d, dk, '', compositeBoxStyle);
         drawRangeWhiskers(x, compositePoint, _boxColor, compositeBoxStyle);
         if (_showLine) meanPts.push({ x, y: yAt(compositePoint.mean), d, v: compositePoint.mean });
       }else{
         drawRangeBox(x, p, _boxColor, _boxFillColor, d, dk, '');
-        drawPointDots(x, p, panelShape, _dataDotColor, d, dk, '');
+        drawPointDots(x, p, panelShape, _dataDotColor, d, dk, '', null);
         drawRangeWhiskers(x, p, _boxColor, null);
         if (_showLine) meanPts.push({ x, y: yAt(p.mean), d, v: p.mean });
       }
