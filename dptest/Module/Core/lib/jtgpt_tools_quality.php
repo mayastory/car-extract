@@ -317,7 +317,7 @@ if (!function_exists('jtgpt_tool_quality_recent_ng_rows')) {
         $lslExpr = !empty($schema['lsl_col']) ? "r.`{$schema['lsl_col']}`" : 'NULL';
         $fromClause = jtgpt_quality_from_clause($schema, strtolower($module));
 
-        $sql = "SELECT h.`{$schema['date_col']}` AS event_date, {$pointExpr} AS point_no, {$partExpr} AS part_name, {$kindExpr} AS kind, {$toolCavityExpr} AS tool_cavity, {$valueExpr} AS value, {$uslExpr} AS usl, {$lslExpr} AS lsl {$fromClause} {$base['sql']} ORDER BY h.`{$schema['date_col']}` DESC, h.`{$schema['header_pk_col']}` DESC";
+        $sql = "SELECT h.`{$schema['date_col']}` AS event_date, {$pointExpr} AS point_no, {$partExpr} AS part_name, {$kindExpr} AS kind, {$toolCavityExpr} AS tool_cavity, {$valueExpr} AS value, {$uslExpr} AS usl, {$lslExpr} AS lsl {$fromClause} {$base['sql']} ORDER BY h.`{$schema['date_col']}` DESC, {$pointExpr} ASC, {$toolCavityExpr} ASC, {$partExpr} ASC, h.`{$schema['header_pk_col']}` DESC";
         if ($limit !== null && $limit > 0) {
             $sql .= ' LIMIT :limit_n';
         }
