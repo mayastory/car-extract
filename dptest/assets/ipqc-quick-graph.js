@@ -5106,9 +5106,8 @@ function qgRenderGroupYBox(){
   const box = qs('#qgGroupYBox');
   const grid = qs('#qgGrid');
   if (!box) return;
-  const xVars = qgGetXAxisVars();
   const explicitVars = qgGetGroupYVars();
-  const vars = explicitVars.length ? explicitVars.slice() : ((xVars.length === 1) ? [xVars[0]] : []);
+  const vars = explicitVars.slice();
   const metrics = vars.length ? qgGetGroupYLayoutMetrics() : { valueW:20, fieldW:20, totalW:30, gridPad:30 };
   const hasVars = vars.length > 0;
   try{ box.classList.toggle('has-var', hasVars); }catch(e){}
@@ -7902,10 +7901,8 @@ function renderGrid(){
         `;
         try{
           if (asn.tool !== undefined && asn.tool !== null) row.dataset.groupyTool = String(asn.tool);
-          else if (rowTools.length === 1) row.dataset.groupyTool = String(rowTools[0]);
           else delete row.dataset.groupyTool;
           if (asn.cavity !== undefined && asn.cavity !== null) row.dataset.groupyCavity = String(asn.cavity);
-          else if (rowCavs.length === 1) row.dataset.groupyCavity = String(rowCavs[0]);
           else delete row.dataset.groupyCavity;
         }catch(e){}
         const wrap = qs('.qg-fai-one', row);
