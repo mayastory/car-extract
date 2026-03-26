@@ -8890,12 +8890,14 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       if (!_showPts || _hideDataDots || !pointInfo) return;
       const srcVals = Array.isArray(pointInfo.vals) ? pointInfo.vals : [];
       const vals = pointInfo && pointInfo.showAllDots ? srcVals.slice() : srcVals.slice(0,3);
+      const dotStrokeW = Math.max(0.5, Number(_boxStrokeW) || 1);
+      const dotX = (dotStrokeW <= 1.5) ? (Math.round(Number(xPos) || 0) + 0.5) : Math.round(Number(xPos) || 0);
       for (let vi=0; vi<vals.length; vi++){
         const v = vals[vi];
         const cy = yAt(v);
         let tip = 'Data ' + String(vi+1) + ': ' + qgFmtPointValue(v) + '\nDate: ' + (dateInfo && (dateInfo.label||dateInfo.key) ? String(dateInfo.label||dateInfo.key) : String(dateKey));
         if (extraTip) tip += '\n' + String(extraTip);
-        qgAppendMarkerShape(svg, markerShape, xPos, cy, _dataDotSize, {
+        qgAppendMarkerShape(svg, markerShape, dotX, cy, _dataDotSize, {
           fill: dotColor,
           stroke: dotColor,
           opacity: _dataDotOpacity,
