@@ -112,6 +112,15 @@ function jtgpt_resolve_pdo(): PDO {
     throw new RuntimeException('dp_config.php에서 DB 연결을 찾지 못했습니다.');
 }
 
+if (!function_exists('jtgpt_tool_format_float')) {
+    function jtgpt_tool_format_float($v): string {
+        if ($v === null || $v === '') return '';
+        $num = (float)$v;
+        $txt = number_format($num, 4, '.', '');
+        return rtrim(rtrim($txt, '0'), '.');
+    }
+}
+
 function jtgpt_format_scope(array $args): string {
     $parts = [];
     $range = $args['range']['label'] ?? '';
