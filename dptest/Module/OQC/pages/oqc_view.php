@@ -25,6 +25,14 @@ if (!function_exists('h')) {
     }
 }
 
+if (!function_exists('fmt_spec_4')) {
+    function fmt_spec_4($v): string {
+        if ($v === null || $v === '') return '';
+        if (!is_numeric((string)$v)) return (string)$v;
+        return number_format((float)$v, 4, '.', '');
+    }
+}
+
 function table_columns(PDO $pdo, string $table): array
 {
     $cols = [];
@@ -203,7 +211,7 @@ $sql = "
   --accent:#4f8cff; --accent2:#8ab4f8;
   --danger:#e85d5d;
   --radius:14px;
-  --sticky1:72px; --sticky2:72px;
+  --sticky1:72px; --sticky2:72px; --sticky3:88px; --sticky4:88px;
   --ctl-h:34px;
 }
 body{
@@ -354,6 +362,8 @@ th.col-head div.sub{font-size:10px;color:#57d68d;}
 
 th.num, td.num{width:var(--sticky1);min-width:var(--sticky1);max-width:var(--sticky1);}
 th.spc, td.spc{width:var(--sticky2);min-width:var(--sticky2);max-width:var(--sticky2);}
+th.spec, td.spec{width:var(--sticky3);min-width:var(--sticky3);max-width:var(--sticky3);}
+th.spec2, td.spec2{width:var(--sticky4);min-width:var(--sticky4);max-width:var(--sticky4);}
 
 th.sticky, td.sticky{
   position:sticky;
@@ -364,21 +374,33 @@ th.sticky2, td.sticky2{
   position:sticky;
   left:var(--sticky1);
   text-align:center;
+}
+th.sticky3, td.sticky3{
+  position:sticky;
+  left:calc(var(--sticky1) + var(--sticky2));
+  text-align:center;
+}
+th.sticky4, td.sticky4{
+  position:sticky;
+  left:calc(var(--sticky1) + var(--sticky2) + var(--sticky3));
+  text-align:center;
   box-shadow: 2px 0 0 rgba(255,255,255,0.10);
 }
 
-/* ✅ 왼쪽 고정(FAI/SPC) 배경 고정 */
+/* ✅ 왼쪽 고정(FAI/SPC/USL/LSL) 배경 고정 */
 th.sticky, td.sticky{ background:#202124; z-index:5; }
 th.sticky2, td.sticky2{ background:#202124; z-index:5; }
-thead th.sticky, thead th.sticky2{
+th.sticky3, td.sticky3{ background:#202124; z-index:5; }
+th.sticky4, td.sticky4{ background:#202124; z-index:5; }
+thead th.sticky, thead th.sticky2, thead th.sticky3, thead th.sticky4{
   z-index:5;
   background:#303134;
 }
-tbody td.sticky, tbody td.sticky2{
+tbody td.sticky, tbody td.sticky2, tbody td.sticky3, tbody td.sticky4{
   z-index:3;
   background:#202124;
 }
-tbody tr:hover td.sticky, tbody tr:hover td.sticky2{
+tbody tr:hover td.sticky, tbody tr:hover td.sticky2, tbody tr:hover td.sticky3, tbody tr:hover td.sticky4{
   background:rgba(29,185,84,0.10);
 }
 
@@ -511,6 +533,8 @@ endif; ?>
                 <tr>
                     <th class="sticky num">FAI</th>
                     <th class="sticky2 spc">SPC</th>
+                    <th class="sticky3 spec">USL</th>
+                    <th class="sticky4 spec2">LSL</th>
                     <?php foreach ($headers as $hrow): ?>
                         <th class="col-head">
                             <div class="top">
@@ -541,21 +565,22 @@ endif; ?>
                     <?php
                     $pno = $row['point_no'];
                     $spec = $specMap[$pno] ?? null;
-                    $title = '';
-                    if ($spec && ($spec['usl'] !== null || $spec['lsl'] !== null)) {
-                        $title = 'title="USL: ' . h((string)$spec['usl']) . ' / LSL: ' . h((string)$spec['lsl']) . '"';
-                    }
+                    $usl = ($spec && $spec['usl'] !== null && $spec['usl'] !== '') ? fmt_spec_4($spec['usl']) : '';
+                    $lsl = ($spec && $spec['lsl'] !== null && $spec['lsl'] !== '') ? fmt_spec_4($spec['lsl']) : '';
                     ?>
                     <tr>
-                        <td class="sticky num" <?=$title?>><?=h($row['point_no'])?></td>
+                        <td class="sticky num"><?=h($row['point_no'])?></td>
                         <td class="sticky2 spc"><?=h($row['spc_code'])?></td>
+                        <td class="sticky3 spec"><?= $usl === '' ? '' : h($usl) ?></td>
+                        <td class="sticky4 spec2"><?= $lsl === '' ? '' : h($lsl) ?></td>
                         <?php foreach ($headers as $hrow): ?>
                             <?php
                             $hid = (int)$hrow['id'];
                             $val = $row['values'][$hid] ?? '';
+                            $dispVal = ($val === '' || $val === null) ? '' : fmt_spec_4($val);
                             $isNg = isset($ngMap[$hid][$pno]);
                             ?>
-                            <td class="<?= $isNg ? 'ng' : '' ?>"><?= $val === '' ? '' : h($val) ?></td>
+                            <td class="<?= $isNg ? 'ng' : '' ?>"><?= $dispVal === '' ? '' : h($dispVal) ?></td>
                         <?php endforeach; ?>
                     </tr>
                 <?php endforeach; ?>
