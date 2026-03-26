@@ -195,16 +195,26 @@ if (!function_exists('jtgpt_planner_plan')) {
             foreach (['oqc','omm','cmm','aoi'] as $module) {
                 if (mb_strpos($lower, $module) !== false) { $explicitModule = $module; break; }
             }
-            if ($explicitModule === null && (jtgpt_planner_contains_any($lower, ['ng 많은 포인트','ng 포인트','불량 포인트']) || $pointNo || jtgpt_planner_contains_any($lower, ['1위','그 포인트','상세']))) {
-                $lastModule = (string)($state['last_module'] ?? '');
-                if ($lastModule === 'oqc') {
+            if ($explicitModule === null) {
+                $defaultToOqc = false;
+                if ($partName !== null && trim($partName) !== '') $defaultToOqc = true;
+                if (!$defaultToOqc && $customer !== null && trim($customer) !== '') $defaultToOqc = true;
+                if (!$defaultToOqc && !$range['implicit']) $defaultToOqc = true;
+                if (!$defaultToOqc && jtgpt_planner_contains_any($lower, ['최근','오늘','어제','이번주','이번 주','이번달','이번 달'])) $defaultToOqc = true;
+
+                if ($defaultToOqc) {
                     $explicitModule = 'oqc';
-                } else {
-                    return [
-                        'kind' => 'clarify',
-                        'answer' => 'NG 포인트는 OQC / OMM / CMM / AOI 중 어디를 볼까요?',
-                        'suggestions' => ['최근 7일 OQC NG 많은 포인트', '최근 7일 OMM NG 많은 포인트', '최근 7일 CMM NG 많은 포인트'],
-                    ];
+                } elseif (jtgpt_planner_contains_any($lower, ['ng 많은 포인트','ng 포인트','불량 포인트']) || $pointNo || jtgpt_planner_contains_any($lower, ['1위','그 포인트','상세'])) {
+                    $lastModule = (string)($state['last_module'] ?? '');
+                    if ($lastModule === 'oqc') {
+                        $explicitModule = 'oqc';
+                    } else {
+                        return [
+                            'kind' => 'clarify',
+                            'answer' => 'NG 포인트는 OQC / OMM / CMM / AOI 중 어디를 볼까요?',
+                            'suggestions' => ['최근 7일 OQC NG 많은 포인트', '최근 7일 OMM NG 많은 포인트', '최근 7일 CMM NG 많은 포인트'],
+                        ];
+                    }
                 }
             }
             if ($explicitModule === 'oqc') {

@@ -234,3 +234,11 @@ if (!function_exists('jtgpt_tool_oqc_point_detail')) {
         ];
     }
 }
+
+
+if (!function_exists('jtgpt_tool_oqc_recent_ng_rows')) {
+    function jtgpt_tool_oqc_recent_ng_rows(PDO $pdo, array $args): array
+    {
+        return jtgpt_tool_oqc_top_ng_points($pdo, $args);
+    }
+}
