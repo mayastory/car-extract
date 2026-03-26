@@ -8905,7 +8905,8 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       const compositePoint = isToolOnlyComposite ? qgBuildAggregateBoxPoint(p) : null;
 
       if (compositePoint){
-        drawRangeBox(x, compositePoint, _boxColor, _boxFillColor, d, dk, '');
+        const compositeBoxStyle = { boxFillEnabled:false, boxFillOpacity:1, boxOpacity:1, boxStrokeWidth:_boxStrokeW };
+        drawRangeBox(x, compositePoint, _boxColor, _boxFillColor, d, dk, '', compositeBoxStyle);
         drawPointDots(x, compositePoint, panelShape, _dataDotColor, d, dk, '');
         if (_showLine) meanPts.push({ x, y: yAt(compositePoint.mean), d, v: compositePoint.mean });
       }else{
