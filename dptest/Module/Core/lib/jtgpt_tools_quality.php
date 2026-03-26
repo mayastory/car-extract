@@ -182,9 +182,13 @@ if (!function_exists('jtgpt_tool_quality_base_where')) {
             }
         }
 
+        $ptCol = ($module === 'oqc' && !empty($schema['measurement_point_col'])) ? "COALESCE(UPPER(m.`{$schema['measurement_point_col']}`), UPPER(r.`{$schema['result_point_col']}`))" : "UPPER(r.`{$schema['result_point_col']}`)";
+        if (empty($args['include_dc'])) {
+            $where[] = $ptCol . " NOT LIKE :dc_like";
+            $params[':dc_like'] = '%(DC)%';
+        }
         $pointNo = strtoupper(trim((string)($args['point_no'] ?? '')));
         if ($pointNo !== '') {
-            $ptCol = ($module === 'oqc' && !empty($schema['measurement_point_col'])) ? "COALESCE(UPPER(m.`{$schema['measurement_point_col']}`), UPPER(r.`{$schema['result_point_col']}`))" : "UPPER(r.`{$schema['result_point_col']}`)";
             $where[] = $ptCol . " = :point_no";
             $params[':point_no'] = $pointNo;
         }
