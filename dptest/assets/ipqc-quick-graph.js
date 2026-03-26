@@ -231,12 +231,19 @@
         node.setAttribute('stroke-linecap', 'round');
         node.setAttribute('stroke-linejoin', 'round');
       }else{
+        const noStroke = !!(opt && (opt.noStroke === true || String(opt.stroke || '').toLowerCase() === 'none' || Number(opt.strokeWidth) === 0));
         node.setAttribute('fill', fill);
         node.setAttribute('fill-opacity', String(opacity));
-        node.setAttribute('stroke', stroke);
-        node.setAttribute('stroke-width', String(Math.max(0.8, strokeW * 0.7)));
-        node.setAttribute('stroke-opacity', String(opacity));
-        node.setAttribute('stroke-linejoin', 'round');
+        if (noStroke){
+          node.setAttribute('stroke', 'none');
+          node.removeAttribute('stroke-width');
+          node.removeAttribute('stroke-opacity');
+        }else{
+          node.setAttribute('stroke', stroke);
+          node.setAttribute('stroke-width', String(Math.max(0.8, strokeW * 0.7)));
+          node.setAttribute('stroke-opacity', String(opacity));
+          node.setAttribute('stroke-linejoin', 'round');
+        }
       }
       g.appendChild(node);
     };
@@ -8821,11 +8828,10 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
     const qgGetBoxRectGeom = (xPos, styleOverride)=>{
       const strokeW = qgBoxStrokeWidth(styleOverride);
       const cx = qgGetCenterX(xPos, styleOverride);
-      const rawLeft = cx - (boxW / 2);
-      const rawRight = cx + (boxW / 2);
-      const left = qgSnapForStroke(rawLeft, strokeW);
-      const right = qgSnapForStroke(rawRight, strokeW);
-      return { strokeW, cx, left, right, width: Math.max(1, right - left) };
+      const width = Math.max(2, Math.round(boxW));
+      const left = cx - (width / 2);
+      const right = left + width;
+      return { strokeW, cx, left, right, width };
     };
 
     const drawRangeBox = (xPos, pointInfo, strokeColor, fillColor, dateInfo, dateKey, extraTip, styleOverride)=>{
@@ -8847,6 +8853,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       rect.setAttribute('y', String(top));
       rect.setAttribute('width', String(geom.width));
       rect.setAttribute('height', String(h));
+      rect.setAttribute('shape-rendering', 'crispEdges');
       if (useFill){ rect.setAttribute('fill', fillColor); rect.setAttribute('fill-opacity', String(useFillOpacity)); } else { rect.setAttribute('fill','none'); rect.removeAttribute('fill-opacity'); }
       rect.setAttribute('stroke', strokeColor);
       try{ rect.setAttribute('stroke-opacity', String(useStrokeOpacity)); }catch(e){}
@@ -8911,6 +8918,8 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
         qgAppendMarkerShape(svg, markerShape, dotX, cy, _dataDotSize, {
           fill: dotColor,
           stroke: dotColor,
+          strokeWidth: 0,
+          noStroke: true,
           opacity: _dataDotOpacity,
           clip,
           tip
