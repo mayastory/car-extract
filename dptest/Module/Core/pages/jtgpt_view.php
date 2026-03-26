@@ -5,31 +5,290 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
     @session_start();
 }
 
+require_once __DIR__ . '/../lib/jtgpt_session.php';
+require_once __DIR__ . '/../lib/jtgpt_planner.php';
+require_once __DIR__ . '/../lib/jtgpt_tools_quality.php';
+require_once __DIR__ . '/../lib/jtgpt_tools_shipping.php';
+
 function jtgpt_json_response(array $payload): void {
     header('Content-Type: application/json; charset=UTF-8');
     echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
 
-function jtgpt_mock_answer(string $message): string {
-    $text = trim($message);
-    if ($text === '') {
-        return '';
+function jtgpt_root_path(): string {
+    return dirname(__DIR__, 3);
+}
+
+function jtgpt_require_dp_config(): void {
+    static $loaded = false;
+    if ($loaded) return;
+    $root = jtgpt_root_path();
+    $candidates = [
+        $root . '/config/dp_config.php',
+        $root . '/dp_config.php',
+    ];
+    foreach ($candidates as $file) {
+        if (is_file($file)) {
+            require_once $file;
+            $loaded = true;
+            return;
+        }
+    }
+}
+
+function jtgpt_try_callable_result(string $fn) {
+    if (!function_exists($fn)) return null;
+    try {
+        $res = $fn();
+        if ($res instanceof PDO || $res instanceof mysqli) return $res;
+    } catch (Throwable $e) {
+    }
+    return null;
+}
+
+function jtgpt_resolve_pdo(): PDO {
+    static $pdo = null;
+    if ($pdo instanceof PDO) return $pdo;
+    jtgpt_require_dp_config();
+
+    foreach (['pdo','db','dbh','pdo_db','pdo_conn'] as $key) {
+        if (isset($GLOBALS[$key]) && $GLOBALS[$key] instanceof PDO) {
+            $pdo = $GLOBALS[$key];
+            return $pdo;
+        }
     }
 
-    $lower = mb_strtolower($text, 'UTF-8');
-
-    if (preg_match('/그래프|차트/u', $text)) {
-        return '그래프 요청 흐름은 다음 단계에서 연결할 예정이에요. 지금은 화면 톤과 입력 경험만 먼저 맞추고 있어요.';
-    }
-    if (preg_match('/oqc|omm|cmm|aoi|ipqc/u', $lower)) {
-        return '모듈별 실조회는 아직 연결 전이에요. 지금은 JTGPT UI 전용 mock 화면입니다.';
-    }
-    if (preg_match('/출하|출고|ship|shipping|lot|tray|수량|ea/u', $lower)) {
-        return '출하 실조회도 아직 연결 전이에요. 먼저 UI를 확정한 뒤 읽기 전용 조회 로직을 붙일 예정입니다.';
+    foreach (['getPDO','getPdo','db_pdo','pdo_conn','dbconn','dbConn','getDB','getDb','dp_pdo'] as $fn) {
+        $res = jtgpt_try_callable_result($fn);
+        if ($res instanceof PDO) {
+            $pdo = $res;
+            return $pdo;
+        }
     }
 
-    return '지금은 JTGPT UI 전용 mock 화면이에요. 먼저 화면 톤과 입력 경험을 맞춘 뒤 실제 조회 로직을 연결할 예정입니다.';
+    $host = null;
+    $name = null;
+    $user = null;
+    $pass = null;
+    $charset = 'utf8mb4';
+    foreach (['DB_HOST','MYSQL_HOST','DB_SERVER','HOST'] as $c) if ($host === null && defined($c)) $host = constant($c);
+    foreach (['DB_NAME','MYSQL_DB','DB_DATABASE','DB'] as $c) if ($name === null && defined($c)) $name = constant($c);
+    foreach (['DB_USER','MYSQL_USER','DB_USERNAME','USER'] as $c) if ($user === null && defined($c)) $user = constant($c);
+    foreach (['DB_PASS','MYSQL_PASS','DB_PASSWORD','PASSWORD'] as $c) if ($pass === null && defined($c)) $pass = constant($c);
+    foreach (['DB_CHARSET','MYSQL_CHARSET'] as $c) if (defined($c)) $charset = (string)constant($c);
+
+    foreach (['db_host','mysql_host','db_server'] as $g) if ($host === null && isset($GLOBALS[$g])) $host = $GLOBALS[$g];
+    foreach (['db_name','mysql_db','db_database'] as $g) if ($name === null && isset($GLOBALS[$g])) $name = $GLOBALS[$g];
+    foreach (['db_user','mysql_user','db_username'] as $g) if ($user === null && isset($GLOBALS[$g])) $user = $GLOBALS[$g];
+    foreach (['db_pass','mysql_pass','db_password'] as $g) if ($pass === null && isset($GLOBALS[$g])) $pass = $GLOBALS[$g];
+
+    if ($host !== null && $name !== null && $user !== null) {
+        $dsn = 'mysql:host=' . $host . ';dbname=' . $name . ';charset=' . ($charset ?: 'utf8mb4');
+        $pdo = new PDO($dsn, (string)$user, (string)$pass, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        ]);
+        return $pdo;
+    }
+
+    throw new RuntimeException('dp_config.php에서 DB 연결을 찾지 못했습니다.');
+}
+
+function jtgpt_format_scope(array $args): string {
+    $parts = [];
+    $range = $args['range']['label'] ?? '';
+    if ($range !== '') $parts[] = $range;
+    $partName = trim((string)($args['part_name'] ?? ''));
+    if ($partName !== '') $parts[] = $partName;
+    $tool = trim((string)($args['tool'] ?? ''));
+    if ($tool !== '') $parts[] = $tool . '툴';
+    $cavity = trim((string)($args['cavity'] ?? ''));
+    if ($cavity !== '') $parts[] = strtoupper($cavity);
+    return $parts ? ('[' . implode(' / ', $parts) . ']') : '';
+}
+
+function jtgpt_answer_shipping_summary(array $result, array $args): string {
+    if (empty($result['found'])) {
+        return '조건에 맞는 출하 데이터가 없습니다.';
+    }
+    $metric = (string)($args['metric'] ?? 'summary');
+    $scope = jtgpt_format_scope($args);
+    if ($metric === 'qty') {
+        return trim($scope . ' 총 출하수량은 ' . jtgpt_tool_format_int($result['total_qty']) . ' EA 입니다.');
+    }
+    if ($metric === 'lot_count') {
+        return trim($scope . ' LOT 수는 ' . jtgpt_tool_format_int($result['lot_count']) . '개 입니다.');
+    }
+    if ($metric === 'tray_count') {
+        return trim($scope . ' Tray 수는 ' . jtgpt_tool_format_int($result['tray_count']) . '개 입니다.');
+    }
+    $lines = [trim($scope . ' 출하 요약입니다.')];
+    $lines[] = '- 총 수량: ' . jtgpt_tool_format_int($result['total_qty']) . ' EA';
+    $lines[] = '- LOT 수: ' . jtgpt_tool_format_int($result['lot_count']);
+    $lines[] = '- Tray 수: ' . jtgpt_tool_format_int($result['tray_count']);
+    if (!empty($result['top_parts'])) {
+        $lines[] = '- 상위 품번:';
+        foreach ($result['top_parts'] as $row) {
+            $lines[] = '  · ' . ($row['part_name'] ?? '-') . ' : ' . jtgpt_tool_format_int($row['total_qty'] ?? 0) . ' EA';
+        }
+    }
+    return implode("\n", $lines);
+}
+
+function jtgpt_answer_shipping_last_ship(array $result, array $args): string {
+    if (empty($result['found']) || empty($result['row'])) {
+        return '조건에 맞는 최근 출하 이력이 없습니다.';
+    }
+    $row = $result['row'];
+    $scope = jtgpt_format_scope($args);
+    $lines = [trim($scope . ' 가장 최근 출하 이력입니다.')];
+    $lines[] = '- 일시: ' . (string)($row['ship_datetime'] ?? '-');
+    $lines[] = '- 품번: ' . (string)($row['part_name'] ?? '-');
+    $lines[] = '- 납품처: ' . (string)($row['ship_to'] ?? '-');
+    $lines[] = '- 수량: ' . jtgpt_tool_format_int($row['qty'] ?? 0) . ' EA';
+    return implode("\n", $lines);
+}
+
+function jtgpt_answer_quality_top_points(array $result, array $args): string {
+    if (empty($result['found'])) {
+        return ($result['error'] ?? '조건에 맞는 NG 포인트가 없습니다.');
+    }
+    $scope = jtgpt_format_scope($args);
+    $limit = (int)($args['limit'] ?? 5);
+    $lines = [trim(($result['label'] ?? strtoupper((string)($args['module'] ?? ''))) . ' ' . $scope . ' NG 많은 포인트 Top ' . $limit)];
+    foreach (($result['rows'] ?? []) as $i => $row) {
+        $lines[] = ($i + 1) . ') ' . (string)($row['point_no'] ?? '-') . ' - ' . jtgpt_tool_format_int($row['ng_count'] ?? 0) . '건';
+    }
+    return implode("\n", $lines);
+}
+
+function jtgpt_answer_quality_recent_rows(array $result, array $args): string {
+    if (empty($result['found'])) {
+        return ($result['error'] ?? '조건에 맞는 최근 NG 이력이 없습니다.');
+    }
+    $scope = jtgpt_format_scope($args);
+    $lines = [trim(($result['label'] ?? strtoupper((string)($args['module'] ?? ''))) . ' ' . $scope . ' 최근 NG 이력')];
+    foreach (($result['rows'] ?? []) as $row) {
+        $chunk = [
+            (string)($row['event_date'] ?? '-'),
+            (string)($row['point_no'] ?? '-'),
+        ];
+        $part = trim((string)($row['part_name'] ?? ''));
+        if ($part !== '') $chunk[] = $part;
+        $tc = trim((string)($row['tool_cavity'] ?? ''));
+        if ($tc !== '') $chunk[] = $tc;
+        $kind = trim((string)($row['kind'] ?? ''));
+        if ($kind !== '') $chunk[] = $kind;
+        $lines[] = '- ' . implode(' | ', $chunk);
+    }
+    return implode("\n", $lines);
+}
+
+function jtgpt_answer_quality_point_detail(array $result, array $args): string {
+    if (empty($result['found']) || empty($result['summary'])) {
+        return ($result['error'] ?? '조건에 맞는 NG 상세 이력이 없습니다.');
+    }
+    $scope = jtgpt_format_scope($args);
+    $summary = $result['summary'];
+    $pointNo = (string)($summary['point_no'] ?? ($args['point_no'] ?? '-'));
+    $lines = [trim(($result['label'] ?? strtoupper((string)($args['module'] ?? ''))) . ' ' . $scope . ' ' . $pointNo . ' NG 상세')];
+    $lines[] = '- NG 건수: ' . jtgpt_tool_format_int($summary['ng_count'] ?? 0) . '건';
+    $lines[] = '- 마지막 발생일: ' . (string)($summary['last_date'] ?? '-');
+    if (!empty($result['latest_rows'])) {
+        $lines[] = '- 최근 이력:';
+        foreach ($result['latest_rows'] as $row) {
+            $chunk = [
+                (string)($row['event_date'] ?? '-'),
+            ];
+            $part = trim((string)($row['part_name'] ?? ''));
+            if ($part !== '') $chunk[] = $part;
+            $tc = trim((string)($row['tool_cavity'] ?? ''));
+            if ($tc !== '') $chunk[] = $tc;
+            $kind = trim((string)($row['kind'] ?? ''));
+            if ($kind !== '') $chunk[] = $kind;
+            $lines[] = '  · ' . implode(' | ', $chunk);
+        }
+    }
+    return implode("\n", $lines);
+}
+
+function jtgpt_build_answer(string $message): array {
+    $state = jtgpt_session_state();
+    $plan = jtgpt_planner_plan($message, $state);
+    $answer = '';
+    $statePatch = [];
+
+    try {
+        $pdo = jtgpt_resolve_pdo();
+    } catch (Throwable $e) {
+        $pdo = null;
+    }
+
+    if (($plan['kind'] ?? '') === 'clarify') {
+        $answer = (string)($plan['answer'] ?? '조금 더 구체적으로 말해 주세요.');
+    } elseif (($plan['kind'] ?? '') === 'answer' && ($plan['tool'] ?? '') === 'guard_read_only') {
+        $answer = 'JTGPT는 읽기 전용 조회만 지원합니다. 수정/삭제/업로드 작업은 여기서 하지 않습니다.';
+    } elseif (($plan['kind'] ?? '') === 'action') {
+        $answer = '그래프/화면 열기 쪽은 기존 UI와 연결된 상태에서 다음 단계로 붙이면 됩니다. 이번 패치는 자연어 조회 엔진부터 연결했습니다.';
+    } elseif (($plan['kind'] ?? '') === 'tool') {
+        if (!$pdo instanceof PDO) {
+            $answer = 'DB 연결을 찾지 못했습니다. dp_config.php 경로나 연결 변수 이름을 확인해 주세요.';
+        } else {
+            $tool = (string)($plan['tool'] ?? '');
+            $args = (array)($plan['args'] ?? []);
+            switch ($tool) {
+                case 'shipping_summary':
+                    $res = jtgpt_tool_shipping_summary($pdo, $args);
+                    $answer = jtgpt_answer_shipping_summary($res, $args);
+                    break;
+                case 'shipping_last_ship_date':
+                    $res = jtgpt_tool_shipping_last_ship_date($pdo, $args);
+                    $answer = jtgpt_answer_shipping_last_ship($res, $args);
+                    break;
+                case 'quality_top_ng_points':
+                    $res = jtgpt_tool_quality_top_ng_points($pdo, (string)($args['module'] ?? 'oqc'), $args);
+                    $answer = jtgpt_answer_quality_top_points($res, $args);
+                    $statePatch['last_module'] = strtolower((string)($args['module'] ?? 'oqc'));
+                    $statePatch['last_ranked_points'] = array_values(array_map(static fn($r) => (string)($r['point_no'] ?? ''), $res['rows'] ?? []));
+                    break;
+                case 'quality_recent_ng_rows':
+                    $res = jtgpt_tool_quality_recent_ng_rows($pdo, (string)($args['module'] ?? 'oqc'), $args);
+                    $answer = jtgpt_answer_quality_recent_rows($res, $args);
+                    $statePatch['last_module'] = strtolower((string)($args['module'] ?? 'oqc'));
+                    break;
+                case 'quality_point_detail':
+                    $res = jtgpt_tool_quality_point_detail($pdo, (string)($args['module'] ?? 'oqc'), $args);
+                    $answer = jtgpt_answer_quality_point_detail($res, $args);
+                    $statePatch['last_module'] = strtolower((string)($args['module'] ?? 'oqc'));
+                    break;
+                case 'oqc_top_ng_points':
+                    $res = jtgpt_tool_oqc_top_ng_points($pdo, $args);
+                    $answer = jtgpt_answer_quality_top_points($res, array_merge($args, ['module' => 'oqc']));
+                    $statePatch['last_module'] = 'oqc';
+                    $statePatch['last_ranked_points'] = array_values(array_map(static fn($r) => (string)($r['point_no'] ?? ''), $res['rows'] ?? []));
+                    break;
+                case 'oqc_point_detail':
+                    $res = jtgpt_tool_oqc_point_detail($pdo, $args);
+                    $answer = jtgpt_answer_quality_point_detail($res, array_merge($args, ['module' => 'oqc']));
+                    $statePatch['last_module'] = 'oqc';
+                    break;
+                default:
+                    $answer = '아직 연결되지 않은 도구입니다.';
+                    break;
+            }
+        }
+    } else {
+        $answer = '질문을 해석하지 못했습니다.';
+    }
+
+    jtgpt_session_push('user', $message, ['plan' => $plan]);
+    if ($statePatch) {
+        jtgpt_session_merge_state($statePatch);
+    }
+    jtgpt_session_push('assistant', $answer, ['plan' => $plan]);
+
+    return ['ok' => true, 'answer' => $answer, 'plan' => $plan];
 }
 
 $isAjax = ($_SERVER['REQUEST_METHOD'] === 'POST');
@@ -40,10 +299,7 @@ if ($isAjax) {
         $payload = $_POST;
     }
     $message = trim((string)($payload['message'] ?? ''));
-    jtgpt_json_response([
-        'ok' => true,
-        'answer' => jtgpt_mock_answer($message),
-    ]);
+    jtgpt_json_response(jtgpt_build_answer($message));
 }
 ?><!doctype html>
 <html lang="ko">

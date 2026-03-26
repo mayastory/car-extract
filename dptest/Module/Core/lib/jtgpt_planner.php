@@ -20,11 +20,20 @@ if (!function_exists('jtgpt_planner_try_parse_ymd')) {
     }
 }
 
+if (!function_exists('jtgpt_planner_default_recent_range')) {
+    function jtgpt_planner_default_recent_range(int $days = 7): array {
+        $now = new DateTime('now', new DateTimeZone('Asia/Seoul'));
+        $today = $now->format('Y-m-d');
+        $start = (clone $now)->modify('-' . max(0, $days - 1) . ' day')->format('Y-m-d');
+        return ['from'=>$start,'to'=>$today,'label'=>'최근 ' . $days . '일','implicit'=>true];
+    }
+}
+
 if (!function_exists('jtgpt_planner_detect_time_hint')) {
     function jtgpt_planner_detect_time_hint(string $text): ?string {
         $map = [
-            '오늘'    => ['오늘','금일','today','now'],
-            '어제'    => ['어제','yesterday'],
+            '오늘' => ['오늘','금일','today','now'],
+            '어제' => ['어제','yesterday'],
             '이번 주' => ['이번주','이번 주','금주','this week'],
             '최근 7일' => ['최근 7일','7일','일주일','1주일','최근 일주일'],
             '최근 30일' => ['최근 30일','30일','한달','1달','최근 한달'],
@@ -41,7 +50,7 @@ if (!function_exists('jtgpt_planner_detect_date_range')) {
     function jtgpt_planner_detect_date_range(string $text): array {
         $now = new DateTime('now', new DateTimeZone('Asia/Seoul'));
         $today = $now->format('Y-m-d');
-        if (preg_match_all('/(20\d{2})[\.\/-]?(\d{1,2})[\.\/-]?(\d{1,2})/', $text, $m, PREG_SET_ORDER)) {
+        if (preg_match_all('/(20\d{2})[\.\/-]?(\d{1,2})[\.\/-]?(\d{1,2})/u', $text, $m, PREG_SET_ORDER)) {
             $dates = [];
             foreach ($m as $hit) {
                 $ymd = jtgpt_planner_try_parse_ymd($hit[1], $hit[2], $hit[3]);
@@ -54,7 +63,7 @@ if (!function_exists('jtgpt_planner_detect_date_range')) {
         }
         $hint = jtgpt_planner_detect_time_hint($text);
         if ($hint === '오늘') return ['from'=>$today,'to'=>$today,'label'=>'오늘','implicit'=>false];
-        if ($hint === '어제') { $d = (clone $now)->modify('-1 day')->format('Y-m-d'); return ['from'=>$d,'to'=>$d,'label'=>'어제','implicit'=>false]; }
+        if ($hint === '어제') { $d=(clone $now)->modify('-1 day')->format('Y-m-d'); return ['from'=>$d,'to'=>$d,'label'=>'어제','implicit'=>false]; }
         if ($hint === '이번 주') { $s=(clone $now)->modify('monday this week')->format('Y-m-d'); return ['from'=>$s,'to'=>$today,'label'=>'이번 주','implicit'=>false]; }
         if ($hint === '최근 7일') { $s=(clone $now)->modify('-6 day')->format('Y-m-d'); return ['from'=>$s,'to'=>$today,'label'=>'최근 7일','implicit'=>false]; }
         if ($hint === '최근 30일') { $s=(clone $now)->modify('-29 day')->format('Y-m-d'); return ['from'=>$s,'to'=>$today,'label'=>'최근 30일','implicit'=>false]; }
@@ -83,8 +92,8 @@ if (!function_exists('jtgpt_planner_extract_part_name')) {
         foreach ($aliasMap as $needle => $partName) {
             if (mb_strpos($lower, $needle) !== false) return $partName;
         }
-        if (preg_match('/(MEM-[A-Z0-9\.\-]+)/i', $original, $m)) return strtoupper(trim($m[1]));
-        if (preg_match('/([A-Z0-9]+(?:-[A-Z0-9\.]+){2,})/', strtoupper($original), $m)) return trim($m[1]);
+        if (preg_match('/\b(MEM-[A-Z0-9\.\-]+)\b/i', $original, $m)) return strtoupper(trim($m[1]));
+        if (preg_match('/\b([A-Z0-9]+(?:-[A-Z0-9\.]+){2,})\b/', strtoupper($original), $m)) return trim($m[1]);
         return null;
     }
 }
@@ -100,13 +109,41 @@ if (!function_exists('jtgpt_planner_extract_customer')) {
 
 if (!function_exists('jtgpt_planner_extract_point_no')) {
     function jtgpt_planner_extract_point_no(string $message): ?string {
-        if (preg_match('/(?:point|포인트)\s*([0-9]{1,3}(?:-[0-9]{1,3})?)/iu', $message, $m)) {
-            return $m[1];
+        if (preg_match('/(?:point|포인트)\s*([0-9A-Z]{1,4}(?:-[0-9A-Z]{1,4})+)/iu', $message, $m)) {
+            return strtoupper(trim($m[1]));
         }
-        if (preg_match('/([0-9]{1,3}-[0-9]{1,3})/', $message, $m)) {
-            return $m[1];
+        if (preg_match('/\b([0-9A-Z]{1,4}(?:-[0-9A-Z]{1,4})+)\b/u', strtoupper($message), $m)) {
+            return strtoupper(trim($m[1]));
         }
         return null;
+    }
+}
+
+if (!function_exists('jtgpt_planner_extract_tool')) {
+    function jtgpt_planner_extract_tool(string $message): ?string {
+        if (preg_match('/\btool\s*([A-Z0-9]{1,6})\b/iu', $message, $m)) return strtoupper(trim($m[1]));
+        if (preg_match('/\b([A-Z0-9]{1,6})\s*tool\b/iu', $message, $m)) return strtoupper(trim($m[1]));
+        if (preg_match('/툴\s*([A-Z0-9]{1,6})/iu', $message, $m)) return strtoupper(trim($m[1]));
+        if (preg_match('/([A-Z0-9]{1,6})\s*툴/iu', $message, $m)) return strtoupper(trim($m[1]));
+        return null;
+    }
+}
+
+if (!function_exists('jtgpt_planner_extract_cavity')) {
+    function jtgpt_planner_extract_cavity(string $message): ?string {
+        if (preg_match('/\b([0-9]{1,2})\s*cav\b/iu', $message, $m)) return ((int)$m[1]) . 'CAV';
+        if (preg_match('/\bcavity\s*([0-9]{1,2})\b/iu', $message, $m)) return ((int)$m[1]) . 'CAV';
+        if (preg_match('/([0-9]{1,2})\s*캐비티/u', $message, $m)) return ((int)$m[1]) . 'CAV';
+        return null;
+    }
+}
+
+if (!function_exists('jtgpt_planner_extract_limit')) {
+    function jtgpt_planner_extract_limit(string $message): int {
+        if (preg_match('/\btop\s*(\d{1,2})\b/iu', $message, $m)) return max(1, min(30, (int)$m[1]));
+        if (preg_match('/상위\s*(\d{1,2})/u', $message, $m)) return max(1, min(30, (int)$m[1]));
+        if (preg_match('/(\d{1,2})\s*개/u', $message, $m)) return max(1, min(30, (int)$m[1]));
+        return 5;
     }
 }
 
@@ -147,12 +184,14 @@ if (!function_exists('jtgpt_planner_plan')) {
         $partName = jtgpt_planner_extract_part_name($text);
         $customer = jtgpt_planner_extract_customer($text);
         $pointNo = jtgpt_planner_extract_point_no($text);
+        $tool = jtgpt_planner_extract_tool($text);
+        $cavity = jtgpt_planner_extract_cavity($text);
+        $limit = jtgpt_planner_extract_limit($text);
 
         if ($text === '') {
             return [
                 'kind' => 'clarify',
-                'answer' => '질문이 비어 있어요. 출하, OQC NG, 그래프빌더 중에서 먼저 말해 주세요.',
-                'suggestions' => ['자화전자 제일 최근 출하일은?', '최근 7일 OQC NG 많은 포인트', '그래프빌더 열어줘'],
+                'answer' => '질문이 비어 있어요. 출하, OQC/OMM/AOI/CMM NG, 그래프빌더 중에서 먼저 말해 주세요.',
             ];
         }
 
@@ -165,7 +204,6 @@ if (!function_exists('jtgpt_planner_plan')) {
         }
 
         $wantsGraph = jtgpt_planner_contains_any($lower, ['그래프빌더','graph builder','차트','그래프','히스토그램','상자그림','선그래프','막대그래프','jmp']);
-        $wantsOpen = jtgpt_planner_contains_any($lower, ['켜','열','띄','보여줘','실행']);
         if ($wantsGraph) {
             $spec = jtgpt_planner_build_graph_spec($text);
             $actionType = jtgpt_planner_contains_any($lower, ['공정 능력','공정능력']) ? 'open_ipqc_process_capability' : 'open_ipqc_quick_graph';
@@ -191,49 +229,49 @@ if (!function_exists('jtgpt_planner_plan')) {
 
         $mentionsQuality = jtgpt_planner_contains_any($lower, ['ng','불량','포인트','point','oqc','omm','cmm','aoi']);
         if ($mentionsQuality) {
+            if ($range['implicit']) {
+                $range = jtgpt_planner_default_recent_range(7);
+            }
             $explicitModule = null;
             foreach (['oqc','omm','cmm','aoi'] as $module) {
                 if (mb_strpos($lower, $module) !== false) { $explicitModule = $module; break; }
             }
             if ($explicitModule === null) {
-                $defaultToOqc = false;
-                if ($partName !== null && trim($partName) !== '') $defaultToOqc = true;
-                if (!$defaultToOqc && $customer !== null && trim($customer) !== '') $defaultToOqc = true;
-                if (!$defaultToOqc && !$range['implicit']) $defaultToOqc = true;
-                if (!$defaultToOqc && jtgpt_planner_contains_any($lower, ['최근','오늘','어제','이번주','이번 주','이번달','이번 달'])) $defaultToOqc = true;
+                $lastModule = (string)($state['last_module'] ?? '');
+                if (in_array($lastModule, ['oqc','omm','cmm','aoi'], true)) {
+                    $explicitModule = $lastModule;
+                } else {
+                    return [
+                        'kind' => 'clarify',
+                        'answer' => 'NG는 OQC / OMM / CMM / AOI 중 어디를 볼까요?',
+                    ];
+                }
+            }
 
-                if ($defaultToOqc) {
-                    $explicitModule = 'oqc';
-                } elseif (jtgpt_planner_contains_any($lower, ['ng 많은 포인트','ng 포인트','불량 포인트']) || $pointNo || jtgpt_planner_contains_any($lower, ['1위','그 포인트','상세'])) {
-                    $lastModule = (string)($state['last_module'] ?? '');
-                    if ($lastModule === 'oqc') {
-                        $explicitModule = 'oqc';
-                    } else {
-                        return [
-                            'kind' => 'clarify',
-                            'answer' => 'NG 포인트는 OQC / OMM / CMM / AOI 중 어디를 볼까요?',
-                            'suggestions' => ['최근 7일 OQC NG 많은 포인트', '최근 7일 OMM NG 많은 포인트', '최근 7일 CMM NG 많은 포인트'],
-                        ];
-                    }
-                }
+            if (!$pointNo && jtgpt_planner_contains_any($lower, ['1위','그 포인트','상세'])) {
+                $ranked = $state['last_ranked_points'] ?? [];
+                if (!empty($ranked[0])) $pointNo = (string)$ranked[0];
             }
-            if ($explicitModule === 'oqc') {
-                if (!$pointNo && jtgpt_planner_contains_any($lower, ['1위','그 포인트','상세'])) {
-                    $ranked = $state['last_ranked_points'] ?? [];
-                    if (!empty($ranked[0])) $pointNo = (string)$ranked[0];
-                }
-                if ($pointNo) {
-                    return ['kind'=>'tool','tool'=>'oqc_point_detail','args'=>['from'=>$range['from'],'to'=>$range['to'],'range'=>$range,'part_name'=>$partName,'point_no'=>$pointNo]];
-                }
-                return ['kind'=>'tool','tool'=>'oqc_top_ng_points','args'=>['from'=>$range['from'],'to'=>$range['to'],'range'=>$range,'part_name'=>$partName]];
+
+            $baseArgs = [
+                'module' => $explicitModule,
+                'from' => $range['from'],
+                'to' => $range['to'],
+                'range' => $range,
+                'part_name' => $partName,
+                'point_no' => $pointNo,
+                'tool' => $tool,
+                'cavity' => $cavity,
+                'limit' => $limit,
+            ];
+
+            if ($pointNo) {
+                return ['kind'=>'tool','tool'=>'quality_point_detail','args'=>$baseArgs];
             }
-            if ($explicitModule !== null) {
-                return [
-                    'kind' => 'clarify',
-                    'answer' => strtoupper($explicitModule) . ' 쪽은 1차에서는 창 열기보다 OQC/출하부터 먼저 붙였어요. 지금은 OQC/출하 쪽 질문이 가장 정확해요.',
-                    'suggestions' => ['최근 7일 OQC NG 많은 포인트', '자화전자 제일 최근 출하일은?', '그래프빌더 열어줘'],
-                ];
+            if (jtgpt_planner_contains_any($lower, ['많은 포인트','ng 포인트','불량 포인트','top','상위','가장 많은'])) {
+                return ['kind'=>'tool','tool'=>'quality_top_ng_points','args'=>$baseArgs];
             }
+            return ['kind'=>'tool','tool'=>'quality_recent_ng_rows','args'=>$baseArgs];
         }
 
         if (jtgpt_planner_contains_any($lower, ['ipqc','jmp','공정능력'])) {
@@ -247,8 +285,7 @@ if (!function_exists('jtgpt_planner_plan')) {
 
         return [
             'kind' => 'clarify',
-            'answer' => '출하, OQC NG, 그래프빌더 중에서 어느 쪽인지 조금만 더 말해 주세요.',
-            'suggestions' => ['자화전자 제일 최근 출하일은?', '최근 7일 OQC NG 많은 포인트', '그래프빌더 열어줘'],
+            'answer' => '출하, OQC/OMM/CMM/AOI NG, 그래프빌더 중에서 어느 쪽인지 조금만 더 말해 주세요.',
         ];
     }
 }
