@@ -1,13 +1,22 @@
 <?php
+if (!function_exists('jtgpt_tool_format_float')) {
+    function jtgpt_tool_format_float($v): string {
+        if ($v === null || $v === '') return '';
+        $num = (float)$v;
+        $txt = number_format($num, 4, '.', '');
+        return rtrim(rtrim($txt, '0'), '.');
+    }
+}
+
 if (!function_exists('jtgpt_quality_module_def')) {
-    function jtgpt_quality_module_def(string $key): ?array {
-        $key = strtolower(trim($key));
-        $map = [
+    function jtgpt_quality_module_def(string $module): ?array {
+        static $map = [
             'oqc' => ['label' => 'OQC', 'header' => 'oqc_header', 'result' => 'oqc_result_header', 'measurement' => 'oqc_measurements'],
             'omm' => ['label' => 'OMM', 'header' => 'ipqc_omm_header', 'result' => 'ipqc_omm_result', 'measurement' => 'ipqc_omm_measurements'],
             'aoi' => ['label' => 'AOI', 'header' => 'ipqc_aoi_header', 'result' => 'ipqc_aoi_result', 'measurement' => 'ipqc_aoi_measurements'],
             'cmm' => ['label' => 'CMM', 'header' => 'ipqc_cmm_header', 'result' => 'ipqc_cmm_result', 'measurement' => 'ipqc_cmm_measurements'],
         ];
+        $key = strtolower(trim($module));
         return $map[$key] ?? null;
     }
 }
@@ -59,7 +68,6 @@ if (!function_exists('jtgpt_quality_module_schema')) {
         static $cache = [];
         $module = strtolower(trim($module));
         if (isset($cache[$module])) return $cache[$module];
-
         $def = jtgpt_quality_module_def($module);
         if (!$def) {
             return $cache[$module] = ['available' => false, 'label' => strtoupper($module), 'error' => '지원하지 않는 종류입니다.'];
@@ -68,7 +76,6 @@ if (!function_exists('jtgpt_quality_module_schema')) {
         $headerCols = jtgpt_quality_columns($pdo, $def['header']);
         $resultCols = jtgpt_quality_columns($pdo, $def['result']);
         $measurementCols = !empty($def['measurement']) ? jtgpt_quality_columns($pdo, $def['measurement']) : [];
-
         if (!$headerCols || !$resultCols) {
             return $cache[$module] = ['available' => false, 'label' => $def['label'], 'error' => '관련 테이블을 찾지 못했습니다.'];
         }
@@ -93,7 +100,7 @@ if (!function_exists('jtgpt_quality_module_schema')) {
             'cavity_col' => jtgpt_quality_first_col($headerCols, ['cavity']),
             'tool_cavity_col' => jtgpt_quality_first_col($headerCols, ['tool_cavity','tc']),
             'result_point_col' => jtgpt_quality_first_col($resultCols, ['point_no','point_code','point','fai']),
-            'result_value_col' => jtgpt_quality_first_col($resultCols, ['value','meas_value','measured_value','val','result_value']),
+            'result_value_col' => jtgpt_quality_first_col($resultCols, ['value','meas_value','measured_value','val','result_value','max_val']),
             'usl_col' => jtgpt_quality_first_col($resultCols, ['usl','upper_limit']),
             'lsl_col' => jtgpt_quality_first_col($resultCols, ['lsl','lower_limit']),
             'measurement_point_col' => jtgpt_quality_first_col($measurementCols, ['point_no','point_code','point','fai']),
@@ -112,7 +119,6 @@ if (!function_exists('jtgpt_quality_module_schema')) {
             $schema['available'] = false;
             $schema['error'] = '필수 컬럼 구조를 자동 인식하지 못했습니다.';
         }
-
         return $cache[$module] = $schema;
     }
 }
@@ -139,106 +145,10 @@ if (!function_exists('jtgpt_quality_norm_token')) {
     }
 }
 
-if (!function_exists('jtgpt_tool_quality_base_where')) {
-    function jtgpt_tool_quality_base_where(PDO $pdo, string $module, array $args): array {
-        $schema = jtgpt_quality_module_schema($pdo, $module);
-        if (empty($schema['available'])) {
-            return ['schema' => $schema, 'ok' => false, 'sql' => '', 'params' => []];
-        }
-
-        $where = [];
-        $params = [];
-
-        if ($module === 'oqc') {
-            $measAlias = (!empty($schema['measurement_table']) && !empty($schema['measurement_header_id_col']) && !empty($schema['measurement_point_col'])) ? 'm' : 'r';
-            $valueExpr = ($measAlias === 'm' && !empty($schema['measurement_value_col'])) ? "m.`{$schema['measurement_value_col']}`" : (!empty($schema['result_value_col']) ? "r.`{$schema['result_value_col']}`" : 'NULL');
-            $uslExpr = !empty($schema['usl_col']) ? "r.`{$schema['usl_col']}`" : 'NULL';
-            $lslExpr = !empty($schema['lsl_col']) ? "r.`{$schema['lsl_col']}`" : 'NULL';
-            $directNg = "(($uslExpr IS NOT NULL AND $valueExpr IS NOT NULL AND $valueExpr > $uslExpr) OR ($lslExpr IS NOT NULL AND $valueExpr IS NOT NULL AND $valueExpr < $lslExpr))";
-            if (!empty($schema['ng_predicate'])) {
-                $where[] = "($directNg OR {$schema['ng_predicate']})";
-            } else {
-                $where[] = $directNg;
-            }
-        } else {
-            if (!empty($schema['ng_predicate'])) {
-                $where[] = $schema['ng_predicate'];
-            }
-        }
-
-        if (!empty($args['from']) && !empty($args['to'])) {
-            $where[] = "h.`{$schema['date_col']}` >= :from_d";
-            $where[] = "h.`{$schema['date_col']}` <= :to_d";
-            $params[':from_d'] = (string)$args['from'];
-            $params[':to_d'] = (string)$args['to'];
-        }
-
-        $partName = trim((string)($args['part_name'] ?? ''));
-        if ($partName !== '' && !empty($schema['part_col'])) {
-            $partNorm = jtgpt_quality_norm_token($partName);
-            if ($partNorm !== '') {
-                $where[] = "REPLACE(REPLACE(UPPER(h.`{$schema['part_col']}`), '-', ''), ' ', '') LIKE :part_norm";
-                $params[':part_norm'] = '%' . $partNorm . '%';
-            }
-        }
-
-        $ptCol = ($module === 'oqc' && !empty($schema['measurement_point_col'])) ? "COALESCE(UPPER(m.`{$schema['measurement_point_col']}`), UPPER(r.`{$schema['result_point_col']}`))" : "UPPER(r.`{$schema['result_point_col']}`)";
-        if (empty($args['include_dc'])) {
-            $where[] = $ptCol . " NOT LIKE :dc_like";
-            $params[':dc_like'] = '%(DC)%';
-        }
-        $pointNo = strtoupper(trim((string)($args['point_no'] ?? '')));
-        if ($pointNo !== '') {
-            $where[] = $ptCol . " = :point_no";
-            $params[':point_no'] = $pointNo;
-        }
-
-        $tool = jtgpt_quality_normalize_tool($args['tool'] ?? '');
-        if ($tool !== '') {
-            if (!empty($schema['tool_col'])) {
-                $where[] = "UPPER(CAST(h.`{$schema['tool_col']}` AS CHAR)) = :tool";
-                $params[':tool'] = $tool;
-            } elseif (!empty($schema['tool_cavity_col'])) {
-                $where[] = "UPPER(h.`{$schema['tool_cavity_col']}`) LIKE :tool_like";
-                $params[':tool_like'] = '%' . $tool . '%';
-            }
-        }
-
-        $cavity = jtgpt_quality_normalize_cavity($args['cavity'] ?? '');
-        if ($cavity !== '') {
-            if (!empty($schema['cavity_col'])) {
-                $where[] = "REPLACE(UPPER(CAST(h.`{$schema['cavity_col']}` AS CHAR)), ' ', '') IN (:cavity_raw, :cavity_num)";
-                $params[':cavity_raw'] = $cavity;
-                $params[':cavity_num'] = (string)((int)$cavity);
-            } elseif (!empty($schema['tool_cavity_col'])) {
-                $where[] = "UPPER(h.`{$schema['tool_cavity_col']}`) LIKE :cavity_like";
-                $params[':cavity_like'] = '%' . $cavity . '%';
-            }
-        }
-
-        return [
-            'schema' => $schema,
-            'ok' => true,
-            'sql' => 'WHERE ' . implode(' AND ', $where),
-            'params' => $params,
-        ];
-    }
-}
-
-if (!function_exists('jtgpt_quality_bind_limit')) {
-    function jtgpt_quality_bind_limit(PDOStatement $st, int $limit): void {
-        $st->bindValue(':limit_n', max(1, min(500, $limit)), PDO::PARAM_INT);
-    }
-}
-
 if (!function_exists('jtgpt_quality_from_clause')) {
     function jtgpt_quality_from_clause(array $schema, string $module): string {
         $join = " FROM `{$schema['result_table']}` r JOIN `{$schema['header_table']}` h ON h.`{$schema['header_pk_col']}` = r.`{$schema['header_id_col']}` ";
-        if ($module === 'oqc'
-            && !empty($schema['measurement_table'])
-            && !empty($schema['measurement_header_id_col'])
-            && !empty($schema['measurement_point_col'])
-        ) {
+        if ($module === 'oqc' && !empty($schema['measurement_table']) && !empty($schema['measurement_header_id_col']) && !empty($schema['measurement_point_col'])) {
             $join .= " LEFT JOIN `{$schema['measurement_table']}` m ON m.`{$schema['measurement_header_id_col']}` = r.`{$schema['header_id_col']}` AND UPPER(m.`{$schema['measurement_point_col']}`) = UPPER(r.`{$schema['result_point_col']}`) ";
         }
         return $join;
@@ -280,6 +190,92 @@ if (!function_exists('jtgpt_quality_point_expr')) {
     }
 }
 
+if (!function_exists('jtgpt_tool_quality_base_where')) {
+    function jtgpt_tool_quality_base_where(PDO $pdo, string $module, array $args): array {
+        $schema = jtgpt_quality_module_schema($pdo, $module);
+        if (empty($schema['available'])) {
+            return ['schema' => $schema, 'ok' => false, 'sql' => '', 'params' => []];
+        }
+
+        $where = [];
+        $params = [];
+        $pointExpr = jtgpt_quality_point_expr($schema, strtolower($module));
+        $valueExpr = jtgpt_quality_value_expr($schema, strtolower($module));
+        $uslExpr = !empty($schema['usl_col']) ? "r.`{$schema['usl_col']}`" : 'NULL';
+        $lslExpr = !empty($schema['lsl_col']) ? "r.`{$schema['lsl_col']}`" : 'NULL';
+        $directNg = "(({$uslExpr} IS NOT NULL AND {$valueExpr} IS NOT NULL AND {$valueExpr} > {$uslExpr}) OR ({$lslExpr} IS NOT NULL AND {$valueExpr} IS NOT NULL AND {$valueExpr} < {$lslExpr}))";
+
+        if (!empty($schema['ng_predicate'])) {
+            $where[] = "({$directNg} OR {$schema['ng_predicate']})";
+        } else {
+            $where[] = $directNg;
+        }
+
+        if (!empty($args['from']) && !empty($args['to'])) {
+            $where[] = "h.`{$schema['date_col']}` >= :from_d";
+            $where[] = "h.`{$schema['date_col']}` <= :to_d";
+            $params[':from_d'] = (string)$args['from'];
+            $params[':to_d'] = (string)$args['to'];
+        }
+
+        $partName = trim((string)($args['part_name'] ?? ''));
+        if ($partName !== '' && !empty($schema['part_col'])) {
+            $partNorm = jtgpt_quality_norm_token($partName);
+            if ($partNorm !== '') {
+                $where[] = "REPLACE(REPLACE(UPPER(h.`{$schema['part_col']}`), '-', ''), ' ', '') LIKE :part_norm";
+                $params[':part_norm'] = '%' . $partNorm . '%';
+            }
+        }
+
+        if (empty($args['include_dc'])) {
+            $where[] = "{$pointExpr} NOT LIKE :dc_like";
+            $params[':dc_like'] = '%(DC)%';
+        }
+
+        $pointNo = strtoupper(trim((string)($args['point_no'] ?? '')));
+        if ($pointNo !== '') {
+            $where[] = "UPPER({$pointExpr}) = :point_no";
+            $params[':point_no'] = $pointNo;
+        }
+
+        $tool = jtgpt_quality_normalize_tool($args['tool'] ?? '');
+        if ($tool !== '') {
+            if (!empty($schema['tool_col'])) {
+                $where[] = "UPPER(CAST(h.`{$schema['tool_col']}` AS CHAR)) = :tool";
+                $params[':tool'] = $tool;
+            } elseif (!empty($schema['tool_cavity_col'])) {
+                $where[] = "UPPER(h.`{$schema['tool_cavity_col']}`) LIKE :tool_like";
+                $params[':tool_like'] = '%' . $tool . '%';
+            }
+        }
+
+        $cavity = jtgpt_quality_normalize_cavity($args['cavity'] ?? '');
+        if ($cavity !== '') {
+            if (!empty($schema['cavity_col'])) {
+                $where[] = "REPLACE(UPPER(CAST(h.`{$schema['cavity_col']}` AS CHAR)), ' ', '') IN (:cavity_raw, :cavity_num)";
+                $params[':cavity_raw'] = $cavity;
+                $params[':cavity_num'] = (string)((int)$cavity);
+            } elseif (!empty($schema['tool_cavity_col'])) {
+                $where[] = "UPPER(h.`{$schema['tool_cavity_col']}`) LIKE :cavity_like";
+                $params[':cavity_like'] = '%' . $cavity . '%';
+            }
+        }
+
+        return [
+            'schema' => $schema,
+            'ok' => true,
+            'sql' => 'WHERE ' . implode(' AND ', $where),
+            'params' => $params,
+        ];
+    }
+}
+
+if (!function_exists('jtgpt_quality_bind_limit')) {
+    function jtgpt_quality_bind_limit(PDOStatement $st, int $limit): void {
+        $st->bindValue(':limit_n', max(1, min(500, $limit)), PDO::PARAM_INT);
+    }
+}
+
 if (!function_exists('jtgpt_tool_quality_top_ng_points')) {
     function jtgpt_tool_quality_top_ng_points(PDO $pdo, string $module, array $args): array {
         $base = jtgpt_tool_quality_base_where($pdo, $module, $args);
@@ -290,7 +286,6 @@ if (!function_exists('jtgpt_tool_quality_top_ng_points')) {
         $limit = (int)($args['limit'] ?? 5);
         $pointExpr = jtgpt_quality_point_expr($schema, strtolower($module));
         $fromClause = jtgpt_quality_from_clause($schema, strtolower($module));
-
         $sql = "SELECT {$pointExpr} AS point_no, COUNT(*) AS ng_count, COUNT(DISTINCT r.`{$schema['header_id_col']}`) AS header_count, MAX(h.`{$schema['date_col']}`) AS last_date {$fromClause} {$base['sql']} GROUP BY {$pointExpr} ORDER BY ng_count DESC, point_no ASC LIMIT :limit_n";
         $st = $pdo->prepare($sql);
         foreach ($base['params'] as $k => $v) $st->bindValue($k, $v);
@@ -307,21 +302,18 @@ if (!function_exists('jtgpt_tool_quality_recent_ng_rows')) {
         if (empty($base['ok'])) {
             return ['found' => false, 'module' => strtolower($module), 'error' => $base['schema']['error'] ?? '조회 준비 실패', 'rows' => []];
         }
-
         $schema = $base['schema'];
-        $limit = array_key_exists('limit', $args) && $args['limit'] !== null && $args['limit'] !== ''
-            ? (int)$args['limit']
-            : null;
+        $limit = array_key_exists('limit', $args) && $args['limit'] !== null && $args['limit'] !== '' ? (int)$args['limit'] : null;
         $partExpr = !empty($schema['part_col']) ? "h.`{$schema['part_col']}`" : "''";
-        $kindExpr = !empty($schema['kind_col']) ? "h.`{$schema['kind_col']}`" : "''";
         $toolCavityExpr = jtgpt_quality_tool_cavity_expr($schema);
         $pointExpr = jtgpt_quality_point_expr($schema, strtolower($module));
         $valueExpr = jtgpt_quality_value_expr($schema, strtolower($module));
         $uslExpr = !empty($schema['usl_col']) ? "r.`{$schema['usl_col']}`" : 'NULL';
         $lslExpr = !empty($schema['lsl_col']) ? "r.`{$schema['lsl_col']}`" : 'NULL';
         $fromClause = jtgpt_quality_from_clause($schema, strtolower($module));
-
-        $sql = "SELECT h.`{$schema['date_col']}` AS event_date, {$pointExpr} AS point_no, {$partExpr} AS part_name, {$kindExpr} AS kind, {$toolCavityExpr} AS tool_cavity, {$valueExpr} AS value, {$uslExpr} AS usl, {$lslExpr} AS lsl {$fromClause} {$base['sql']} ORDER BY h.`{$schema['date_col']}` DESC, {$pointExpr} ASC, {$toolCavityExpr} ASC, {$partExpr} ASC, h.`{$schema['header_pk_col']}` DESC";
+        $ngSideExpr = "CASE WHEN {$uslExpr} IS NOT NULL AND {$valueExpr} IS NOT NULL AND {$valueExpr} > {$uslExpr} THEN 'USL' WHEN {$lslExpr} IS NOT NULL AND {$valueExpr} IS NOT NULL AND {$valueExpr} < {$lslExpr} THEN 'LSL' ELSE '' END";
+        $ngLimitExpr = "CASE WHEN {$uslExpr} IS NOT NULL AND {$valueExpr} IS NOT NULL AND {$valueExpr} > {$uslExpr} THEN {$uslExpr} WHEN {$lslExpr} IS NOT NULL AND {$valueExpr} IS NOT NULL AND {$valueExpr} < {$lslExpr} THEN {$lslExpr} ELSE NULL END";
+        $sql = "SELECT h.`{$schema['date_col']}` AS event_date, {$pointExpr} AS raw_point_no, {$partExpr} AS part_name, {$toolCavityExpr} AS raw_tool_cavity, {$valueExpr} AS value, {$uslExpr} AS usl, {$lslExpr} AS lsl, {$ngSideExpr} AS ng_side, {$ngLimitExpr} AS ng_limit {$fromClause} {$base['sql']} ORDER BY h.`{$schema['date_col']}` ASC, {$pointExpr} ASC, {$toolCavityExpr} ASC, {$partExpr} ASC, h.`{$schema['header_pk_col']}` ASC";
         if ($limit !== null && $limit > 0) {
             $sql .= ' LIMIT :limit_n';
         }
@@ -331,7 +323,36 @@ if (!function_exists('jtgpt_tool_quality_recent_ng_rows')) {
             jtgpt_quality_bind_limit($st, $limit);
         }
         $st->execute();
-        $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $rawRows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $rows = [];
+        foreach ($rawRows as $row) {
+            $side = strtoupper(trim((string)($row['ng_side'] ?? '')));
+            $limitValue = $row['ng_limit'] ?? null;
+            $value = $row['value'] ?? null;
+            $displayBits = [];
+            if ($side !== '') {
+                $bit = $side;
+                if ($limitValue !== null && $limitValue !== '') {
+                    $bit .= ' ' . jtgpt_tool_format_float($limitValue);
+                }
+                $displayBits[] = $bit;
+            }
+            if ($value !== null && $value !== '') {
+                $displayBits[] = '측정값 ' . jtgpt_tool_format_float($value);
+            }
+            $rows[] = [
+                'event_date' => (string)($row['event_date'] ?? '-'),
+                'point_no' => trim((string)($row['raw_tool_cavity'] ?? '')),
+                'tool_cavity' => trim((string)($row['raw_point_no'] ?? '')),
+                'part_name' => (string)($row['part_name'] ?? ''),
+                'kind' => implode(' | ', $displayBits),
+                'ng_side' => '',
+                'ng_limit' => null,
+                'value' => null,
+                'usl' => $row['usl'] ?? null,
+                'lsl' => $row['lsl'] ?? null,
+            ];
+        }
         return ['found' => !empty($rows), 'module' => $schema['module'], 'label' => $schema['label'], 'rows' => $rows];
     }
 }
@@ -342,11 +363,9 @@ if (!function_exists('jtgpt_tool_quality_point_detail')) {
         if (empty($base['ok'])) {
             return ['found' => false, 'module' => strtolower($module), 'error' => $base['schema']['error'] ?? '조회 준비 실패', 'summary' => null, 'latest_rows' => []];
         }
-
         $schema = $base['schema'];
         $pointExpr = jtgpt_quality_point_expr($schema, strtolower($module));
         $fromClause = jtgpt_quality_from_clause($schema, strtolower($module));
-
         $sql = "SELECT {$pointExpr} AS point_no, COUNT(*) AS ng_count, COUNT(DISTINCT r.`{$schema['header_id_col']}`) AS header_count, MAX(h.`{$schema['date_col']}`) AS last_date {$fromClause} {$base['sql']} GROUP BY {$pointExpr} LIMIT 1";
         $st = $pdo->prepare($sql);
         foreach ($base['params'] as $k => $v) $st->bindValue($k, $v);
@@ -355,7 +374,6 @@ if (!function_exists('jtgpt_tool_quality_point_detail')) {
         if (!$summary) {
             return ['found' => false, 'module' => $schema['module'], 'label' => $schema['label'], 'summary' => null, 'latest_rows' => []];
         }
-
         $detailArgs = $args;
         if (!array_key_exists('limit', $detailArgs)) {
             $detailArgs['limit'] = null;
