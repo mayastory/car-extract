@@ -17,6 +17,10 @@ function jtgpt_json_response(array $payload): void {
 }
 
 function jtgpt_root_path(): string {
+    if (defined('JTMES_ROOT')) {
+        $root = (string) constant('JTMES_ROOT');
+        if ($root !== '') return $root;
+    }
     return dirname(__DIR__, 3);
 }
 
@@ -27,6 +31,8 @@ function jtgpt_require_dp_config(): void {
     $candidates = [
         $root . '/config/dp_config.php',
         $root . '/dp_config.php',
+        dirname($root) . '/config/dp_config.php',
+        dirname($root) . '/dp_config.php',
     ];
     foreach ($candidates as $file) {
         if (is_file($file)) {
@@ -52,6 +58,17 @@ function jtgpt_resolve_pdo(): PDO {
     if ($pdo instanceof PDO) return $pdo;
     jtgpt_require_dp_config();
 
+    if (function_exists('dp_get_pdo')) {
+        try {
+            $res = dp_get_pdo();
+            if ($res instanceof PDO) {
+                $pdo = $res;
+                return $pdo;
+            }
+        } catch (Throwable $e) {
+        }
+    }
+
     foreach (['pdo','db','dbh','pdo_db','pdo_conn'] as $key) {
         if (isset($GLOBALS[$key]) && $GLOBALS[$key] instanceof PDO) {
             $pdo = $GLOBALS[$key];
@@ -59,7 +76,7 @@ function jtgpt_resolve_pdo(): PDO {
         }
     }
 
-    foreach (['getPDO','getPdo','db_pdo','pdo_conn','dbconn','dbConn','getDB','getDb','dp_pdo'] as $fn) {
+    foreach (['getPDO','getPdo','db_pdo','pdo_conn','dbconn','dbConn','getDB','getDb','dp_pdo','dp_get_pdo'] as $fn) {
         $res = jtgpt_try_callable_result($fn);
         if ($res instanceof PDO) {
             $pdo = $res;
