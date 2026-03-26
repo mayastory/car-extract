@@ -8853,15 +8853,22 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
         const capW = Math.max(12, boxW * 1.5);
         const useStrokeOpacity = (styleOverride && styleOverride.boxOpacity !== undefined && styleOverride.boxOpacity !== null) ? qgClamp01(styleOverride.boxOpacity) : _boxOpacity;
         const useStrokeWidth = (styleOverride && styleOverride.boxStrokeWidth !== undefined && styleOverride.boxStrokeWidth !== null && isFinite(styleOverride.boxStrokeWidth)) ? Math.max(0.5, Number(styleOverride.boxStrokeWidth)) : _boxStrokeW;
+        const snapCoord = (v)=>{
+          const n = Number(v);
+          if (!isFinite(n)) return v;
+          return (useStrokeWidth <= 1.5) ? (Math.round(n) + 0.5) : Math.round(n);
+        };
         const mkLine = (x1,y1,x2,y2)=>{
           const ln = document.createElementNS(ns,'line');
-          ln.setAttribute('x1', String(x1));
-          ln.setAttribute('y1', String(y1));
-          ln.setAttribute('x2', String(x2));
-          ln.setAttribute('y2', String(y2));
+          ln.setAttribute('x1', String(snapCoord(x1)));
+          ln.setAttribute('y1', String(snapCoord(y1)));
+          ln.setAttribute('x2', String(snapCoord(x2)));
+          ln.setAttribute('y2', String(snapCoord(y2)));
           ln.setAttribute('stroke', strokeColor);
           try{ ln.setAttribute('stroke-opacity', String(useStrokeOpacity)); }catch(e){}
           ln.setAttribute('stroke-width', String(useStrokeWidth));
+          ln.setAttribute('shape-rendering', 'crispEdges');
+          ln.setAttribute('stroke-linecap', 'square');
           clip(ln);
           svg.appendChild(ln);
         };
