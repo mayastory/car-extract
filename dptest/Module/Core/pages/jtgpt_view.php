@@ -181,14 +181,15 @@ function jtgpt_format_ng_limit_value(array $row): string {
     $limit = $row['ng_limit'] ?? null;
     $value = $row['value'] ?? null;
     $bits = [];
-    if ($side !== '') {
+    if ($side !== '' && $limit !== null && $limit !== '') {
+        $bits[] = $side . ' ' . jtgpt_tool_format_float($limit);
+    } elseif ($side !== '') {
         $bits[] = $side;
-    }
-    if ($limit !== null && $limit !== '') {
-        $bits[] = '기준 ' . jtgpt_tool_format_float($limit);
+    } elseif ($limit !== null && $limit !== '') {
+        $bits[] = jtgpt_tool_format_float($limit);
     }
     if ($value !== null && $value !== '') {
-        $bits[] = '값 ' . jtgpt_tool_format_float($value);
+        $bits[] = '측정값 ' . jtgpt_tool_format_float($value);
     }
     return implode(' | ', $bits);
 }
@@ -215,12 +216,11 @@ function jtgpt_answer_quality_recent_rows(array $result, array $args): string {
     foreach (($result['rows'] ?? []) as $row) {
         $chunk = [
             (string)($row['event_date'] ?? '-'),
-            (string)($row['point_no'] ?? '-'),
         ];
         $tc = trim((string)($row['tool_cavity'] ?? ''));
         if ($tc !== '') $chunk[] = $tc;
-        $kind = trim((string)($row['kind'] ?? ''));
-        if ($kind !== '') $chunk[] = $kind;
+        $pointNo = trim((string)($row['point_no'] ?? ''));
+        if ($pointNo !== '') $chunk[] = $pointNo;
         $ngText = jtgpt_format_ng_limit_value($row);
         if ($ngText !== '') $chunk[] = $ngText;
         $lines[] = '- ' . implode(' | ', $chunk);
@@ -247,8 +247,8 @@ function jtgpt_answer_quality_point_detail(array $result, array $args): string {
             ];
             $tc = trim((string)($row['tool_cavity'] ?? ''));
             if ($tc !== '') $chunk[] = $tc;
-            $kind = trim((string)($row['kind'] ?? ''));
-            if ($kind !== '') $chunk[] = $kind;
+            $pointNo = trim((string)($row['point_no'] ?? ''));
+            if ($pointNo !== '') $chunk[] = $pointNo;
             $ngText = jtgpt_format_ng_limit_value($row);
             if ($ngText !== '') $chunk[] = $ngText;
             $lines[] = '  · ' . implode(' | ', $chunk);
