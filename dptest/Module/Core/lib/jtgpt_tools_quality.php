@@ -73,6 +73,10 @@ if (!function_exists('jtgpt_quality_module_schema')) {
             return $cache[$module] = ['available' => false, 'label' => $def['label'], 'error' => '관련 테이블을 찾지 못했습니다.'];
         }
 
+        $dateCandidates = ($module === 'oqc')
+            ? ['ship_date','lot_date','meas_date','meas_date2','jmeas_date','jmeas_date2','date','created_at','reg_date','inspection_date']
+            : ['meas_date','date','created_at','reg_date','inspection_date','ship_date','lot_date'];
+
         $schema = [
             'available' => true,
             'module' => $module,
@@ -82,7 +86,7 @@ if (!function_exists('jtgpt_quality_module_schema')) {
             'measurement_table' => $def['measurement'],
             'header_id_col' => jtgpt_quality_first_col($resultCols, ['header_id','header_idx','parent_id']),
             'header_pk_col' => jtgpt_quality_first_col($headerCols, ['id','idx','header_id']),
-            'date_col' => jtgpt_quality_first_col($headerCols, ['meas_date','ship_date','lot_date','date','created_at','reg_date','inspection_date','jmeas_date']),
+            'date_col' => jtgpt_quality_first_col($headerCols, $dateCandidates),
             'part_col' => jtgpt_quality_first_col($headerCols, ['part_name','model_name','part','model']),
             'kind_col' => jtgpt_quality_first_col($headerCols, ['kind','source_type','category']),
             'tool_col' => jtgpt_quality_first_col($headerCols, ['tool']),
