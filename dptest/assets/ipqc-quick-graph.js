@@ -5106,11 +5106,14 @@ function qgRenderGroupYBox(){
   const box = qs('#qgGroupYBox');
   const grid = qs('#qgGrid');
   if (!box) return;
-  const vars = qgGetGroupYVars();
-  const metrics = qgGetGroupYLayoutMetrics();
-  try{ box.classList.toggle('has-var', vars.length > 0); }catch(e){}
-  try{ box.classList.toggle('has-vars', vars.length > 0); }catch(e){}
-  if (!vars.length){
+  const xVars = qgGetXAxisVars();
+  const explicitVars = qgGetGroupYVars();
+  const vars = explicitVars.length ? explicitVars.slice() : ((xVars.length === 1) ? [xVars[0]] : []);
+  const metrics = vars.length ? qgGetGroupYLayoutMetrics() : { valueW:20, fieldW:20, totalW:30, gridPad:30 };
+  const hasVars = vars.length > 0;
+  try{ box.classList.toggle('has-var', hasVars); }catch(e){}
+  try{ box.classList.toggle('has-vars', hasVars); }catch(e){}
+  if (!hasVars){
     box.innerHTML = '<span class="qg-group-y-text">그룹 Y</span>';
     box.style.width = metrics.totalW + 'px';
     return;
@@ -8810,7 +8813,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       };
     };
 
-    const drawRangeBox = (xPos, pointInfo, strokeColor, fillColor, dateInfo, dateKey, extraTip)=>{
+    const drawRangeBox = (xPos, pointInfo, strokeColor, fillColor, dateInfo, dateKey, extraTip, styleOverride)=>{
       if (!_showBox || !pointInfo) return;
       const hasBoxplot = isFinite(pointInfo.q1) && isFinite(pointInfo.q3);
       const boxTopVal = hasBoxplot ? Number(pointInfo.q3) : Number(pointInfo.max);
@@ -8825,10 +8828,14 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       rect.setAttribute('y', String(top));
       rect.setAttribute('width', String(boxW));
       rect.setAttribute('height', String(h));
-      if (_boxFill){ rect.setAttribute('fill', fillColor); rect.setAttribute('fill-opacity', String(_boxFillOpacity)); } else { rect.setAttribute('fill','none'); rect.removeAttribute('fill-opacity'); }
+      const useFill = (styleOverride && styleOverride.boxFillEnabled !== undefined && styleOverride.boxFillEnabled !== null) ? !!styleOverride.boxFillEnabled : _boxFill;
+      const useFillOpacity = (styleOverride && styleOverride.boxFillOpacity !== undefined && styleOverride.boxFillOpacity !== null) ? qgClamp01(styleOverride.boxFillOpacity) : _boxFillOpacity;
+      const useStrokeOpacity = (styleOverride && styleOverride.boxOpacity !== undefined && styleOverride.boxOpacity !== null) ? qgClamp01(styleOverride.boxOpacity) : _boxOpacity;
+      const useStrokeWidth = (styleOverride && styleOverride.boxStrokeWidth !== undefined && styleOverride.boxStrokeWidth !== null && isFinite(styleOverride.boxStrokeWidth)) ? Math.max(0.5, Number(styleOverride.boxStrokeWidth)) : _boxStrokeW;
+      if (useFill){ rect.setAttribute('fill', fillColor); rect.setAttribute('fill-opacity', String(useFillOpacity)); } else { rect.setAttribute('fill','none'); rect.removeAttribute('fill-opacity'); }
       rect.setAttribute('stroke', strokeColor);
-      try{ rect.setAttribute('stroke-opacity', String(_boxOpacity)); }catch(e){}
-      rect.setAttribute('stroke-width', String(_boxStrokeW));
+      try{ rect.setAttribute('stroke-opacity', String(useStrokeOpacity)); }catch(e){}
+      rect.setAttribute('stroke-width', String(useStrokeWidth));
       try{
         const _n = Array.isArray(pointInfo.vals) ? pointInfo.vals.length : 0;
         let tip = (hasBoxplot
@@ -8846,7 +8853,9 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
         const yMinV = yAt(pointInfo.min);
         const yMaxV = yAt(pointInfo.max);
         const yMedV = yAt(pointInfo.median);
-        const capW = Math.max(6, boxW * 0.6);
+        const capW = Math.max(12, boxW * 1.5);
+        const useStrokeOpacity = (styleOverride && styleOverride.boxOpacity !== undefined && styleOverride.boxOpacity !== null) ? qgClamp01(styleOverride.boxOpacity) : _boxOpacity;
+        const useStrokeWidth = (styleOverride && styleOverride.boxStrokeWidth !== undefined && styleOverride.boxStrokeWidth !== null && isFinite(styleOverride.boxStrokeWidth)) ? Math.max(0.5, Number(styleOverride.boxStrokeWidth)) : _boxStrokeW;
         const mkLine = (x1,y1,x2,y2)=>{
           const ln = document.createElementNS(ns,'line');
           ln.setAttribute('x1', String(x1));
@@ -8854,8 +8863,8 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
           ln.setAttribute('x2', String(x2));
           ln.setAttribute('y2', String(y2));
           ln.setAttribute('stroke', strokeColor);
-          try{ ln.setAttribute('stroke-opacity', String(_boxOpacity)); }catch(e){}
-          ln.setAttribute('stroke-width', String(_boxStrokeW));
+          try{ ln.setAttribute('stroke-opacity', String(useStrokeOpacity)); }catch(e){}
+          ln.setAttribute('stroke-width', String(useStrokeWidth));
           clip(ln);
           svg.appendChild(ln);
         };
@@ -8896,7 +8905,8 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       const compositePoint = isToolOnlyComposite ? qgBuildAggregateBoxPoint(p) : null;
 
       if (compositePoint){
-        drawRangeBox(x, compositePoint, _boxColor, _boxFillColor, d, dk, '');
+        const compositeBoxStyle = { boxFillEnabled:true, boxFillOpacity:1, boxOpacity:1, boxStrokeWidth:_boxStrokeW };
+        drawRangeBox(x, compositePoint, _boxColor, _boxFillColor, d, dk, '', compositeBoxStyle);
         drawPointDots(x, compositePoint, panelShape, _dataDotColor, d, dk, '');
         if (_showLine) meanPts.push({ x, y: yAt(compositePoint.mean), d, v: compositePoint.mean });
       }else{
