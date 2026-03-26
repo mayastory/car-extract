@@ -8819,35 +8819,20 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       const yBot = yAt(boxBotVal);
       const top = Math.min(yTop, yBot);
       const bot = Math.max(yTop, yBot);
+      const h = Math.max(1, bot - top);
+      const rect = document.createElementNS(ns,'rect');
+      rect.setAttribute('x', String(xPos - boxW/2));
+      rect.setAttribute('y', String(top));
+      rect.setAttribute('width', String(boxW));
+      rect.setAttribute('height', String(h));
       const useFill = (styleOverride && styleOverride.boxFillEnabled !== undefined && styleOverride.boxFillEnabled !== null) ? !!styleOverride.boxFillEnabled : _boxFill;
       const useFillOpacity = (styleOverride && styleOverride.boxFillOpacity !== undefined && styleOverride.boxFillOpacity !== null) ? qgClamp01(styleOverride.boxFillOpacity) : _boxFillOpacity;
       const useStrokeOpacity = (styleOverride && styleOverride.boxOpacity !== undefined && styleOverride.boxOpacity !== null) ? qgClamp01(styleOverride.boxOpacity) : _boxOpacity;
       const useStrokeWidth = (styleOverride && styleOverride.boxStrokeWidth !== undefined && styleOverride.boxStrokeWidth !== null && isFinite(styleOverride.boxStrokeWidth)) ? Math.max(0.5, Number(styleOverride.boxStrokeWidth)) : _boxStrokeW;
-      const snapStrokeCoord = (v)=>{
-        const n = Number(v);
-        if (!isFinite(n)) return 0;
-        const w = Math.max(0.5, Number(useStrokeWidth) || 1);
-        const roundedW = Math.round(w);
-        const isOddInteger = Math.abs(w - roundedW) < 0.001 && (roundedW % 2 === 1);
-        return Math.round(n) + (isOddInteger ? 0.5 : 0);
-      };
-      const xLeft = snapStrokeCoord(xPos - boxW/2);
-      const xRight = snapStrokeCoord(xPos + boxW/2);
-      const xMid = snapStrokeCoord(xPos);
-      const boxTopPx = snapStrokeCoord(top);
-      const boxBotPx = snapStrokeCoord(bot);
-      const boxWpx = Math.max(1, xRight - xLeft);
-      const boxHpx = Math.max(1, boxBotPx - boxTopPx);
-      const rect = document.createElementNS(ns,'rect');
-      rect.setAttribute('x', String(xLeft));
-      rect.setAttribute('y', String(boxTopPx));
-      rect.setAttribute('width', String(boxWpx));
-      rect.setAttribute('height', String(boxHpx));
       if (useFill){ rect.setAttribute('fill', fillColor); rect.setAttribute('fill-opacity', String(useFillOpacity)); } else { rect.setAttribute('fill','none'); rect.removeAttribute('fill-opacity'); }
       rect.setAttribute('stroke', strokeColor);
       try{ rect.setAttribute('stroke-opacity', String(useStrokeOpacity)); }catch(e){}
       rect.setAttribute('stroke-width', String(useStrokeWidth));
-      rect.setAttribute('shape-rendering', 'crispEdges');
       try{
         const _n = Array.isArray(pointInfo.vals) ? pointInfo.vals.length : 0;
         let tip = (hasBoxplot
@@ -8862,33 +8847,36 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       svg.appendChild(rect);
 
       if (hasBoxplot){
-        const yMinV = snapStrokeCoord(yAt(pointInfo.min));
-        const yMaxV = snapStrokeCoord(yAt(pointInfo.max));
-        const yMedV = snapStrokeCoord(yAt(pointInfo.median));
+        const yMinV = yAt(pointInfo.min);
+        const yMaxV = yAt(pointInfo.max);
+        const yMedV = yAt(pointInfo.median);
         const capW = Math.max(12, boxW * 1.5);
-        const capLeft = snapStrokeCoord(xPos - capW/2);
-        const capRight = snapStrokeCoord(xPos + capW/2);
         const useStrokeOpacity = (styleOverride && styleOverride.boxOpacity !== undefined && styleOverride.boxOpacity !== null) ? qgClamp01(styleOverride.boxOpacity) : _boxOpacity;
         const useStrokeWidth = (styleOverride && styleOverride.boxStrokeWidth !== undefined && styleOverride.boxStrokeWidth !== null && isFinite(styleOverride.boxStrokeWidth)) ? Math.max(0.5, Number(styleOverride.boxStrokeWidth)) : _boxStrokeW;
+        const snapCoord = (v)=>{
+          const n = Number(v);
+          if (!isFinite(n)) return v;
+          return (useStrokeWidth <= 1.5) ? (Math.round(n) + 0.5) : Math.round(n);
+        };
         const mkLine = (x1,y1,x2,y2)=>{
           const ln = document.createElementNS(ns,'line');
-          ln.setAttribute('x1', String(x1));
-          ln.setAttribute('y1', String(y1));
-          ln.setAttribute('x2', String(x2));
-          ln.setAttribute('y2', String(y2));
+          ln.setAttribute('x1', String(snapCoord(x1)));
+          ln.setAttribute('y1', String(snapCoord(y1)));
+          ln.setAttribute('x2', String(snapCoord(x2)));
+          ln.setAttribute('y2', String(snapCoord(y2)));
           ln.setAttribute('stroke', strokeColor);
           try{ ln.setAttribute('stroke-opacity', String(useStrokeOpacity)); }catch(e){}
           ln.setAttribute('stroke-width', String(useStrokeWidth));
-          ln.setAttribute('stroke-linecap', 'square');
           ln.setAttribute('shape-rendering', 'crispEdges');
+          ln.setAttribute('stroke-linecap', 'square');
           clip(ln);
           svg.appendChild(ln);
         };
-        mkLine(xMid, boxTopPx, xMid, yMaxV);
-        mkLine(xMid, boxBotPx, xMid, yMinV);
-        mkLine(capLeft, yMaxV, capRight, yMaxV);
-        mkLine(capLeft, yMinV, capRight, yMinV);
-        mkLine(xLeft, yMedV, xRight, yMedV);
+        mkLine(xPos, yAt(pointInfo.q3), xPos, yMaxV);
+        mkLine(xPos, yAt(pointInfo.q1), xPos, yMinV);
+        mkLine(xPos - capW/2, yMaxV, xPos + capW/2, yMaxV);
+        mkLine(xPos - capW/2, yMinV, xPos + capW/2, yMinV);
+        mkLine(xPos - boxW/2, yMedV, xPos + boxW/2, yMedV);
       }
     };
 
@@ -8922,12 +8910,12 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
 
       if (compositePoint){
         const compositeBoxStyle = { boxFillEnabled:false, boxFillOpacity:1, boxOpacity:1, boxStrokeWidth:_boxStrokeW };
-        drawRangeBox(x, compositePoint, _boxColor, _boxFillColor, d, dk, '', compositeBoxStyle);
         drawPointDots(x, compositePoint, panelShape, _dataDotColor, d, dk, '');
+        drawRangeBox(x, compositePoint, _boxColor, _boxFillColor, d, dk, '', compositeBoxStyle);
         if (_showLine) meanPts.push({ x, y: yAt(compositePoint.mean), d, v: compositePoint.mean });
       }else{
-        drawRangeBox(x, p, _boxColor, _boxFillColor, d, dk, '');
         drawPointDots(x, p, panelShape, _dataDotColor, d, dk, '');
+        drawRangeBox(x, p, _boxColor, _boxFillColor, d, dk, '');
         if (_showLine) meanPts.push({ x, y: yAt(p.mean), d, v: p.mean });
       }
     }
