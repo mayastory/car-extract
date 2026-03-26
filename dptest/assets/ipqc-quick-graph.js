@@ -8879,8 +8879,9 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
         clip(ln);
         svg.appendChild(ln);
       };
-      mkLine(xPos, yQ3V, xPos, yMaxV);
-      mkLine(xPos, yQ1V, xPos, yMinV);
+      // JMP-style center whisker should pass through the box body as one continuous line.
+      // Do not split into outside-only segments, otherwise the line looks disconnected around the dots.
+      mkLine(xPos, yMaxV, xPos, yMinV);
       mkLine(xPos - capW/2, yMaxV, xPos + capW/2, yMaxV);
       mkLine(xPos - capW/2, yMinV, xPos + capW/2, yMinV);
       mkLine(xPos - boxW/2, yMedV, xPos + boxW/2, yMedV);
