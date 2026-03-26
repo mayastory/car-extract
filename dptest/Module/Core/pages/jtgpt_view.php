@@ -167,6 +167,23 @@ function jtgpt_answer_shipping_last_ship(array $result, array $args): string {
     return implode("\n", $lines);
 }
 
+function jtgpt_format_ng_limit_value(array $row): string {
+    $side = strtoupper(trim((string)($row['ng_side'] ?? '')));
+    $limit = $row['ng_limit'] ?? null;
+    $value = $row['value'] ?? null;
+    $bits = [];
+    if ($side !== '') {
+        $bits[] = $side;
+    }
+    if ($limit !== null && $limit !== '') {
+        $bits[] = '기준 ' . jtgpt_tool_format_float($limit);
+    }
+    if ($value !== null && $value !== '') {
+        $bits[] = '값 ' . jtgpt_tool_format_float($value);
+    }
+    return implode(' | ', $bits);
+}
+
 function jtgpt_answer_quality_top_points(array $result, array $args): string {
     if (empty($result['found'])) {
         return ($result['error'] ?? '조건에 맞는 NG 포인트가 없습니다.');
@@ -191,15 +208,16 @@ function jtgpt_answer_quality_recent_rows(array $result, array $args): string {
             (string)($row['event_date'] ?? '-'),
             (string)($row['point_no'] ?? '-'),
         ];
-        $part = trim((string)($row['part_name'] ?? ''));
-        if ($part !== '') $chunk[] = $part;
         $tc = trim((string)($row['tool_cavity'] ?? ''));
         if ($tc !== '') $chunk[] = $tc;
         $kind = trim((string)($row['kind'] ?? ''));
         if ($kind !== '') $chunk[] = $kind;
+        $ngText = jtgpt_format_ng_limit_value($row);
+        if ($ngText !== '') $chunk[] = $ngText;
         $lines[] = '- ' . implode(' | ', $chunk);
     }
-    return implode("\n", $lines);
+    return implode("
+", $lines);
 }
 
 function jtgpt_answer_quality_point_detail(array $result, array $args): string {
@@ -218,16 +236,17 @@ function jtgpt_answer_quality_point_detail(array $result, array $args): string {
             $chunk = [
                 (string)($row['event_date'] ?? '-'),
             ];
-            $part = trim((string)($row['part_name'] ?? ''));
-            if ($part !== '') $chunk[] = $part;
             $tc = trim((string)($row['tool_cavity'] ?? ''));
             if ($tc !== '') $chunk[] = $tc;
             $kind = trim((string)($row['kind'] ?? ''));
             if ($kind !== '') $chunk[] = $kind;
+            $ngText = jtgpt_format_ng_limit_value($row);
+            if ($ngText !== '') $chunk[] = $ngText;
             $lines[] = '  · ' . implode(' | ', $chunk);
         }
     }
-    return implode("\n", $lines);
+    return implode("
+", $lines);
 }
 
 function jtgpt_build_answer(string $message): array {
