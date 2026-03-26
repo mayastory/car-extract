@@ -8838,7 +8838,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
         const yMinV = yAt(pointInfo.min);
         const yMaxV = yAt(pointInfo.max);
         const yMedV = yAt(pointInfo.median);
-        const capW = Math.max(6, boxW * 0.6);
+        const capW = Math.max(10, boxW + 2);
         const useStrokeOpacity = (styleOverride && styleOverride.boxOpacity !== undefined && styleOverride.boxOpacity !== null) ? qgClamp01(styleOverride.boxOpacity) : _boxOpacity;
         const useStrokeWidth = (styleOverride && styleOverride.boxStrokeWidth !== undefined && styleOverride.boxStrokeWidth !== null && isFinite(styleOverride.boxStrokeWidth)) ? Math.max(0.5, Number(styleOverride.boxStrokeWidth)) : _boxStrokeW;
         const mkLine = (x1,y1,x2,y2)=>{
