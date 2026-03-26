@@ -8811,7 +8811,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
     };
 
     const drawRangeBox = (xPos, pointInfo, strokeColor, fillColor, dateInfo, dateKey, extraTip, styleOverride)=>{
-      if (!_showBox || !pointInfo) return;
+      if (!_showBox || !pointInfo) return false;
       const hasBoxplot = isFinite(pointInfo.q1) && isFinite(pointInfo.q3);
       const boxTopVal = hasBoxplot ? Number(pointInfo.q3) : Number(pointInfo.max);
       const boxBotVal = hasBoxplot ? Number(pointInfo.q1) : Number(pointInfo.min);
@@ -8845,39 +8845,45 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       }catch(e){}
       clip(rect);
       svg.appendChild(rect);
+      return hasBoxplot;
+    };
 
-      if (hasBoxplot){
-        const yMinV = yAt(pointInfo.min);
-        const yMaxV = yAt(pointInfo.max);
-        const yMedV = yAt(pointInfo.median);
-        const capW = Math.max(12, boxW * 1.5);
-        const useStrokeOpacity = (styleOverride && styleOverride.boxOpacity !== undefined && styleOverride.boxOpacity !== null) ? qgClamp01(styleOverride.boxOpacity) : _boxOpacity;
-        const useStrokeWidth = (styleOverride && styleOverride.boxStrokeWidth !== undefined && styleOverride.boxStrokeWidth !== null && isFinite(styleOverride.boxStrokeWidth)) ? Math.max(0.5, Number(styleOverride.boxStrokeWidth)) : _boxStrokeW;
-        const snapCoord = (v)=>{
-          const n = Number(v);
-          if (!isFinite(n)) return v;
-          return (useStrokeWidth <= 1.5) ? (Math.round(n) + 0.5) : Math.round(n);
-        };
-        const mkLine = (x1,y1,x2,y2)=>{
-          const ln = document.createElementNS(ns,'line');
-          ln.setAttribute('x1', String(snapCoord(x1)));
-          ln.setAttribute('y1', String(snapCoord(y1)));
-          ln.setAttribute('x2', String(snapCoord(x2)));
-          ln.setAttribute('y2', String(snapCoord(y2)));
-          ln.setAttribute('stroke', strokeColor);
-          try{ ln.setAttribute('stroke-opacity', String(useStrokeOpacity)); }catch(e){}
-          ln.setAttribute('stroke-width', String(useStrokeWidth));
-          ln.setAttribute('shape-rendering', 'crispEdges');
-          ln.setAttribute('stroke-linecap', 'square');
-          clip(ln);
-          svg.appendChild(ln);
-        };
-        mkLine(xPos, yAt(pointInfo.q3), xPos, yMaxV);
-        mkLine(xPos, yAt(pointInfo.q1), xPos, yMinV);
-        mkLine(xPos - capW/2, yMaxV, xPos + capW/2, yMaxV);
-        mkLine(xPos - capW/2, yMinV, xPos + capW/2, yMinV);
-        mkLine(xPos - boxW/2, yMedV, xPos + boxW/2, yMedV);
-      }
+    const drawRangeWhiskers = (xPos, pointInfo, strokeColor, styleOverride)=>{
+      if (!_showBox || !pointInfo) return;
+      const hasBoxplot = isFinite(pointInfo.q1) && isFinite(pointInfo.q3);
+      if (!hasBoxplot) return;
+      const yMinV = yAt(pointInfo.min);
+      const yMaxV = yAt(pointInfo.max);
+      const yQ1V = yAt(pointInfo.q1);
+      const yQ3V = yAt(pointInfo.q3);
+      const yMedV = yAt(pointInfo.median);
+      const capW = Math.max(12, boxW * 1.5);
+      const useStrokeOpacity = (styleOverride && styleOverride.boxOpacity !== undefined && styleOverride.boxOpacity !== null) ? qgClamp01(styleOverride.boxOpacity) : _boxOpacity;
+      const useStrokeWidth = (styleOverride && styleOverride.boxStrokeWidth !== undefined && styleOverride.boxStrokeWidth !== null && isFinite(styleOverride.boxStrokeWidth)) ? Math.max(0.5, Number(styleOverride.boxStrokeWidth)) : _boxStrokeW;
+      const snapCoord = (v)=>{
+        const n = Number(v);
+        if (!isFinite(n)) return v;
+        return (useStrokeWidth <= 1.5) ? (Math.round(n) + 0.5) : Math.round(n);
+      };
+      const mkLine = (x1,y1,x2,y2)=>{
+        const ln = document.createElementNS(ns,'line');
+        ln.setAttribute('x1', String(snapCoord(x1)));
+        ln.setAttribute('y1', String(snapCoord(y1)));
+        ln.setAttribute('x2', String(snapCoord(x2)));
+        ln.setAttribute('y2', String(snapCoord(y2)));
+        ln.setAttribute('stroke', strokeColor);
+        try{ ln.setAttribute('stroke-opacity', String(useStrokeOpacity)); }catch(e){}
+        ln.setAttribute('stroke-width', String(useStrokeWidth));
+        ln.setAttribute('shape-rendering', 'crispEdges');
+        ln.setAttribute('stroke-linecap', 'square');
+        clip(ln);
+        svg.appendChild(ln);
+      };
+      mkLine(xPos, yQ3V, xPos, yMaxV);
+      mkLine(xPos, yQ1V, xPos, yMinV);
+      mkLine(xPos - capW/2, yMaxV, xPos + capW/2, yMaxV);
+      mkLine(xPos - capW/2, yMinV, xPos + capW/2, yMinV);
+      mkLine(xPos - boxW/2, yMedV, xPos + boxW/2, yMedV);
     };
 
     const drawPointDots = (xPos, pointInfo, markerShape, dotColor, dateInfo, dateKey, extraTip)=>{
@@ -8910,12 +8916,14 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
 
       if (compositePoint){
         const compositeBoxStyle = { boxFillEnabled:false, boxFillOpacity:1, boxOpacity:1, boxStrokeWidth:_boxStrokeW };
-        drawPointDots(x, compositePoint, panelShape, _dataDotColor, d, dk, '');
         drawRangeBox(x, compositePoint, _boxColor, _boxFillColor, d, dk, '', compositeBoxStyle);
+        drawPointDots(x, compositePoint, panelShape, _dataDotColor, d, dk, '');
+        drawRangeWhiskers(x, compositePoint, _boxColor, compositeBoxStyle);
         if (_showLine) meanPts.push({ x, y: yAt(compositePoint.mean), d, v: compositePoint.mean });
       }else{
-        drawPointDots(x, p, panelShape, _dataDotColor, d, dk, '');
         drawRangeBox(x, p, _boxColor, _boxFillColor, d, dk, '');
+        drawPointDots(x, p, panelShape, _dataDotColor, d, dk, '');
+        drawRangeWhiskers(x, p, _boxColor, null);
         if (_showLine) meanPts.push({ x, y: yAt(p.mean), d, v: p.mean });
       }
     }
