@@ -569,38 +569,60 @@ if (!function_exists('jtgpt_planner_expand_number_sequence')) {
 if (!function_exists('jtgpt_planner_extract_tools')) {
     function jtgpt_planner_extract_tools(string $message): array {
         $tools = [];
+        $delim = '(?:,|\/|&|와|과|랑|하고|및|and)';
+        $token = '[A-Z0-9]';
+        $seq = '(' . $token . '(?:\s*' . $delim . '\s*' . $token . ')+)';
 
-        if (preg_match_all('/([A-Z](?:\s*(?:,|\/|&|와|과|랑|하고|및|and)\s*[A-Z])+?)\s*툴/iu', $message, $m)) {
-            foreach ($m[1] as $expr) {
-                if (preg_match_all('/[A-Z]/iu', strtoupper($expr), $mm)) {
-                    foreach ($mm[0] as $tool) {
-                        $tools[] = strtoupper($tool);
-                    }
+        $appendTokens = static function (array $items) use (&$tools): void {
+            foreach ($items as $item) {
+                $value = strtoupper(trim((string)$item));
+                if ($value === '') {
+                    continue;
+                }
+                $tools[] = $value;
+            }
+        };
+
+        $extractSeq = static function (string $expr) use ($token): array {
+            if (!preg_match_all('/' . $token . '/iu', strtoupper($expr), $mm)) {
+                return [];
+            }
+            return $mm[0] ?? [];
+        };
+
+        $labelPatterns = [
+            '/'. $seq .'\s*(?:툴|tool|차수)\b/iu',
+            '/(?:툴|tool|차수)\s*'. $seq .'/iu',
+        ];
+        foreach ($labelPatterns as $pattern) {
+            if (preg_match_all($pattern, $message, $m)) {
+                foreach ($m[1] as $expr) {
+                    $appendTokens($extractSeq((string)$expr));
                 }
             }
         }
-        if (preg_match_all('/툴\s*([A-Z](?:\s*(?:,|\/|&|와|과|랑|하고|및|and)\s*[A-Z])+)/iu', $message, $m)) {
-            foreach ($m[1] as $expr) {
-                if (preg_match_all('/[A-Z]/iu', strtoupper($expr), $mm)) {
-                    foreach ($mm[0] as $tool) {
-                        $tools[] = strtoupper($tool);
-                    }
+
+        $singlePatterns = [
+            '/('. $token .')\s*(?:툴|tool|차수)\b/iu',
+            '/\b(?:툴|tool|차수)\s*('. $token .')(?=$|[^A-Z0-9])/iu',
+        ];
+        foreach ($singlePatterns as $pattern) {
+            if (preg_match_all($pattern, $message, $m)) {
+                $appendTokens($m[1] ?? []);
+            }
+        }
+
+        $chaPatterns = [
+            '/'. $seq .'\s*차(?=$|[^\p{L}\p{N}])/iu',
+            '/\b('. $token .')\s*차(?=$|[^\p{L}\p{N}])/iu',
+            '/차수\s*'. $seq .'(?=$|[^A-Z0-9])/iu',
+            '/차수\s*('. $token .')(?=$|[^A-Z0-9])/iu',
+        ];
+        foreach ($chaPatterns as $pattern) {
+            if (preg_match_all($pattern, $message, $m)) {
+                foreach ($m[1] as $expr) {
+                    $appendTokens($extractSeq((string)$expr));
                 }
-            }
-        }
-        if (preg_match_all('/([A-Z])\s*툴/iu', $message, $m)) {
-            foreach ($m[1] as $tool) {
-                $tools[] = strtoupper($tool);
-            }
-        }
-        if (preg_match_all('/\btool\s*([A-Z])/iu', $message, $m)) {
-            foreach ($m[1] as $tool) {
-                $tools[] = strtoupper($tool);
-            }
-        }
-        if (preg_match_all('/([A-Z])\s*tool\b/iu', $message, $m)) {
-            foreach ($m[1] as $tool) {
-                $tools[] = strtoupper($tool);
             }
         }
 
@@ -679,9 +701,11 @@ if (!function_exists('jtgpt_planner_collect_quality_point_terms')) {
         $scrub = preg_replace('/\b(?:today|yesterday|recent|latest|show|tell|count|summary|detail|ng)\b/u', ' ', $scrub);
         $scrub = preg_replace('/(?:최근|오늘|어제|이번|금주|금월|전체|상세|요약|조회|보여줘|알려줘|말해줘|데이터|기록|이력|많은|상위|가장|전체|전부|에서|으로|로|좀|해줘|봐줘|부탁|랑|하고|와|과|및)/u', ' ', $scrub);
         $scrub = preg_replace('/(?:ng|불량)/u', ' ', $scrub);
-        $scrub = preg_replace('/([a-z](?:\s*(?:,|\/|&|와|과|랑|하고|및|and)\s*[a-z])+?)\s*툴/iu', ' ', $scrub);
-        $scrub = preg_replace('/툴\s*([a-z](?:\s*(?:,|\/|&|와|과|랑|하고|및|and)\s*[a-z])+)/iu', ' ', $scrub);
-        $scrub = preg_replace('/\b[a-z]\s*툴\b/iu', ' ', $scrub);
+        $scrub = preg_replace('/([a-z0-9](?:\s*(?:,|\/|&|와|과|랑|하고|및|and)\s*[a-z0-9])+?)\s*(?:툴|tool|차수)/iu', ' ', $scrub);
+        $scrub = preg_replace('/(?:툴|tool|차수)\s*([a-z0-9](?:\s*(?:,|\/|&|와|과|랑|하고|및|and)\s*[a-z0-9])+)/iu', ' ', $scrub);
+        $scrub = preg_replace('/\b[a-z0-9]\s*(?:툴|tool|차수)\b/iu', ' ', $scrub);
+        $scrub = preg_replace('/([a-z0-9](?:\s*(?:,|\/|&|와|과|랑|하고|및|and)\s*[a-z0-9])+?)\s*차(?=$|[^\p{L}\p{N}])/iu', ' ', $scrub);
+        $scrub = preg_replace('/\b[a-z0-9]\s*차(?=$|[^\p{L}\p{N}])/iu', ' ', $scrub);
         $scrub = preg_replace('/([0-9\s,~\/-]+)\s*(?:캐비티|cavity|cav)\b/iu', ' ', $scrub);
         $scrub = preg_replace('/(?:캐비티|cavity|cav)\s*([0-9\s,~\/-]+)/iu', ' ', $scrub);
         $scrub = preg_replace('/[\(\)\[\]\{\}:;\|]+/u', ' ', $scrub);
