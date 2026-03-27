@@ -264,10 +264,40 @@ function jtgpt_quality_resolution_tail_lines(array $resolution): array {
     return $lines;
 }
 
+function jtgpt_quality_no_result_hint(array $result, array $args, string $defaultMessage): string {
+    $resolutionText = !empty($result['resolution']) ? jtgpt_quality_resolution_prompt((array)$result['resolution']) : '';
+    if ($resolutionText !== '') {
+        return $resolutionText;
+    }
+
+    $message = trim((string)($result['error'] ?? $defaultMessage));
+    $scope = trim(jtgpt_format_scope($args));
+    if ($scope !== '') {
+        $message .= "
+해석 조건: " . $scope;
+    }
+
+    $period = $args['period'] ?? $args['range'] ?? null;
+    if (is_array($period)) {
+        $from = trim((string)($period['from'] ?? ''));
+        $to = trim((string)($period['to'] ?? ''));
+        $label = trim((string)($period['label'] ?? ''));
+        if ($label !== '' || $from !== '' || $to !== '') {
+            if ($from !== '' || $to !== '') {
+                $message .= "
+기간 해석: " . ($label !== '' ? $label . ' ' : '') . '(' . ($from !== '' ? $from : '-') . ' ~ ' . ($to !== '' ? $to : '-') . ')';
+            } else {
+                $message .= "
+기간 해석: " . $label;
+            }
+        }
+    }
+    return $message;
+}
+
 function jtgpt_answer_quality_top_points(array $result, array $args): string {
     if (empty($result['found'])) {
-        $resolutionText = !empty($result['resolution']) ? jtgpt_quality_resolution_prompt((array)$result['resolution']) : '';
-        return $resolutionText !== '' ? $resolutionText : ($result['error'] ?? '조건에 맞는 NG 포인트가 없습니다.');
+        return jtgpt_quality_no_result_hint($result, $args, '조건에 맞는 NG 포인트가 없습니다.');
     }
     $scope = jtgpt_format_scope($args);
     $limit = (int)($args['limit'] ?? 5);
@@ -293,8 +323,7 @@ function jtgpt_answer_quality_top_points(array $result, array $args): string {
 
 function jtgpt_answer_quality_recent_rows(array $result, array $args): string {
     if (empty($result['found'])) {
-        $resolutionText = !empty($result['resolution']) ? jtgpt_quality_resolution_prompt((array)$result['resolution']) : '';
-        return $resolutionText !== '' ? $resolutionText : ($result['error'] ?? '조건에 맞는 최근 NG 이력이 없습니다.');
+        return jtgpt_quality_no_result_hint($result, $args, '조건에 맞는 최근 NG 이력이 없습니다.');
     }
     $scope = jtgpt_format_scope($args);
     $multiModule = !empty($result['multi_module']) || count((array)($args['modules'] ?? [])) > 1;
@@ -327,8 +356,7 @@ function jtgpt_answer_quality_recent_rows(array $result, array $args): string {
 
 function jtgpt_answer_quality_point_detail(array $result, array $args): string {
     if (empty($result['found'])) {
-        $resolutionText = !empty($result['resolution']) ? jtgpt_quality_resolution_prompt((array)$result['resolution']) : '';
-        return $resolutionText !== '' ? $resolutionText : ($result['error'] ?? '조건에 맞는 NG 상세 이력이 없습니다.');
+        return jtgpt_quality_no_result_hint($result, $args, '조건에 맞는 NG 상세 이력이 없습니다.');
     }
     $scope = jtgpt_format_scope($args);
     if (!empty($result['results']) && is_array($result['results'])) {
@@ -388,8 +416,7 @@ function jtgpt_answer_quality_point_detail(array $result, array $args): string {
 
 function jtgpt_answer_quality_count(array $result, array $args): string {
     if (empty($result['found'])) {
-        $resolutionText = !empty($result['resolution']) ? jtgpt_quality_resolution_prompt((array)$result['resolution']) : '';
-        return $resolutionText !== '' ? $resolutionText : ($result['error'] ?? '조건에 맞는 NG 건수가 없습니다.');
+        return jtgpt_quality_no_result_hint($result, $args, '조건에 맞는 NG 건수가 없습니다.');
     }
     $scope = jtgpt_format_scope($args);
     $title = !empty($result['multi_module']) ? '전체' : ($result['label'] ?? strtoupper((string)($args['module'] ?? '')));
@@ -408,8 +435,7 @@ function jtgpt_answer_quality_count(array $result, array $args): string {
 
 function jtgpt_answer_quality_summary(array $result, array $args): string {
     if (empty($result['found'])) {
-        $resolutionText = !empty($result['resolution']) ? jtgpt_quality_resolution_prompt((array)$result['resolution']) : '';
-        return $resolutionText !== '' ? $resolutionText : ($result['error'] ?? '조건에 맞는 NG 요약이 없습니다.');
+        return jtgpt_quality_no_result_hint($result, $args, '조건에 맞는 NG 요약이 없습니다.');
     }
     $scope = jtgpt_format_scope($args);
     $title = !empty($result['multi_module']) ? '전체' : ($result['label'] ?? strtoupper((string)($args['module'] ?? '')));

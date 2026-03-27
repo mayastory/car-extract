@@ -153,6 +153,10 @@ if (!function_exists('jtgpt_planner_detect_time_hint')) {
         if (preg_match('/최근\s*(\d{1,3})\s*일/u', $text, $m)) {
             return '최근 ' . max(1, min(365, (int)$m[1])) . '일';
         }
+        if (preg_match('/최근\s*(\d{1,2})\s*(?:개월|달)\b/u', $text, $m)) {
+            $months = max(1, min(24, (int)$m[1]));
+            return '최근 ' . $months . '개월';
+        }
 
         $map = [
             '전체' => ['전체', 'all', '전기간'],
@@ -160,7 +164,7 @@ if (!function_exists('jtgpt_planner_detect_time_hint')) {
             '어제' => ['어제', 'yesterday'],
             '이번 주' => ['이번주', '이번 주', '금주', 'this week'],
             '최근 7일' => ['최근 7일', '일주일', '1주일', '최근 일주일', '최근', 'latest', 'recent'],
-            '최근 30일' => ['최근 30일', '30일', '한달', '1달', '최근 한달'],
+            '최근 30일' => ['최근 30일', '30일', '한달', '1달', '1개월', '최근 한달', '최근 1달', '최근 1개월', '지난달', '지난 달', '저번달', '저번 달', 'last month'],
             '이번 달' => ['이번달', '이번 달', '금월', 'this month'],
         ];
         foreach ($map as $label => $needles) {
@@ -168,6 +172,48 @@ if (!function_exists('jtgpt_planner_detect_time_hint')) {
                 return $label;
             }
         }
+        return null;
+    }
+}
+
+if (!function_exists('jtgpt_planner_detect_month_range')) {
+    function jtgpt_planner_detect_month_range(string $text, DateTime $now): ?array {
+        if (preg_match('/\b(20\d{2})\s*[년\.\/-]?\s*(\d{1,2})\s*월?\b/u', $text, $m)) {
+            $year = (int)$m[1];
+            $month = (int)$m[2];
+            if ($month >= 1 && $month <= 12) {
+                $start = DateTime::createFromFormat('Y-n-j H:i:s', sprintf('%04d-%d-1 00:00:00', $year, $month), new DateTimeZone('Asia/Seoul'));
+                if ($start instanceof DateTime) {
+                    $end = (clone $start)->modify('last day of this month');
+                    return [
+                        'from' => $start->format('Y-m-d'),
+                        'to' => $end->format('Y-m-d'),
+                        'label' => sprintf('%04d-%02d', $year, $month),
+                        'implicit' => false,
+                    ];
+                }
+            }
+        }
+
+        if (preg_match('/(^|[^\d])((?:1[0-2])|(?:0?[1-9]))\s*월(?:달)?(?!\d)/u', $text, $m)) {
+            $month = (int)$m[2];
+            $year = (int)$now->format('Y');
+            $currentMonth = (int)$now->format('n');
+            if ($month > $currentMonth) {
+                $year -= 1;
+            }
+            $start = DateTime::createFromFormat('Y-n-j H:i:s', sprintf('%04d-%d-1 00:00:00', $year, $month), new DateTimeZone('Asia/Seoul'));
+            if ($start instanceof DateTime) {
+                $end = (clone $start)->modify('last day of this month');
+                return [
+                    'from' => $start->format('Y-m-d'),
+                    'to' => $end->format('Y-m-d'),
+                    'label' => sprintf('%04d-%02d', $year, $month),
+                    'implicit' => false,
+                ];
+            }
+        }
+
         return null;
     }
 }
@@ -193,6 +239,11 @@ if (!function_exists('jtgpt_planner_detect_date_range')) {
             if (count($dates) === 1) {
                 return ['from' => $dates[0], 'to' => $dates[0], 'label' => $dates[0], 'implicit' => false];
             }
+        }
+
+        $monthRange = jtgpt_planner_detect_month_range($text, $now);
+        if ($monthRange !== null) {
+            return $monthRange;
         }
 
         $hint = jtgpt_planner_detect_time_hint($text);
@@ -226,6 +277,11 @@ if (!function_exists('jtgpt_planner_detect_date_range')) {
             $days = max(1, min(365, (int)$m[1]));
             $s = (clone $now)->modify('-' . ($days - 1) . ' day')->format('Y-m-d');
             return ['from' => $s, 'to' => $today, 'label' => '최근 ' . $days . '일', 'implicit' => false];
+        }
+        if (preg_match('/^최근\s*(\d{1,2})개월$/u', (string)$hint, $m)) {
+            $months = max(1, min(24, (int)$m[1]));
+            $start = (clone $now)->modify('first day of this month')->modify('-' . ($months - 1) . ' month')->format('Y-m-d');
+            return ['from' => $start, 'to' => $today, 'label' => '최근 ' . $months . '개월', 'implicit' => false];
         }
         return ['from' => $today, 'to' => $today, 'label' => '오늘', 'implicit' => true];
     }
