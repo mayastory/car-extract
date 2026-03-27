@@ -1078,23 +1078,93 @@ function jtgpt_is_output_only_followup_message(string $message): bool {
     return true;
 }
 
-function jtgpt_build_answer(string $message, array $clientHistory = []): array {
-    $state = jtgpt_session_state();
-    $plan = jtgpt_planner_plan($message, $state);
-    if (($plan['kind'] ?? '') === 'clarify' && $clientHistory && jtgpt_is_output_only_followup_message($message)) {
-        $previousUserQuery = jtgpt_client_history_last_user_query($clientHistory, $message);
-        if ($previousUserQuery !== null) {
-            $previousPlan = jtgpt_planner_plan($previousUserQuery, $state);
-            if (($previousPlan['kind'] ?? '') === 'tool' && strpos((string)($previousPlan['tool'] ?? ''), 'quality_') === 0) {
-                $previousArgs = (array)($previousPlan['args'] ?? []);
-                $previousArgs['output'] = jtgpt_planner_extract_quality_output_format($message);
-                $previousPlan['args'] = $previousArgs;
-                $previousPlan['slots'] = $previousArgs;
-                $previousPlan['followup'] = true;
-                $previousPlan['followup_source'] = 'client_history';
-                $plan = $previousPlan;
+function jtgpt_build_quality_followup_plan_from_tool_args(string $tool, array $args, string $message, string $source): ?array {
+    $tool = trim($tool);
+    if ($tool === '' || strpos($tool, 'quality_') !== 0) {
+        return null;
+    }
+    if (!$args) {
+        return null;
+    }
+    $args['output'] = jtgpt_planner_extract_quality_output_format($message);
+    return [
+        'kind' => 'tool',
+        'tool' => $tool,
+        'args' => $args,
+        'slots' => $args,
+        'followup' => true,
+        'followup_source' => $source,
+    ];
+}
+
+function jtgpt_restore_quality_followup_plan(string $message, array $state, array $clientHistory = []): ?array {
+    if (!jtgpt_is_output_only_followup_message($message)) {
+        return null;
+    }
+
+    $tool = trim((string)($state['last_quality_tool'] ?? ''));
+    $args = (array)($state['last_quality_args'] ?? []);
+    $plan = jtgpt_build_quality_followup_plan_from_tool_args($tool, $args, $message, 'state');
+    if ($plan) {
+        return $plan;
+    }
+
+    if (function_exists('jtgpt_session_history')) {
+        $hist = (array)jtgpt_session_history(20);
+        for ($i = count($hist) - 1; $i >= 0; $i--) {
+            $entry = (array)($hist[$i] ?? []);
+            $meta = (array)($entry['meta'] ?? []);
+            $savedPlan = (array)($meta['plan'] ?? []);
+            $plan = jtgpt_build_quality_followup_plan_from_tool_args((string)($savedPlan['tool'] ?? ''), (array)($savedPlan['args'] ?? []), $message, 'session_history_plan');
+            if ($plan) {
+                return $plan;
             }
         }
+
+        for ($i = count($hist) - 1; $i >= 0; $i--) {
+            $entry = (array)($hist[$i] ?? []);
+            if (strtolower((string)($entry['role'] ?? '')) !== 'user') {
+                continue;
+            }
+            $text = trim((string)($entry['text'] ?? ''));
+            if ($text === '' || $text === trim($message)) {
+                continue;
+            }
+            $savedPlan = jtgpt_planner_plan($text, $state);
+            if (($savedPlan['kind'] ?? '') === 'tool' && strpos((string)($savedPlan['tool'] ?? ''), 'quality_') === 0) {
+                $savedArgs = (array)($savedPlan['args'] ?? []);
+                $savedArgs['output'] = jtgpt_planner_extract_quality_output_format($message);
+                $savedPlan['args'] = $savedArgs;
+                $savedPlan['slots'] = $savedArgs;
+                $savedPlan['followup'] = true;
+                $savedPlan['followup_source'] = 'session_history_user';
+                return $savedPlan;
+            }
+        }
+    }
+
+    $previousUserQuery = jtgpt_client_history_last_user_query($clientHistory, $message);
+    if ($previousUserQuery !== null) {
+        $savedPlan = jtgpt_planner_plan($previousUserQuery, $state);
+        if (($savedPlan['kind'] ?? '') === 'tool' && strpos((string)($savedPlan['tool'] ?? ''), 'quality_') === 0) {
+            $savedArgs = (array)($savedPlan['args'] ?? []);
+            $savedArgs['output'] = jtgpt_planner_extract_quality_output_format($message);
+            $savedPlan['args'] = $savedArgs;
+            $savedPlan['slots'] = $savedArgs;
+            $savedPlan['followup'] = true;
+            $savedPlan['followup_source'] = 'client_history_user';
+            return $savedPlan;
+        }
+    }
+
+    return null;
+}
+
+function jtgpt_build_answer(string $message, array $clientHistory = []): array {
+    $state = jtgpt_session_state();
+    $plan = jtgpt_restore_quality_followup_plan($message, $state, $clientHistory);
+    if (!$plan) {
+        $plan = jtgpt_planner_plan($message, $state);
     }
     $answer = '';
     $statePatch = [];
