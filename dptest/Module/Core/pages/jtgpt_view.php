@@ -982,6 +982,58 @@ function jtgpt_answer_quality_summary(array $result, array $args): string {
 ", $lines);
 }
 
+function jtgpt_quality_export_brief_text(string $tool, array $args, array $result, bool $followup = false): string {
+    $format = jtgpt_quality_output_format($args);
+    $label = $format === 'csv' ? 'CSV' : '엑셀';
+    if ($followup) {
+        return '방금 조회 결과를 ' . $label . ' 파일로 만들었습니다.';
+    }
+
+    $scope = trim(jtgpt_format_scope($args));
+    $title = !empty($result['multi_module']) ? '전체' : trim((string)($result['label'] ?? strtoupper((string)($args['module'] ?? ''))));
+    $queryKind = 'rows';
+    if ($tool === 'quality_top_ng_points') {
+        $queryKind = 'top';
+    } elseif ($tool === 'quality_point_detail') {
+        $queryKind = 'detail';
+    } elseif ($tool === 'quality_count_ng_rows') {
+        $queryKind = 'count';
+    } elseif ($tool === 'quality_summary') {
+        $queryKind = 'summary';
+    }
+    $queryText = trim(jtgpt_quality_query_text($args, $queryKind));
+
+    $count = null;
+    if ($tool === 'quality_recent_ng_rows') {
+        $count = count((array)($result['rows'] ?? []));
+    } elseif ($tool === 'quality_top_ng_points') {
+        $count = count((array)($result['rows'] ?? []));
+    } elseif ($tool === 'quality_point_detail') {
+        if (!empty($result['latest_rows']) && is_array($result['latest_rows'])) {
+            $count = count($result['latest_rows']);
+        } elseif (!empty($result['results']) && is_array($result['results'])) {
+            $tmp = 0;
+            foreach ($result['results'] as $entry) {
+                $tmp += count((array)($entry['latest_rows'] ?? []));
+            }
+            if ($tmp > 0) {
+                $count = $tmp;
+            }
+        }
+    } elseif ($tool === 'quality_count_ng_rows' && isset($result['total_ng_count'])) {
+        $count = (int)$result['total_ng_count'];
+    } elseif ($tool === 'quality_summary' && isset($result['total_ng_count'])) {
+        $count = (int)$result['total_ng_count'];
+    }
+
+    $parts = array_values(array_filter([$title !== '' ? $title : '', $scope !== '' ? $scope : '', $queryText !== '' ? $queryText : '결과']));
+    $prefix = trim(implode(' ', $parts));
+    if ($count !== null) {
+        return trim($prefix . ' ' . jtgpt_tool_format_int($count) . '건을 ' . $label . ' 파일로 만들었습니다.');
+    }
+    return trim($prefix . ' 결과를 ' . $label . ' 파일로 만들었습니다.');
+}
+
 function jtgpt_build_answer(string $message): array {
     $state = jtgpt_session_state();
     $plan = jtgpt_planner_plan($message, $state);
@@ -1093,14 +1145,8 @@ function jtgpt_build_answer(string $message): array {
                 if (isset($res) && is_array($res)) {
                     $download = jtgpt_quality_create_export($pdo, (string)($plan['tool'] ?? ''), $args, $res);
                     if ($download) {
-                        $label = $download['format'] === 'csv' ? 'CSV' : '엑셀';
-                        $answer = rtrim($answer);
-                        if ($answer !== '') {
-                            $answer .= "
-";
-                        }
                         $ttlText = !empty($download['expires_in_sec']) ? ('다운로드 후 약 ' . max(1, (int)round(((int)$download['expires_in_sec']) / 60)) . '분 뒤 자동 정리됩니다.') : '';
-                        $answer .= $label . ' 파일을 만들었습니다.';
+                        $answer = jtgpt_quality_export_brief_text((string)($plan['tool'] ?? ''), $args, $res, !empty($plan['followup']));
                         if ($ttlText !== '') {
                             $answer .= "
 " . $ttlText;
