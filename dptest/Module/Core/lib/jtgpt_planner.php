@@ -373,20 +373,6 @@ if (!function_exists('jtgpt_planner_extract_quality_output_format')) {
     }
 }
 
-
-if (!function_exists('jtgpt_planner_extract_shipping_export_scope')) {
-    function jtgpt_planner_extract_shipping_export_scope(string $message): string {
-        $lower = mb_strtolower($message, 'UTF-8');
-        if (jtgpt_planner_contains_any($lower, ['상세내역', '상세 내역', '상세', '쉬핑리스트', 'shipping list', '전체excel', '전체 excel', '전체엑셀', 'detail'])) {
-            return 'detail';
-        }
-        if (jtgpt_planner_contains_any($lower, ['요약', 'summary'])) {
-            return 'summary';
-        }
-        return '';
-    }
-}
-
 if (!function_exists('jtgpt_planner_last_quality_context')) {
     function jtgpt_planner_last_quality_context(array $state = []): ?array {
         $tool = trim((string)($state['last_quality_tool'] ?? ''));
@@ -583,38 +569,60 @@ if (!function_exists('jtgpt_planner_expand_number_sequence')) {
 if (!function_exists('jtgpt_planner_extract_tools')) {
     function jtgpt_planner_extract_tools(string $message): array {
         $tools = [];
+        $delim = '(?:,|\/|&|와|과|랑|하고|및|and)';
+        $token = '[A-Z0-9]';
+        $seq = '(' . $token . '(?:\s*' . $delim . '\s*' . $token . ')+)';
 
-        if (preg_match_all('/([A-Z](?:\s*(?:,|\/|&|와|과|랑|하고|및|and)\s*[A-Z])+?)\s*툴/iu', $message, $m)) {
-            foreach ($m[1] as $expr) {
-                if (preg_match_all('/[A-Z]/iu', strtoupper($expr), $mm)) {
-                    foreach ($mm[0] as $tool) {
-                        $tools[] = strtoupper($tool);
-                    }
+        $appendTokens = static function (array $items) use (&$tools): void {
+            foreach ($items as $item) {
+                $value = strtoupper(trim((string)$item));
+                if ($value === '') {
+                    continue;
+                }
+                $tools[] = $value;
+            }
+        };
+
+        $extractSeq = static function (string $expr) use ($token): array {
+            if (!preg_match_all('/' . $token . '/iu', strtoupper($expr), $mm)) {
+                return [];
+            }
+            return $mm[0] ?? [];
+        };
+
+        $labelPatterns = [
+            '/'. $seq .'\s*(?:툴|tool|차수)\b/iu',
+            '/(?:툴|tool|차수)\s*'. $seq .'/iu',
+        ];
+        foreach ($labelPatterns as $pattern) {
+            if (preg_match_all($pattern, $message, $m)) {
+                foreach ($m[1] as $expr) {
+                    $appendTokens($extractSeq((string)$expr));
                 }
             }
         }
-        if (preg_match_all('/툴\s*([A-Z](?:\s*(?:,|\/|&|와|과|랑|하고|및|and)\s*[A-Z])+)/iu', $message, $m)) {
-            foreach ($m[1] as $expr) {
-                if (preg_match_all('/[A-Z]/iu', strtoupper($expr), $mm)) {
-                    foreach ($mm[0] as $tool) {
-                        $tools[] = strtoupper($tool);
-                    }
+
+        $singlePatterns = [
+            '/('. $token .')\s*(?:툴|tool|차수)\b/iu',
+            '/\b(?:툴|tool|차수)\s*('. $token .')(?=$|[^A-Z0-9])/iu',
+        ];
+        foreach ($singlePatterns as $pattern) {
+            if (preg_match_all($pattern, $message, $m)) {
+                $appendTokens($m[1] ?? []);
+            }
+        }
+
+        $chaPatterns = [
+            '/'. $seq .'\s*차(?=$|[^\p{L}\p{N}])/iu',
+            '/\b('. $token .')\s*차(?=$|[^\p{L}\p{N}])/iu',
+            '/차수\s*'. $seq .'(?=$|[^A-Z0-9])/iu',
+            '/차수\s*('. $token .')(?=$|[^A-Z0-9])/iu',
+        ];
+        foreach ($chaPatterns as $pattern) {
+            if (preg_match_all($pattern, $message, $m)) {
+                foreach ($m[1] as $expr) {
+                    $appendTokens($extractSeq((string)$expr));
                 }
-            }
-        }
-        if (preg_match_all('/([A-Z])\s*툴/iu', $message, $m)) {
-            foreach ($m[1] as $tool) {
-                $tools[] = strtoupper($tool);
-            }
-        }
-        if (preg_match_all('/\btool\s*([A-Z])/iu', $message, $m)) {
-            foreach ($m[1] as $tool) {
-                $tools[] = strtoupper($tool);
-            }
-        }
-        if (preg_match_all('/([A-Z])\s*tool\b/iu', $message, $m)) {
-            foreach ($m[1] as $tool) {
-                $tools[] = strtoupper($tool);
             }
         }
 
@@ -693,9 +701,11 @@ if (!function_exists('jtgpt_planner_collect_quality_point_terms')) {
         $scrub = preg_replace('/\b(?:today|yesterday|recent|latest|show|tell|count|summary|detail|ng)\b/u', ' ', $scrub);
         $scrub = preg_replace('/(?:최근|오늘|어제|이번|금주|금월|전체|상세|요약|조회|보여줘|알려줘|말해줘|데이터|기록|이력|많은|상위|가장|전체|전부|에서|으로|로|좀|해줘|봐줘|부탁|랑|하고|와|과|및)/u', ' ', $scrub);
         $scrub = preg_replace('/(?:ng|불량)/u', ' ', $scrub);
-        $scrub = preg_replace('/([a-z](?:\s*(?:,|\/|&|와|과|랑|하고|및|and)\s*[a-z])+?)\s*툴/iu', ' ', $scrub);
-        $scrub = preg_replace('/툴\s*([a-z](?:\s*(?:,|\/|&|와|과|랑|하고|및|and)\s*[a-z])+)/iu', ' ', $scrub);
-        $scrub = preg_replace('/\b[a-z]\s*툴\b/iu', ' ', $scrub);
+        $scrub = preg_replace('/([a-z0-9](?:\s*(?:,|\/|&|와|과|랑|하고|및|and)\s*[a-z0-9])+?)\s*(?:툴|tool|차수)/iu', ' ', $scrub);
+        $scrub = preg_replace('/(?:툴|tool|차수)\s*([a-z0-9](?:\s*(?:,|\/|&|와|과|랑|하고|및|and)\s*[a-z0-9])+)/iu', ' ', $scrub);
+        $scrub = preg_replace('/\b[a-z0-9]\s*(?:툴|tool|차수)\b/iu', ' ', $scrub);
+        $scrub = preg_replace('/([a-z0-9](?:\s*(?:,|\/|&|와|과|랑|하고|및|and)\s*[a-z0-9])+?)\s*차(?=$|[^\p{L}\p{N}])/iu', ' ', $scrub);
+        $scrub = preg_replace('/\b[a-z0-9]\s*차(?=$|[^\p{L}\p{N}])/iu', ' ', $scrub);
         $scrub = preg_replace('/([0-9\s,~\/-]+)\s*(?:캐비티|cavity|cav)\b/iu', ' ', $scrub);
         $scrub = preg_replace('/(?:캐비티|cavity|cav)\s*([0-9\s,~\/-]+)/iu', ' ', $scrub);
         $scrub = preg_replace('/[\(\)\[\]\{\}:;\|]+/u', ' ', $scrub);
@@ -906,24 +916,13 @@ if (!function_exists('jtgpt_planner_plan')) {
         $shippingNeedles = ['출하', '출고', 'ship', 'shipping', 'lot', '포장', '납품', '수량', 'qty', 'ea', 'tray'];
         if (jtgpt_planner_contains_any($lower, $shippingNeedles)) {
             $metric = 'summary';
-            $shippingExportScope = jtgpt_planner_extract_shipping_export_scope($text);
             if (jtgpt_planner_contains_any($lower, ['최근 출하일', '제일 최근 출하일', '최근출하일', '마지막 출하일', '마지막으로 출하', '최신 출하일'])) {
-                $args = ['from' => $range['from'], 'to' => $range['to'], 'range' => $range, 'part_name' => $partName, 'customer' => $customer];
-                if (in_array($output, ['excel', 'csv'], true)) {
-                    $args['output'] = $output;
-                    $args['export_scope'] = $shippingExportScope !== '' ? $shippingExportScope : 'summary';
-                }
-                return ['kind' => 'tool', 'tool' => 'shipping_last_ship_date', 'args' => $args];
+                return ['kind' => 'tool', 'tool' => 'shipping_last_ship_date', 'args' => ['from' => $range['from'], 'to' => $range['to'], 'range' => $range, 'part_name' => $partName, 'customer' => $customer]];
             }
             if (jtgpt_planner_contains_any($lower, ['lot'])) $metric = 'lot_count';
             elseif (jtgpt_planner_contains_any($lower, ['tray'])) $metric = 'tray_count';
             elseif (jtgpt_planner_contains_any($lower, ['수량', 'qty', 'ea'])) $metric = 'qty';
-            $args = ['from' => $range['from'], 'to' => $range['to'], 'range' => $range, 'part_name' => $partName, 'customer' => $customer, 'metric' => $metric];
-            if (in_array($output, ['excel', 'csv'], true)) {
-                $args['output'] = $output;
-                $args['export_scope'] = $shippingExportScope !== '' ? $shippingExportScope : 'summary';
-            }
-            return ['kind' => 'tool', 'tool' => 'shipping_summary', 'args' => $args];
+            return ['kind' => 'tool', 'tool' => 'shipping_summary', 'args' => ['from' => $range['from'], 'to' => $range['to'], 'range' => $range, 'part_name' => $partName, 'customer' => $customer, 'metric' => $metric]];
         }
 
         $mentionsQuality = jtgpt_planner_contains_any($lower, ['ng', '불량', '포인트', 'point', 'fai', 'oqc', 'omm', 'cmm', 'aoi', '측정값', 'value', 'usl', 'lsl']) || (is_array($valueFilter) && !empty($valueFilter['enabled']));
