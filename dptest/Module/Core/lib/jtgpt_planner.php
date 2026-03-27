@@ -373,51 +373,29 @@ if (!function_exists('jtgpt_planner_extract_quality_output_format')) {
     }
 }
 
-if (!function_exists('jtgpt_planner_is_output_followup')) {
-    function jtgpt_planner_is_output_followup(string $message): bool {
+if (!function_exists('jtgpt_planner_is_quality_export_followup')) {
+    function jtgpt_planner_is_quality_export_followup(string $message, array $state, string $output, ?string $partName, array $tools, array $cavities, array $pointTerms, array $range, ?array $valueFilter = null): bool {
+        if (!in_array($output, ['excel', 'csv', 'table'], true)) {
+            return false;
+        }
+        if (empty($state['last_quality_tool']) || !is_array($state['last_quality_args'] ?? null)) {
+            return false;
+        }
+
         $lower = mb_strtolower($message, 'UTF-8');
-        $outputNeedles = ['엑셀', 'excel', 'xlsx', '.xlsx', 'xls', '.xls', 'csv', '.csv', '표로', '테이블', 'table', '다운로드', '내보내', '출력'];
-        if (!jtgpt_planner_contains_any($lower, $outputNeedles)) {
+        $followNeedles = ['엑셀', 'excel', 'xlsx', 'csv', '표로', '테이블', 'table', '출력', '다운로드', '내려', '저장', '파일', '그거', '그 결과', '방금', '아까', '저거', '그걸'];
+        if (!jtgpt_planner_contains_any($lower, $followNeedles)) {
             return false;
         }
 
-        $freshNeedles = ['ng', '불량', '포인트', 'point', 'fai', 'oqc', 'omm', 'cmm', 'aoi', '측정값', 'value', 'usl', 'lsl', '오늘', '어제', '이번달', '이번 달', '최근', '지난달', '저번달', '월', '년', 'tool', '툴', 'cavity', '캐비티'];
-        if (jtgpt_planner_contains_any($lower, $freshNeedles)) {
-            return false;
-        }
+        $hasNewScope = false;
+        if (trim((string)$partName) !== '') $hasNewScope = true;
+        if (!empty($tools) || !empty($cavities) || !empty($pointTerms)) $hasNewScope = true;
+        if (is_array($valueFilter) && !empty($valueFilter['enabled'])) $hasNewScope = true;
+        if (empty($range['implicit'])) $hasNewScope = true;
+        if (jtgpt_planner_contains_any($lower, ['oqc', 'omm', 'aoi', 'cmm', 'ng', '불량', '측정값', 'usl', 'lsl'])) $hasNewScope = true;
 
-        return true;
-    }
-}
-
-if (!function_exists('jtgpt_planner_build_quality_followup_plan')) {
-    function jtgpt_planner_build_quality_followup_plan(string $message, array $state = []): ?array {
-        $lastTool = trim((string)($state['last_quality_tool'] ?? ''));
-        $lastArgs = $state['last_quality_args'] ?? null;
-        if ($lastTool === '' || !is_array($lastArgs) || !$lastArgs) {
-            return null;
-        }
-        if (!jtgpt_planner_is_output_followup($message)) {
-            return null;
-        }
-
-        $args = $lastArgs;
-        $output = jtgpt_planner_extract_quality_output_format($message);
-        if ($output === 'chat') {
-            return null;
-        }
-        $args['output'] = $output;
-        if ($output === 'table') {
-            $args['output_mode'] = 'rows';
-        }
-
-        return [
-            'kind' => 'tool',
-            'tool' => $lastTool,
-            'args' => $args,
-            'slots' => $args,
-            'followup_from_context' => true,
-        ];
+        return !$hasNewScope;
     }
 }
 
@@ -848,6 +826,7 @@ if (!function_exists('jtgpt_planner_plan')) {
         $pointTerms = jtgpt_planner_collect_quality_point_terms($text, $tools, $cavities);
         $limit = jtgpt_planner_extract_limit($text);
         $valueFilter = jtgpt_planner_extract_quality_value_filter($text);
+        $output = jtgpt_planner_extract_quality_output_format($text);
 
         if ($text === '') {
             return [
@@ -860,9 +839,13 @@ if (!function_exists('jtgpt_planner_plan')) {
             return ['kind' => 'answer', 'tool' => 'guard_read_only', 'args' => []];
         }
 
-        $followupPlan = jtgpt_planner_build_quality_followup_plan($text, $state);
-        if (is_array($followupPlan)) {
-            return $followupPlan;
+        if (jtgpt_planner_is_quality_export_followup($text, $state, $output, $partName, $tools, $cavities, $pointTerms, $range, $valueFilter)) {
+            $savedTool = trim((string)($state['last_quality_tool'] ?? ''));
+            $savedArgs = (array)($state['last_quality_args'] ?? []);
+            if ($savedTool !== '' && $savedArgs) {
+                $savedArgs['output'] = $output;
+                return ['kind' => 'tool', 'tool' => $savedTool, 'args' => $savedArgs, 'slots' => $savedArgs, 'followup' => true];
+            }
         }
 
         $wantsGraph = jtgpt_planner_contains_any($lower, ['그래프빌더', 'graph builder', '차트', '그래프', '히스토그램', '상자그림', '선그래프', '막대그래프', 'jmp']);

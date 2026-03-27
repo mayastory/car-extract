@@ -137,20 +137,142 @@ function jtgpt_quality_output_format(array $args): string {
     return in_array($output, ['excel', 'csv', 'table', 'chat'], true) ? $output : 'chat';
 }
 
-function jtgpt_quality_export_dir_fs(): string {
-    return rtrim(jtgpt_root_path(), '/\\') . '/exports/jtgpt';
+function jtgpt_quality_temp_dir_fs(): string {
+    $candidates = [];
+    $sysTmp = (string)sys_get_temp_dir();
+    if ($sysTmp !== '') {
+        $candidates[] = rtrim($sysTmp, '/\\') . '/jtgpt_exports';
+    }
+    $candidates[] = rtrim(jtgpt_root_path(), '/\\') . '/runtime/jtgpt_exports';
+    $candidates[] = rtrim(jtgpt_root_path(), '/\\') . '/tmp/jtgpt_exports';
+
+    foreach ($candidates as $dir) {
+        if ($dir === '') {
+            continue;
+        }
+        if (is_dir($dir)) {
+            return $dir;
+        }
+        if (@mkdir($dir, 0777, true) || is_dir($dir)) {
+            return $dir;
+        }
+    }
+
+    throw new RuntimeException('임시 export 폴더를 만들 수 없습니다.');
 }
 
-function jtgpt_quality_export_dir_url(): string {
+function jtgpt_quality_current_script_url(): string {
     $script = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
     if ($script !== '') {
-        $base = dirname($script, 4);
-        if ($base === '/' || $base === '\\') {
-            $base = '';
-        }
-        return rtrim($base, '/') . '/exports/jtgpt';
+        return $script;
     }
-    return '/exports/jtgpt';
+    $uri = str_replace('\\', '/', (string)($_SERVER['PHP_SELF'] ?? ''));
+    return $uri !== '' ? $uri : '';
+}
+
+function jtgpt_quality_download_mime(string $format): string {
+    $format = strtolower(trim($format));
+    if ($format === 'csv') {
+        return 'text/csv; charset=UTF-8';
+    }
+    return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+}
+
+function jtgpt_quality_cleanup_download_registry(): void {
+    if (!isset($_SESSION['jtgpt_downloads']) || !is_array($_SESSION['jtgpt_downloads'])) {
+        $_SESSION['jtgpt_downloads'] = [];
+        return;
+    }
+
+    $now = time();
+    foreach ($_SESSION['jtgpt_downloads'] as $token => $meta) {
+        if (!is_array($meta)) {
+            unset($_SESSION['jtgpt_downloads'][$token]);
+            continue;
+        }
+        $createdAt = (int)($meta['created_at'] ?? 0);
+        $downloadedAt = (int)($meta['downloaded_at'] ?? 0);
+        $downloadTtl = max(60, (int)($meta['download_ttl_sec'] ?? 600));
+        $pendingTtl = max(300, (int)($meta['pending_ttl_sec'] ?? 1800));
+        $expired = false;
+        if ($downloadedAt > 0) {
+            $expired = ($downloadedAt + $downloadTtl) <= $now;
+        } elseif ($createdAt > 0) {
+            $expired = ($createdAt + $pendingTtl) <= $now;
+        } else {
+            $expired = true;
+        }
+        if ($expired) {
+            $path = (string)($meta['path'] ?? '');
+            if ($path !== '' && is_file($path)) {
+                @unlink($path);
+            }
+            unset($_SESSION['jtgpt_downloads'][$token]);
+        }
+    }
+}
+
+function jtgpt_quality_register_download(string $path, string $filename, string $format, int $rowCount): array {
+    jtgpt_quality_cleanup_download_registry();
+
+    $token = bin2hex(random_bytes(16));
+    $createdAt = time();
+    $_SESSION['jtgpt_downloads'][$token] = [
+        'path' => $path,
+        'name' => $filename,
+        'format' => $format,
+        'mime' => jtgpt_quality_download_mime($format),
+        'row_count' => $rowCount,
+        'created_at' => $createdAt,
+        'downloaded_at' => 0,
+        'download_ttl_sec' => 600,
+        'pending_ttl_sec' => 1800,
+    ];
+
+    $script = jtgpt_quality_current_script_url();
+    $url = $script !== '' ? ($script . '?jtgpt_download=' . rawurlencode($token)) : ('?jtgpt_download=' . rawurlencode($token));
+
+    return [
+        'token' => $token,
+        'url' => $url,
+        'expires_in_sec' => 600,
+    ];
+}
+
+function jtgpt_quality_stream_download(string $token): void {
+    jtgpt_quality_cleanup_download_registry();
+
+    $meta = $_SESSION['jtgpt_downloads'][$token] ?? null;
+    if (!is_array($meta)) {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=UTF-8');
+        echo '다운로드 링크가 없거나 만료되었습니다.';
+        exit;
+    }
+
+    $path = (string)($meta['path'] ?? '');
+    if ($path === '' || !is_file($path)) {
+        unset($_SESSION['jtgpt_downloads'][$token]);
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=UTF-8');
+        echo '파일을 찾지 못했습니다.';
+        exit;
+    }
+
+    $_SESSION['jtgpt_downloads'][$token]['downloaded_at'] = time();
+    $name = (string)($meta['name'] ?? basename($path));
+    $mime = (string)($meta['mime'] ?? 'application/octet-stream');
+    session_write_close();
+
+    header('Content-Description: File Transfer');
+    header('Content-Type: ' . $mime);
+    header("Content-Disposition: attachment; filename=\"" . rawurlencode($name) . "\"; filename*=UTF-8''" . rawurlencode($name));
+    header('Content-Length: ' . (string)filesize($path));
+    header('Cache-Control: private, max-age=0, must-revalidate');
+    header('Pragma: public');
+    header('Expires: 0');
+    readfile($path);
+    exit;
 }
 
 function jtgpt_quality_export_filename(array $args, string $ext): string {
@@ -345,26 +467,25 @@ function jtgpt_quality_create_export(PDO $pdo, string $tool, array $args, array 
         return null;
     }
 
-    $dir = jtgpt_quality_export_dir_fs();
-    if (!is_dir($dir) && !@mkdir($dir, 0777, true) && !is_dir($dir)) {
-        throw new RuntimeException('내보내기 폴더를 만들 수 없습니다.');
-    }
-
+    $dir = jtgpt_quality_temp_dir_fs();
     $ext = $output === 'csv' ? 'csv' : 'xlsx';
     $filename = jtgpt_quality_export_filename($args, $ext);
-    $path = $dir . '/' . $filename;
+    $path = rtrim($dir, '/\\') . '/' . $filename;
     if ($output === 'csv') {
         jtgpt_quality_write_csv_file($path, $rows);
     } else {
         jtgpt_quality_write_xlsx_file($path, $rows);
     }
 
+    $download = jtgpt_quality_register_download($path, $filename, $output, count($rows));
     return [
         'name' => $filename,
         'path' => $path,
-        'url' => rtrim(jtgpt_quality_export_dir_url(), '/') . '/' . rawurlencode($filename),
+        'url' => $download['url'],
+        'token' => $download['token'],
         'row_count' => count($rows),
         'format' => $output,
+        'expires_in_sec' => $download['expires_in_sec'],
     ];
 }
 
@@ -954,25 +1075,11 @@ function jtgpt_build_answer(string $message): array {
                     break;
             }
 
-            if (in_array($tool, ['quality_top_ng_points', 'quality_recent_ng_rows', 'quality_point_detail', 'quality_count_ng_rows', 'quality_summary', 'oqc_top_ng_points', 'oqc_point_detail'], true)) {
-                $rememberArgs = $args;
-                if (isset($rememberArgs['output']) && in_array(strtolower(trim((string)$rememberArgs['output'])), ['excel', 'csv'], true)) {
-                    $rememberArgs['output'] = 'chat';
-                }
-                $statePatch['last_quality_tool'] = in_array($tool, ['oqc_top_ng_points', 'oqc_point_detail'], true)
-                    ? ($tool === 'oqc_top_ng_points' ? 'quality_top_ng_points' : 'quality_point_detail')
-                    : $tool;
-                if (($statePatch['last_quality_tool'] ?? '') === 'quality_top_ng_points' && empty($rememberArgs['modules'])) {
-                    $rememberArgs['modules'] = ['oqc'];
-                    $rememberArgs['module'] = 'oqc';
-                    $rememberArgs['type'] = 'OQC';
-                }
-                if (($statePatch['last_quality_tool'] ?? '') === 'quality_point_detail' && empty($rememberArgs['modules'])) {
-                    $rememberArgs['modules'] = ['oqc'];
-                    $rememberArgs['module'] = 'oqc';
-                    $rememberArgs['type'] = 'OQC';
-                }
-                $statePatch['last_quality_args'] = $rememberArgs;
+            if (isset($res) && is_array($res) && strpos($tool, 'quality_') === 0) {
+                $baseArgs = $args;
+                $baseArgs['output'] = 'chat';
+                $statePatch['last_quality_tool'] = $tool;
+                $statePatch['last_quality_args'] = $baseArgs;
             }
         }
     } else {
@@ -992,7 +1099,12 @@ function jtgpt_build_answer(string $message): array {
                             $answer .= "
 ";
                         }
+                        $ttlText = !empty($download['expires_in_sec']) ? ('다운로드 후 약 ' . max(1, (int)round(((int)$download['expires_in_sec']) / 60)) . '분 뒤 자동 정리됩니다.') : '';
                         $answer .= $label . ' 파일을 만들었습니다.';
+                        if ($ttlText !== '') {
+                            $answer .= "
+" . $ttlText;
+                        }
                     }
                 }
             } catch (Throwable $e) {
@@ -1013,6 +1125,14 @@ function jtgpt_build_answer(string $message): array {
     jtgpt_session_push('assistant', $answer, ['plan' => $plan, 'download' => $download]);
 
     return ['ok' => true, 'answer' => $answer, 'plan' => $plan, 'download_url' => $download['url'] ?? null, 'download_name' => $download['name'] ?? null];
+}
+
+jtgpt_quality_cleanup_download_registry();
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' && isset($_GET['jtgpt_download'])) {
+    $token = trim((string)$_GET['jtgpt_download']);
+    if ($token !== '') {
+        jtgpt_quality_stream_download($token);
+    }
 }
 
 $isAjax = ($_SERVER['REQUEST_METHOD'] === 'POST');
