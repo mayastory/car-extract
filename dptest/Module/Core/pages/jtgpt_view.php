@@ -489,6 +489,186 @@ function jtgpt_quality_create_export(PDO $pdo, string $tool, array $args, array 
     ];
 }
 
+function jtgpt_shipping_message_export_scope_hint(string $message): string {
+    $lower = mb_strtolower(trim($message), 'UTF-8');
+    if ($lower === '') {
+        return '';
+    }
+    if (jtgpt_planner_contains_any($lower, ['상세내역', '상세 내역', '상세', '쉬핑리스트', 'shipping list', '전체excel', '전체 excel', '전체엑셀', 'detail'])) {
+        return 'detail';
+    }
+    if (jtgpt_planner_contains_any($lower, ['요약', 'summary'])) {
+        return 'summary';
+    }
+    return '';
+}
+
+function jtgpt_shipping_export_scope(array $args): string {
+    $scope = strtolower(trim((string)($args['export_scope'] ?? '')));
+    if (in_array($scope, ['summary', 'detail'], true)) {
+        return $scope;
+    }
+    return 'summary';
+}
+
+function jtgpt_shipping_summary_export_rows(array $args, array $result): array {
+    $scopeText = jtgpt_format_scope($args);
+    $rows = [];
+    if (!empty($result['row']) && is_array($result['row'])) {
+        $row = (array)$result['row'];
+        $rows[] = [
+            '범위' => $scopeText,
+            '유형' => '최근출하',
+            '항목' => '일시',
+            '값' => (string)($row['ship_datetime'] ?? ''),
+            '품번' => (string)($row['part_name'] ?? ''),
+            '납품처' => (string)($row['ship_to'] ?? ''),
+            '수량(EA)' => jtgpt_tool_format_int($row['qty'] ?? 0),
+        ];
+        return $rows;
+    }
+
+    $rows[] = ['범위' => $scopeText, '유형' => '요약', '항목' => '총 수량', '값' => jtgpt_tool_format_int($result['total_qty'] ?? 0) . ' EA', '품번' => '', '납품처' => '', '수량(EA)' => ''];
+    $rows[] = ['범위' => $scopeText, '유형' => '요약', '항목' => 'LOT 수', '값' => jtgpt_tool_format_int($result['lot_count'] ?? 0), '품번' => '', '납품처' => '', '수량(EA)' => ''];
+    $rows[] = ['범위' => $scopeText, '유형' => '요약', '항목' => 'Tray 수', '값' => jtgpt_tool_format_int($result['tray_count'] ?? 0), '품번' => '', '납품처' => '', '수량(EA)' => ''];
+    foreach ((array)($result['top_parts'] ?? []) as $partRow) {
+        $rows[] = [
+            '범위' => $scopeText,
+            '유형' => '상위품번',
+            '항목' => (string)($partRow['part_name'] ?? ''),
+            '값' => jtgpt_tool_format_int($partRow['total_qty'] ?? 0) . ' EA',
+            '품번' => (string)($partRow['part_name'] ?? ''),
+            '납품처' => '',
+            '수량(EA)' => jtgpt_tool_format_int($partRow['total_qty'] ?? 0),
+        ];
+    }
+    return $rows;
+}
+
+function jtgpt_shipping_export_filename(array $args, string $ext): string {
+    $partName = strtoupper(trim((string)($args['part_name'] ?? 'all')));
+    $partName = preg_replace('/[^A-Z0-9\-]+/', '-', $partName);
+    $partName = trim((string)$partName, '-');
+    if ($partName === '') $partName = 'ALL';
+
+    $datePart = trim((string)($args['from'] ?? ''));
+    if ($datePart !== '' && $datePart === trim((string)($args['to'] ?? ''))) {
+        $datePart = str_replace('-', '', $datePart);
+    } else {
+        $datePart = 'range';
+    }
+
+    $stamp = (new DateTime('now', new DateTimeZone('Asia/Seoul')))->format('Ymd_His');
+    return 'jtgpt_shipping_' . strtolower($partName) . '_' . $datePart . '_' . $stamp . '.' . $ext;
+}
+
+function jtgpt_shipping_export_headers(PDO $pdo): array {
+    static $cache = null;
+    if (is_array($cache) && $cache) {
+        return $cache;
+    }
+    $headers = [];
+    $stmt = $pdo->query("SHOW COLUMNS FROM `ShipingList`");
+    foreach (($stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : []) as $row) {
+        $field = trim((string)($row['Field'] ?? ''));
+        if ($field !== '') {
+            $headers[] = $field;
+        }
+    }
+    $cache = $headers;
+    return $headers;
+}
+
+function jtgpt_shipping_export_source_rows(PDO $pdo, array $args): array {
+    $headers = jtgpt_shipping_export_headers($pdo);
+    if (!$headers) {
+        return [];
+    }
+    $where = jtgpt_tool_shipping_where($pdo, $args);
+    $sql = "SELECT * FROM ShipingList {$where['sql']} ORDER BY ship_datetime DESC, id DESC";
+    $st = $pdo->prepare($sql);
+    $st->execute($where['params']);
+    $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    $out = [];
+    foreach ($rows as $row) {
+        $line = [];
+        foreach ($headers as $header) {
+            $value = $row[$header] ?? '';
+            if ($value === null) {
+                $value = '';
+            }
+            $line[$header] = is_scalar($value) ? (string)$value : '';
+        }
+        $out[] = $line;
+    }
+    return $out;
+}
+
+function jtgpt_shipping_create_export(PDO $pdo, array $args, ?array $result = null): ?array {
+    $output = jtgpt_quality_output_format($args);
+    if (!in_array($output, ['excel', 'csv'], true)) {
+        return null;
+    }
+
+    $scope = jtgpt_shipping_export_scope($args);
+    if ($scope === 'detail') {
+        $rows = jtgpt_shipping_export_source_rows($pdo, $args);
+    } else {
+        $summaryResult = is_array($result) ? $result : [];
+        if (!$summaryResult) {
+            $queryArgs = $args;
+            unset($queryArgs['output']);
+            $summaryResult = !empty($queryArgs['metric'])
+                ? jtgpt_tool_shipping_summary($pdo, $queryArgs)
+                : jtgpt_tool_shipping_last_ship_date($pdo, $queryArgs);
+        }
+        $rows = jtgpt_shipping_summary_export_rows($args, $summaryResult);
+    }
+    if (!$rows) {
+        return null;
+    }
+
+    $dir = jtgpt_quality_temp_dir_fs();
+    $ext = $output === 'csv' ? 'csv' : 'xlsx';
+    $filename = jtgpt_shipping_export_filename($args, $ext);
+    $path = rtrim($dir, '/\\') . '/' . $filename;
+    if ($output === 'csv') {
+        jtgpt_quality_write_csv_file($path, $rows);
+    } else {
+        jtgpt_quality_write_xlsx_file($path, $rows);
+    }
+
+    $download = jtgpt_quality_register_download($path, $filename, $output, count($rows));
+    return [
+        'name' => $filename,
+        'path' => $path,
+        'url' => $download['url'],
+        'token' => $download['token'],
+        'row_count' => count($rows),
+        'format' => $output,
+        'export_scope' => $scope,
+        'expires_in_sec' => $download['expires_in_sec'],
+    ];
+}
+
+function jtgpt_shipping_export_brief_text(array $args, array $download, bool $followup = false): string {
+    $format = strtolower(trim((string)($download['format'] ?? $args['output'] ?? 'excel')));
+    $label = $format === 'csv' ? 'CSV' : '엑셀';
+    $scopeText = jtgpt_format_scope($args);
+    $count = isset($download['row_count']) ? (int)$download['row_count'] : null;
+    $exportScope = strtolower(trim((string)($download['export_scope'] ?? $args['export_scope'] ?? 'summary')));
+    $targetLabel = $exportScope === 'detail' ? '출하 상세내역' : '출하 요약';
+    if ($followup) {
+        return $count !== null
+            ? ('방금 조회한 ' . $targetLabel . ' ' . jtgpt_tool_format_int($count) . '행을 ' . $label . ' 파일로 만들었습니다.')
+            : ('방금 조회한 ' . $targetLabel . '을 ' . $label . ' 파일로 만들었습니다.');
+    }
+    $prefix = trim(($scopeText !== '' ? ($scopeText . ' ') : '') . $targetLabel);
+    return $count !== null
+        ? ($prefix . ' ' . jtgpt_tool_format_int($count) . '행을 ' . $label . ' 파일로 만들었습니다.')
+        : ($prefix . '을 ' . $label . ' 파일로 만들었습니다.');
+}
+
 function jtgpt_format_scope(array $args): string {
     $parts = [];
     $range = $args['range']['label'] ?? '';
@@ -982,93 +1162,6 @@ function jtgpt_answer_quality_summary(array $result, array $args): string {
 ", $lines);
 }
 
-function jtgpt_shipping_export_filename(array $args, string $ext): string {
-    $partName = strtoupper(trim((string)($args['part_name'] ?? 'all')));
-    $partName = preg_replace('/[^A-Z0-9\-]+/', '-', $partName);
-    $partName = trim((string)$partName, '-');
-    if ($partName === '') {
-        $partName = 'ALL';
-    }
-    $stamp = (new DateTime('now', new DateTimeZone('Asia/Seoul')))->format('Ymd_His');
-    return 'jtgpt_shipping_' . strtolower($partName) . '_' . $stamp . '.' . $ext;
-}
-
-function jtgpt_shipping_export_source_rows(PDO $pdo, array $args): array {
-    if (!function_exists('jtgpt_tool_shipping_where')) {
-        return [];
-    }
-    $where = jtgpt_tool_shipping_where($pdo, $args);
-    $sql = "SELECT * FROM ShipingList {$where['sql']} ORDER BY ship_datetime DESC, id DESC";
-    $st = $pdo->prepare($sql);
-    $st->execute($where['params']);
-    $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
-    return array_values(array_map(static function ($row) {
-        if (!is_array($row)) {
-            return [];
-        }
-        foreach ($row as $k => $v) {
-            if (is_bool($v)) {
-                $row[$k] = $v ? '1' : '0';
-            } elseif ($v === null) {
-                $row[$k] = '';
-            } elseif (is_scalar($v)) {
-                $row[$k] = (string)$v;
-            } else {
-                $row[$k] = json_encode($v, JSON_UNESCAPED_UNICODE);
-            }
-        }
-        return $row;
-    }, $rows));
-}
-
-function jtgpt_shipping_create_export(PDO $pdo, array $args): ?array {
-    $output = jtgpt_quality_output_format($args);
-    if (!in_array($output, ['excel', 'csv'], true)) {
-        return null;
-    }
-    $rows = jtgpt_shipping_export_source_rows($pdo, $args);
-    if (!$rows) {
-        return null;
-    }
-    $dir = jtgpt_quality_temp_dir_fs();
-    $ext = $output === 'csv' ? 'csv' : 'xlsx';
-    $filename = jtgpt_shipping_export_filename($args, $ext);
-    $path = rtrim($dir, '/\\') . '/' . $filename;
-    if ($output === 'csv') {
-        jtgpt_quality_write_csv_file($path, $rows);
-    } else {
-        jtgpt_quality_write_xlsx_file($path, $rows);
-    }
-    $download = jtgpt_quality_register_download($path, $filename, $output, count($rows));
-    return [
-        'name' => $filename,
-        'path' => $path,
-        'url' => $download['url'],
-        'token' => $download['token'],
-        'row_count' => count($rows),
-        'format' => $output,
-        'expires_in_sec' => $download['expires_in_sec'],
-    ];
-}
-
-function jtgpt_shipping_export_brief_text(array $args, ?array $download, bool $followup = false): string {
-    $format = strtolower(trim((string)($download['format'] ?? $args['output'] ?? 'excel')));
-    $label = $format === 'csv' ? 'CSV' : '엑셀';
-    $count = (int)($download['row_count'] ?? 0);
-    if ($followup) {
-        if ($count > 0) {
-            return '방금 조회 결과를 ' . $label . ' 파일로 만들었습니다.';
-        }
-        return $label . ' 파일을 만들었습니다.';
-    }
-    $scope = jtgpt_format_scope($args);
-    $prefix = trim(($scope !== '' ? ($scope . ' ') : '') . '출하내역 상세');
-    if ($count > 0) {
-        return $prefix . ' ' . jtgpt_tool_format_int($count) . '건을 ' . $label . ' 파일로 만들었습니다.';
-    }
-    return $prefix . '을 ' . $label . ' 파일로 만들었습니다.';
-}
-
 function jtgpt_quality_export_brief_text(string $tool, array $args, array $result, bool $followup = false): string {
     $format = jtgpt_quality_output_format($args);
     $label = $format === 'csv' ? 'CSV' : '엑셀';
@@ -1165,26 +1258,7 @@ function jtgpt_is_output_only_followup_message(string $message): bool {
     return true;
 }
 
-function jtgpt_build_quality_followup_plan_from_tool_args(string $tool, array $args, string $message, string $source): ?array {
-    $tool = trim($tool);
-    if ($tool === '' || strpos($tool, 'quality_') !== 0) {
-        return null;
-    }
-    if (!$args) {
-        return null;
-    }
-    $args['output'] = jtgpt_planner_extract_quality_output_format($message);
-    return [
-        'kind' => 'tool',
-        'tool' => $tool,
-        'args' => $args,
-        'slots' => $args,
-        'followup' => true,
-        'followup_source' => $source,
-    ];
-}
-
-function jtgpt_is_exportable_tool(string $tool): bool {
+function jtgpt_is_exportable_tool_name(string $tool): bool {
     $tool = trim($tool);
     if ($tool === '') {
         return false;
@@ -1195,12 +1269,9 @@ function jtgpt_is_exportable_tool(string $tool): bool {
     return in_array($tool, ['shipping_summary', 'shipping_last_ship_date'], true);
 }
 
-function jtgpt_build_exportable_followup_plan_from_tool_args(string $tool, array $args, string $message, string $source): ?array {
+function jtgpt_build_export_followup_plan_from_tool_args(string $tool, array $args, string $message, string $source): ?array {
     $tool = trim($tool);
-    if (!jtgpt_is_exportable_tool($tool)) {
-        return null;
-    }
-    if (!$args) {
+    if (!jtgpt_is_exportable_tool_name($tool) || !$args) {
         return null;
     }
     $output = jtgpt_planner_extract_quality_output_format($message);
@@ -1208,6 +1279,14 @@ function jtgpt_build_exportable_followup_plan_from_tool_args(string $tool, array
         return null;
     }
     $args['output'] = $output;
+    if (strpos($tool, 'shipping_') === 0) {
+        $hintScope = jtgpt_shipping_message_export_scope_hint($message);
+        if ($hintScope !== '') {
+            $args['export_scope'] = $hintScope;
+        } elseif (empty($args['export_scope'])) {
+            $args['export_scope'] = 'summary';
+        }
+    }
     return [
         'kind' => 'tool',
         'tool' => $tool,
@@ -1218,38 +1297,30 @@ function jtgpt_build_exportable_followup_plan_from_tool_args(string $tool, array
     ];
 }
 
-function jtgpt_build_exportable_followup_plan_from_plan(array $plan, string $message, string $source): ?array {
+function jtgpt_build_export_followup_plan_from_plan(array $plan, string $message, string $source): ?array {
     if (($plan['kind'] ?? '') !== 'tool') {
         return null;
     }
-    return jtgpt_build_exportable_followup_plan_from_tool_args((string)($plan['tool'] ?? ''), (array)($plan['args'] ?? []), $message, $source);
+    return jtgpt_build_export_followup_plan_from_tool_args((string)($plan['tool'] ?? ''), (array)($plan['args'] ?? []), $message, $source);
 }
 
-function jtgpt_restore_exportable_followup_plan(string $message, array $state, array $clientHistory = [], ?array $clientLastExportablePlan = null, ?array $clientLastQualityPlan = null): ?array {
+function jtgpt_restore_export_followup_plan(string $message, array $state, array $clientHistory = [], ?array $clientLastToolPlan = null): ?array {
     if (!jtgpt_is_output_only_followup_message($message)) {
         return null;
     }
 
-    $plan = jtgpt_build_exportable_followup_plan_from_plan((array)$clientLastExportablePlan, $message, 'client_last_exportable_plan');
-    if ($plan) {
-        return $plan;
-    }
-
-    $plan = jtgpt_build_exportable_followup_plan_from_plan((array)$clientLastQualityPlan, $message, 'client_last_quality_plan');
+    $plan = jtgpt_build_export_followup_plan_from_plan((array)$clientLastToolPlan, $message, 'client_last_plan');
     if ($plan) {
         return $plan;
     }
 
     $tool = trim((string)($state['last_exportable_tool'] ?? ''));
     $args = (array)($state['last_exportable_args'] ?? []);
-    $plan = jtgpt_build_exportable_followup_plan_from_tool_args($tool, $args, $message, 'state_exportable');
-    if ($plan) {
-        return $plan;
+    if ($tool === '' || !$args) {
+        $tool = trim((string)($state['last_quality_tool'] ?? ''));
+        $args = (array)($state['last_quality_args'] ?? []);
     }
-
-    $tool = trim((string)($state['last_quality_tool'] ?? ''));
-    $args = (array)($state['last_quality_args'] ?? []);
-    $plan = jtgpt_build_exportable_followup_plan_from_tool_args($tool, $args, $message, 'state_quality');
+    $plan = jtgpt_build_export_followup_plan_from_tool_args($tool, $args, $message, 'state');
     if ($plan) {
         return $plan;
     }
@@ -1260,7 +1331,7 @@ function jtgpt_restore_exportable_followup_plan(string $message, array $state, a
             $entry = (array)($hist[$i] ?? []);
             $meta = (array)($entry['meta'] ?? []);
             $savedPlan = (array)($meta['plan'] ?? []);
-            $plan = jtgpt_build_exportable_followup_plan_from_plan($savedPlan, $message, 'session_history_plan');
+            $plan = jtgpt_build_export_followup_plan_from_tool_args((string)($savedPlan['tool'] ?? ''), (array)($savedPlan['args'] ?? []), $message, 'session_history_plan');
             if ($plan) {
                 return $plan;
             }
@@ -1276,113 +1347,28 @@ function jtgpt_restore_exportable_followup_plan(string $message, array $state, a
                 continue;
             }
             $savedPlan = jtgpt_planner_plan($text, $state);
-            if (jtgpt_is_exportable_tool((string)($savedPlan['tool'] ?? ''))) {
-                $savedArgs = (array)($savedPlan['args'] ?? []);
-                $savedArgs['output'] = jtgpt_planner_extract_quality_output_format($message);
-                $savedPlan['args'] = $savedArgs;
-                $savedPlan['slots'] = $savedArgs;
-                $savedPlan['followup'] = true;
-                $savedPlan['followup_source'] = 'session_history_user';
-                return $savedPlan;
-            }
-        }
-    }
-
-    $previousUserQuery = jtgpt_client_history_last_user_query($clientHistory, $message);
-    if ($previousUserQuery !== null) {
-        $savedPlan = jtgpt_planner_plan($previousUserQuery, $state);
-        if (jtgpt_is_exportable_tool((string)($savedPlan['tool'] ?? ''))) {
-            $savedArgs = (array)($savedPlan['args'] ?? []);
-            $savedArgs['output'] = jtgpt_planner_extract_quality_output_format($message);
-            $savedPlan['args'] = $savedArgs;
-            $savedPlan['slots'] = $savedArgs;
-            $savedPlan['followup'] = true;
-            $savedPlan['followup_source'] = 'client_history_user';
-            return $savedPlan;
-        }
-    }
-
-    return null;
-}
-
-function jtgpt_build_quality_followup_plan_from_plan(array $plan, string $message, string $source): ?array {
-    if (($plan['kind'] ?? '') !== 'tool') {
-        return null;
-    }
-    return jtgpt_build_quality_followup_plan_from_tool_args((string)($plan['tool'] ?? ''), (array)($plan['args'] ?? []), $message, $source);
-}
-
-function jtgpt_restore_quality_followup_plan(string $message, array $state, array $clientHistory = [], ?array $clientLastQualityPlan = null): ?array {
-    if (!jtgpt_is_output_only_followup_message($message)) {
-        return null;
-    }
-
-    $plan = jtgpt_build_quality_followup_plan_from_plan((array)$clientLastQualityPlan, $message, 'client_last_plan');
-    if ($plan) {
-        return $plan;
-    }
-
-    $tool = trim((string)($state['last_quality_tool'] ?? ''));
-    $args = (array)($state['last_quality_args'] ?? []);
-    $plan = jtgpt_build_quality_followup_plan_from_tool_args($tool, $args, $message, 'state');
-    if ($plan) {
-        return $plan;
-    }
-
-    if (function_exists('jtgpt_session_history')) {
-        $hist = (array)jtgpt_session_history(20);
-        for ($i = count($hist) - 1; $i >= 0; $i--) {
-            $entry = (array)($hist[$i] ?? []);
-            $meta = (array)($entry['meta'] ?? []);
-            $savedPlan = (array)($meta['plan'] ?? []);
-            $plan = jtgpt_build_quality_followup_plan_from_tool_args((string)($savedPlan['tool'] ?? ''), (array)($savedPlan['args'] ?? []), $message, 'session_history_plan');
+            $plan = jtgpt_build_export_followup_plan_from_plan($savedPlan, $message, 'session_history_user');
             if ($plan) {
                 return $plan;
             }
         }
-
-        for ($i = count($hist) - 1; $i >= 0; $i--) {
-            $entry = (array)($hist[$i] ?? []);
-            if (strtolower((string)($entry['role'] ?? '')) !== 'user') {
-                continue;
-            }
-            $text = trim((string)($entry['text'] ?? ''));
-            if ($text === '' || $text === trim($message)) {
-                continue;
-            }
-            $savedPlan = jtgpt_planner_plan($text, $state);
-            if (($savedPlan['kind'] ?? '') === 'tool' && strpos((string)($savedPlan['tool'] ?? ''), 'quality_') === 0) {
-                $savedArgs = (array)($savedPlan['args'] ?? []);
-                $savedArgs['output'] = jtgpt_planner_extract_quality_output_format($message);
-                $savedPlan['args'] = $savedArgs;
-                $savedPlan['slots'] = $savedArgs;
-                $savedPlan['followup'] = true;
-                $savedPlan['followup_source'] = 'session_history_user';
-                return $savedPlan;
-            }
-        }
     }
 
     $previousUserQuery = jtgpt_client_history_last_user_query($clientHistory, $message);
     if ($previousUserQuery !== null) {
         $savedPlan = jtgpt_planner_plan($previousUserQuery, $state);
-        if (($savedPlan['kind'] ?? '') === 'tool' && strpos((string)($savedPlan['tool'] ?? ''), 'quality_') === 0) {
-            $savedArgs = (array)($savedPlan['args'] ?? []);
-            $savedArgs['output'] = jtgpt_planner_extract_quality_output_format($message);
-            $savedPlan['args'] = $savedArgs;
-            $savedPlan['slots'] = $savedArgs;
-            $savedPlan['followup'] = true;
-            $savedPlan['followup_source'] = 'client_history_user';
-            return $savedPlan;
+        $plan = jtgpt_build_export_followup_plan_from_plan($savedPlan, $message, 'client_history_user');
+        if ($plan) {
+            return $plan;
         }
     }
 
     return null;
 }
 
-function jtgpt_build_answer(string $message, array $clientHistory = [], ?array $clientLastQualityPlan = null, ?array $clientLastExportablePlan = null): array {
+function jtgpt_build_answer(string $message, array $clientHistory = [], ?array $clientLastToolPlan = null): array {
     $state = jtgpt_session_state();
-    $plan = jtgpt_restore_exportable_followup_plan($message, $state, $clientHistory, $clientLastExportablePlan, $clientLastQualityPlan);
+    $plan = jtgpt_restore_export_followup_plan($message, $state, $clientHistory, $clientLastToolPlan);
     if (!$plan) {
         $plan = jtgpt_planner_plan($message, $state);
     }
@@ -1408,30 +1394,14 @@ function jtgpt_build_answer(string $message, array $clientHistory = [], ?array $
         } else {
             $tool = (string)($plan['tool'] ?? '');
             $args = (array)($plan['args'] ?? []);
-            if (jtgpt_is_exportable_tool($tool) && jtgpt_quality_output_format($args) === 'chat') {
-                $requestedOutput = jtgpt_planner_extract_quality_output_format($message);
-                if (in_array($requestedOutput, ['excel', 'csv'], true)) {
-                    $args['output'] = $requestedOutput;
-                    $plan['args'] = $args;
-                    $plan['slots'] = $args;
-                }
-            }
             switch ($tool) {
                 case 'shipping_summary':
                     $res = jtgpt_tool_shipping_summary($pdo, $args);
                     $answer = jtgpt_answer_shipping_summary($res, $args);
-                    $baseArgs = $args;
-                    $baseArgs['output'] = 'chat';
-                    $statePatch['last_exportable_tool'] = $tool;
-                    $statePatch['last_exportable_args'] = $baseArgs;
                     break;
                 case 'shipping_last_ship_date':
                     $res = jtgpt_tool_shipping_last_ship_date($pdo, $args);
                     $answer = jtgpt_answer_shipping_last_ship($res, $args);
-                    $baseArgs = $args;
-                    $baseArgs['output'] = 'chat';
-                    $statePatch['last_exportable_tool'] = $tool;
-                    $statePatch['last_exportable_args'] = $baseArgs;
                     break;
                 case 'quality_top_ng_points':
                     $modules = jtgpt_quality_module_list_from_args($args);
@@ -1492,11 +1462,18 @@ function jtgpt_build_answer(string $message, array $clientHistory = [], ?array $
                     break;
             }
 
-            if (isset($res) && is_array($res) && strpos($tool, 'quality_') === 0) {
+            if (isset($res) && is_array($res) && jtgpt_is_exportable_tool_name($tool)) {
                 $baseArgs = $args;
                 $baseArgs['output'] = 'chat';
-                $statePatch['last_quality_tool'] = $tool;
-                $statePatch['last_quality_args'] = $baseArgs;
+                if (strpos($tool, 'shipping_') === 0 && empty($baseArgs['export_scope'])) {
+                    $baseArgs['export_scope'] = 'summary';
+                }
+                $statePatch['last_exportable_tool'] = $tool;
+                $statePatch['last_exportable_args'] = $baseArgs;
+                if (strpos($tool, 'quality_') === 0) {
+                    $statePatch['last_quality_tool'] = $tool;
+                    $statePatch['last_quality_args'] = $baseArgs;
+                }
             }
         }
     } else {
@@ -1504,27 +1481,30 @@ function jtgpt_build_answer(string $message, array $clientHistory = [], ?array $
     }
 
     if (($plan['kind'] ?? '') === 'tool' && $pdo instanceof PDO) {
+        $tool = (string)($plan['tool'] ?? '');
         $args = (array)($plan['args'] ?? []);
         if (in_array(jtgpt_quality_output_format($args), ['excel', 'csv'], true)) {
             try {
-                if ((string)($plan['tool'] ?? '') === 'shipping_summary' || (string)($plan['tool'] ?? '') === 'shipping_last_ship_date') {
-                    $download = jtgpt_shipping_create_export($pdo, $args);
-                    if ($download) {
-                        $ttlText = !empty($download['expires_in_sec']) ? ('다운로드 후 약 ' . max(1, (int)round(((int)$download['expires_in_sec']) / 60)) . '분 뒤 자동 정리됩니다.') : '';
-                        $answer = jtgpt_shipping_export_brief_text($args, $download, !empty($plan['followup']));
-                        if ($ttlText !== '') {
-                            $answer .= "
+                if (isset($res) && is_array($res)) {
+                    if (strpos($tool, 'quality_') === 0) {
+                        $download = jtgpt_quality_create_export($pdo, $tool, $args, $res);
+                        if ($download) {
+                            $ttlText = !empty($download['expires_in_sec']) ? ('다운로드 후 약 ' . max(1, (int)round(((int)$download['expires_in_sec']) / 60)) . '분 뒤 자동 정리됩니다.') : '';
+                            $answer = jtgpt_quality_export_brief_text($tool, $args, $res, !empty($plan['followup']));
+                            if ($ttlText !== '') {
+                                $answer .= "
 " . $ttlText;
+                            }
                         }
-                    }
-                } elseif (isset($res) && is_array($res)) {
-                    $download = jtgpt_quality_create_export($pdo, (string)($plan['tool'] ?? ''), $args, $res);
-                    if ($download) {
-                        $ttlText = !empty($download['expires_in_sec']) ? ('다운로드 후 약 ' . max(1, (int)round(((int)$download['expires_in_sec']) / 60)) . '분 뒤 자동 정리됩니다.') : '';
-                        $answer = jtgpt_quality_export_brief_text((string)($plan['tool'] ?? ''), $args, $res, !empty($plan['followup']));
-                        if ($ttlText !== '') {
-                            $answer .= "
+                    } elseif (strpos($tool, 'shipping_') === 0) {
+                        $download = jtgpt_shipping_create_export($pdo, $args, isset($res) && is_array($res) ? $res : null);
+                        if ($download) {
+                            $ttlText = !empty($download['expires_in_sec']) ? ('다운로드 후 약 ' . max(1, (int)round(((int)$download['expires_in_sec']) / 60)) . '분 뒤 자동 정리됩니다.') : '';
+                            $answer = jtgpt_shipping_export_brief_text($args, $download, !empty($plan['followup']));
+                            if ($ttlText !== '') {
+                                $answer .= "
 " . $ttlText;
+                            }
                         }
                     }
                 }
@@ -1545,7 +1525,7 @@ function jtgpt_build_answer(string $message, array $clientHistory = [], ?array $
     }
     jtgpt_session_push('assistant', $answer, ['plan' => $plan, 'download' => $download]);
 
-    return ['ok' => true, 'answer' => $answer, 'plan' => $plan, 'download_url' => $download['url'] ?? null, 'download_name' => $download['name'] ?? null];
+    return ['ok' => true, 'answer' => $answer, 'plan' => $plan, 'last_tool_plan' => (jtgpt_is_exportable_tool_name((string)($plan['tool'] ?? '')) ? ['kind' => 'tool', 'tool' => (string)$plan['tool'], 'args' => (array)($plan['args'] ?? [])] : null), 'download_url' => $download['url'] ?? null, 'download_name' => $download['name'] ?? null];
 }
 
 jtgpt_quality_cleanup_download_registry();
@@ -1565,9 +1545,8 @@ if ($isAjax) {
     }
     $message = trim((string)($payload['message'] ?? ''));
     $clientHistory = is_array($payload['client_history'] ?? null) ? array_values($payload['client_history']) : [];
-    $clientLastQualityPlan = is_array($payload['last_quality_plan'] ?? null) ? (array)$payload['last_quality_plan'] : null;
-    $clientLastExportablePlan = is_array($payload['last_exportable_plan'] ?? null) ? (array)$payload['last_exportable_plan'] : null;
-    jtgpt_json_response(jtgpt_build_answer($message, $clientHistory, $clientLastQualityPlan, $clientLastExportablePlan));
+    $clientLastToolPlan = is_array($payload['last_tool_plan'] ?? null) ? (array)$payload['last_tool_plan'] : (is_array($payload['last_quality_plan'] ?? null) ? (array)$payload['last_quality_plan'] : null);
+    jtgpt_json_response(jtgpt_build_answer($message, $clientHistory, $clientLastQualityPlan));
 }
 ?><!doctype html>
 <html lang="ko">
@@ -1835,8 +1814,7 @@ if ($isAjax) {
     const homeEl = document.getElementById('home');
     const messagesEl = document.getElementById('messages');
     const clientHistory = [];
-    let lastQualityPlan = null;
-    let lastExportablePlan = null;
+    let lastToolPlan = null;
     const inputEl = document.getElementById('messageInput');
     const sendBtn = document.getElementById('sendBtn');
     const chatEl = document.getElementById('chat');
@@ -1927,21 +1905,16 @@ if ($isAjax) {
                     'Content-Type': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest'
                 },
-                body: JSON.stringify({ message, client_history: clientHistory.slice(-12), last_quality_plan: lastQualityPlan, last_exportable_plan: lastExportablePlan })
+                body: JSON.stringify({ message, client_history: clientHistory.slice(-12), last_tool_plan: lastToolPlan })
             });
             const json = await res.json();
             const answerText = (json && json.answer) ? json.answer : '응답을 받지 못했어요.';
             await typeText(assistantBubble, answerText);
             clientHistory.push({ role: 'assistant', text: answerText });
-            if (json && json.plan && json.plan.kind === 'tool' && typeof json.plan.tool === 'string') {
-                if (json.plan.tool.indexOf('quality_') === 0) {
-                    lastQualityPlan = { kind: 'tool', tool: json.plan.tool, args: json.plan.args || {} };
-                }
-                if (json.plan.tool.indexOf('quality_') === 0 || json.plan.tool === 'shipping_summary' || json.plan.tool === 'shipping_last_ship_date') {
-                    const rememberedArgs = Object.assign({}, json.plan.args || {});
-                    rememberedArgs.output = 'chat';
-                    lastExportablePlan = { kind: 'tool', tool: json.plan.tool, args: rememberedArgs };
-                }
+            if (json && json.last_tool_plan && json.last_tool_plan.kind === 'tool') {
+                lastToolPlan = { kind: 'tool', tool: json.last_tool_plan.tool, args: json.last_tool_plan.args || {} };
+            } else if (json && json.plan && json.plan.kind === 'tool' && typeof json.plan.tool === 'string' && (json.plan.tool.indexOf('quality_') === 0 || json.plan.tool.indexOf('shipping_') === 0)) {
+                lastToolPlan = { kind: 'tool', tool: json.plan.tool, args: json.plan.args || {} };
             }
             if (json && json.download_url) {
                 appendDownloadLink(assistantBubble, json.download_url, json.download_name || '파일 다운로드');
