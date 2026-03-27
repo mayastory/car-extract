@@ -18,8 +18,7 @@ if (!function_exists('jtgpt_planner_try_parse_ymd')) {
         if (!checkdate($m, $d, $y)) {
             return null;
         }
-        $ymd = sprintf('%04d-%02d-%02d', $y, $m, $d);
-        return $ymd;
+        return sprintf('%04d-%02d-%02d', $y, $m, $d);
     }
 }
 
@@ -32,13 +31,135 @@ if (!function_exists('jtgpt_planner_default_recent_range')) {
     }
 }
 
+if (!function_exists('jtgpt_planner_unique_values')) {
+    function jtgpt_planner_unique_values(array $values): array {
+        $seen = [];
+        $out = [];
+        foreach ($values as $value) {
+            $value = trim((string)$value);
+            if ($value === '') {
+                continue;
+            }
+            $key = strtoupper($value);
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $out[] = $value;
+        }
+        return $out;
+    }
+}
+
+if (!function_exists('jtgpt_planner_compact_text')) {
+    function jtgpt_planner_compact_text(string $text): string {
+        return preg_replace('/[^\p{L}\p{N}]+/u', '', mb_strtolower($text, 'UTF-8'));
+    }
+}
+
+if (!function_exists('jtgpt_planner_part_alias_groups')) {
+    function jtgpt_planner_part_alias_groups(): array {
+        return [
+            'MEM-IR-BASE' => [
+                'ir base', 'irbase', 'IR BASE', '아이알베이스', '아이알배이스', 'ir',
+            ],
+            'MEM-X-CARRIER' => [
+                'x carrier', 'x-carrier', 'xcarrier', 'X CARRIER', '엑스케리어', '엑스캐리어', 'xc',
+            ],
+            'MEM-Y-CARRIER' => [
+                'y carrier', 'y-carrier', 'ycarrier', 'Y CARRIER', '와이케리어', '와이캐리어', 'yc',
+            ],
+            'MEM-Z-CARRIER' => [
+                'z carrier', 'z-carrier', 'zcarrier', 'Z CARRIER', '지케리어', '지캐리어',
+                '제트케리어', '제트캐리어', '재트케리어', '재트캐리어', 'zc',
+            ],
+            'MEM-Z-STOPPER' => [
+                'z stopper', 'z-stopper', 'zstopper', 'Z STOPPER', '지스토퍼', '제트스토퍼', '재트스토퍼', 'zs',
+            ],
+        ];
+    }
+}
+
+if (!function_exists('jtgpt_planner_strip_part_aliases')) {
+    function jtgpt_planner_strip_part_aliases(string $message): string {
+        $text = $message;
+        foreach (jtgpt_planner_part_alias_groups() as $partName => $aliases) {
+            foreach ($aliases as $alias) {
+                $aliasLower = mb_strtolower((string)$alias, 'UTF-8');
+                if ($aliasLower === '') {
+                    continue;
+                }
+                if (preg_match('/^[a-z0-9]{1,3}$/', $aliasLower)) {
+                    $text = preg_replace('/(?:^|[^a-z0-9])' . preg_quote($aliasLower, '/') . '(?:$|[^a-z0-9])/iu', ' ', $text);
+                } else {
+                    $pattern = preg_quote($alias, '/');
+                    $pattern = str_replace(['\ ', '\-', '\_','\/'], '[\s\-_\/]*', $pattern);
+                    $text = preg_replace('/' . $pattern . '/iu', ' ', $text);
+                }
+            }
+        }
+        return $text;
+    }
+}
+
+if (!function_exists('jtgpt_planner_extract_part_name')) {
+    function jtgpt_planner_extract_part_name(string $message): ?string {
+        $original = trim($message);
+        if ($original === '') {
+            return null;
+        }
+
+        $lower = mb_strtolower($original, 'UTF-8');
+        $compact = jtgpt_planner_compact_text($original);
+        foreach (jtgpt_planner_part_alias_groups() as $partName => $aliases) {
+            foreach ($aliases as $alias) {
+                $aliasLower = mb_strtolower((string)$alias, 'UTF-8');
+                if ($aliasLower === '') {
+                    continue;
+                }
+                if (preg_match('/^[a-z0-9]{1,3}$/', $aliasLower)) {
+                    if (preg_match('/(?:^|[^a-z0-9])' . preg_quote($aliasLower, '/') . '(?:$|[^a-z0-9])/u', $lower)) {
+                        return $partName;
+                    }
+                    continue;
+                }
+                if (mb_strpos($compact, jtgpt_planner_compact_text($aliasLower)) !== false) {
+                    return $partName;
+                }
+            }
+        }
+
+        if (preg_match('/\b(MEM-[A-Z0-9\.\-]+)\b/i', $original, $m)) {
+            return strtoupper(trim($m[1]));
+        }
+        if (preg_match('/\b([A-Z0-9]+(?:-[A-Z0-9\.]+){2,})\b/', strtoupper($original), $m)) {
+            return trim($m[1]);
+        }
+        return null;
+    }
+}
+
+if (!function_exists('jtgpt_planner_extract_customer')) {
+    function jtgpt_planner_extract_customer(string $message): ?string {
+        $lower = mb_strtolower($message, 'UTF-8');
+        if (jtgpt_planner_contains_any($lower, ['자화전자', '자화', 'jh'])) return '자화전자';
+        if (jtgpt_planner_contains_any($lower, ['엘지이노텍', '이노텍', 'lg', '엘지'])) return '엘지이노텍';
+        return null;
+    }
+}
+
 if (!function_exists('jtgpt_planner_detect_time_hint')) {
     function jtgpt_planner_detect_time_hint(string $text): ?string {
+        if (preg_match('/최근\s*(\d{1,3})\s*일/u', $text, $m)) {
+            return '최근 ' . max(1, min(365, (int)$m[1])) . '일';
+        }
+
         $map = [
+            '전체' => ['전체', 'all', '전기간'],
             '오늘' => ['오늘', '금일', 'today', 'now'],
             '어제' => ['어제', 'yesterday'],
             '이번 주' => ['이번주', '이번 주', '금주', 'this week'],
-            '최근 7일' => ['최근 7일', '7일', '일주일', '1주일', '최근 일주일'],
+            '최근 7일' => ['최근 7일', '일주일', '1주일', '최근 일주일', '최근', 'latest', 'recent'],
             '최근 30일' => ['최근 30일', '30일', '한달', '1달', '최근 한달'],
             '이번 달' => ['이번달', '이번 달', '금월', 'this month'],
         ];
@@ -75,6 +196,9 @@ if (!function_exists('jtgpt_planner_detect_date_range')) {
         }
 
         $hint = jtgpt_planner_detect_time_hint($text);
+        if ($hint === '전체') {
+            return ['from' => null, 'to' => null, 'label' => '전체', 'implicit' => false];
+        }
         if ($hint === '오늘') {
             return ['from' => $today, 'to' => $today, 'label' => '오늘', 'implicit' => false];
         }
@@ -98,109 +222,143 @@ if (!function_exists('jtgpt_planner_detect_date_range')) {
             $s = (clone $now)->modify('first day of this month')->format('Y-m-d');
             return ['from' => $s, 'to' => $today, 'label' => '이번 달', 'implicit' => false];
         }
+        if (preg_match('/^최근\s*(\d{1,3})일$/u', (string)$hint, $m)) {
+            $days = max(1, min(365, (int)$m[1]));
+            $s = (clone $now)->modify('-' . ($days - 1) . ' day')->format('Y-m-d');
+            return ['from' => $s, 'to' => $today, 'label' => '최근 ' . $days . '일', 'implicit' => false];
+        }
         return ['from' => $today, 'to' => $today, 'label' => '오늘', 'implicit' => true];
     }
 }
 
-if (!function_exists('jtgpt_planner_extract_part_name')) {
-    function jtgpt_planner_extract_part_name(string $message): ?string {
-        $original = trim($message);
-        if ($original === '') return null;
+if (!function_exists('jtgpt_planner_extract_quality_module')) {
+    function jtgpt_planner_extract_quality_module(string $message, array $state = []): string {
+        $lower = mb_strtolower($message, 'UTF-8');
+        foreach (['oqc', 'omm', 'cmm', 'aoi'] as $module) {
+            if (mb_strpos($lower, $module) !== false) {
+                return $module;
+            }
+        }
+        $lastModule = strtolower((string)($state['last_module'] ?? ''));
+        if (in_array($lastModule, ['oqc', 'omm', 'cmm', 'aoi'], true)) {
+            return $lastModule;
+        }
+        return 'oqc';
+    }
+}
 
-        $lower = mb_strtolower($original, 'UTF-8');
-        $compact = preg_replace('/[\s\-_\/]+/u', '', $lower);
-        $aliasGroups = [
-            'MEM-IR-BASE' => [
-                'ir base', 'irbase', '아이알베이스', '아이알배이스', 'ir',
-            ],
-            'MEM-X-CARRIER' => [
-                'x carrier', 'x-carrier', 'xcarrier', '엑스케리어', '엑스캐리어', 'xc',
-            ],
-            'MEM-Y-CARRIER' => [
-                'y carrier', 'y-carrier', 'ycarrier', '와이케리어', '와이캐리어', 'yc',
-            ],
-            'MEM-Z-CARRIER' => [
-                'z carrier', 'z-carrier', 'zcarrier',
-                '지케리어', '지캐리어',
-                '제트케리어', '제트캐리어',
-                '재트케리어', '재트캐리어',
-                'zc',
-            ],
-            'MEM-Z-STOPPER' => [
-                'z stopper', 'z-stopper', 'zstopper',
-                '지스토퍼', '제트스토퍼', '재트스토퍼',
-                'zs',
-            ],
-        ];
+if (!function_exists('jtgpt_planner_expand_number_sequence')) {
+    function jtgpt_planner_expand_number_sequence(string $expr): array {
+        $expr = trim($expr);
+        if ($expr === '') {
+            return [];
+        }
+        $expr = preg_replace('/\s*(?:부터|to|and|및|하고|랑|와|과|\/|\\|&)\s*/u', ',', $expr);
+        $expr = preg_replace('/\s*~\s*/u', '~', $expr);
+        $expr = preg_replace('/\s*-\s*/u', '-', $expr);
+        $expr = preg_replace('/\s*,\s*/u', ',', $expr);
 
-        foreach ($aliasGroups as $partName => $aliases) {
-            foreach ($aliases as $alias) {
-                $aliasLower = mb_strtolower($alias, 'UTF-8');
-                if ($aliasLower === '') {
-                    continue;
-                }
-
-                if (preg_match('/^[a-z0-9]{1,3}$/', $aliasLower)) {
-                    if (preg_match('/(?:^|[^a-z0-9])' . preg_quote($aliasLower, '/') . '(?:$|[^a-z0-9])/u', $lower)) {
-                        return $partName;
+        $items = [];
+        foreach (preg_split('/\s*,\s*/u', $expr) as $chunk) {
+            $chunk = trim((string)$chunk);
+            if ($chunk === '') {
+                continue;
+            }
+            if (preg_match('/^(\d{1,2})\s*[~-]\s*(\d{1,2})$/u', $chunk, $m)) {
+                $start = (int)$m[1];
+                $end = (int)$m[2];
+                if ($start <= $end && ($end - $start) <= 20) {
+                    for ($i = $start; $i <= $end; $i++) {
+                        $items[] = (string)$i;
                     }
-                    continue;
+                } elseif ($start > $end && ($start - $end) <= 20) {
+                    for ($i = $start; $i >= $end; $i--) {
+                        $items[] = (string)$i;
+                    }
                 }
+                continue;
+            }
+            if (preg_match('/^\d{1,2}$/', $chunk)) {
+                $items[] = (string)((int)$chunk);
+                continue;
+            }
+            if (preg_match_all('/\d{1,2}/u', $chunk, $m)) {
+                foreach ($m[0] as $num) {
+                    $items[] = (string)((int)$num);
+                }
+            }
+        }
+        return jtgpt_planner_unique_values($items);
+    }
+}
 
-                $aliasCompact = preg_replace('/[\s\-_\/]+/u', '', $aliasLower);
-                if ($aliasCompact !== '' && mb_strpos($compact, $aliasCompact) !== false) {
-                    return $partName;
+if (!function_exists('jtgpt_planner_extract_tools')) {
+    function jtgpt_planner_extract_tools(string $message): array {
+        $tools = [];
+
+        if (preg_match_all('/([A-Z](?:\s*(?:,|\/|&|와|과|랑|하고|및|and)\s*[A-Z])+?)\s*툴/iu', $message, $m)) {
+            foreach ($m[1] as $expr) {
+                if (preg_match_all('/[A-Z]/iu', strtoupper($expr), $mm)) {
+                    foreach ($mm[0] as $tool) {
+                        $tools[] = strtoupper($tool);
+                    }
+                }
+            }
+        }
+        if (preg_match_all('/툴\s*([A-Z](?:\s*(?:,|\/|&|와|과|랑|하고|및|and)\s*[A-Z])+)/iu', $message, $m)) {
+            foreach ($m[1] as $expr) {
+                if (preg_match_all('/[A-Z]/iu', strtoupper($expr), $mm)) {
+                    foreach ($mm[0] as $tool) {
+                        $tools[] = strtoupper($tool);
+                    }
+                }
+            }
+        }
+        if (preg_match_all('/([A-Z])\s*툴/iu', $message, $m)) {
+            foreach ($m[1] as $tool) {
+                $tools[] = strtoupper($tool);
+            }
+        }
+        if (preg_match_all('/\btool\s*([A-Z])/iu', $message, $m)) {
+            foreach ($m[1] as $tool) {
+                $tools[] = strtoupper($tool);
+            }
+        }
+        if (preg_match_all('/([A-Z])\s*tool\b/iu', $message, $m)) {
+            foreach ($m[1] as $tool) {
+                $tools[] = strtoupper($tool);
+            }
+        }
+
+        return jtgpt_planner_unique_values($tools);
+    }
+}
+
+if (!function_exists('jtgpt_planner_extract_cavities')) {
+    function jtgpt_planner_extract_cavities(string $message): array {
+        $cavities = [];
+
+        $patterns = [
+            '/((?:\d{1,2}\s*(?:,|\/|~|-|\s+))*\d{1,2})\s*(?:캐비티|cavity|cav)\b/iu',
+            '/(?:캐비티|cavity|cav)\s*((?:\d{1,2}\s*(?:,|\/|~|-|\s+))*\d{1,2})\b/iu',
+        ];
+        foreach ($patterns as $pattern) {
+            if (preg_match_all($pattern, $message, $m)) {
+                foreach ($m[1] as $expr) {
+                    foreach (jtgpt_planner_expand_number_sequence((string)$expr) as $num) {
+                        $cavities[] = ((int)$num) . 'CAV';
+                    }
                 }
             }
         }
 
-        if (preg_match('/\b(MEM-[A-Z0-9\.\-]+)\b/i', $original, $m)) {
-            return strtoupper(trim($m[1]));
+        if (preg_match_all('/\b(\d{1,2})\s*cav\b/iu', $message, $m)) {
+            foreach ($m[1] as $num) {
+                $cavities[] = ((int)$num) . 'CAV';
+            }
         }
-        if (preg_match('/\b([A-Z0-9]+(?:-[A-Z0-9\.]+){2,})\b/', strtoupper($original), $m)) {
-            return trim($m[1]);
-        }
-        return null;
-    }
-}
 
-if (!function_exists('jtgpt_planner_extract_customer')) {
-    function jtgpt_planner_extract_customer(string $message): ?string {
-        $lower = mb_strtolower($message, 'UTF-8');
-        if (jtgpt_planner_contains_any($lower, ['자화전자', '자화', 'jh'])) return '자화전자';
-        if (jtgpt_planner_contains_any($lower, ['엘지이노텍', '이노텍', 'lg', '엘지'])) return '엘지이노텍';
-        return null;
-    }
-}
-
-if (!function_exists('jtgpt_planner_extract_point_no')) {
-    function jtgpt_planner_extract_point_no(string $message): ?string {
-        if (preg_match('/(?:point|포인트)\s*([0-9A-Z]{1,4}(?:-[0-9A-Z]{1,4})+)/iu', $message, $m)) {
-            return strtoupper(trim($m[1]));
-        }
-        if (preg_match('/\b([0-9A-Z]{1,4}(?:-[0-9A-Z]{1,4})+)\b/u', strtoupper($message), $m)) {
-            return strtoupper(trim($m[1]));
-        }
-        return null;
-    }
-}
-
-if (!function_exists('jtgpt_planner_extract_tool')) {
-    function jtgpt_planner_extract_tool(string $message): ?string {
-        if (preg_match('/\btool\s*([A-Z0-9]{1,6})\b/iu', $message, $m)) return strtoupper(trim($m[1]));
-        if (preg_match('/\b([A-Z0-9]{1,6})\s*tool\b/iu', $message, $m)) return strtoupper(trim($m[1]));
-        if (preg_match('/툴\s*([A-Z0-9]{1,6})/iu', $message, $m)) return strtoupper(trim($m[1]));
-        if (preg_match('/([A-Z0-9]{1,6})\s*툴/iu', $message, $m)) return strtoupper(trim($m[1]));
-        return null;
-    }
-}
-
-if (!function_exists('jtgpt_planner_extract_cavity')) {
-    function jtgpt_planner_extract_cavity(string $message): ?string {
-        if (preg_match('/\b([0-9]{1,2})\s*cav\b/iu', $message, $m)) return ((int)$m[1]) . 'CAV';
-        if (preg_match('/\bcavity\s*([0-9]{1,2})\b/iu', $message, $m)) return ((int)$m[1]) . 'CAV';
-        if (preg_match('/([0-9]{1,2})\s*캐비티/u', $message, $m)) return ((int)$m[1]) . 'CAV';
-        return null;
+        return jtgpt_planner_unique_values($cavities);
     }
 }
 
@@ -210,6 +368,117 @@ if (!function_exists('jtgpt_planner_extract_limit')) {
         if (preg_match('/상위\s*(\d{1,3})/u', $message, $m)) return max(1, min(500, (int)$m[1]));
         if (preg_match('/(\d{1,3})\s*개/u', $message, $m)) return max(1, min(500, (int)$m[1]));
         return null;
+    }
+}
+
+if (!function_exists('jtgpt_planner_normalize_point_term')) {
+    function jtgpt_planner_normalize_point_term(string $term): string {
+        $term = strtoupper(trim($term));
+        $term = preg_replace('/\s+/u', ' ', $term);
+        return trim($term);
+    }
+}
+
+if (!function_exists('jtgpt_planner_collect_quality_point_terms')) {
+    function jtgpt_planner_collect_quality_point_terms(string $message, array $tools = [], array $cavities = []): array {
+        $terms = [];
+
+        $explicitPatterns = [
+            '/(?:point|포인트|fai)\s*([A-Z0-9]+(?:[\s\-\/.]+[A-Z0-9]+){0,3})/iu',
+            '/([A-Z0-9]+(?:[\s\-\/.]+[A-Z0-9]+){0,3})\s*(?:point|포인트|fai)\b/iu',
+            '/(?:^|[^A-Z0-9])([A-Z0-9]+(?:\s*[-\/.]\s*[A-Z0-9]+){1,4})(?=$|[^A-Z0-9])/u',
+            '/(?:^|[^A-Z0-9])([A-Z]{1,3}\s*[-]?\s*FAI\s*\d+(?:\.\d+)?)(?=$|[^A-Z0-9])/iu',
+            '/(?:^|[^A-Z0-9])(\d{1,4}\s+[A-Z]{1,4}\d{1,4})(?=$|[^A-Z0-9])/u',
+        ];
+        foreach ($explicitPatterns as $pattern) {
+            if (preg_match_all($pattern, strtoupper($message), $m)) {
+                foreach ($m[1] as $term) {
+                    $terms[] = jtgpt_planner_normalize_point_term((string)$term);
+                }
+            }
+        }
+
+        $scrub = ' ' . mb_strtolower($message, 'UTF-8') . ' ';
+        $scrub = jtgpt_planner_strip_part_aliases($scrub);
+        $scrub = preg_replace('/(20\d{2})[\.\/-]?(\d{1,2})[\.\/-]?(\d{1,2})/u', ' ', $scrub);
+        $scrub = preg_replace('/\b(?:oqc|omm|cmm|aoi|ipqc)\b/u', ' ', $scrub);
+        $scrub = preg_replace('/\b(?:today|yesterday|recent|latest|show|tell|count|summary|detail|ng)\b/u', ' ', $scrub);
+        $scrub = preg_replace('/(?:최근|오늘|어제|이번|금주|금월|전체|상세|요약|조회|보여줘|알려줘|말해줘|데이터|기록|이력|많은|상위|가장|전체|전부|에서|으로|로|좀|해줘|봐줘|부탁|랑|하고|와|과|및)/u', ' ', $scrub);
+        $scrub = preg_replace('/(?:ng|불량)/u', ' ', $scrub);
+        $scrub = preg_replace('/([a-z](?:\s*(?:,|\/|&|와|과|랑|하고|및|and)\s*[a-z])+?)\s*툴/iu', ' ', $scrub);
+        $scrub = preg_replace('/툴\s*([a-z](?:\s*(?:,|\/|&|와|과|랑|하고|및|and)\s*[a-z])+)/iu', ' ', $scrub);
+        $scrub = preg_replace('/\b[a-z]\s*툴\b/iu', ' ', $scrub);
+        $scrub = preg_replace('/([0-9\s,~\/-]+)\s*(?:캐비티|cavity|cav)\b/iu', ' ', $scrub);
+        $scrub = preg_replace('/(?:캐비티|cavity|cav)\s*([0-9\s,~\/-]+)/iu', ' ', $scrub);
+        $scrub = preg_replace('/[\(\)\[\]\{\}:;\|]+/u', ' ', $scrub);
+
+        $rawTokens = preg_split('/[^\p{L}\p{N}\.\/-]+/u', strtoupper($scrub), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $filteredTokens = [];
+        foreach ($rawTokens as $token) {
+            $token = trim((string)$token);
+            if ($token === '') {
+                continue;
+            }
+            if (in_array($token, ['OQC', 'OMM', 'CMM', 'AOI', 'NG'], true)) {
+                continue;
+            }
+            if (in_array($token, $tools, true)) {
+                continue;
+            }
+            if (in_array($token . 'CAV', $cavities, true)) {
+                continue;
+            }
+            if (preg_match('/^\d{4}$/', $token)) {
+                continue;
+            }
+            $filteredTokens[] = $token;
+            if (preg_match('/^\d{1,3}$/', $token)) {
+                $terms[] = $token;
+            }
+        }
+
+        for ($i = 0, $n = count($filteredTokens) - 1; $i < $n; $i++) {
+            $a = $filteredTokens[$i];
+            $b = $filteredTokens[$i + 1];
+            if ($a === '' || $b === '') {
+                continue;
+            }
+            if (preg_match('/\d/u', $a . $b) || mb_strlen($a, 'UTF-8') > 1 || mb_strlen($b, 'UTF-8') > 1) {
+                $terms[] = jtgpt_planner_normalize_point_term($a . ' ' . $b);
+            }
+        }
+
+        $out = [];
+        foreach ($terms as $term) {
+            $term = jtgpt_planner_normalize_point_term((string)$term);
+            if ($term === '') {
+                continue;
+            }
+            if (preg_match('/^(OQC|OMM|CMM|AOI|NG)$/', $term)) {
+                continue;
+            }
+            if (preg_match('/(^|\s)NG($|\s)/', $term)) {
+                continue;
+            }
+            if (preg_match('/\S+-\S+\s+\S+-\S+/', $term)) {
+                continue;
+            }
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $term)) {
+                continue;
+            }
+            $out[] = $term;
+        }
+
+        return array_slice(jtgpt_planner_unique_values($out), 0, 12);
+    }
+}
+
+if (!function_exists('jtgpt_planner_extract_point_no')) {
+    function jtgpt_planner_extract_point_no(string $message): ?string {
+        $tools = jtgpt_planner_extract_tools($message);
+        $cavities = jtgpt_planner_extract_cavities($message);
+        $terms = jtgpt_planner_collect_quality_point_terms($message, $tools, $cavities);
+        return $terms[0] ?? null;
     }
 }
 
@@ -256,9 +525,9 @@ if (!function_exists('jtgpt_planner_plan')) {
         $range = jtgpt_planner_detect_date_range($lower);
         $partName = jtgpt_planner_extract_part_name($text);
         $customer = jtgpt_planner_extract_customer($text);
-        $pointNo = jtgpt_planner_extract_point_no($text);
-        $tool = jtgpt_planner_extract_tool($text);
-        $cavity = jtgpt_planner_extract_cavity($text);
+        $tools = jtgpt_planner_extract_tools($text);
+        $cavities = jtgpt_planner_extract_cavities($text);
+        $pointTerms = jtgpt_planner_collect_quality_point_terms($text, $tools, $cavities);
         $limit = jtgpt_planner_extract_limit($text);
 
         if ($text === '') {
@@ -268,77 +537,77 @@ if (!function_exists('jtgpt_planner_plan')) {
             ];
         }
 
-        if (jtgpt_planner_contains_any($lower, ['관리자','권한','비밀번호','삭제','수정','업로드','해킹'])) {
+        if (jtgpt_planner_contains_any($lower, ['관리자', '권한', '비밀번호', '삭제', '수정', '업로드', '해킹', 'insert', 'update', 'delete', 'replace', 'alter', 'drop'])) {
             return ['kind' => 'answer', 'tool' => 'guard_read_only', 'args' => []];
         }
 
-        $wantsGraph = jtgpt_planner_contains_any($lower, ['그래프빌더','graph builder','차트','그래프','히스토그램','상자그림','선그래프','막대그래프','jmp']);
+        $wantsGraph = jtgpt_planner_contains_any($lower, ['그래프빌더', 'graph builder', '차트', '그래프', '히스토그램', '상자그림', '선그래프', '막대그래프', 'jmp']);
         if ($wantsGraph) {
             $spec = jtgpt_planner_build_graph_spec($text);
-            $actionType = jtgpt_planner_contains_any($lower, ['공정 능력','공정능력']) ? 'open_ipqc_process_capability' : 'open_ipqc_quick_graph';
+            $actionType = jtgpt_planner_contains_any($lower, ['공정 능력', '공정능력']) ? 'open_ipqc_process_capability' : 'open_ipqc_quick_graph';
             return ['kind' => 'action', 'tool' => $actionType, 'args' => ['graph_spec' => $spec], 'autorun' => true];
         }
 
-        $shippingNeedles = ['출하','출고','ship','shipping','lot','포장','납품','수량','qty','ea','tray'];
+        $shippingNeedles = ['출하', '출고', 'ship', 'shipping', 'lot', '포장', '납품', '수량', 'qty', 'ea', 'tray'];
         if (jtgpt_planner_contains_any($lower, $shippingNeedles)) {
             $metric = 'summary';
-            if (jtgpt_planner_contains_any($lower, ['최근 출하일','제일 최근 출하일','최근출하일','마지막 출하일','마지막으로 출하','최신 출하일'])) {
-                return ['kind'=>'tool','tool'=>'shipping_last_ship_date','args'=>['from'=>$range['from'],'to'=>$range['to'],'range'=>$range,'part_name'=>$partName,'customer'=>$customer]];
+            if (jtgpt_planner_contains_any($lower, ['최근 출하일', '제일 최근 출하일', '최근출하일', '마지막 출하일', '마지막으로 출하', '최신 출하일'])) {
+                return ['kind' => 'tool', 'tool' => 'shipping_last_ship_date', 'args' => ['from' => $range['from'], 'to' => $range['to'], 'range' => $range, 'part_name' => $partName, 'customer' => $customer]];
             }
             if (jtgpt_planner_contains_any($lower, ['lot'])) $metric = 'lot_count';
             elseif (jtgpt_planner_contains_any($lower, ['tray'])) $metric = 'tray_count';
-            elseif (jtgpt_planner_contains_any($lower, ['수량','qty','ea'])) $metric = 'qty';
-            return ['kind'=>'tool','tool'=>'shipping_summary','args'=>['from'=>$range['from'],'to'=>$range['to'],'range'=>$range,'part_name'=>$partName,'customer'=>$customer,'metric'=>$metric]];
+            elseif (jtgpt_planner_contains_any($lower, ['수량', 'qty', 'ea'])) $metric = 'qty';
+            return ['kind' => 'tool', 'tool' => 'shipping_summary', 'args' => ['from' => $range['from'], 'to' => $range['to'], 'range' => $range, 'part_name' => $partName, 'customer' => $customer, 'metric' => $metric]];
         }
 
-        $mentionsQuality = jtgpt_planner_contains_any($lower, ['ng','불량','포인트','point','oqc','omm','cmm','aoi']);
+        $mentionsQuality = jtgpt_planner_contains_any($lower, ['ng', '불량', '포인트', 'point', 'fai', 'oqc', 'omm', 'cmm', 'aoi']);
         if ($mentionsQuality) {
             if ($range['implicit']) {
                 $range = jtgpt_planner_default_recent_range(7);
             }
 
-            $explicitModule = null;
-            foreach (['oqc','omm','cmm','aoi'] as $module) {
-                if (mb_strpos($lower, $module) !== false) {
-                    $explicitModule = $module;
-                    break;
-                }
-            }
+            $module = jtgpt_planner_extract_quality_module($text, $state);
+            $detailNeedles = ['상세', 'detail', '그 포인트', '해당 포인트'];
 
-            if ($explicitModule === null) {
-                $lastModule = strtolower((string)($state['last_module'] ?? ''));
-                $explicitModule = in_array($lastModule, ['oqc','omm','cmm','aoi'], true) ? $lastModule : 'oqc';
-            }
-
-            if (!$pointNo && jtgpt_planner_contains_any($lower, ['1위','그 포인트','상세'])) {
+            if (!$pointTerms && jtgpt_planner_contains_any($lower, ['1위', '그 포인트', '상세'])) {
                 $ranked = $state['last_ranked_points'] ?? [];
                 if (!empty($ranked[0])) {
-                    $pointNo = (string)$ranked[0];
+                    $pointTerms = [(string)$ranked[0]];
                 }
             }
 
-            $baseArgs = [
-                'module' => $explicitModule,
+            $args = [
+                'module' => $module,
                 'from' => $range['from'],
                 'to' => $range['to'],
                 'range' => $range,
                 'part_name' => $partName,
-                'point_no' => $pointNo,
-                'tool' => $tool,
-                'cavity' => $cavity,
+                'tool' => $tools[0] ?? null,
+                'tools' => $tools,
+                'cavity' => $cavities[0] ?? null,
+                'cavities' => $cavities,
+                'point_terms' => $pointTerms,
+                'point_no' => null,
                 'limit' => $limit,
+                'ng_only' => true,
+                'slot_mode' => true,
             ];
 
-            if ($pointNo) {
-                return ['kind' => 'tool', 'tool' => 'quality_point_detail', 'args' => $baseArgs];
+            if (jtgpt_planner_contains_any($lower, ['많은 포인트', 'ng 포인트', '불량 포인트', 'top', '상위', '가장 많은'])) {
+                if ($args['limit'] === null) {
+                    $args['limit'] = 5;
+                }
+                return ['kind' => 'tool', 'tool' => 'quality_top_ng_points', 'args' => $args, 'slots' => $args];
             }
-            if (jtgpt_planner_contains_any($lower, ['많은 포인트','ng 포인트','불량 포인트','top','상위','가장 많은'])) {
-                return ['kind' => 'tool', 'tool' => 'quality_top_ng_points', 'args' => $baseArgs];
+
+            if (!empty($pointTerms) && jtgpt_planner_contains_any($lower, $detailNeedles) && count($pointTerms) === 1) {
+                return ['kind' => 'tool', 'tool' => 'quality_point_detail', 'args' => $args, 'slots' => $args];
             }
-            return ['kind' => 'tool', 'tool' => 'quality_recent_ng_rows', 'args' => $baseArgs];
+
+            return ['kind' => 'tool', 'tool' => 'quality_recent_ng_rows', 'args' => $args, 'slots' => $args];
         }
 
-        if (jtgpt_planner_contains_any($lower, ['ipqc','jmp','공정능력'])) {
+        if (jtgpt_planner_contains_any($lower, ['ipqc', 'jmp', '공정능력'])) {
             return ['kind' => 'action', 'tool' => 'open_ipqc_route', 'args' => [], 'autorun' => true];
         }
 

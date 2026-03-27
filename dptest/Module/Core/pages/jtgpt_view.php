@@ -125,12 +125,40 @@ function jtgpt_format_scope(array $args): string {
     $parts = [];
     $range = $args['range']['label'] ?? '';
     if ($range !== '') $parts[] = $range;
+
     $partName = trim((string)($args['part_name'] ?? ''));
     if ($partName !== '') $parts[] = $partName;
-    $tool = trim((string)($args['tool'] ?? ''));
-    if ($tool !== '') $parts[] = $tool . '툴';
-    $cavity = trim((string)($args['cavity'] ?? ''));
-    if ($cavity !== '') $parts[] = strtoupper($cavity);
+
+    $tools = $args['tools'] ?? [];
+    if (!is_array($tools)) {
+        $tools = [$tools];
+    }
+    $tools = array_values(array_filter(array_map(static function ($tool): string {
+        return strtoupper(trim((string)$tool));
+    }, $tools)));
+    if (!$tools) {
+        $tool = trim((string)($args['tool'] ?? ''));
+        if ($tool !== '') $tools[] = strtoupper($tool);
+    }
+    if ($tools) {
+        $parts[] = implode(',', $tools) . '툴';
+    }
+
+    $cavities = $args['cavities'] ?? [];
+    if (!is_array($cavities)) {
+        $cavities = [$cavities];
+    }
+    $cavities = array_values(array_filter(array_map(static function ($cavity): string {
+        return strtoupper(trim((string)$cavity));
+    }, $cavities)));
+    if (!$cavities) {
+        $cavity = trim((string)($args['cavity'] ?? ''));
+        if ($cavity !== '') $cavities[] = strtoupper($cavity);
+    }
+    if ($cavities) {
+        $parts[] = implode(',', $cavities);
+    }
+
     return $parts ? ('[' . implode(' / ', $parts) . ']') : '';
 }
 
@@ -194,9 +222,52 @@ function jtgpt_format_ng_limit_value(array $row): string {
     return implode(' | ', $bits);
 }
 
+function jtgpt_quality_resolution_prompt(array $resolution): string {
+    $ambiguous = $resolution['ambiguous_terms'] ?? [];
+    if ($ambiguous) {
+        $chunks = [];
+        foreach ($ambiguous as $item) {
+            $term = trim((string)($item['term'] ?? ''));
+            $candidates = $item['candidates'] ?? [];
+            if ($term === '' || !$candidates) {
+                continue;
+            }
+            $chunks[] = $term . ' → ' . implode(' / ', $candidates);
+        }
+        if ($chunks) {
+            return 'FAI명이 여러 개로 해석됩니다. 어느 것을 찾을까요? ' . implode(' | ', $chunks);
+        }
+    }
+
+    $unmatched = $resolution['unmatched_terms'] ?? [];
+    if ($unmatched) {
+        return '해당 조건 범위에서 FAI를 찾지 못했습니다: ' . implode(', ', $unmatched);
+    }
+
+    return '';
+}
+
+function jtgpt_quality_resolution_tail_lines(array $resolution): array {
+    $lines = [];
+    $ambiguous = $resolution['ambiguous_terms'] ?? [];
+    foreach ($ambiguous as $item) {
+        $term = trim((string)($item['term'] ?? ''));
+        $candidates = $item['candidates'] ?? [];
+        if ($term !== '' && $candidates) {
+            $lines[] = '추가 확인 필요: ' . $term . ' → ' . implode(' / ', $candidates);
+        }
+    }
+    $unmatched = $resolution['unmatched_terms'] ?? [];
+    if ($unmatched) {
+        $lines[] = '미일치 FAI: ' . implode(', ', $unmatched);
+    }
+    return $lines;
+}
+
 function jtgpt_answer_quality_top_points(array $result, array $args): string {
     if (empty($result['found'])) {
-        return ($result['error'] ?? '조건에 맞는 NG 포인트가 없습니다.');
+        $resolutionText = !empty($result['resolution']) ? jtgpt_quality_resolution_prompt((array)$result['resolution']) : '';
+        return $resolutionText !== '' ? $resolutionText : ($result['error'] ?? '조건에 맞는 NG 포인트가 없습니다.');
     }
     $scope = jtgpt_format_scope($args);
     $limit = (int)($args['limit'] ?? 5);
@@ -204,12 +275,19 @@ function jtgpt_answer_quality_top_points(array $result, array $args): string {
     foreach (($result['rows'] ?? []) as $i => $row) {
         $lines[] = ($i + 1) . ') ' . (string)($row['point_no'] ?? '-') . ' - ' . jtgpt_tool_format_int($row['ng_count'] ?? 0) . '건';
     }
-    return implode("\n", $lines);
+    if (!empty($result['resolution'])) {
+        foreach (jtgpt_quality_resolution_tail_lines((array)$result['resolution']) as $line) {
+            $lines[] = '- ' . $line;
+        }
+    }
+    return implode("
+", $lines);
 }
 
 function jtgpt_answer_quality_recent_rows(array $result, array $args): string {
     if (empty($result['found'])) {
-        return ($result['error'] ?? '조건에 맞는 최근 NG 이력이 없습니다.');
+        $resolutionText = !empty($result['resolution']) ? jtgpt_quality_resolution_prompt((array)$result['resolution']) : '';
+        return $resolutionText !== '' ? $resolutionText : ($result['error'] ?? '조건에 맞는 최근 NG 이력이 없습니다.');
     }
     $scope = jtgpt_format_scope($args);
     $lines = [trim(($result['label'] ?? strtoupper((string)($args['module'] ?? ''))) . ' ' . $scope . ' 최근 NG 이력')];
@@ -223,7 +301,12 @@ function jtgpt_answer_quality_recent_rows(array $result, array $args): string {
         if ($pointNo !== '') $chunk[] = $pointNo;
         $ngText = jtgpt_format_ng_limit_value($row);
         if ($ngText !== '') $chunk[] = $ngText;
-        $lines[] = '- ' . implode(' | ', $chunk);
+        $lines[] = implode(' | ', $chunk);
+    }
+    if (!empty($result['resolution'])) {
+        foreach (jtgpt_quality_resolution_tail_lines((array)$result['resolution']) as $line) {
+            $lines[] = '- ' . $line;
+        }
     }
     return implode("
 ", $lines);
@@ -231,7 +314,8 @@ function jtgpt_answer_quality_recent_rows(array $result, array $args): string {
 
 function jtgpt_answer_quality_point_detail(array $result, array $args): string {
     if (empty($result['found']) || empty($result['summary'])) {
-        return ($result['error'] ?? '조건에 맞는 NG 상세 이력이 없습니다.');
+        $resolutionText = !empty($result['resolution']) ? jtgpt_quality_resolution_prompt((array)$result['resolution']) : '';
+        return $resolutionText !== '' ? $resolutionText : ($result['error'] ?? '조건에 맞는 NG 상세 이력이 없습니다.');
     }
     $scope = jtgpt_format_scope($args);
     $summary = $result['summary'];
@@ -251,7 +335,12 @@ function jtgpt_answer_quality_point_detail(array $result, array $args): string {
             if ($pointNo !== '') $chunk[] = $pointNo;
             $ngText = jtgpt_format_ng_limit_value($row);
             if ($ngText !== '') $chunk[] = $ngText;
-            $lines[] = '  · ' . implode(' | ', $chunk);
+            $lines[] = '  ' . implode(' | ', $chunk);
+        }
+    }
+    if (!empty($result['resolution'])) {
+        foreach (jtgpt_quality_resolution_tail_lines((array)$result['resolution']) as $line) {
+            $lines[] = '- ' . $line;
         }
     }
     return implode("
