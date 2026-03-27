@@ -1097,9 +1097,21 @@ function jtgpt_build_quality_followup_plan_from_tool_args(string $tool, array $a
     ];
 }
 
-function jtgpt_restore_quality_followup_plan(string $message, array $state, array $clientHistory = []): ?array {
+function jtgpt_build_quality_followup_plan_from_plan(array $plan, string $message, string $source): ?array {
+    if (($plan['kind'] ?? '') !== 'tool') {
+        return null;
+    }
+    return jtgpt_build_quality_followup_plan_from_tool_args((string)($plan['tool'] ?? ''), (array)($plan['args'] ?? []), $message, $source);
+}
+
+function jtgpt_restore_quality_followup_plan(string $message, array $state, array $clientHistory = [], ?array $clientLastQualityPlan = null): ?array {
     if (!jtgpt_is_output_only_followup_message($message)) {
         return null;
+    }
+
+    $plan = jtgpt_build_quality_followup_plan_from_plan((array)$clientLastQualityPlan, $message, 'client_last_plan');
+    if ($plan) {
+        return $plan;
     }
 
     $tool = trim((string)($state['last_quality_tool'] ?? ''));
@@ -1160,9 +1172,9 @@ function jtgpt_restore_quality_followup_plan(string $message, array $state, arra
     return null;
 }
 
-function jtgpt_build_answer(string $message, array $clientHistory = []): array {
+function jtgpt_build_answer(string $message, array $clientHistory = [], ?array $clientLastQualityPlan = null): array {
     $state = jtgpt_session_state();
-    $plan = jtgpt_restore_quality_followup_plan($message, $state, $clientHistory);
+    $plan = jtgpt_restore_quality_followup_plan($message, $state, $clientHistory, $clientLastQualityPlan);
     if (!$plan) {
         $plan = jtgpt_planner_plan($message, $state);
     }
@@ -1319,7 +1331,8 @@ if ($isAjax) {
     }
     $message = trim((string)($payload['message'] ?? ''));
     $clientHistory = is_array($payload['client_history'] ?? null) ? array_values($payload['client_history']) : [];
-    jtgpt_json_response(jtgpt_build_answer($message, $clientHistory));
+    $clientLastQualityPlan = is_array($payload['last_quality_plan'] ?? null) ? (array)$payload['last_quality_plan'] : null;
+    jtgpt_json_response(jtgpt_build_answer($message, $clientHistory, $clientLastQualityPlan));
 }
 ?><!doctype html>
 <html lang="ko">
@@ -1587,6 +1600,7 @@ if ($isAjax) {
     const homeEl = document.getElementById('home');
     const messagesEl = document.getElementById('messages');
     const clientHistory = [];
+    let lastQualityPlan = null;
     const inputEl = document.getElementById('messageInput');
     const sendBtn = document.getElementById('sendBtn');
     const chatEl = document.getElementById('chat');
@@ -1677,12 +1691,15 @@ if ($isAjax) {
                     'Content-Type': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest'
                 },
-                body: JSON.stringify({ message, client_history: clientHistory.slice(-12) })
+                body: JSON.stringify({ message, client_history: clientHistory.slice(-12), last_quality_plan: lastQualityPlan })
             });
             const json = await res.json();
             const answerText = (json && json.answer) ? json.answer : '응답을 받지 못했어요.';
             await typeText(assistantBubble, answerText);
             clientHistory.push({ role: 'assistant', text: answerText });
+            if (json && json.plan && json.plan.kind === 'tool' && typeof json.plan.tool === 'string' && json.plan.tool.indexOf('quality_') === 0) {
+                lastQualityPlan = { kind: 'tool', tool: json.plan.tool, args: json.plan.args || {} };
+            }
             if (json && json.download_url) {
                 appendDownloadLink(assistantBubble, json.download_url, json.download_name || '파일 다운로드');
                 scrollBottom(false);
