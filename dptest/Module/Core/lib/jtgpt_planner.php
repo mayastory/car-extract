@@ -280,8 +280,8 @@ if (!function_exists('jtgpt_planner_detect_date_range')) {
         }
         if (preg_match('/^최근\s*(\d{1,2})개월$/u', (string)$hint, $m)) {
             $months = max(1, min(24, (int)$m[1]));
-            $start = (clone $now)->modify('first day of this month')->modify('-' . ($months - 1) . ' month')->format('Y-m-d');
-            return ['from' => $start, 'to' => $today, 'label' => '최근 ' . $months . '개월', 'implicit' => false];
+            $s = (clone $now)->modify('-' . $months . ' month')->modify('+1 day')->format('Y-m-d');
+            return ['from' => $s, 'to' => $today, 'label' => '최근 ' . $months . '개월', 'implicit' => false];
         }
         return ['from' => $today, 'to' => $today, 'label' => '오늘', 'implicit' => true];
     }
@@ -354,6 +354,95 @@ if (!function_exists('jtgpt_planner_extract_quality_output_mode')) {
         if ($intent === 'top_ng_points') return 'top';
         if ($intent === 'point_detail') return 'detail';
         return 'rows';
+    }
+}
+
+
+if (!function_exists('jtgpt_planner_extract_quality_ng_only')) {
+    function jtgpt_planner_extract_quality_ng_only(string $message, ?array $valueFilter = null): bool {
+        $lower = mb_strtolower($message, 'UTF-8');
+        if (jtgpt_planner_contains_any($lower, ['ng', '불량'])) {
+            return true;
+        }
+        if (is_array($valueFilter) && !empty($valueFilter['enabled'])) {
+            return false;
+        }
+        return true;
+    }
+}
+
+if (!function_exists('jtgpt_planner_extract_quality_value_filter')) {
+    function jtgpt_planner_extract_quality_value_filter(string $message): ?array {
+        $lower = mb_strtolower($message, 'UTF-8');
+        $work = ' ' . $lower . ' ';
+        $work = preg_replace('/(20\d{2})[\.\/-](\d{1,2})[\.\/-](\d{1,2})/u', ' ', $work);
+
+        $target = 'value';
+        if (jtgpt_planner_contains_any($lower, ['usl', 'upper limit', '상한'])) {
+            $target = 'usl';
+        } elseif (jtgpt_planner_contains_any($lower, ['lsl', 'lower limit', '하한'])) {
+            $target = 'lsl';
+        }
+
+        $number = '(-?\d+(?:\.\d+)?)';
+        $betweenPatterns = [
+            '/(?:측정값|값|value)?\s*' . $number . '\s*(?:~|〜|∼|\-)\s*' . $number . '/u',
+            '/' . $number . '\s*(?:에서|부터)\s*' . $number . '\s*(?:사이|까지)/u',
+            '/between\s*' . $number . '\s*(?:and|to)\s*' . $number . '/iu',
+        ];
+        foreach ($betweenPatterns as $pattern) {
+            if (preg_match($pattern, $work, $m)) {
+                $a = (float)$m[1];
+                $b = (float)$m[2];
+                if ($a > $b) {
+                    [$a, $b] = [$b, $a];
+                }
+                return [
+                    'enabled' => true,
+                    'target' => $target,
+                    'op' => 'between',
+                    'value1' => $a,
+                    'value2' => $b,
+                ];
+            }
+        }
+
+        $patterns = [
+            'gte' => [
+                '/(?:측정값|값|value)?\s*' . $number . '\s*(?:이상|이거나\s*큰|보다\s*크거나\s*같)/u',
+                '/(?:이상)\s*(?:인\s*것\s*)?(?:측정값|값|value)?\s*' . $number . '/u',
+            ],
+            'gt' => [
+                '/(?:측정값|값|value)?\s*' . $number . '\s*(?:초과|보다\s*큰)/u',
+                '/(?:초과)\s*(?:인\s*것\s*)?(?:측정값|값|value)?\s*' . $number . '/u',
+            ],
+            'lte' => [
+                '/(?:측정값|값|value)?\s*' . $number . '\s*(?:이하|이거나\s*작|보다\s*작거나\s*같)/u',
+                '/(?:이하)\s*(?:인\s*것\s*)?(?:측정값|값|value)?\s*' . $number . '/u',
+            ],
+            'lt' => [
+                '/(?:측정값|값|value)?\s*' . $number . '\s*(?:미만|보다\s*작은)/u',
+                '/(?:미만)\s*(?:인\s*것\s*)?(?:측정값|값|value)?\s*' . $number . '/u',
+            ],
+            'eq' => [
+                '/(?:측정값|값|value)?\s*' . $number . '\s*(?:같은|동일한|=)/u',
+            ],
+        ];
+        foreach ($patterns as $op => $group) {
+            foreach ($group as $pattern) {
+                if (preg_match($pattern, $work, $m)) {
+                    return [
+                        'enabled' => true,
+                        'target' => $target,
+                        'op' => $op,
+                        'value1' => (float)$m[1],
+                        'value2' => null,
+                    ];
+                }
+            }
+        }
+
+        return null;
     }
 }
 
@@ -629,7 +718,7 @@ if (!function_exists('jtgpt_planner_build_graph_spec')) {
 }
 
 if (!function_exists('jtgpt_planner_build_quality_slots')) {
-    function jtgpt_planner_build_quality_slots(string $message, array $state, array $range, ?string $partName, array $tools, array $cavities, array $pointTerms, ?int $limit): array {
+    function jtgpt_planner_build_quality_slots(string $message, array $state, array $range, ?string $partName, array $tools, array $cavities, array $pointTerms, ?int $limit, ?array $valueFilter = null): array {
         $lower = mb_strtolower($message, 'UTF-8');
         if ($range['implicit']) {
             $range = jtgpt_planner_default_recent_range(7);
@@ -645,6 +734,7 @@ if (!function_exists('jtgpt_planner_build_quality_slots')) {
         $modules = jtgpt_planner_extract_quality_modules($message, $state);
         $intent = jtgpt_planner_extract_quality_intent($message, $pointTerms);
         $outputMode = jtgpt_planner_extract_quality_output_mode($message, $pointTerms);
+        $ngOnly = jtgpt_planner_extract_quality_ng_only($message, $valueFilter);
 
         $slots = [
             'intent' => $intent,
@@ -666,7 +756,8 @@ if (!function_exists('jtgpt_planner_build_quality_slots')) {
             'point_terms' => $pointTerms,
             'point_no' => null,
             'limit' => $limit,
-            'ng_only' => true,
+            'ng_only' => $ngOnly,
+            'value_filter' => $valueFilter,
             'output_mode' => $outputMode,
             'slot_mode' => true,
         ];
@@ -690,6 +781,7 @@ if (!function_exists('jtgpt_planner_plan')) {
         $cavities = jtgpt_planner_extract_cavities($text);
         $pointTerms = jtgpt_planner_collect_quality_point_terms($text, $tools, $cavities);
         $limit = jtgpt_planner_extract_limit($text);
+        $valueFilter = jtgpt_planner_extract_quality_value_filter($text);
 
         if ($text === '') {
             return [
@@ -721,9 +813,9 @@ if (!function_exists('jtgpt_planner_plan')) {
             return ['kind' => 'tool', 'tool' => 'shipping_summary', 'args' => ['from' => $range['from'], 'to' => $range['to'], 'range' => $range, 'part_name' => $partName, 'customer' => $customer, 'metric' => $metric]];
         }
 
-        $mentionsQuality = jtgpt_planner_contains_any($lower, ['ng', '불량', '포인트', 'point', 'fai', 'oqc', 'omm', 'cmm', 'aoi']);
+        $mentionsQuality = jtgpt_planner_contains_any($lower, ['ng', '불량', '포인트', 'point', 'fai', 'oqc', 'omm', 'cmm', 'aoi', '측정값', 'value', 'usl', 'lsl']) || (is_array($valueFilter) && !empty($valueFilter['enabled']));
         if ($mentionsQuality) {
-            $slots = jtgpt_planner_build_quality_slots($text, $state, $range, $partName, $tools, $cavities, $pointTerms, $limit);
+            $slots = jtgpt_planner_build_quality_slots($text, $state, $range, $partName, $tools, $cavities, $pointTerms, $limit, $valueFilter);
             $intent = (string)($slots['intent'] ?? 'recent_ng');
 
             if ($intent === 'top_ng_points') {

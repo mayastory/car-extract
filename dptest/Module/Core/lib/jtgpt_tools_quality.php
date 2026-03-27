@@ -255,6 +255,87 @@ if (!function_exists('jtgpt_quality_point_expr')) {
     }
 }
 
+
+if (!function_exists('jtgpt_quality_value_filter_from_args')) {
+    function jtgpt_quality_value_filter_from_args(array $args): ?array {
+        $filter = $args['value_filter'] ?? null;
+        if (!is_array($filter) || empty($filter['enabled'])) {
+            return null;
+        }
+        $op = strtolower(trim((string)($filter['op'] ?? '')));
+        if (!in_array($op, ['gt', 'gte', 'lt', 'lte', 'eq', 'between'], true)) {
+            return null;
+        }
+        return [
+            'enabled' => true,
+            'target' => strtolower(trim((string)($filter['target'] ?? 'value'))) ?: 'value',
+            'op' => $op,
+            'value1' => isset($filter['value1']) ? (float)$filter['value1'] : null,
+            'value2' => isset($filter['value2']) ? (float)$filter['value2'] : null,
+        ];
+    }
+}
+
+if (!function_exists('jtgpt_quality_value_filter_expr')) {
+    function jtgpt_quality_value_filter_expr(array $schema, string $module, string $target): string {
+        $target = strtolower(trim($target));
+        if ($target === 'usl' && !empty($schema['usl_col'])) {
+            return "r.`{$schema['usl_col']}`";
+        }
+        if ($target === 'lsl' && !empty($schema['lsl_col'])) {
+            return "r.`{$schema['lsl_col']}`";
+        }
+        return jtgpt_quality_value_expr($schema, $module);
+    }
+}
+
+if (!function_exists('jtgpt_quality_apply_value_filter')) {
+    function jtgpt_quality_apply_value_filter(array &$where, array &$params, array $schema, string $module, ?array $filter): void {
+        if (!$filter || empty($filter['enabled'])) {
+            return;
+        }
+        $expr = jtgpt_quality_value_filter_expr($schema, $module, (string)($filter['target'] ?? 'value'));
+        $op = strtolower(trim((string)($filter['op'] ?? '')));
+        $value1 = $filter['value1'] ?? null;
+        $value2 = $filter['value2'] ?? null;
+        if ($expr === 'NULL' || $value1 === null || $value1 === '') {
+            return;
+        }
+        switch ($op) {
+            case 'gt':
+                $where[] = "{$expr} IS NOT NULL AND {$expr} > :vf_1";
+                $params[':vf_1'] = (float)$value1;
+                break;
+            case 'gte':
+                $where[] = "{$expr} IS NOT NULL AND {$expr} >= :vf_1";
+                $params[':vf_1'] = (float)$value1;
+                break;
+            case 'lt':
+                $where[] = "{$expr} IS NOT NULL AND {$expr} < :vf_1";
+                $params[':vf_1'] = (float)$value1;
+                break;
+            case 'lte':
+                $where[] = "{$expr} IS NOT NULL AND {$expr} <= :vf_1";
+                $params[':vf_1'] = (float)$value1;
+                break;
+            case 'eq':
+                $where[] = "{$expr} IS NOT NULL AND {$expr} = :vf_1";
+                $params[':vf_1'] = (float)$value1;
+                break;
+            case 'between':
+                if ($value2 === null || $value2 === '') {
+                    return;
+                }
+                $low = min((float)$value1, (float)$value2);
+                $high = max((float)$value1, (float)$value2);
+                $where[] = "{$expr} IS NOT NULL AND {$expr} >= :vf_1 AND {$expr} <= :vf_2";
+                $params[':vf_1'] = $low;
+                $params[':vf_2'] = $high;
+                break;
+        }
+    }
+}
+
 if (!function_exists('jtgpt_tool_quality_base_where')) {
     function jtgpt_tool_quality_base_where(PDO $pdo, string $module, array $args, array $options = []): array {
         $schema = jtgpt_quality_module_schema($pdo, $module);
@@ -270,11 +351,15 @@ if (!function_exists('jtgpt_tool_quality_base_where')) {
         $valueExpr = jtgpt_quality_value_expr($schema, strtolower($module));
         $uslExpr = !empty($schema['usl_col']) ? "r.`{$schema['usl_col']}`" : 'NULL';
         $lslExpr = !empty($schema['lsl_col']) ? "r.`{$schema['lsl_col']}`" : 'NULL';
+        $ngOnly = !array_key_exists('ng_only', $args) || !empty($args['ng_only']);
+        $valueFilter = jtgpt_quality_value_filter_from_args($args);
         $directNg = "(({$uslExpr} IS NOT NULL AND {$valueExpr} IS NOT NULL AND {$valueExpr} > {$uslExpr}) OR ({$lslExpr} IS NOT NULL AND {$valueExpr} IS NOT NULL AND {$valueExpr} < {$lslExpr}))";
-        if (!empty($schema['ng_predicate'])) {
-            $where[] = "({$directNg} OR {$schema['ng_predicate']})";
-        } else {
-            $where[] = $directNg;
+        if ($ngOnly) {
+            if (!empty($schema['ng_predicate'])) {
+                $where[] = "({$directNg} OR {$schema['ng_predicate']})";
+            } else {
+                $where[] = $directNg;
+            }
         }
 
         if (!empty($args['from']) && !empty($args['to'])) {
@@ -297,6 +382,8 @@ if (!function_exists('jtgpt_tool_quality_base_where')) {
             $where[] = "{$pointExpr} NOT LIKE :dc_like";
             $params[':dc_like'] = '%(DC)%';
         }
+
+        jtgpt_quality_apply_value_filter($where, $params, $schema, strtolower($module), $valueFilter);
 
         if (!$skipPointFilters) {
             $pointList = jtgpt_quality_collect_values($args, 'point_no_list', 'point_no', static function ($value): string {
