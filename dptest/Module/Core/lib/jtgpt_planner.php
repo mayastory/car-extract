@@ -373,12 +373,45 @@ if (!function_exists('jtgpt_planner_extract_quality_output_format')) {
     }
 }
 
+if (!function_exists('jtgpt_planner_last_quality_context')) {
+    function jtgpt_planner_last_quality_context(array $state = []): ?array {
+        $tool = trim((string)($state['last_quality_tool'] ?? ''));
+        $args = (array)($state['last_quality_args'] ?? []);
+        if ($tool !== '' && $args) {
+            return ['tool' => $tool, 'args' => $args, 'source' => 'state'];
+        }
+
+        if (function_exists('jtgpt_session_history')) {
+            $hist = (array)jtgpt_session_history(12);
+            for ($i = count($hist) - 1; $i >= 0; $i--) {
+                $entry = (array)($hist[$i] ?? []);
+                $meta = (array)($entry['meta'] ?? []);
+                $plan = (array)($meta['plan'] ?? []);
+                $planTool = trim((string)($plan['tool'] ?? ''));
+                if ($planTool === '' || strpos($planTool, 'quality_') !== 0) {
+                    continue;
+                }
+                $planArgs = (array)($plan['args'] ?? []);
+                if (!$planArgs) {
+                    continue;
+                }
+                if (($plan['kind'] ?? '') !== 'tool') {
+                    continue;
+                }
+                return ['tool' => $planTool, 'args' => $planArgs, 'source' => 'history'];
+            }
+        }
+
+        return null;
+    }
+}
+
 if (!function_exists('jtgpt_planner_is_quality_export_followup')) {
     function jtgpt_planner_is_quality_export_followup(string $message, array $state, string $output, ?string $partName, array $tools, array $cavities, array $pointTerms, array $range, ?array $valueFilter = null): bool {
         if (!in_array($output, ['excel', 'csv', 'table'], true)) {
             return false;
         }
-        if (empty($state['last_quality_tool']) || !is_array($state['last_quality_args'] ?? null)) {
+        if (!jtgpt_planner_last_quality_context($state)) {
             return false;
         }
 
@@ -840,11 +873,12 @@ if (!function_exists('jtgpt_planner_plan')) {
         }
 
         if (jtgpt_planner_is_quality_export_followup($text, $state, $output, $partName, $tools, $cavities, $pointTerms, $range, $valueFilter)) {
-            $savedTool = trim((string)($state['last_quality_tool'] ?? ''));
-            $savedArgs = (array)($state['last_quality_args'] ?? []);
+            $lastQuality = jtgpt_planner_last_quality_context($state);
+            $savedTool = trim((string)($lastQuality['tool'] ?? ''));
+            $savedArgs = (array)($lastQuality['args'] ?? []);
             if ($savedTool !== '' && $savedArgs) {
                 $savedArgs['output'] = $output;
-                return ['kind' => 'tool', 'tool' => $savedTool, 'args' => $savedArgs, 'slots' => $savedArgs, 'followup' => true];
+                return ['kind' => 'tool', 'tool' => $savedTool, 'args' => $savedArgs, 'slots' => $savedArgs, 'followup' => true, 'followup_source' => (string)($lastQuality['source'] ?? 'state')];
             }
         }
 
