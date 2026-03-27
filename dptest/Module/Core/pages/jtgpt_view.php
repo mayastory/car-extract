@@ -1034,9 +1034,68 @@ function jtgpt_quality_export_brief_text(string $tool, array $args, array $resul
     return trim($prefix . ' 결과를 ' . $label . ' 파일로 만들었습니다.');
 }
 
-function jtgpt_build_answer(string $message): array {
+function jtgpt_client_history_last_user_query(array $clientHistory, string $currentMessage): ?string {
+    for ($i = count($clientHistory) - 1; $i >= 0; $i--) {
+        $entry = (array)($clientHistory[$i] ?? []);
+        if (strtolower((string)($entry['role'] ?? '')) !== 'user') {
+            continue;
+        }
+        $text = trim((string)($entry['text'] ?? ''));
+        if ($text === '' || $text === trim($currentMessage)) {
+            continue;
+        }
+        return $text;
+    }
+    return null;
+}
+
+function jtgpt_is_output_only_followup_message(string $message): bool {
+    $output = jtgpt_planner_extract_quality_output_format($message);
+    if (!in_array($output, ['excel', 'csv', 'table'], true)) {
+        return false;
+    }
+    $lower = mb_strtolower(trim($message), 'UTF-8');
+    if ($lower === '') {
+        return false;
+    }
+    if (!jtgpt_planner_contains_any($lower, ['엑셀', 'excel', 'xlsx', 'csv', '표로', '테이블', 'table', '출력', '다운로드', '내려', '저장', '파일'])) {
+        return false;
+    }
+
+    $range = jtgpt_planner_detect_date_range($lower);
+    $partName = jtgpt_planner_extract_part_name($message);
+    $tools = jtgpt_planner_extract_tools($message);
+    $cavities = jtgpt_planner_extract_cavities($message);
+    $pointTerms = jtgpt_planner_collect_quality_point_terms($message, $tools, $cavities);
+    $valueFilter = jtgpt_planner_extract_quality_value_filter($message);
+
+    if (trim((string)$partName) !== '') return false;
+    if (!empty($tools) || !empty($cavities) || !empty($pointTerms)) return false;
+    if (is_array($valueFilter) && !empty($valueFilter['enabled'])) return false;
+    if (empty($range['implicit'])) return false;
+    if (jtgpt_planner_contains_any($lower, ['oqc', 'omm', 'aoi', 'cmm', 'ng', '불량', '측정값', 'usl', 'lsl'])) return false;
+
+    return true;
+}
+
+function jtgpt_build_answer(string $message, array $clientHistory = []): array {
     $state = jtgpt_session_state();
     $plan = jtgpt_planner_plan($message, $state);
+    if (($plan['kind'] ?? '') === 'clarify' && $clientHistory && jtgpt_is_output_only_followup_message($message)) {
+        $previousUserQuery = jtgpt_client_history_last_user_query($clientHistory, $message);
+        if ($previousUserQuery !== null) {
+            $previousPlan = jtgpt_planner_plan($previousUserQuery, $state);
+            if (($previousPlan['kind'] ?? '') === 'tool' && strpos((string)($previousPlan['tool'] ?? ''), 'quality_') === 0) {
+                $previousArgs = (array)($previousPlan['args'] ?? []);
+                $previousArgs['output'] = jtgpt_planner_extract_quality_output_format($message);
+                $previousPlan['args'] = $previousArgs;
+                $previousPlan['slots'] = $previousArgs;
+                $previousPlan['followup'] = true;
+                $previousPlan['followup_source'] = 'client_history';
+                $plan = $previousPlan;
+            }
+        }
+    }
     $answer = '';
     $statePatch = [];
     $download = null;
@@ -1189,7 +1248,8 @@ if ($isAjax) {
         $payload = $_POST;
     }
     $message = trim((string)($payload['message'] ?? ''));
-    jtgpt_json_response(jtgpt_build_answer($message));
+    $clientHistory = is_array($payload['client_history'] ?? null) ? array_values($payload['client_history']) : [];
+    jtgpt_json_response(jtgpt_build_answer($message, $clientHistory));
 }
 ?><!doctype html>
 <html lang="ko">
@@ -1456,6 +1516,7 @@ if ($isAjax) {
 (() => {
     const homeEl = document.getElementById('home');
     const messagesEl = document.getElementById('messages');
+    const clientHistory = [];
     const inputEl = document.getElementById('messageInput');
     const sendBtn = document.getElementById('sendBtn');
     const chatEl = document.getElementById('chat');
@@ -1532,6 +1593,7 @@ if ($isAjax) {
         if (!message) return;
 
         createMessage('user', message);
+        clientHistory.push({ role: 'user', text: message });
         inputEl.value = '';
         autoResize();
         sendBtn.disabled = true;
@@ -1545,16 +1607,20 @@ if ($isAjax) {
                     'Content-Type': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest'
                 },
-                body: JSON.stringify({ message })
+                body: JSON.stringify({ message, client_history: clientHistory.slice(-12) })
             });
             const json = await res.json();
-            await typeText(assistantBubble, (json && json.answer) ? json.answer : '응답을 받지 못했어요.');
+            const answerText = (json && json.answer) ? json.answer : '응답을 받지 못했어요.';
+            await typeText(assistantBubble, answerText);
+            clientHistory.push({ role: 'assistant', text: answerText });
             if (json && json.download_url) {
                 appendDownloadLink(assistantBubble, json.download_url, json.download_name || '파일 다운로드');
                 scrollBottom(false);
             }
         } catch (e) {
-            await typeText(assistantBubble, '지금 응답을 불러오지 못했어요.');
+            const errText = '지금 응답을 불러오지 못했어요.';
+            await typeText(assistantBubble, errText);
+            clientHistory.push({ role: 'assistant', text: errText });
         } finally {
             sendBtn.disabled = false;
             inputEl.focus();
