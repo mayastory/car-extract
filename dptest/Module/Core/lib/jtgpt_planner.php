@@ -107,23 +107,50 @@ if (!function_exists('jtgpt_planner_extract_part_name')) {
         $original = trim($message);
         if ($original === '') return null;
 
-        $aliasMap = [
-            'ir base' => 'MEM-IR-BASE',
-            'irbase' => 'MEM-IR-BASE',
-            'x carrier' => 'MEM-X-CARRIER',
-            'x-carrier' => 'MEM-X-CARRIER',
-            'y carrier' => 'MEM-Y-CARRIER',
-            'y-carrier' => 'MEM-Y-CARRIER',
-            'z carrier' => 'MEM-Z-CARRIER',
-            'z-carrier' => 'MEM-Z-CARRIER',
-            'z stopper' => 'MEM-Z-STOPPER',
-            'z-stopper' => 'MEM-Z-STOPPER',
+        $lower = mb_strtolower($original, 'UTF-8');
+        $compact = preg_replace('/[\s\-_\/]+/u', '', $lower);
+        $aliasGroups = [
+            'MEM-IR-BASE' => [
+                'ir base', 'irbase', '아이알베이스', '아이알배이스', 'ir',
+            ],
+            'MEM-X-CARRIER' => [
+                'x carrier', 'x-carrier', 'xcarrier', '엑스케리어', '엑스캐리어', 'xc',
+            ],
+            'MEM-Y-CARRIER' => [
+                'y carrier', 'y-carrier', 'ycarrier', '와이케리어', '와이캐리어', 'yc',
+            ],
+            'MEM-Z-CARRIER' => [
+                'z carrier', 'z-carrier', 'zcarrier',
+                '지케리어', '지캐리어',
+                '제트케리어', '제트캐리어',
+                '재트케리어', '재트캐리어',
+                'zc',
+            ],
+            'MEM-Z-STOPPER' => [
+                'z stopper', 'z-stopper', 'zstopper',
+                '지스토퍼', '제트스토퍼', '재트스토퍼',
+                'zs',
+            ],
         ];
 
-        $lower = mb_strtolower($original, 'UTF-8');
-        foreach ($aliasMap as $needle => $partName) {
-            if (mb_strpos($lower, $needle) !== false) {
-                return $partName;
+        foreach ($aliasGroups as $partName => $aliases) {
+            foreach ($aliases as $alias) {
+                $aliasLower = mb_strtolower($alias, 'UTF-8');
+                if ($aliasLower === '') {
+                    continue;
+                }
+
+                if (preg_match('/^[a-z0-9]{1,3}$/', $aliasLower)) {
+                    if (preg_match('/(?:^|[^a-z0-9])' . preg_quote($aliasLower, '/') . '(?:$|[^a-z0-9])/u', $lower)) {
+                        return $partName;
+                    }
+                    continue;
+                }
+
+                $aliasCompact = preg_replace('/[\s\-_\/]+/u', '', $aliasLower);
+                if ($aliasCompact !== '' && mb_strpos($compact, $aliasCompact) !== false) {
+                    return $partName;
+                }
             }
         }
 
