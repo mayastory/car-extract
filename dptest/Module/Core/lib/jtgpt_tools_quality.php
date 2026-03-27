@@ -638,6 +638,352 @@ if (!function_exists('jtgpt_tool_quality_point_detail')) {
     }
 }
 
+if (!function_exists('jtgpt_quality_module_list_from_args')) {
+    function jtgpt_quality_module_list_from_args(array $args): array {
+        $modules = [];
+        $list = $args['modules'] ?? [];
+        if (!is_array($list)) {
+            $list = [$list];
+        }
+        foreach ($list as $module) {
+            $module = strtolower(trim((string)$module));
+            if ($module !== '' && jtgpt_quality_module_def($module)) {
+                $modules[] = $module;
+            }
+        }
+        $single = strtolower(trim((string)($args['module'] ?? '')));
+        if ($single !== '' && jtgpt_quality_module_def($single)) {
+            $modules[] = $single;
+        }
+        $modules = jtgpt_quality_unique_list($modules);
+        if (!$modules) {
+            $modules = ['oqc', 'omm', 'aoi', 'cmm'];
+        }
+        return $modules;
+    }
+}
+
+if (!function_exists('jtgpt_quality_merge_resolutions')) {
+    function jtgpt_quality_merge_resolutions(array $items, bool $multiModule = false): ?array {
+        $merged = [
+            'resolved_points' => [],
+            'resolved_terms' => [],
+            'ambiguous_terms' => [],
+            'unmatched_terms' => [],
+        ];
+        $hasAny = false;
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $moduleLabel = trim((string)($item['module_label'] ?? $item['label'] ?? $item['module'] ?? ''));
+            $resolution = $item['resolution'] ?? null;
+            if (!is_array($resolution)) {
+                continue;
+            }
+            $hasAny = true;
+            foreach (($resolution['resolved_points'] ?? []) as $point) {
+                $merged['resolved_points'][] = (string)$point;
+            }
+            foreach (($resolution['resolved_terms'] ?? []) as $row) {
+                if (!is_array($row)) continue;
+                if ($multiModule && $moduleLabel !== '') {
+                    $row['module_label'] = $moduleLabel;
+                }
+                $merged['resolved_terms'][] = $row;
+            }
+            foreach (($resolution['ambiguous_terms'] ?? []) as $row) {
+                if (!is_array($row)) continue;
+                if ($multiModule && $moduleLabel !== '') {
+                    $row['term'] = trim((string)($row['term'] ?? '')) . ' [' . $moduleLabel . ']';
+                }
+                $merged['ambiguous_terms'][] = $row;
+            }
+            foreach (($resolution['unmatched_terms'] ?? []) as $term) {
+                $term = trim((string)$term);
+                if ($term === '') continue;
+                $merged['unmatched_terms'][] = $multiModule && $moduleLabel !== '' ? ($term . ' [' . $moduleLabel . ']') : $term;
+            }
+        }
+        if (!$hasAny) {
+            return null;
+        }
+        $merged['resolved_points'] = jtgpt_quality_unique_list($merged['resolved_points']);
+        $merged['unmatched_terms'] = jtgpt_quality_unique_list($merged['unmatched_terms']);
+        return $merged;
+    }
+}
+
+if (!function_exists('jtgpt_quality_sort_recent_rows')) {
+    function jtgpt_quality_sort_recent_rows(array &$rows): void {
+        usort($rows, static function (array $a, array $b): int {
+            $ka = [
+                (string)($a['event_date'] ?? ''),
+                (string)($a['module'] ?? ''),
+                (string)($a['point_no'] ?? ''),
+                (string)($a['tool_cavity'] ?? ''),
+            ];
+            $kb = [
+                (string)($b['event_date'] ?? ''),
+                (string)($b['module'] ?? ''),
+                (string)($b['point_no'] ?? ''),
+                (string)($b['tool_cavity'] ?? ''),
+            ];
+            return $ka <=> $kb;
+        });
+    }
+}
+
+if (!function_exists('jtgpt_tool_quality_recent_ng_rows_multi')) {
+    function jtgpt_tool_quality_recent_ng_rows_multi(PDO $pdo, array $args): array {
+        $modules = jtgpt_quality_module_list_from_args($args);
+        $multiModule = count($modules) > 1;
+        $globalLimit = array_key_exists('limit', $args) && $args['limit'] !== null && $args['limit'] !== '' ? (int)$args['limit'] : null;
+        $rows = [];
+        $resolutions = [];
+        $errors = [];
+
+        foreach ($modules as $module) {
+            $moduleArgs = $args;
+            $moduleArgs['module'] = $module;
+            $moduleArgs['modules'] = [$module];
+            if ($multiModule) {
+                $moduleArgs['limit'] = null;
+            }
+            $result = jtgpt_tool_quality_recent_ng_rows($pdo, $module, $moduleArgs);
+            if (!empty($result['resolution'])) {
+                $resolutions[] = [
+                    'module' => $module,
+                    'module_label' => $result['label'] ?? strtoupper($module),
+                    'resolution' => $result['resolution'],
+                ];
+            }
+            if (!empty($result['error'])) {
+                $errors[] = '[' . strtoupper($module) . '] ' . $result['error'];
+            }
+            foreach (($result['rows'] ?? []) as $row) {
+                $row['module'] = $module;
+                $row['module_label'] = $result['label'] ?? strtoupper($module);
+                $rows[] = $row;
+            }
+        }
+
+        jtgpt_quality_sort_recent_rows($rows);
+        if ($globalLimit !== null && $globalLimit > 0) {
+            $rows = array_slice($rows, 0, $globalLimit);
+        }
+
+        return [
+            'found' => !empty($rows),
+            'module' => $multiModule ? 'all' : ($modules[0] ?? 'oqc'),
+            'modules' => $modules,
+            'multi_module' => $multiModule,
+            'label' => $multiModule ? '전체' : strtoupper((string)($modules[0] ?? 'oqc')),
+            'rows' => $rows,
+            'resolution' => jtgpt_quality_merge_resolutions($resolutions, $multiModule),
+            'error' => empty($rows) && $errors ? implode(' | ', $errors) : null,
+        ];
+    }
+}
+
+if (!function_exists('jtgpt_tool_quality_top_ng_points_multi')) {
+    function jtgpt_tool_quality_top_ng_points_multi(PDO $pdo, array $args): array {
+        $workingArgs = $args;
+        $workingArgs['limit'] = null;
+        $recent = jtgpt_tool_quality_recent_ng_rows_multi($pdo, $workingArgs);
+        $limit = (int)($args['limit'] ?? 5);
+        $bucket = [];
+        foreach (($recent['rows'] ?? []) as $row) {
+            $module = strtolower(trim((string)($row['module'] ?? '')));
+            $moduleLabel = trim((string)($row['module_label'] ?? strtoupper($module)));
+            $point = trim((string)($row['point_no'] ?? ''));
+            if ($point === '') {
+                continue;
+            }
+            $key = $module . '|' . $point;
+            if (!isset($bucket[$key])) {
+                $bucket[$key] = [
+                    'module' => $module,
+                    'module_label' => $moduleLabel,
+                    'point_no' => $point,
+                    'ng_count' => 0,
+                    'header_count' => 0,
+                    'last_date' => '',
+                ];
+            }
+            $bucket[$key]['ng_count']++;
+            $bucket[$key]['header_count']++;
+            $date = (string)($row['event_date'] ?? '');
+            if ($date !== '' && ($bucket[$key]['last_date'] === '' || $date > $bucket[$key]['last_date'])) {
+                $bucket[$key]['last_date'] = $date;
+            }
+        }
+        $rows = array_values($bucket);
+        usort($rows, static function (array $a, array $b): int {
+            return [$b['ng_count'], (string)$a['module'], (string)$a['point_no']] <=> [$a['ng_count'], (string)$b['module'], (string)$b['point_no']];
+        });
+        if ($limit > 0) {
+            $rows = array_slice($rows, 0, $limit);
+        }
+        return [
+            'found' => !empty($rows),
+            'module' => $recent['module'] ?? 'all',
+            'modules' => $recent['modules'] ?? [],
+            'multi_module' => !empty($recent['multi_module']),
+            'label' => $recent['label'] ?? '전체',
+            'rows' => $rows,
+            'resolution' => $recent['resolution'] ?? null,
+            'error' => empty($rows) ? ($recent['error'] ?? null) : null,
+        ];
+    }
+}
+
+if (!function_exists('jtgpt_tool_quality_count_ng_rows')) {
+    function jtgpt_tool_quality_count_ng_rows(PDO $pdo, array $args): array {
+        $workingArgs = $args;
+        $workingArgs['limit'] = null;
+        $recent = jtgpt_tool_quality_recent_ng_rows_multi($pdo, $workingArgs);
+        $moduleCounts = [];
+        foreach (($recent['rows'] ?? []) as $row) {
+            $module = strtolower(trim((string)($row['module'] ?? '')));
+            $label = trim((string)($row['module_label'] ?? strtoupper($module)));
+            if (!isset($moduleCounts[$module])) {
+                $moduleCounts[$module] = ['module' => $module, 'label' => $label, 'ng_count' => 0];
+            }
+            $moduleCounts[$module]['ng_count']++;
+        }
+        return [
+            'found' => !empty($recent['rows']),
+            'module' => $recent['module'] ?? 'all',
+            'modules' => $recent['modules'] ?? [],
+            'multi_module' => !empty($recent['multi_module']),
+            'label' => $recent['label'] ?? '전체',
+            'total_ng_count' => count($recent['rows'] ?? []),
+            'module_counts' => array_values($moduleCounts),
+            'resolution' => $recent['resolution'] ?? null,
+            'error' => empty($recent['rows']) ? ($recent['error'] ?? null) : null,
+        ];
+    }
+}
+
+if (!function_exists('jtgpt_tool_quality_summary')) {
+    function jtgpt_tool_quality_summary(PDO $pdo, array $args): array {
+        $workingArgs = $args;
+        $workingArgs['limit'] = null;
+        $recent = jtgpt_tool_quality_recent_ng_rows_multi($pdo, $workingArgs);
+        $moduleCounts = [];
+        $pointKeys = [];
+        $topBucket = [];
+        foreach (($recent['rows'] ?? []) as $row) {
+            $module = strtolower(trim((string)($row['module'] ?? '')));
+            $label = trim((string)($row['module_label'] ?? strtoupper($module)));
+            $point = trim((string)($row['point_no'] ?? ''));
+            if (!isset($moduleCounts[$module])) {
+                $moduleCounts[$module] = ['module' => $module, 'label' => $label, 'ng_count' => 0, 'point_count' => 0];
+            }
+            $moduleCounts[$module]['ng_count']++;
+            if ($point !== '') {
+                $pointKey = $module . '|' . $point;
+                if (!isset($pointKeys[$pointKey])) {
+                    $pointKeys[$pointKey] = true;
+                    $moduleCounts[$module]['point_count']++;
+                }
+                if (!isset($topBucket[$pointKey])) {
+                    $topBucket[$pointKey] = ['module' => $module, 'module_label' => $label, 'point_no' => $point, 'ng_count' => 0];
+                }
+                $topBucket[$pointKey]['ng_count']++;
+            }
+        }
+        $topRows = array_values($topBucket);
+        usort($topRows, static function (array $a, array $b): int {
+            return [$b['ng_count'], (string)$a['module'], (string)$a['point_no']] <=> [$a['ng_count'], (string)$b['module'], (string)$b['point_no']];
+        });
+        $topRows = array_slice($topRows, 0, 5);
+        return [
+            'found' => !empty($recent['rows']),
+            'module' => $recent['module'] ?? 'all',
+            'modules' => $recent['modules'] ?? [],
+            'multi_module' => !empty($recent['multi_module']),
+            'label' => $recent['label'] ?? '전체',
+            'total_ng_count' => count($recent['rows'] ?? []),
+            'module_counts' => array_values($moduleCounts),
+            'top_rows' => $topRows,
+            'resolution' => $recent['resolution'] ?? null,
+            'error' => empty($recent['rows']) ? ($recent['error'] ?? null) : null,
+        ];
+    }
+}
+
+
+if (!function_exists('jtgpt_tool_quality_point_detail_multi')) {
+    function jtgpt_tool_quality_point_detail_multi(PDO $pdo, array $args): array {
+        $modules = jtgpt_quality_module_list_from_args($args);
+        $multiModule = count($modules) > 1;
+        $found = [];
+        $resolutions = [];
+        $errors = [];
+        foreach ($modules as $module) {
+            $moduleArgs = $args;
+            $moduleArgs['module'] = $module;
+            $moduleArgs['modules'] = [$module];
+            $result = jtgpt_tool_quality_point_detail($pdo, $module, $moduleArgs);
+            if (!empty($result['resolution'])) {
+                $resolutions[] = [
+                    'module' => $module,
+                    'module_label' => $result['label'] ?? strtoupper($module),
+                    'resolution' => $result['resolution'],
+                ];
+            }
+            if (!empty($result['error'])) {
+                $errors[] = '[' . strtoupper($module) . '] ' . $result['error'];
+            }
+            if (!empty($result['found'])) {
+                $result['module'] = $module;
+                $result['module_label'] = $result['label'] ?? strtoupper($module);
+                foreach (($result['latest_rows'] ?? []) as $idx => $row) {
+                    $row['module'] = $module;
+                    $row['module_label'] = $result['label'] ?? strtoupper($module);
+                    $result['latest_rows'][$idx] = $row;
+                }
+                $found[] = $result;
+            }
+        }
+        if (!$found) {
+            return [
+                'found' => false,
+                'module' => $multiModule ? 'all' : ($modules[0] ?? 'oqc'),
+                'modules' => $modules,
+                'multi_module' => $multiModule,
+                'label' => $multiModule ? '전체' : strtoupper((string)($modules[0] ?? 'oqc')),
+                'summary' => null,
+                'latest_rows' => [],
+                'resolution' => jtgpt_quality_merge_resolutions($resolutions, $multiModule),
+                'error' => $errors ? implode(' | ', $errors) : null,
+                'results' => [],
+            ];
+        }
+        if (count($found) === 1) {
+            $only = $found[0];
+            $only['modules'] = $modules;
+            $only['multi_module'] = $multiModule;
+            $only['resolution'] = jtgpt_quality_merge_resolutions($resolutions, $multiModule);
+            return $only;
+        }
+        return [
+            'found' => true,
+            'module' => 'all',
+            'modules' => $modules,
+            'multi_module' => true,
+            'label' => '전체',
+            'summary' => null,
+            'latest_rows' => [],
+            'resolution' => jtgpt_quality_merge_resolutions($resolutions, true),
+            'error' => null,
+            'results' => $found,
+        ];
+    }
+}
+
 if (!function_exists('jtgpt_tool_oqc_top_ng_points')) {
     function jtgpt_tool_oqc_top_ng_points(PDO $pdo, array $args): array {
         return jtgpt_tool_quality_top_ng_points($pdo, 'oqc', $args);

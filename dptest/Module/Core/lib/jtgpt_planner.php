@@ -231,19 +231,73 @@ if (!function_exists('jtgpt_planner_detect_date_range')) {
     }
 }
 
-if (!function_exists('jtgpt_planner_extract_quality_module')) {
-    function jtgpt_planner_extract_quality_module(string $message, array $state = []): string {
+if (!function_exists('jtgpt_planner_quality_all_modules')) {
+    function jtgpt_planner_quality_all_modules(): array {
+        return ['oqc', 'omm', 'aoi', 'cmm'];
+    }
+}
+
+if (!function_exists('jtgpt_planner_extract_quality_modules')) {
+    function jtgpt_planner_extract_quality_modules(string $message, array $state = []): array {
         $lower = mb_strtolower($message, 'UTF-8');
-        foreach (['oqc', 'omm', 'cmm', 'aoi'] as $module) {
+        $modules = [];
+        foreach (jtgpt_planner_quality_all_modules() as $module) {
             if (mb_strpos($lower, $module) !== false) {
-                return $module;
+                $modules[] = $module;
             }
         }
-        $lastModule = strtolower((string)($state['last_module'] ?? ''));
-        if (in_array($lastModule, ['oqc', 'omm', 'cmm', 'aoi'], true)) {
-            return $lastModule;
+
+        if ($modules) {
+            return jtgpt_planner_unique_values($modules);
         }
-        return 'oqc';
+
+        $followUpNeedles = ['그 포인트', '해당 포인트', '그거', '그건', '상세', 'detail', '1위', '방금', '아까'];
+        $lastModule = strtolower((string)($state['last_module'] ?? ''));
+        if ($lastModule !== '' && in_array($lastModule, jtgpt_planner_quality_all_modules(), true) && jtgpt_planner_contains_any($lower, $followUpNeedles)) {
+            return [$lastModule];
+        }
+
+        return jtgpt_planner_quality_all_modules();
+    }
+}
+
+if (!function_exists('jtgpt_planner_extract_quality_module')) {
+    function jtgpt_planner_extract_quality_module(string $message, array $state = []): string {
+        $modules = jtgpt_planner_extract_quality_modules($message, $state);
+        return $modules[0] ?? 'oqc';
+    }
+}
+
+if (!function_exists('jtgpt_planner_extract_quality_intent')) {
+    function jtgpt_planner_extract_quality_intent(string $message, array $pointTerms = []): string {
+        $lower = mb_strtolower($message, 'UTF-8');
+        if (jtgpt_planner_contains_any($lower, ['비교', 'compare'])) {
+            return 'compare';
+        }
+        if (jtgpt_planner_contains_any($lower, ['건수', '몇건', '몇 건', 'count', '개수', '몇개', '몇 개'])) {
+            return 'count';
+        }
+        if (jtgpt_planner_contains_any($lower, ['많은 포인트', 'ng 포인트', '불량 포인트', 'top', '상위', '가장 많은'])) {
+            return 'top_ng_points';
+        }
+        if (!empty($pointTerms) && jtgpt_planner_contains_any($lower, ['상세', 'detail', '그 포인트', '해당 포인트'])) {
+            return 'point_detail';
+        }
+        if (jtgpt_planner_contains_any($lower, ['요약', 'summary', '정리'])) {
+            return 'summary';
+        }
+        return 'recent_ng';
+    }
+}
+
+if (!function_exists('jtgpt_planner_extract_quality_output_mode')) {
+    function jtgpt_planner_extract_quality_output_mode(string $message, array $pointTerms = []): string {
+        $intent = jtgpt_planner_extract_quality_intent($message, $pointTerms);
+        if ($intent === 'count') return 'count';
+        if ($intent === 'summary' || $intent === 'compare') return 'summary';
+        if ($intent === 'top_ng_points') return 'top';
+        if ($intent === 'point_detail') return 'detail';
+        return 'rows';
     }
 }
 
@@ -518,6 +572,57 @@ if (!function_exists('jtgpt_planner_build_graph_spec')) {
     }
 }
 
+if (!function_exists('jtgpt_planner_build_quality_slots')) {
+    function jtgpt_planner_build_quality_slots(string $message, array $state, array $range, ?string $partName, array $tools, array $cavities, array $pointTerms, ?int $limit): array {
+        $lower = mb_strtolower($message, 'UTF-8');
+        if ($range['implicit']) {
+            $range = jtgpt_planner_default_recent_range(7);
+        }
+
+        if (!$pointTerms && jtgpt_planner_contains_any($lower, ['1위', '그 포인트', '해당 포인트', '상세'])) {
+            $ranked = $state['last_ranked_points'] ?? [];
+            if (!empty($ranked[0])) {
+                $pointTerms = [(string)$ranked[0]];
+            }
+        }
+
+        $modules = jtgpt_planner_extract_quality_modules($message, $state);
+        $intent = jtgpt_planner_extract_quality_intent($message, $pointTerms);
+        $outputMode = jtgpt_planner_extract_quality_output_mode($message, $pointTerms);
+
+        $slots = [
+            'intent' => $intent,
+            'type' => count($modules) === 1 ? strtoupper($modules[0]) : 'ALL',
+            'module' => $modules[0] ?? 'oqc',
+            'modules' => $modules,
+            'all_modules' => count($modules) !== 1,
+            'model' => $partName,
+            'part_name' => $partName,
+            'period' => $range,
+            'from' => $range['from'],
+            'to' => $range['to'],
+            'range' => $range,
+            'tool' => $tools[0] ?? null,
+            'tools' => $tools,
+            'cavity' => $cavities[0] ?? null,
+            'cavities' => $cavities,
+            'fais' => $pointTerms,
+            'point_terms' => $pointTerms,
+            'point_no' => null,
+            'limit' => $limit,
+            'ng_only' => true,
+            'output_mode' => $outputMode,
+            'slot_mode' => true,
+        ];
+
+        if ($intent === 'top_ng_points' && $slots['limit'] === null) {
+            $slots['limit'] = 5;
+        }
+
+        return $slots;
+    }
+}
+
 if (!function_exists('jtgpt_planner_plan')) {
     function jtgpt_planner_plan(string $message, array $state = []): array {
         $text = trim($message);
@@ -562,49 +667,22 @@ if (!function_exists('jtgpt_planner_plan')) {
 
         $mentionsQuality = jtgpt_planner_contains_any($lower, ['ng', '불량', '포인트', 'point', 'fai', 'oqc', 'omm', 'cmm', 'aoi']);
         if ($mentionsQuality) {
-            if ($range['implicit']) {
-                $range = jtgpt_planner_default_recent_range(7);
+            $slots = jtgpt_planner_build_quality_slots($text, $state, $range, $partName, $tools, $cavities, $pointTerms, $limit);
+            $intent = (string)($slots['intent'] ?? 'recent_ng');
+
+            if ($intent === 'top_ng_points') {
+                return ['kind' => 'tool', 'tool' => 'quality_top_ng_points', 'args' => $slots, 'slots' => $slots];
             }
-
-            $module = jtgpt_planner_extract_quality_module($text, $state);
-            $detailNeedles = ['상세', 'detail', '그 포인트', '해당 포인트'];
-
-            if (!$pointTerms && jtgpt_planner_contains_any($lower, ['1위', '그 포인트', '상세'])) {
-                $ranked = $state['last_ranked_points'] ?? [];
-                if (!empty($ranked[0])) {
-                    $pointTerms = [(string)$ranked[0]];
-                }
+            if ($intent === 'point_detail' && !empty($slots['point_terms']) && count((array)$slots['point_terms']) === 1) {
+                return ['kind' => 'tool', 'tool' => 'quality_point_detail', 'args' => $slots, 'slots' => $slots];
             }
-
-            $args = [
-                'module' => $module,
-                'from' => $range['from'],
-                'to' => $range['to'],
-                'range' => $range,
-                'part_name' => $partName,
-                'tool' => $tools[0] ?? null,
-                'tools' => $tools,
-                'cavity' => $cavities[0] ?? null,
-                'cavities' => $cavities,
-                'point_terms' => $pointTerms,
-                'point_no' => null,
-                'limit' => $limit,
-                'ng_only' => true,
-                'slot_mode' => true,
-            ];
-
-            if (jtgpt_planner_contains_any($lower, ['많은 포인트', 'ng 포인트', '불량 포인트', 'top', '상위', '가장 많은'])) {
-                if ($args['limit'] === null) {
-                    $args['limit'] = 5;
-                }
-                return ['kind' => 'tool', 'tool' => 'quality_top_ng_points', 'args' => $args, 'slots' => $args];
+            if ($intent === 'count') {
+                return ['kind' => 'tool', 'tool' => 'quality_count_ng_rows', 'args' => $slots, 'slots' => $slots];
             }
-
-            if (!empty($pointTerms) && jtgpt_planner_contains_any($lower, $detailNeedles) && count($pointTerms) === 1) {
-                return ['kind' => 'tool', 'tool' => 'quality_point_detail', 'args' => $args, 'slots' => $args];
+            if ($intent === 'summary' || $intent === 'compare') {
+                return ['kind' => 'tool', 'tool' => 'quality_summary', 'args' => $slots, 'slots' => $slots];
             }
-
-            return ['kind' => 'tool', 'tool' => 'quality_recent_ng_rows', 'args' => $args, 'slots' => $args];
+            return ['kind' => 'tool', 'tool' => 'quality_recent_ng_rows', 'args' => $slots, 'slots' => $slots];
         }
 
         if (jtgpt_planner_contains_any($lower, ['ipqc', 'jmp', '공정능력'])) {

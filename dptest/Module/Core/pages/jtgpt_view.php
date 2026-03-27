@@ -271,9 +271,16 @@ function jtgpt_answer_quality_top_points(array $result, array $args): string {
     }
     $scope = jtgpt_format_scope($args);
     $limit = (int)($args['limit'] ?? 5);
-    $lines = [trim(($result['label'] ?? strtoupper((string)($args['module'] ?? ''))) . ' ' . $scope . ' NG 많은 포인트 Top ' . $limit)];
+    $multiModule = !empty($result['multi_module']) || count((array)($args['modules'] ?? [])) > 1;
+    $title = $multiModule ? '전체' : ($result['label'] ?? strtoupper((string)($args['module'] ?? '')));
+    $lines = [trim($title . ' ' . $scope . ' NG 많은 포인트 Top ' . $limit)];
     foreach (($result['rows'] ?? []) as $i => $row) {
-        $lines[] = ($i + 1) . ') ' . (string)($row['point_no'] ?? '-') . ' - ' . jtgpt_tool_format_int($row['ng_count'] ?? 0) . '건';
+        $prefix = '';
+        if ($multiModule) {
+            $prefix = trim((string)($row['module_label'] ?? ''));
+            $prefix = $prefix !== '' ? ($prefix . ' | ') : '';
+        }
+        $lines[] = ($i + 1) . ') ' . $prefix . (string)($row['point_no'] ?? '-') . ' - ' . jtgpt_tool_format_int($row['ng_count'] ?? 0) . '건';
     }
     if (!empty($result['resolution'])) {
         foreach (jtgpt_quality_resolution_tail_lines((array)$result['resolution']) as $line) {
@@ -290,11 +297,17 @@ function jtgpt_answer_quality_recent_rows(array $result, array $args): string {
         return $resolutionText !== '' ? $resolutionText : ($result['error'] ?? '조건에 맞는 최근 NG 이력이 없습니다.');
     }
     $scope = jtgpt_format_scope($args);
-    $lines = [trim(($result['label'] ?? strtoupper((string)($args['module'] ?? ''))) . ' ' . $scope . ' 최근 NG 이력')];
+    $multiModule = !empty($result['multi_module']) || count((array)($args['modules'] ?? [])) > 1;
+    $title = $multiModule ? '전체' : ($result['label'] ?? strtoupper((string)($args['module'] ?? '')));
+    $lines = [trim($title . ' ' . $scope . ' 최근 NG 이력')];
     foreach (($result['rows'] ?? []) as $row) {
         $chunk = [
             (string)($row['event_date'] ?? '-'),
         ];
+        if ($multiModule) {
+            $moduleLabel = trim((string)($row['module_label'] ?? ''));
+            if ($moduleLabel !== '') $chunk[] = $moduleLabel;
+        }
         $tc = trim((string)($row['tool_cavity'] ?? ''));
         if ($tc !== '') $chunk[] = $tc;
         $pointNo = trim((string)($row['point_no'] ?? ''));
@@ -313,14 +326,35 @@ function jtgpt_answer_quality_recent_rows(array $result, array $args): string {
 }
 
 function jtgpt_answer_quality_point_detail(array $result, array $args): string {
-    if (empty($result['found']) || empty($result['summary'])) {
+    if (empty($result['found'])) {
         $resolutionText = !empty($result['resolution']) ? jtgpt_quality_resolution_prompt((array)$result['resolution']) : '';
         return $resolutionText !== '' ? $resolutionText : ($result['error'] ?? '조건에 맞는 NG 상세 이력이 없습니다.');
     }
     $scope = jtgpt_format_scope($args);
+    if (!empty($result['results']) && is_array($result['results'])) {
+        $lines = [trim('전체 ' . $scope . ' 포인트 NG 상세')];
+        foreach ($result['results'] as $entry) {
+            $summary = $entry['summary'] ?? [];
+            $moduleLabel = trim((string)($entry['module_label'] ?? $entry['label'] ?? strtoupper((string)($entry['module'] ?? ''))));
+            $pointNo = (string)($summary['point_no'] ?? ($args['point_no'] ?? '-'));
+            $lines[] = '- ' . $moduleLabel . ' | ' . $pointNo . ' | NG ' . jtgpt_tool_format_int($summary['ng_count'] ?? 0) . '건 | 마지막 ' . (string)($summary['last_date'] ?? '-');
+        }
+        if (!empty($result['resolution'])) {
+            foreach (jtgpt_quality_resolution_tail_lines((array)$result['resolution']) as $line) {
+                $lines[] = '- ' . $line;
+            }
+        }
+        return implode("
+", $lines);
+    }
+    if (empty($result['summary'])) {
+        $resolutionText = !empty($result['resolution']) ? jtgpt_quality_resolution_prompt((array)$result['resolution']) : '';
+        return $resolutionText !== '' ? $resolutionText : ($result['error'] ?? '조건에 맞는 NG 상세 이력이 없습니다.');
+    }
     $summary = $result['summary'];
     $pointNo = (string)($summary['point_no'] ?? ($args['point_no'] ?? '-'));
-    $lines = [trim(($result['label'] ?? strtoupper((string)($args['module'] ?? ''))) . ' ' . $scope . ' ' . $pointNo . ' NG 상세')];
+    $title = ($result['module_label'] ?? $result['label'] ?? strtoupper((string)($args['module'] ?? '')));
+    $lines = [trim($title . ' ' . $scope . ' ' . $pointNo . ' NG 상세')];
     $lines[] = '- NG 건수: ' . jtgpt_tool_format_int($summary['ng_count'] ?? 0) . '건';
     $lines[] = '- 마지막 발생일: ' . (string)($summary['last_date'] ?? '-');
     if (!empty($result['latest_rows'])) {
@@ -329,6 +363,10 @@ function jtgpt_answer_quality_point_detail(array $result, array $args): string {
             $chunk = [
                 (string)($row['event_date'] ?? '-'),
             ];
+            if (!empty($result['multi_module'])) {
+                $moduleLabel = trim((string)($row['module_label'] ?? ''));
+                if ($moduleLabel !== '') $chunk[] = $moduleLabel;
+            }
             $tc = trim((string)($row['tool_cavity'] ?? ''));
             if ($tc !== '') $chunk[] = $tc;
             $pointNo = trim((string)($row['point_no'] ?? ''));
@@ -336,6 +374,55 @@ function jtgpt_answer_quality_point_detail(array $result, array $args): string {
             $ngText = jtgpt_format_ng_limit_value($row);
             if ($ngText !== '') $chunk[] = $ngText;
             $lines[] = '  ' . implode(' | ', $chunk);
+        }
+    }
+    if (!empty($result['resolution'])) {
+        foreach (jtgpt_quality_resolution_tail_lines((array)$result['resolution']) as $line) {
+            $lines[] = '- ' . $line;
+        }
+    }
+    return implode("
+", $lines);
+}
+
+
+function jtgpt_answer_quality_count(array $result, array $args): string {
+    if (empty($result['found'])) {
+        $resolutionText = !empty($result['resolution']) ? jtgpt_quality_resolution_prompt((array)$result['resolution']) : '';
+        return $resolutionText !== '' ? $resolutionText : ($result['error'] ?? '조건에 맞는 NG 건수가 없습니다.');
+    }
+    $scope = jtgpt_format_scope($args);
+    $title = !empty($result['multi_module']) ? '전체' : ($result['label'] ?? strtoupper((string)($args['module'] ?? '')));
+    $lines = [trim($title . ' ' . $scope . ' NG 건수는 ' . jtgpt_tool_format_int($result['total_ng_count'] ?? 0) . '건입니다.')];
+    foreach (($result['module_counts'] ?? []) as $row) {
+        $lines[] = '- ' . (string)($row['label'] ?? strtoupper((string)($row['module'] ?? ''))) . ': ' . jtgpt_tool_format_int($row['ng_count'] ?? 0) . '건';
+    }
+    if (!empty($result['resolution'])) {
+        foreach (jtgpt_quality_resolution_tail_lines((array)$result['resolution']) as $line) {
+            $lines[] = '- ' . $line;
+        }
+    }
+    return implode("
+", $lines);
+}
+
+function jtgpt_answer_quality_summary(array $result, array $args): string {
+    if (empty($result['found'])) {
+        $resolutionText = !empty($result['resolution']) ? jtgpt_quality_resolution_prompt((array)$result['resolution']) : '';
+        return $resolutionText !== '' ? $resolutionText : ($result['error'] ?? '조건에 맞는 NG 요약이 없습니다.');
+    }
+    $scope = jtgpt_format_scope($args);
+    $title = !empty($result['multi_module']) ? '전체' : ($result['label'] ?? strtoupper((string)($args['module'] ?? '')));
+    $lines = [trim($title . ' ' . $scope . ' NG 요약입니다.')];
+    $lines[] = '- 총 NG 건수: ' . jtgpt_tool_format_int($result['total_ng_count'] ?? 0) . '건';
+    foreach (($result['module_counts'] ?? []) as $row) {
+        $lines[] = '- ' . (string)($row['label'] ?? strtoupper((string)($row['module'] ?? ''))) . ': ' . jtgpt_tool_format_int($row['ng_count'] ?? 0) . '건, 포인트 ' . jtgpt_tool_format_int($row['point_count'] ?? 0) . '개';
+    }
+    if (!empty($result['top_rows'])) {
+        $lines[] = '- 많이 나온 포인트:';
+        foreach (($result['top_rows'] ?? []) as $row) {
+            $prefix = !empty($result['multi_module']) ? ((string)($row['module_label'] ?? '') . ' | ') : '';
+            $lines[] = '  · ' . $prefix . (string)($row['point_no'] ?? '-') . ' - ' . jtgpt_tool_format_int($row['ng_count'] ?? 0) . '건';
         }
     }
     if (!empty($result['resolution'])) {
@@ -381,20 +468,47 @@ function jtgpt_build_answer(string $message): array {
                     $answer = jtgpt_answer_shipping_last_ship($res, $args);
                     break;
                 case 'quality_top_ng_points':
-                    $res = jtgpt_tool_quality_top_ng_points($pdo, (string)($args['module'] ?? 'oqc'), $args);
+                    $modules = jtgpt_quality_module_list_from_args($args);
+                    if (count($modules) > 1) {
+                        $res = jtgpt_tool_quality_top_ng_points_multi($pdo, $args);
+                    } else {
+                        $res = jtgpt_tool_quality_top_ng_points($pdo, (string)($modules[0] ?? $args['module'] ?? 'oqc'), $args);
+                    }
                     $answer = jtgpt_answer_quality_top_points($res, $args);
-                    $statePatch['last_module'] = strtolower((string)($args['module'] ?? 'oqc'));
+                    $statePatch['last_module'] = strtolower((string)($modules[0] ?? $args['module'] ?? 'oqc'));
                     $statePatch['last_ranked_points'] = array_values(array_map(static fn($r) => (string)($r['point_no'] ?? ''), $res['rows'] ?? []));
                     break;
                 case 'quality_recent_ng_rows':
-                    $res = jtgpt_tool_quality_recent_ng_rows($pdo, (string)($args['module'] ?? 'oqc'), $args);
+                    $modules = jtgpt_quality_module_list_from_args($args);
+                    if (count($modules) > 1) {
+                        $res = jtgpt_tool_quality_recent_ng_rows_multi($pdo, $args);
+                    } else {
+                        $res = jtgpt_tool_quality_recent_ng_rows($pdo, (string)($modules[0] ?? $args['module'] ?? 'oqc'), $args);
+                    }
                     $answer = jtgpt_answer_quality_recent_rows($res, $args);
-                    $statePatch['last_module'] = strtolower((string)($args['module'] ?? 'oqc'));
+                    $statePatch['last_module'] = strtolower((string)($modules[0] ?? $args['module'] ?? 'oqc'));
                     break;
                 case 'quality_point_detail':
-                    $res = jtgpt_tool_quality_point_detail($pdo, (string)($args['module'] ?? 'oqc'), $args);
+                    $modules = jtgpt_quality_module_list_from_args($args);
+                    if (count($modules) > 1) {
+                        $res = jtgpt_tool_quality_point_detail_multi($pdo, $args);
+                    } else {
+                        $res = jtgpt_tool_quality_point_detail($pdo, (string)($modules[0] ?? $args['module'] ?? 'oqc'), $args);
+                    }
                     $answer = jtgpt_answer_quality_point_detail($res, $args);
-                    $statePatch['last_module'] = strtolower((string)($args['module'] ?? 'oqc'));
+                    $statePatch['last_module'] = strtolower((string)($modules[0] ?? $args['module'] ?? 'oqc'));
+                    break;
+                case 'quality_count_ng_rows':
+                    $res = jtgpt_tool_quality_count_ng_rows($pdo, $args);
+                    $answer = jtgpt_answer_quality_count($res, $args);
+                    $modules = jtgpt_quality_module_list_from_args($args);
+                    $statePatch['last_module'] = strtolower((string)($modules[0] ?? $args['module'] ?? 'oqc'));
+                    break;
+                case 'quality_summary':
+                    $res = jtgpt_tool_quality_summary($pdo, $args);
+                    $answer = jtgpt_answer_quality_summary($res, $args);
+                    $modules = jtgpt_quality_module_list_from_args($args);
+                    $statePatch['last_module'] = strtolower((string)($modules[0] ?? $args['module'] ?? 'oqc'));
                     break;
                 case 'oqc_top_ng_points':
                     $res = jtgpt_tool_oqc_top_ng_points($pdo, $args);
