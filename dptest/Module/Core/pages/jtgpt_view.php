@@ -121,6 +121,253 @@ if (!function_exists('jtgpt_tool_format_float')) {
     }
 }
 
+function jtgpt_quality_debug_enabled(): bool {
+    if (defined('DEBUG_JTGPT')) {
+        return (bool) constant('DEBUG_JTGPT');
+    }
+    if (isset($_GET['jtgpt_debug'])) {
+        $v = strtolower(trim((string)$_GET['jtgpt_debug']));
+        return in_array($v, ['1', 'true', 'yes', 'on'], true);
+    }
+    return false;
+}
+
+function jtgpt_quality_output_format(array $args): string {
+    $output = strtolower(trim((string)($args['output'] ?? 'chat')));
+    return in_array($output, ['excel', 'csv', 'table', 'chat'], true) ? $output : 'chat';
+}
+
+function jtgpt_quality_export_dir_fs(): string {
+    return rtrim(jtgpt_root_path(), '/\\') . '/exports/jtgpt';
+}
+
+function jtgpt_quality_export_dir_url(): string {
+    $script = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
+    if ($script !== '') {
+        $base = dirname($script, 4);
+        if ($base === '/' || $base === '\\') {
+            $base = '';
+        }
+        return rtrim($base, '/') . '/exports/jtgpt';
+    }
+    return '/exports/jtgpt';
+}
+
+function jtgpt_quality_export_filename(array $args, string $ext): string {
+    $modules = $args['modules'] ?? [];
+    if (!is_array($modules)) $modules = [$modules];
+    $modules = array_values(array_filter(array_map(static function ($module): string {
+        return strtolower(trim((string)$module));
+    }, $modules)));
+    $modulePart = $modules ? implode('-', $modules) : 'quality';
+
+    $partName = strtoupper(trim((string)($args['part_name'] ?? 'all')));
+    $partName = preg_replace('/[^A-Z0-9\-]+/', '-', $partName);
+    $partName = trim((string)$partName, '-');
+    if ($partName === '') $partName = 'ALL';
+
+    $stamp = (new DateTime('now', new DateTimeZone('Asia/Seoul')))->format('Ymd_His');
+    return 'jtgpt_' . $modulePart . '_' . strtolower($partName) . '_' . $stamp . '.' . $ext;
+}
+
+function jtgpt_quality_export_rows_normalize(array $rows, array $args, array $result = []): array {
+    $out = [];
+    $defaultModule = strtolower(trim((string)($result['module'] ?? $args['module'] ?? '')));
+    $defaultLabel = trim((string)($result['label'] ?? strtoupper($defaultModule)));
+    foreach ($rows as $row) {
+        if (!is_array($row)) continue;
+        $moduleLabel = trim((string)($row['module_label'] ?? $defaultLabel));
+        $module = strtolower(trim((string)($row['module'] ?? $defaultModule)));
+        $out[] = [
+            '날짜' => (string)($row['event_date'] ?? '-'),
+            '타입' => $moduleLabel !== '' ? $moduleLabel : strtoupper($module),
+            'Tool/Cavity' => trim((string)($row['tool_cavity'] ?? '')),
+            'FAI' => trim((string)($row['point_no'] ?? '')),
+            'NG' => strtoupper(trim((string)($row['ng_side'] ?? ''))),
+            '기준값' => jtgpt_tool_format_float($row['ng_limit'] ?? null),
+            '측정값' => jtgpt_tool_format_float($row['value'] ?? null),
+            'USL' => jtgpt_tool_format_float($row['usl'] ?? null),
+            'LSL' => jtgpt_tool_format_float($row['lsl'] ?? null),
+            '모델' => trim((string)($row['part_name'] ?? $args['part_name'] ?? '')),
+        ];
+    }
+    return $out;
+}
+
+function jtgpt_quality_export_source_rows(PDO $pdo, string $tool, array $args, array $result): array {
+    if ($tool === 'quality_recent_ng_rows') {
+        return jtgpt_quality_export_rows_normalize((array)($result['rows'] ?? []), $args, $result);
+    }
+    if ($tool === 'quality_point_detail') {
+        $rows = [];
+        foreach ((array)($result['latest_rows'] ?? []) as $row) {
+            $rows[] = $row;
+        }
+        foreach ((array)($result['results'] ?? []) as $item) {
+            foreach ((array)($item['latest_rows'] ?? []) as $row) {
+                $rows[] = $row;
+            }
+        }
+        return jtgpt_quality_export_rows_normalize($rows, $args, $result);
+    }
+
+    $workingArgs = $args;
+    $workingArgs['limit'] = null;
+    $recent = jtgpt_tool_quality_recent_ng_rows_multi($pdo, $workingArgs);
+    return jtgpt_quality_export_rows_normalize((array)($recent['rows'] ?? []), $workingArgs, $recent);
+}
+
+function jtgpt_quality_write_csv_file(string $path, array $rows): void {
+    $fp = fopen($path, 'wb');
+    if (!$fp) {
+        throw new RuntimeException('CSV 파일을 만들 수 없습니다.');
+    }
+    fwrite($fp, "ï»¿");
+    $headers = $rows ? array_keys($rows[0]) : ['날짜','타입','Tool/Cavity','FAI','NG','기준값','측정값','USL','LSL','모델'];
+    fputcsv($fp, $headers);
+    foreach ($rows as $row) {
+        $line = [];
+        foreach ($headers as $header) {
+            $line[] = (string)($row[$header] ?? '');
+        }
+        fputcsv($fp, $line);
+    }
+    fclose($fp);
+}
+
+function jtgpt_quality_xlsx_col_name(int $index): string {
+    $index = max(1, $index);
+    $name = '';
+    while ($index > 0) {
+        $index--;
+        $name = chr(65 + ($index % 26)) . $name;
+        $index = intdiv($index, 26);
+    }
+    return $name;
+}
+
+function jtgpt_quality_xlsx_xml_escape(string $value): string {
+    return htmlspecialchars($value, ENT_XML1 | ENT_QUOTES, 'UTF-8');
+}
+
+function jtgpt_quality_write_xlsx_file(string $path, array $rows): void {
+    if (!class_exists('ZipArchive')) {
+        throw new RuntimeException('ZipArchive 확장을 찾지 못했습니다.');
+    }
+
+    $headers = $rows ? array_keys($rows[0]) : ['날짜','타입','Tool/Cavity','FAI','NG','기준값','측정값','USL','LSL','모델'];
+    $sheetRows = [];
+    $sheetRows[] = $headers;
+    foreach ($rows as $row) {
+        $line = [];
+        foreach ($headers as $header) {
+            $line[] = (string)($row[$header] ?? '');
+        }
+        $sheetRows[] = $line;
+    }
+
+    $sheetXml = [];
+    $sheetXml[] = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+    $sheetXml[] = '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>';
+    foreach ($sheetRows as $rIdx => $row) {
+        $rowNo = $rIdx + 1;
+        $sheetXml[] = '<row r="' . $rowNo . '">';
+        foreach ($row as $cIdx => $value) {
+            $cellRef = jtgpt_quality_xlsx_col_name($cIdx + 1) . $rowNo;
+            $style = $rIdx === 0 ? ' s="1"' : '';
+            if ($value !== '' && is_numeric($value) && !preg_match('/^0\d+/', $value)) {
+                $sheetXml[] = '<c r="' . $cellRef . '"' . $style . '><v>' . jtgpt_quality_xlsx_xml_escape((string)$value) . '</v></c>';
+            } else {
+                $sheetXml[] = '<c r="' . $cellRef . '" t="inlineStr"' . $style . '><is><t>' . jtgpt_quality_xlsx_xml_escape((string)$value) . '</t></is></c>';
+            }
+        }
+        $sheetXml[] = '</row>';
+    }
+    $sheetXml[] = '</sheetData></worksheet>';
+    $sheetXml = implode('', $sheetXml);
+
+    $stylesXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        . '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        . '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>'
+        . '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>'
+        . '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
+        . '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+        . '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs>'
+        . '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>'
+        . '</styleSheet>';
+
+    $zip = new ZipArchive();
+    if ($zip->open($path, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+        throw new RuntimeException('엑셀 파일을 만들 수 없습니다.');
+    }
+    $zip->addFromString('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        . '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        . '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+        . '<Default Extension="xml" ContentType="application/xml"/>'
+        . '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+        . '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+        . '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+        . '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>'
+        . '<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>'
+        . '</Types>');
+    $zip->addFromString('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        . '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+        . '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>'
+        . '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>'
+        . '</Relationships>');
+    $zip->addFromString('xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        . '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        . '<sheets><sheet name="JTGPT" sheetId="1" r:id="rId1"/></sheets></workbook>');
+    $zip->addFromString('xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        . '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+        . '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+        . '</Relationships>');
+    $zip->addFromString('xl/worksheets/sheet1.xml', $sheetXml);
+    $zip->addFromString('xl/styles.xml', $stylesXml);
+    $zip->addFromString('docProps/core.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        . '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+        . '<dc:title>JTGPT Export</dc:title><dc:creator>JTGPT</dc:creator></cp:coreProperties>');
+    $zip->addFromString('docProps/app.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        . '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">'
+        . '<Application>JTGPT</Application></Properties>');
+    $zip->close();
+}
+
+function jtgpt_quality_create_export(PDO $pdo, string $tool, array $args, array $result): ?array {
+    $output = jtgpt_quality_output_format($args);
+    if (!in_array($output, ['excel', 'csv'], true)) {
+        return null;
+    }
+    $rows = jtgpt_quality_export_source_rows($pdo, $tool, $args, $result);
+    if (!$rows) {
+        return null;
+    }
+
+    $dir = jtgpt_quality_export_dir_fs();
+    if (!is_dir($dir) && !@mkdir($dir, 0777, true) && !is_dir($dir)) {
+        throw new RuntimeException('내보내기 폴더를 만들 수 없습니다.');
+    }
+
+    $ext = $output === 'csv' ? 'csv' : 'xlsx';
+    $filename = jtgpt_quality_export_filename($args, $ext);
+    $path = $dir . '/' . $filename;
+    if ($output === 'csv') {
+        jtgpt_quality_write_csv_file($path, $rows);
+    } else {
+        jtgpt_quality_write_xlsx_file($path, $rows);
+    }
+
+    return [
+        'name' => $filename,
+        'path' => $path,
+        'url' => rtrim(jtgpt_quality_export_dir_url(), '/') . '/' . rawurlencode($filename),
+        'row_count' => count($rows),
+        'format' => $output,
+    ];
+}
+
 function jtgpt_format_scope(array $args): string {
     $parts = [];
     $range = $args['range']['label'] ?? '';
@@ -441,8 +688,10 @@ function jtgpt_quality_no_data_text(array $result, array $args, string $fallback
     }
 
     $lines = [trim((string)($result['error'] ?? $fallback))];
-    foreach (jtgpt_quality_interpreted_lines($args) as $line) {
-        $lines[] = '- ' . $line;
+    if (jtgpt_quality_debug_enabled()) {
+        foreach (jtgpt_quality_interpreted_lines($args) as $line) {
+            $lines[] = '- ' . $line;
+        }
     }
     return implode("
 ", $lines);
@@ -617,6 +866,7 @@ function jtgpt_build_answer(string $message): array {
     $plan = jtgpt_planner_plan($message, $state);
     $answer = '';
     $statePatch = [];
+    $download = null;
 
     try {
         $pdo = jtgpt_resolve_pdo();
@@ -708,13 +958,40 @@ function jtgpt_build_answer(string $message): array {
         $answer = '질문을 해석하지 못했습니다.';
     }
 
+    if (($plan['kind'] ?? '') === 'tool' && $pdo instanceof PDO) {
+        $args = (array)($plan['args'] ?? []);
+        if (in_array(jtgpt_quality_output_format($args), ['excel', 'csv'], true)) {
+            try {
+                if (isset($res) && is_array($res)) {
+                    $download = jtgpt_quality_create_export($pdo, (string)($plan['tool'] ?? ''), $args, $res);
+                    if ($download) {
+                        $label = $download['format'] === 'csv' ? 'CSV' : '엑셀';
+                        $answer = rtrim($answer);
+                        if ($answer !== '') {
+                            $answer .= "
+";
+                        }
+                        $answer .= $label . ' 파일을 만들었습니다.';
+                    }
+                }
+            } catch (Throwable $e) {
+                $answer = rtrim($answer);
+                if ($answer !== '') {
+                    $answer .= "
+";
+                }
+                $answer .= '파일 생성 중 오류가 발생했습니다: ' . $e->getMessage();
+            }
+        }
+    }
+
     jtgpt_session_push('user', $message, ['plan' => $plan]);
     if ($statePatch) {
         jtgpt_session_merge_state($statePatch);
     }
-    jtgpt_session_push('assistant', $answer, ['plan' => $plan]);
+    jtgpt_session_push('assistant', $answer, ['plan' => $plan, 'download' => $download]);
 
-    return ['ok' => true, 'answer' => $answer, 'plan' => $plan];
+    return ['ok' => true, 'answer' => $answer, 'plan' => $plan, 'download_url' => $download['url'] ?? null, 'download_name' => $download['name'] ?? null];
 }
 
 $isAjax = ($_SERVER['REQUEST_METHOD'] === 'POST');
@@ -929,6 +1206,21 @@ if ($isAjax) {
         margin-left:2px;
         animation:blink 1s step-end infinite;
     }
+    .bubble-download{
+        display:inline-flex;
+        align-items:center;
+        gap:8px;
+        margin-top:10px;
+        color:#dfe7ff;
+        text-decoration:none;
+        border:1px solid rgba(255,255,255,.12);
+        background:rgba(255,255,255,.045);
+        border-radius:12px;
+        padding:8px 10px;
+        font-size:12px;
+        line-height:1.3;
+    }
+    .bubble-download:hover{background:rgba(255,255,255,.07)}
     @keyframes blink{50%{opacity:0}}
 
     @media (max-width: 900px){
@@ -1036,6 +1328,18 @@ if ($isAjax) {
         cursor.remove();
     }
 
+    function appendDownloadLink(bubble, url, name) {
+        if (!bubble || !url) return;
+        const link = document.createElement('a');
+        link.className = 'bubble-download';
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = name || '파일 다운로드';
+        bubble.appendChild(document.createElement('br'));
+        bubble.appendChild(link);
+    }
+
     async function sendMessage() {
         const message = inputEl.value.trim();
         if (!message) return;
@@ -1058,6 +1362,10 @@ if ($isAjax) {
             });
             const json = await res.json();
             await typeText(assistantBubble, (json && json.answer) ? json.answer : '응답을 받지 못했어요.');
+            if (json && json.download_url) {
+                appendDownloadLink(assistantBubble, json.download_url, json.download_name || '파일 다운로드');
+                scrollBottom(false);
+            }
         } catch (e) {
             await typeText(assistantBubble, '지금 응답을 불러오지 못했어요.');
         } finally {

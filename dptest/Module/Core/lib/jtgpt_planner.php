@@ -357,6 +357,22 @@ if (!function_exists('jtgpt_planner_extract_quality_output_mode')) {
     }
 }
 
+if (!function_exists('jtgpt_planner_extract_quality_output_format')) {
+    function jtgpt_planner_extract_quality_output_format(string $message): string {
+        $lower = mb_strtolower($message, 'UTF-8');
+        if (jtgpt_planner_contains_any($lower, ['csv', '.csv', '콤마분리', '쉼표파일'])) {
+            return 'csv';
+        }
+        if (jtgpt_planner_contains_any($lower, ['엑셀', 'excel', 'xlsx', '.xlsx', 'xls', '.xls'])) {
+            return 'excel';
+        }
+        if (jtgpt_planner_contains_any($lower, ['표로', '테이블', 'table'])) {
+            return 'table';
+        }
+        return 'chat';
+    }
+}
+
 
 if (!function_exists('jtgpt_planner_extract_quality_ng_only')) {
     function jtgpt_planner_extract_quality_ng_only(string $message, ?array $valueFilter = null): bool {
@@ -735,6 +751,7 @@ if (!function_exists('jtgpt_planner_build_quality_slots')) {
         $intent = jtgpt_planner_extract_quality_intent($message, $pointTerms);
         $outputMode = jtgpt_planner_extract_quality_output_mode($message, $pointTerms);
         $ngOnly = jtgpt_planner_extract_quality_ng_only($message, $valueFilter);
+        $output = jtgpt_planner_extract_quality_output_format($message);
 
         $slots = [
             'intent' => $intent,
@@ -759,6 +776,7 @@ if (!function_exists('jtgpt_planner_build_quality_slots')) {
             'ng_only' => $ngOnly,
             'value_filter' => $valueFilter,
             'output_mode' => $outputMode,
+            'output' => $output,
             'slot_mode' => true,
         ];
 
