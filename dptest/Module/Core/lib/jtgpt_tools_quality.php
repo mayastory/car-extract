@@ -1,4 +1,5 @@
 <?php
+
 if (!function_exists('jtgpt_tool_format_float')) {
     function jtgpt_tool_format_float($v): string {
         if ($v === null || $v === '') return '';
@@ -68,16 +69,26 @@ if (!function_exists('jtgpt_quality_module_schema')) {
         static $cache = [];
         $module = strtolower(trim($module));
         if (isset($cache[$module])) return $cache[$module];
+
         $def = jtgpt_quality_module_def($module);
         if (!$def) {
-            return $cache[$module] = ['available' => false, 'label' => strtoupper($module), 'error' => '지원하지 않는 종류입니다.'];
+            return $cache[$module] = [
+                'available' => false,
+                'label' => strtoupper($module),
+                'error' => '지원하지 않는 종류입니다.',
+            ];
         }
 
         $headerCols = jtgpt_quality_columns($pdo, $def['header']);
         $resultCols = jtgpt_quality_columns($pdo, $def['result']);
         $measurementCols = !empty($def['measurement']) ? jtgpt_quality_columns($pdo, $def['measurement']) : [];
+
         if (!$headerCols || !$resultCols) {
-            return $cache[$module] = ['available' => false, 'label' => $def['label'], 'error' => '관련 테이블을 찾지 못했습니다.'];
+            return $cache[$module] = [
+                'available' => false,
+                'label' => $def['label'],
+                'error' => '관련 테이블을 찾지 못했습니다.',
+            ];
         }
 
         $dateCandidates = ($module === 'oqc')
@@ -119,6 +130,7 @@ if (!function_exists('jtgpt_quality_module_schema')) {
             $schema['available'] = false;
             $schema['error'] = '필수 컬럼 구조를 자동 인식하지 못했습니다.';
         }
+
         return $cache[$module] = $schema;
     }
 }
@@ -199,12 +211,12 @@ if (!function_exists('jtgpt_tool_quality_base_where')) {
 
         $where = [];
         $params = [];
+
         $pointExpr = jtgpt_quality_point_expr($schema, strtolower($module));
         $valueExpr = jtgpt_quality_value_expr($schema, strtolower($module));
         $uslExpr = !empty($schema['usl_col']) ? "r.`{$schema['usl_col']}`" : 'NULL';
         $lslExpr = !empty($schema['lsl_col']) ? "r.`{$schema['lsl_col']}`" : 'NULL';
         $directNg = "(({$uslExpr} IS NOT NULL AND {$valueExpr} IS NOT NULL AND {$valueExpr} > {$uslExpr}) OR ({$lslExpr} IS NOT NULL AND {$valueExpr} IS NOT NULL AND {$valueExpr} < {$lslExpr}))";
-
         if (!empty($schema['ng_predicate'])) {
             $where[] = "({$directNg} OR {$schema['ng_predicate']})";
         } else {
@@ -304,6 +316,7 @@ if (!function_exists('jtgpt_tool_quality_recent_ng_rows')) {
         }
         $schema = $base['schema'];
         $limit = array_key_exists('limit', $args) && $args['limit'] !== null && $args['limit'] !== '' ? (int)$args['limit'] : null;
+
         $partExpr = !empty($schema['part_col']) ? "h.`{$schema['part_col']}`" : "''";
         $toolCavityExpr = jtgpt_quality_tool_cavity_expr($schema);
         $pointExpr = jtgpt_quality_point_expr($schema, strtolower($module));
@@ -311,12 +324,15 @@ if (!function_exists('jtgpt_tool_quality_recent_ng_rows')) {
         $uslExpr = !empty($schema['usl_col']) ? "r.`{$schema['usl_col']}`" : 'NULL';
         $lslExpr = !empty($schema['lsl_col']) ? "r.`{$schema['lsl_col']}`" : 'NULL';
         $fromClause = jtgpt_quality_from_clause($schema, strtolower($module));
+
         $ngSideExpr = "CASE WHEN {$uslExpr} IS NOT NULL AND {$valueExpr} IS NOT NULL AND {$valueExpr} > {$uslExpr} THEN 'USL' WHEN {$lslExpr} IS NOT NULL AND {$valueExpr} IS NOT NULL AND {$valueExpr} < {$lslExpr} THEN 'LSL' ELSE '' END";
         $ngLimitExpr = "CASE WHEN {$uslExpr} IS NOT NULL AND {$valueExpr} IS NOT NULL AND {$valueExpr} > {$uslExpr} THEN {$uslExpr} WHEN {$lslExpr} IS NOT NULL AND {$valueExpr} IS NOT NULL AND {$valueExpr} < {$lslExpr} THEN {$lslExpr} ELSE NULL END";
+
         $sql = "SELECT h.`{$schema['date_col']}` AS event_date, {$pointExpr} AS raw_point_no, {$partExpr} AS part_name, {$toolCavityExpr} AS raw_tool_cavity, {$valueExpr} AS value, {$uslExpr} AS usl, {$lslExpr} AS lsl, {$ngSideExpr} AS ng_side, {$ngLimitExpr} AS ng_limit {$fromClause} {$base['sql']} ORDER BY h.`{$schema['date_col']}` ASC, {$pointExpr} ASC, {$toolCavityExpr} ASC, {$partExpr} ASC, h.`{$schema['header_pk_col']}` ASC";
         if ($limit !== null && $limit > 0) {
             $sql .= ' LIMIT :limit_n';
         }
+
         $st = $pdo->prepare($sql);
         foreach ($base['params'] as $k => $v) $st->bindValue($k, $v);
         if ($limit !== null && $limit > 0) {
@@ -324,35 +340,23 @@ if (!function_exists('jtgpt_tool_quality_recent_ng_rows')) {
         }
         $st->execute();
         $rawRows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
         $rows = [];
         foreach ($rawRows as $row) {
-            $side = strtoupper(trim((string)($row['ng_side'] ?? '')));
-            $limitValue = $row['ng_limit'] ?? null;
-            $value = $row['value'] ?? null;
-            $displayBits = [];
-            if ($side !== '') {
-                $bit = $side;
-                if ($limitValue !== null && $limitValue !== '') {
-                    $bit .= ' ' . jtgpt_tool_format_float($limitValue);
-                }
-                $displayBits[] = $bit;
-            }
-            if ($value !== null && $value !== '') {
-                $displayBits[] = '측정값 ' . jtgpt_tool_format_float($value);
-            }
             $rows[] = [
                 'event_date' => (string)($row['event_date'] ?? '-'),
-                'point_no' => trim((string)($row['raw_tool_cavity'] ?? '')),
-                'tool_cavity' => trim((string)($row['raw_point_no'] ?? '')),
+                'point_no' => trim((string)($row['raw_point_no'] ?? '')),
+                'tool_cavity' => trim((string)($row['raw_tool_cavity'] ?? '')),
                 'part_name' => (string)($row['part_name'] ?? ''),
-                'kind' => implode(' | ', $displayBits),
-                'ng_side' => '',
-                'ng_limit' => null,
-                'value' => null,
+                'kind' => '',
+                'ng_side' => strtoupper(trim((string)($row['ng_side'] ?? ''))),
+                'ng_limit' => $row['ng_limit'] ?? null,
+                'value' => $row['value'] ?? null,
                 'usl' => $row['usl'] ?? null,
                 'lsl' => $row['lsl'] ?? null,
             ];
         }
+
         return ['found' => !empty($rows), 'module' => $schema['module'], 'label' => $schema['label'], 'rows' => $rows];
     }
 }
