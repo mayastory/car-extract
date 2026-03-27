@@ -953,6 +953,27 @@ function jtgpt_build_answer(string $message): array {
                     $answer = '아직 연결되지 않은 도구입니다.';
                     break;
             }
+
+            if (in_array($tool, ['quality_top_ng_points', 'quality_recent_ng_rows', 'quality_point_detail', 'quality_count_ng_rows', 'quality_summary', 'oqc_top_ng_points', 'oqc_point_detail'], true)) {
+                $rememberArgs = $args;
+                if (isset($rememberArgs['output']) && in_array(strtolower(trim((string)$rememberArgs['output'])), ['excel', 'csv'], true)) {
+                    $rememberArgs['output'] = 'chat';
+                }
+                $statePatch['last_quality_tool'] = in_array($tool, ['oqc_top_ng_points', 'oqc_point_detail'], true)
+                    ? ($tool === 'oqc_top_ng_points' ? 'quality_top_ng_points' : 'quality_point_detail')
+                    : $tool;
+                if (($statePatch['last_quality_tool'] ?? '') === 'quality_top_ng_points' && empty($rememberArgs['modules'])) {
+                    $rememberArgs['modules'] = ['oqc'];
+                    $rememberArgs['module'] = 'oqc';
+                    $rememberArgs['type'] = 'OQC';
+                }
+                if (($statePatch['last_quality_tool'] ?? '') === 'quality_point_detail' && empty($rememberArgs['modules'])) {
+                    $rememberArgs['modules'] = ['oqc'];
+                    $rememberArgs['module'] = 'oqc';
+                    $rememberArgs['type'] = 'OQC';
+                }
+                $statePatch['last_quality_args'] = $rememberArgs;
+            }
         }
     } else {
         $answer = '질문을 해석하지 못했습니다.';

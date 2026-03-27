@@ -373,6 +373,54 @@ if (!function_exists('jtgpt_planner_extract_quality_output_format')) {
     }
 }
 
+if (!function_exists('jtgpt_planner_is_output_followup')) {
+    function jtgpt_planner_is_output_followup(string $message): bool {
+        $lower = mb_strtolower($message, 'UTF-8');
+        $outputNeedles = ['엑셀', 'excel', 'xlsx', '.xlsx', 'xls', '.xls', 'csv', '.csv', '표로', '테이블', 'table', '다운로드', '내보내', '출력'];
+        if (!jtgpt_planner_contains_any($lower, $outputNeedles)) {
+            return false;
+        }
+
+        $freshNeedles = ['ng', '불량', '포인트', 'point', 'fai', 'oqc', 'omm', 'cmm', 'aoi', '측정값', 'value', 'usl', 'lsl', '오늘', '어제', '이번달', '이번 달', '최근', '지난달', '저번달', '월', '년', 'tool', '툴', 'cavity', '캐비티'];
+        if (jtgpt_planner_contains_any($lower, $freshNeedles)) {
+            return false;
+        }
+
+        return true;
+    }
+}
+
+if (!function_exists('jtgpt_planner_build_quality_followup_plan')) {
+    function jtgpt_planner_build_quality_followup_plan(string $message, array $state = []): ?array {
+        $lastTool = trim((string)($state['last_quality_tool'] ?? ''));
+        $lastArgs = $state['last_quality_args'] ?? null;
+        if ($lastTool === '' || !is_array($lastArgs) || !$lastArgs) {
+            return null;
+        }
+        if (!jtgpt_planner_is_output_followup($message)) {
+            return null;
+        }
+
+        $args = $lastArgs;
+        $output = jtgpt_planner_extract_quality_output_format($message);
+        if ($output === 'chat') {
+            return null;
+        }
+        $args['output'] = $output;
+        if ($output === 'table') {
+            $args['output_mode'] = 'rows';
+        }
+
+        return [
+            'kind' => 'tool',
+            'tool' => $lastTool,
+            'args' => $args,
+            'slots' => $args,
+            'followup_from_context' => true,
+        ];
+    }
+}
+
 
 if (!function_exists('jtgpt_planner_extract_quality_ng_only')) {
     function jtgpt_planner_extract_quality_ng_only(string $message, ?array $valueFilter = null): bool {
@@ -810,6 +858,11 @@ if (!function_exists('jtgpt_planner_plan')) {
 
         if (jtgpt_planner_contains_any($lower, ['관리자', '권한', '비밀번호', '삭제', '수정', '업로드', '해킹', 'insert', 'update', 'delete', 'replace', 'alter', 'drop'])) {
             return ['kind' => 'answer', 'tool' => 'guard_read_only', 'args' => []];
+        }
+
+        $followupPlan = jtgpt_planner_build_quality_followup_plan($text, $state);
+        if (is_array($followupPlan)) {
+            return $followupPlan;
         }
 
         $wantsGraph = jtgpt_planner_contains_any($lower, ['그래프빌더', 'graph builder', '차트', '그래프', '히스토그램', '상자그림', '선그래프', '막대그래프', 'jmp']);
