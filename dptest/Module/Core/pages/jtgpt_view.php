@@ -337,10 +337,120 @@ function jtgpt_quality_query_text(array $args, string $kind = 'rows'): string {
     return '최근 이력';
 }
 
+
+function jtgpt_quality_interpreted_lines(array $args): array {
+    $lines = [];
+
+    $modules = $args['modules'] ?? [];
+    if (!is_array($modules)) {
+        $modules = [$modules];
+    }
+    $modules = array_values(array_filter(array_map(static function ($module): string {
+        return strtoupper(trim((string)$module));
+    }, $modules)));
+    if (!$modules) {
+        $module = trim((string)($args['module'] ?? ''));
+        if ($module !== '') {
+            $modules[] = strtoupper($module);
+        }
+    }
+    if ($modules) {
+        $lines[] = '해석된 타입: ' . implode(', ', $modules);
+    }
+
+    $partName = trim((string)($args['part_name'] ?? ''));
+    if ($partName !== '') {
+        $lines[] = '해석된 모델: ' . $partName;
+    }
+
+    $range = $args['range'] ?? [];
+    if (is_array($range)) {
+        $from = trim((string)($range['from'] ?? ''));
+        $to = trim((string)($range['to'] ?? ''));
+        $label = trim((string)($range['label'] ?? ''));
+        if ($from !== '' || $to !== '') {
+            $lines[] = '해석된 기간: ' . ($label !== '' ? $label . ' ' : '') . '(' . ($from !== '' ? $from : '-') . ' ~ ' . ($to !== '' ? $to : '-') . ')';
+        } elseif ($label !== '') {
+            $lines[] = '해석된 기간: ' . $label;
+        }
+    }
+
+    $tools = $args['tools'] ?? [];
+    if (!is_array($tools)) {
+        $tools = [$tools];
+    }
+    $tools = array_values(array_filter(array_map(static function ($tool): string {
+        return strtoupper(trim((string)$tool));
+    }, $tools)));
+    if (!$tools) {
+        $tool = trim((string)($args['tool'] ?? ''));
+        if ($tool !== '') {
+            $tools[] = strtoupper($tool);
+        }
+    }
+    if ($tools) {
+        $lines[] = '해석된 Tool: ' . implode(', ', $tools);
+    }
+
+    $cavities = $args['cavities'] ?? [];
+    if (!is_array($cavities)) {
+        $cavities = [$cavities];
+    }
+    $cavities = array_values(array_filter(array_map(static function ($cavity): string {
+        return strtoupper(trim((string)$cavity));
+    }, $cavities)));
+    if (!$cavities) {
+        $cavity = trim((string)($args['cavity'] ?? ''));
+        if ($cavity !== '') {
+            $cavities[] = strtoupper($cavity);
+        }
+    }
+    if ($cavities) {
+        $lines[] = '해석된 Cavity: ' . implode(', ', $cavities);
+    }
+
+    $points = $args['point_terms'] ?? ($args['fais'] ?? []);
+    if (!is_array($points)) {
+        $points = [$points];
+    }
+    $points = array_values(array_filter(array_map(static function ($point): string {
+        return strtoupper(trim((string)$point));
+    }, $points)));
+    if (!$points) {
+        $point = trim((string)($args['point_no'] ?? ''));
+        if ($point !== '') {
+            $points[] = strtoupper($point);
+        }
+    }
+    if ($points) {
+        $lines[] = '해석된 FAI: ' . implode(', ', $points);
+    }
+
+    $filterText = jtgpt_quality_value_filter_text($args);
+    if ($filterText !== '') {
+        $lines[] = '값 조건: ' . $filterText;
+    }
+
+    return $lines;
+}
+
+function jtgpt_quality_no_data_text(array $result, array $args, string $fallback): string {
+    $resolutionText = !empty($result['resolution']) ? jtgpt_quality_resolution_prompt((array)$result['resolution']) : '';
+    if ($resolutionText !== '') {
+        return $resolutionText;
+    }
+
+    $lines = [trim((string)($result['error'] ?? $fallback))];
+    foreach (jtgpt_quality_interpreted_lines($args) as $line) {
+        $lines[] = '- ' . $line;
+    }
+    return implode("
+", $lines);
+}
+
 function jtgpt_answer_quality_top_points(array $result, array $args): string {
     if (empty($result['found'])) {
-        $resolutionText = !empty($result['resolution']) ? jtgpt_quality_resolution_prompt((array)$result['resolution']) : '';
-        return $resolutionText !== '' ? $resolutionText : ($result['error'] ?? '조건에 맞는 포인트가 없습니다.');
+        return jtgpt_quality_no_data_text($result, $args, '조건에 맞는 포인트가 없습니다.');
     }
     $scope = jtgpt_format_scope($args);
     $limit = (int)($args['limit'] ?? 5);
@@ -366,8 +476,7 @@ function jtgpt_answer_quality_top_points(array $result, array $args): string {
 
 function jtgpt_answer_quality_recent_rows(array $result, array $args): string {
     if (empty($result['found'])) {
-        $resolutionText = !empty($result['resolution']) ? jtgpt_quality_resolution_prompt((array)$result['resolution']) : '';
-        return $resolutionText !== '' ? $resolutionText : ($result['error'] ?? '조건에 맞는 이력이 없습니다.');
+        return jtgpt_quality_no_data_text($result, $args, '조건에 맞는 이력이 없습니다.');
     }
     $scope = jtgpt_format_scope($args);
     $multiModule = !empty($result['multi_module']) || count((array)($args['modules'] ?? [])) > 1;
@@ -400,8 +509,7 @@ function jtgpt_answer_quality_recent_rows(array $result, array $args): string {
 
 function jtgpt_answer_quality_point_detail(array $result, array $args): string {
     if (empty($result['found'])) {
-        $resolutionText = !empty($result['resolution']) ? jtgpt_quality_resolution_prompt((array)$result['resolution']) : '';
-        return $resolutionText !== '' ? $resolutionText : ($result['error'] ?? '조건에 맞는 상세 이력이 없습니다.');
+        return jtgpt_quality_no_data_text($result, $args, '조건에 맞는 상세 이력이 없습니다.');
     }
     $scope = jtgpt_format_scope($args);
     if (!empty($result['results']) && is_array($result['results'])) {
@@ -421,8 +529,7 @@ function jtgpt_answer_quality_point_detail(array $result, array $args): string {
 ", $lines);
     }
     if (empty($result['summary'])) {
-        $resolutionText = !empty($result['resolution']) ? jtgpt_quality_resolution_prompt((array)$result['resolution']) : '';
-        return $resolutionText !== '' ? $resolutionText : ($result['error'] ?? '조건에 맞는 상세 이력이 없습니다.');
+        return jtgpt_quality_no_data_text($result, $args, '조건에 맞는 상세 이력이 없습니다.');
     }
     $summary = $result['summary'];
     $pointNo = (string)($summary['point_no'] ?? ($args['point_no'] ?? '-'));
@@ -461,8 +568,7 @@ function jtgpt_answer_quality_point_detail(array $result, array $args): string {
 
 function jtgpt_answer_quality_count(array $result, array $args): string {
     if (empty($result['found'])) {
-        $resolutionText = !empty($result['resolution']) ? jtgpt_quality_resolution_prompt((array)$result['resolution']) : '';
-        return $resolutionText !== '' ? $resolutionText : ($result['error'] ?? '조건에 맞는 건수가 없습니다.');
+        return jtgpt_quality_no_data_text($result, $args, '조건에 맞는 건수가 없습니다.');
     }
     $scope = jtgpt_format_scope($args);
     $title = !empty($result['multi_module']) ? '전체' : ($result['label'] ?? strtoupper((string)($args['module'] ?? '')));
@@ -481,8 +587,7 @@ function jtgpt_answer_quality_count(array $result, array $args): string {
 
 function jtgpt_answer_quality_summary(array $result, array $args): string {
     if (empty($result['found'])) {
-        $resolutionText = !empty($result['resolution']) ? jtgpt_quality_resolution_prompt((array)$result['resolution']) : '';
-        return $resolutionText !== '' ? $resolutionText : ($result['error'] ?? '조건에 맞는 요약이 없습니다.');
+        return jtgpt_quality_no_data_text($result, $args, '조건에 맞는 요약이 없습니다.');
     }
     $scope = jtgpt_format_scope($args);
     $title = !empty($result['multi_module']) ? '전체' : ($result['label'] ?? strtoupper((string)($args['module'] ?? '')));

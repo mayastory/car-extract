@@ -157,6 +157,52 @@ if (!function_exists('jtgpt_quality_norm_token')) {
     }
 }
 
+
+if (!function_exists('jtgpt_quality_part_norm_variants')) {
+    function jtgpt_quality_part_norm_variants(?string $partName): array {
+        $variants = [];
+        $base = jtgpt_quality_norm_token($partName);
+        if ($base !== '') {
+            $variants[] = $base;
+        }
+
+        if ($base !== '' && strpos($base, 'MEM') === 0) {
+            $trimmed = preg_replace('/^MEM/', '', $base);
+            if ($trimmed !== '') {
+                $variants[] = $trimmed;
+            }
+        }
+
+        $aliases = [
+            'MEMIRBASE' => ['IRBASE'],
+            'MEMXCARRIER' => ['XCARRIER'],
+            'MEMYCARRIER' => ['YCARRIER'],
+            'MEMZCARRIER' => ['ZCARRIER'],
+            'MEMZSTOPPER' => ['ZSTOPPER'],
+        ];
+        foreach ($aliases as $canonical => $extra) {
+            if ($base === $canonical || in_array($base, $extra, true)) {
+                $variants = array_merge($variants, [$canonical], $extra);
+            }
+        }
+
+        $seen = [];
+        $out = [];
+        foreach ($variants as $variant) {
+            $variant = trim((string)$variant);
+            if ($variant === '') {
+                continue;
+            }
+            if (isset($seen[$variant])) {
+                continue;
+            }
+            $seen[$variant] = true;
+            $out[] = $variant;
+        }
+        return $out;
+    }
+}
+
 if (!function_exists('jtgpt_quality_unique_list')) {
     function jtgpt_quality_unique_list(array $values): array {
         $seen = [];
@@ -371,10 +417,18 @@ if (!function_exists('jtgpt_tool_quality_base_where')) {
 
         $partName = trim((string)($args['part_name'] ?? ''));
         if ($partName !== '' && !empty($schema['part_col'])) {
-            $partNorm = jtgpt_quality_norm_token($partName);
-            if ($partNorm !== '') {
-                $where[] = "REPLACE(REPLACE(UPPER(h.`{$schema['part_col']}`), '-', ''), ' ', '') LIKE :part_norm";
-                $params[':part_norm'] = '%' . $partNorm . '%';
+            $partNorms = jtgpt_quality_part_norm_variants($partName);
+            if ($partNorms) {
+                $partExpr = "REPLACE(REPLACE(UPPER(h.`{$schema['part_col']}`), '-', ''), ' ', '')";
+                $partConds = [];
+                foreach (array_values($partNorms) as $i => $partNorm) {
+                    $name = ':part_norm_' . $i;
+                    $params[$name] = '%' . $partNorm . '%';
+                    $partConds[] = $partExpr . ' LIKE ' . $name;
+                }
+                if ($partConds) {
+                    $where[] = '(' . implode(' OR ', $partConds) . ')';
+                }
             }
         }
 
