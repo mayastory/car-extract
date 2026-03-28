@@ -540,19 +540,49 @@ function jtgpt_answer_shipping_summary(array $result, array $args): string {
         return trim($scope . ' 총 출하수량은 ' . jtgpt_tool_format_int($result['total_qty']) . ' EA 입니다.');
     }
     if ($metric === 'lot_count') {
-        return trim($scope . ' LOT 수는 ' . jtgpt_tool_format_int($result['lot_count']) . '개 입니다.');
+        return trim($scope . ' 생산일자 기준 LOT 수는 ' . jtgpt_tool_format_int($result['lot_count']) . '개 입니다.');
     }
     if ($metric === 'tray_count') {
         return trim($scope . ' Tray 수는 ' . jtgpt_tool_format_int($result['tray_count']) . '개 입니다.');
     }
     $lines = [trim($scope . ' 출하 요약입니다.')];
     $lines[] = '- 총 수량: ' . jtgpt_tool_format_int($result['total_qty']) . ' EA';
-    $lines[] = '- LOT 수: ' . jtgpt_tool_format_int($result['lot_count']);
-    $lines[] = '- Tray 수: ' . jtgpt_tool_format_int($result['tray_count']);
-    if (!empty($result['top_parts'])) {
-        $lines[] = '- 상위 품번:';
+
+    $modelSummaries = $result['model_summaries'] ?? [];
+    if (is_array($modelSummaries) && $modelSummaries) {
+        foreach ($modelSummaries as $row) {
+            if (!is_array($row)) continue;
+            $label = trim((string)($row['model_name'] ?? '-'));
+            if ($label === '') $label = '-';
+            $segments = [];
+            $segments[] = $label . ': ' . jtgpt_tool_format_int($row['total_qty'] ?? 0) . ' EA';
+
+            $prodDates = array_values(array_filter(array_map(static function ($value): string {
+                return trim((string)$value);
+            }, (array)($row['prod_dates'] ?? []))));
+            if ($prodDates) {
+                $segments[] = '생산일 ' . implode(', ', $prodDates);
+            }
+
+            $tools = array_values(array_filter(array_map(static function ($value): string {
+                return trim((string)$value);
+            }, (array)($row['tools'] ?? []))));
+            if ($tools) {
+                $segments[] = 'Tool ' . implode(', ', $tools);
+            }
+
+            $cavities = array_values(array_filter(array_map(static function ($value): string {
+                return trim((string)$value);
+            }, (array)($row['cavities'] ?? []))));
+            if ($cavities) {
+                $segments[] = 'Cavity ' . implode(', ', $cavities);
+            }
+
+            $lines[] = '- ' . implode(' | ', $segments);
+        }
+    } elseif (!empty($result['top_parts'])) {
         foreach ($result['top_parts'] as $row) {
-            $lines[] = '  · ' . ($row['part_name'] ?? '-') . ' : ' . jtgpt_tool_format_int($row['total_qty'] ?? 0) . ' EA';
+            $lines[] = '- ' . ($row['part_name'] ?? '-') . ' : ' . jtgpt_tool_format_int($row['total_qty'] ?? 0) . ' EA';
         }
     }
     return implode("\n", $lines);

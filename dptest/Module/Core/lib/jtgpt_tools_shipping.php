@@ -58,12 +58,110 @@ if (!function_exists('jtgpt_tool_shipping_schema')) {
             'qty' => jtgpt_tool_shipping_column_name($pdo, ['qty', 'quantity', 'ship_qty', 'out_qty']),
             'lot' => jtgpt_tool_shipping_column_name($pdo, ['small_pack_no', 'smallpackno', 'small_pack', 'small_pack_tray_no', 'lotid', 'customer_lotid']),
             'tray' => jtgpt_tool_shipping_column_name($pdo, ['tray_no', 'trayno', 'tray']),
+            'prod_date' => jtgpt_tool_shipping_column_name($pdo, ['prod_date', 'production_date', 'proddate', 'prod_dt']),
+            'tool' => jtgpt_tool_shipping_column_name($pdo, ['revision', 'rev', 'tool', 'tool_no']),
+            'cavity' => jtgpt_tool_shipping_column_name($pdo, ['cavity', 'cav', 'cavity_no', 'cav_no']),
+            'model' => jtgpt_tool_shipping_column_name($pdo, ['model']),
             'part_name' => jtgpt_tool_shipping_column_name($pdo, ['part_name', '품번명', 'item_name', 'product_name']),
             'part_code' => jtgpt_tool_shipping_column_name($pdo, ['part_code', '품번코드', 'item_code']),
             'customer' => jtgpt_tool_shipping_column_name($pdo, ['ship_to', '납품처', 'customer', 'customer_name']),
             'id' => jtgpt_tool_shipping_column_name($pdo, ['id']),
         ];
         return $cache;
+    }
+}
+
+if (!function_exists('jtgpt_tool_shipping_normalize_date_text')) {
+    function jtgpt_tool_shipping_normalize_date_text($value): string {
+        $text = trim((string)$value);
+        if ($text === '') return '';
+        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})/', $text, $m)) {
+            return $m[1] . '-' . $m[2] . '-' . $m[3];
+        }
+        if (preg_match('/^(\d{4})[\.\/](\d{1,2})[\.\/](\d{1,2})/', $text, $m)) {
+            return sprintf('%04d-%02d-%02d', (int)$m[1], (int)$m[2], (int)$m[3]);
+        }
+        $ts = strtotime($text);
+        if ($ts !== false) {
+            return date('Y-m-d', $ts);
+        }
+        return $text;
+    }
+}
+
+if (!function_exists('jtgpt_tool_shipping_model_label')) {
+    function jtgpt_tool_shipping_model_label(array $row): string {
+        foreach (['model_name', 'part_name', 'part_code'] as $key) {
+            $value = trim((string)($row[$key] ?? ''));
+            if ($value !== '') return $value;
+        }
+        return '-';
+    }
+}
+
+if (!function_exists('jtgpt_tool_shipping_sort_values')) {
+    function jtgpt_tool_shipping_sort_values(array $values): array {
+        $values = array_values(array_filter(array_map(static function ($value): string {
+            return trim((string)$value);
+        }, $values), static function (string $value): bool {
+            return $value !== '';
+        }));
+        usort($values, static function (string $a, string $b): int {
+            return strnatcasecmp($a, $b);
+        });
+        return array_values(array_unique($values));
+    }
+}
+
+if (!function_exists('jtgpt_tool_shipping_group_summary_rows')) {
+    function jtgpt_tool_shipping_group_summary_rows(array $rows): array {
+        $groups = [];
+        foreach ($rows as $row) {
+            if (!is_array($row)) continue;
+            $label = jtgpt_tool_shipping_model_label($row);
+            $key = mb_strtoupper($label, 'UTF-8');
+            if (!isset($groups[$key])) {
+                $groups[$key] = [
+                    'model_name' => $label,
+                    'total_qty' => 0,
+                    'prod_dates' => [],
+                    'tools' => [],
+                    'cavities' => [],
+                ];
+            }
+            $groups[$key]['total_qty'] += (int)($row['qty'] ?? 0);
+            $prodDate = jtgpt_tool_shipping_normalize_date_text($row['prod_date'] ?? '');
+            if ($prodDate !== '') $groups[$key]['prod_dates'][$prodDate] = $prodDate;
+            $tool = strtoupper(trim((string)($row['tool'] ?? '')));
+            if ($tool !== '') $groups[$key]['tools'][$tool] = $tool;
+            $cavity = strtoupper(trim((string)($row['cavity'] ?? '')));
+            if ($cavity !== '') $groups[$key]['cavities'][$cavity] = $cavity;
+        }
+
+        $out = [];
+        foreach ($groups as $group) {
+            $prodDates = jtgpt_tool_shipping_sort_values(array_values($group['prod_dates']));
+            $tools = jtgpt_tool_shipping_sort_values(array_values($group['tools']));
+            $cavities = jtgpt_tool_shipping_sort_values(array_values($group['cavities']));
+            $out[] = [
+                'model_name' => $group['model_name'],
+                'total_qty' => (int)$group['total_qty'],
+                'prod_dates' => $prodDates,
+                'tools' => $tools,
+                'cavities' => $cavities,
+                'lot_count' => count($prodDates),
+                'tool_count' => count($tools),
+                'cavity_count' => count($cavities),
+            ];
+        }
+
+        usort($out, static function (array $a, array $b): int {
+            $qtyCmp = ((int)($b['total_qty'] ?? 0)) <=> ((int)($a['total_qty'] ?? 0));
+            if ($qtyCmp !== 0) return $qtyCmp;
+            return strnatcasecmp((string)($a['model_name'] ?? ''), (string)($b['model_name'] ?? ''));
+        });
+
+        return $out;
     }
 }
 
@@ -108,14 +206,14 @@ if (!function_exists('jtgpt_tool_shipping_summary')) {
             $where = jtgpt_tool_shipping_where($pdo, $args);
             $schema = $where['schema'] ?? jtgpt_tool_shipping_schema($pdo);
             $qtyCol = !empty($schema['qty']) ? ('`' . $schema['qty'] . '`') : '0';
-            $lotCol = !empty($schema['lot']) ? ('`' . $schema['lot'] . '`') : 'NULL';
+            $lotBaseCol = !empty($schema['prod_date']) ? ('DATE(`' . $schema['prod_date'] . '`)') : (!empty($schema['lot']) ? ('`' . $schema['lot'] . '`') : 'NULL');
             $trayCol = !empty($schema['tray']) ? ('`' . $schema['tray'] . '`') : 'NULL';
             $partCol = !empty($schema['part_name']) ? ('`' . $schema['part_name'] . '`') : (!empty($schema['part_code']) ? ('`' . $schema['part_code'] . '`') : 'NULL');
             $sql = "
                 SELECT
                     COUNT(*) AS row_count,
                     COALESCE(SUM($qtyCol), 0) AS total_qty,
-                    COUNT(DISTINCT $lotCol) AS lot_count,
+                    COUNT(DISTINCT $lotBaseCol) AS lot_count,
                     COUNT(DISTINCT $trayCol) AS tray_count,
                     COUNT(DISTINCT $partCol) AS part_count
                 FROM ShipingList
@@ -124,20 +222,36 @@ if (!function_exists('jtgpt_tool_shipping_summary')) {
             $st = $pdo->prepare($sql);
             $st->execute($where['params']);
             $summary = $st->fetch(PDO::FETCH_ASSOC) ?: [];
+
+            $selectCols = [];
+            $selectCols[] = !empty($schema['model']) ? ('`' . $schema['model'] . '` AS model_name') : "'' AS model_name";
+            $selectCols[] = $partCol !== 'NULL' ? ($partCol . ' AS part_name') : "'' AS part_name";
+            $selectCols[] = !empty($schema['part_code']) ? ('`' . $schema['part_code'] . '` AS part_code') : "'' AS part_code";
+            $selectCols[] = $qtyCol . ' AS qty';
+            $selectCols[] = !empty($schema['prod_date']) ? ('`' . $schema['prod_date'] . '` AS prod_date') : "'' AS prod_date";
+            $selectCols[] = !empty($schema['tool']) ? ('`' . $schema['tool'] . '` AS tool') : "'' AS tool";
+            $selectCols[] = !empty($schema['cavity']) ? ('`' . $schema['cavity'] . '` AS cavity') : "'' AS cavity";
+
+            $sqlRows = "
+                SELECT " . implode(",\n                    ", $selectCols) . "
+                FROM ShipingList
+                {$where['sql']}
+            ";
+            $st = $pdo->prepare($sqlRows);
+            $st->execute($where['params']);
+            $groupRows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            $modelSummaries = jtgpt_tool_shipping_group_summary_rows($groupRows);
+
             $top = [];
-            if (empty($args['part_name']) && $partCol !== 'NULL') {
-                $sqlTop = "
-                    SELECT $partCol AS part_name, COALESCE(SUM($qtyCol), 0) AS total_qty
-                    FROM ShipingList
-                    {$where['sql']}
-                    GROUP BY $partCol
-                    ORDER BY total_qty DESC, part_name ASC
-                    LIMIT 5
-                ";
-                $st = $pdo->prepare($sqlTop);
-                $st->execute($where['params']);
-                $top = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            if ($modelSummaries) {
+                foreach (array_slice($modelSummaries, 0, 5) as $row) {
+                    $top[] = [
+                        'part_name' => $row['model_name'] ?? '-',
+                        'total_qty' => (int)($row['total_qty'] ?? 0),
+                    ];
+                }
             }
+
             return [
                 'found' => ((int)($summary['row_count'] ?? 0)) > 0,
                 'row_count' => (int)($summary['row_count'] ?? 0),
@@ -146,9 +260,10 @@ if (!function_exists('jtgpt_tool_shipping_summary')) {
                 'tray_count' => (int)($summary['tray_count'] ?? 0),
                 'part_count' => (int)($summary['part_count'] ?? 0),
                 'top_parts' => $top,
+                'model_summaries' => $modelSummaries,
             ];
         } catch (Throwable $e) {
-            return ['found' => false, 'row_count' => 0, 'total_qty' => 0, 'lot_count' => 0, 'tray_count' => 0, 'part_count' => 0, 'top_parts' => []];
+            return ['found' => false, 'row_count' => 0, 'total_qty' => 0, 'lot_count' => 0, 'tray_count' => 0, 'part_count' => 0, 'top_parts' => [], 'model_summaries' => []];
         }
     }
 }
