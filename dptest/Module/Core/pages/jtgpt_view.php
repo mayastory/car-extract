@@ -1221,8 +1221,8 @@ function jtgpt_is_output_only_followup_message(string $message): bool {
     $partName = jtgpt_planner_extract_part_name($message);
     $tools = jtgpt_planner_extract_tools($message);
     $cavities = jtgpt_planner_extract_cavities($message);
+    $pointTerms = jtgpt_planner_collect_quality_point_terms($message, $tools, $cavities);
     $valueFilter = jtgpt_planner_extract_quality_value_filter($message);
-    $pointTerms = jtgpt_planner_collect_quality_point_terms($message, $tools, $cavities, $valueFilter);
 
     if (trim((string)$partName) !== '') return false;
     if (!empty($tools) || !empty($cavities) || !empty($pointTerms)) return false;
@@ -1948,18 +1948,63 @@ if ($isAjax) {
         return bubble;
     }
 
-    async function typeText(el, text) {
+    function shouldSkipTyping(text, meta = {}) {
+        const normalized = String(text || '').trim().toLowerCase();
+        if (!normalized) return true;
+        if (meta && meta.downloadUrl) return true;
+        if (normalized.length <= 26) return true;
+
+        const exportHints = [
+            '엑셀', 'excel', 'csv', '다운로드', '출력', '저장', '파일',
+            '내보내기', '첨부', '다운로드 링크'
+        ];
+        if (exportHints.some(keyword => normalized.includes(keyword)) && normalized.length <= 96) {
+            return true;
+        }
+        return false;
+    }
+
+    function typingProfile(text) {
+        const normalized = String(text || '');
+        const length = normalized.length;
+        if (length >= 320) {
+            return { chunkSize: 8, delay: 2 };
+        }
+        if (length >= 160) {
+            return { chunkSize: 6, delay: 3 };
+        }
+        if (length >= 80) {
+            return { chunkSize: 4, delay: 4 };
+        }
+        return { chunkSize: 3, delay: 5 };
+    }
+
+    async function typeText(el, text, meta = {}) {
+        const plainText = String(text || '');
         el.textContent = '';
+
+        if (shouldSkipTyping(plainText, meta)) {
+            el.textContent = plainText;
+            scrollBottom(false);
+            return;
+        }
+
         const cursor = document.createElement('span');
         cursor.className = 'typing-cursor';
         el.appendChild(cursor);
 
-        for (const ch of text) {
+        const profile = typingProfile(plainText);
+        const chars = Array.from(plainText);
+        let index = 0;
+
+        while (index < chars.length) {
             cursor.remove();
-            el.append(document.createTextNode(ch));
+            const nextText = chars.slice(index, index + profile.chunkSize).join('');
+            el.append(document.createTextNode(nextText));
             el.appendChild(cursor);
+            index += profile.chunkSize;
             scrollBottom(false);
-            await new Promise(resolve => setTimeout(resolve, 14));
+            await new Promise(resolve => setTimeout(resolve, profile.delay));
         }
         cursor.remove();
     }
@@ -1999,7 +2044,7 @@ if ($isAjax) {
             });
             const json = await res.json();
             const answerText = (json && json.answer) ? json.answer : '응답을 받지 못했어요.';
-            await typeText(assistantBubble, answerText);
+            await typeText(assistantBubble, answerText, { downloadUrl: json && json.download_url ? json.download_url : '' });
             clientHistory.push({ role: 'assistant', text: answerText });
             if (json && json.plan && json.plan.kind === 'tool' && typeof json.plan.tool === 'string') {
                 if (json.plan.tool.indexOf('quality_') === 0) {
@@ -2017,7 +2062,7 @@ if ($isAjax) {
             }
         } catch (e) {
             const errText = '지금 응답을 불러오지 못했어요.';
-            await typeText(assistantBubble, errText);
+            await typeText(assistantBubble, errText, { downloadUrl: '' });
             clientHistory.push({ role: 'assistant', text: errText });
         } finally {
             sendBtn.disabled = false;
