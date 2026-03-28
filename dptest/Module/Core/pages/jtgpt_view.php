@@ -1221,8 +1221,8 @@ function jtgpt_is_output_only_followup_message(string $message): bool {
     $partName = jtgpt_planner_extract_part_name($message);
     $tools = jtgpt_planner_extract_tools($message);
     $cavities = jtgpt_planner_extract_cavities($message);
-    $pointTerms = jtgpt_planner_collect_quality_point_terms($message, $tools, $cavities);
     $valueFilter = jtgpt_planner_extract_quality_value_filter($message);
+    $pointTerms = jtgpt_planner_collect_quality_point_terms($message, $tools, $cavities, $valueFilter);
 
     if (trim((string)$partName) !== '') return false;
     if (!empty($tools) || !empty($cavities) || !empty($pointTerms)) return false;
