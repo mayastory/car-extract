@@ -530,12 +530,13 @@ function jtgpt_format_scope(array $args): string {
     return $parts ? ('[' . implode(' / ', $parts) . ']') : '';
 }
 
-function jtgpt_shipping_tool_cavity_text(array $row): string {
+function jtgpt_shipping_tool_cavity_lines(array $row): array {
     $toolCavityMap = $row['tool_cavity_map'] ?? [];
     if (!is_array($toolCavityMap)) {
         $toolCavityMap = [];
     }
-    $chunks = [];
+
+    $lines = [];
     foreach ($toolCavityMap as $tool => $cavities) {
         $tool = strtoupper(trim((string)$tool));
         if ($tool === '') {
@@ -544,10 +545,10 @@ function jtgpt_shipping_tool_cavity_text(array $row): string {
         $cavities = array_values(array_filter(array_map(static function ($value): string {
             return trim((string)$value);
         }, (array)$cavities)));
-        $chunks[] = $cavities ? ($tool . ':' . implode(',', $cavities)) : $tool;
+        $lines[] = $cavities ? ($tool . ': ' . implode(',', $cavities)) : $tool;
     }
-    if ($chunks) {
-        return implode(' / ', $chunks);
+    if ($lines) {
+        return $lines;
     }
 
     $tools = array_values(array_filter(array_map(static function ($value): string {
@@ -557,15 +558,15 @@ function jtgpt_shipping_tool_cavity_text(array $row): string {
         return trim((string)$value);
     }, (array)($row['cavities'] ?? []))));
     if ($tools && $cavities) {
-        return 'Tool ' . implode(', ', $tools) . ' | Cavity ' . implode(', ', $cavities);
+        return ['Tool ' . implode(', ', $tools) . ' | Cavity ' . implode(', ', $cavities)];
     }
     if ($tools) {
-        return 'Tool ' . implode(', ', $tools);
+        return ['Tool ' . implode(', ', $tools)];
     }
     if ($cavities) {
-        return 'Cavity ' . implode(', ', $cavities);
+        return ['Cavity ' . implode(', ', $cavities)];
     }
-    return '';
+    return [];
 }
 
 function jtgpt_answer_shipping_summary(array $result, array $args): string {
@@ -592,21 +593,24 @@ function jtgpt_answer_shipping_summary(array $result, array $args): string {
             if (!is_array($row)) continue;
             $label = trim((string)($row['model_name'] ?? '-'));
             if ($label === '') $label = '-';
-            $segments = [];
-            $segments[] = $label . ': ' . jtgpt_tool_format_int($row['total_qty'] ?? 0) . ' EA';
+            $lines[] = '- ' . $label . ': ' . jtgpt_tool_format_int($row['total_qty'] ?? 0) . ' EA';
 
             $prodDates = array_values(array_filter(array_map(static function ($value): string {
                 return trim((string)$value);
             }, (array)($row['prod_dates'] ?? []))));
             if ($prodDates) {
-                $segments[] = '생산일 ' . implode(', ', $prodDates);
+                $lines[] = '  생산일';
+                foreach ($prodDates as $prodDate) {
+                    $lines[] = '  - ' . $prodDate;
+                }
             }
 
-            $lines[] = '- ' . implode(' | ', $segments);
-
-            $toolCavityText = jtgpt_shipping_tool_cavity_text($row);
-            if ($toolCavityText !== '') {
-                $lines[] = '  Tool/Cavity ' . $toolCavityText;
+            $toolCavityLines = jtgpt_shipping_tool_cavity_lines($row);
+            if ($toolCavityLines) {
+                $lines[] = '  Tool/Cavity';
+                foreach ($toolCavityLines as $toolCavityLine) {
+                    $lines[] = '  - ' . $toolCavityLine;
+                }
             }
         }
     } elseif (!empty($result['top_parts'])) {
@@ -614,7 +618,8 @@ function jtgpt_answer_shipping_summary(array $result, array $args): string {
             $lines[] = '- ' . ($row['part_name'] ?? '-') . ' : ' . jtgpt_tool_format_int($row['total_qty'] ?? 0) . ' EA';
         }
     }
-    return implode("\n", $lines);
+    return implode("
+", $lines);
 }
 
 function jtgpt_answer_shipping_last_ship(array $result, array $args): string {
