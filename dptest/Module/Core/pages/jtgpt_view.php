@@ -993,32 +993,100 @@ function jtgpt_shipping_export_filename(array $args, string $ext): string {
     return 'jtgpt_shipping_' . strtolower($partName) . '_' . $stamp . '.' . $ext;
 }
 
+function jtgpt_shipping_export_scalar_text($v): string {
+    if ($v === null) return '';
+    if (is_bool($v)) return $v ? '1' : '0';
+    if (is_scalar($v)) return (string)$v;
+    return json_encode($v, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+}
+
+function jtgpt_shipping_export_date_text($v): string {
+    $text = trim(jtgpt_shipping_export_scalar_text($v));
+    if ($text === '') return '';
+    if (preg_match('/^(\d{4}-\d{2}-\d{2})[ T].*$/', $text, $m)) {
+        return $m[1];
+    }
+    return $text;
+}
+
+function jtgpt_shipping_export_pick(array $row, array $aliases): string {
+    $map = [];
+    foreach ($row as $k => $v) {
+        $lk = strtolower(trim((string)$k));
+        if ($lk === '') continue;
+        $map[$lk] = $v;
+        $map[preg_replace('/[^a-z0-9]+/', '', $lk)] = $v;
+    }
+    foreach ($aliases as $alias) {
+        $alias = strtolower(trim((string)$alias));
+        if ($alias === '') continue;
+        if (array_key_exists($alias, $map)) return jtgpt_shipping_export_scalar_text($map[$alias]);
+        $compact = preg_replace('/[^a-z0-9]+/', '', $alias);
+        if ($compact !== '' && array_key_exists($compact, $map)) return jtgpt_shipping_export_scalar_text($map[$compact]);
+    }
+    return '';
+}
+
+function jtgpt_shipping_export_normalize_rows(array $rows): array {
+    $out = [];
+    foreach ($rows as $row) {
+        if (!is_array($row)) continue;
+        $out[] = [
+            '창고' => jtgpt_shipping_export_pick($row, ['warehouse', 'warehous', 'wh', 'storehouse']),
+            '포장일자' => jtgpt_shipping_export_date_text(jtgpt_shipping_export_pick($row, ['pack_date', 'packdate', 'packing_date', 'pack_dt'])),
+            '생산일자' => jtgpt_shipping_export_date_text(jtgpt_shipping_export_pick($row, ['prod_date', 'production_date', 'proddate', 'prod_dt'])),
+            '어닐링일자' => jtgpt_shipping_export_date_text(jtgpt_shipping_export_pick($row, ['anneal_date', 'annealing_date', 'anneal_dt'])),
+            '설비' => jtgpt_shipping_export_pick($row, ['facility', 'equip', 'equipment', 'machine']),
+            'CAVITY' => jtgpt_shipping_export_pick($row, ['cavity', 'cav', 'cavity_no', 'cav_no']),
+            '품번코드' => jtgpt_shipping_export_pick($row, ['part_code', 'partcode', 'item_code']),
+            '차수' => jtgpt_shipping_export_pick($row, ['revision', 'rev', 'tool', 'tool_no']),
+            '고객사 품번' => jtgpt_shipping_export_pick($row, ['customer_part', 'customer_part_no', 'customer_part_name', 'cust_part']),
+            '품번명' => jtgpt_shipping_export_pick($row, ['part_name', 'item_name', 'product_name']),
+            '모델' => jtgpt_shipping_export_pick($row, ['model']),
+            '프로젝트' => jtgpt_shipping_export_pick($row, ['project']),
+            '소포장 NO' => jtgpt_shipping_export_pick($row, ['small_pack_no', 'smallpackno', 'small_pack', 'small_pack_tray_no', 'smallpacktrayno']),
+            'Tray NO' => jtgpt_shipping_export_pick($row, ['tray_no', 'trayno', 'tray']),
+            '납품처' => jtgpt_shipping_export_pick($row, ['ship_to', 'customer', 'customer_name', 'consignee']),
+            '출고수량' => jtgpt_shipping_export_pick($row, ['qty', 'quantity', 'ship_qty', 'out_qty']),
+            '출하일자' => jtgpt_shipping_export_date_text(jtgpt_shipping_export_pick($row, ['ship_date', 'ship_datetime', 'ship_dt', 'shipping_date', 'shipment_date'])),
+            '고객 LOTID' => jtgpt_shipping_export_pick($row, ['customer_pack', 'customer_lotid', 'customer_lot_id', 'customer_lot', 'customerlotid']),
+            '포장바코드' => jtgpt_shipping_export_pick($row, ['barc_pack_no', 'pack_barcode', 'packing_barcode', 'barcode', 'barcode_pack_no']),
+            '포장번호' => jtgpt_shipping_export_pick($row, ['pack_no', 'packing_no', 'package_no', 'box_no', 'packnumber']),
+            'AVI' => jtgpt_shipping_export_pick($row, ['avi']),
+            'RETURNDATE' => jtgpt_shipping_export_date_text(jtgpt_shipping_export_pick($row, ['returndate', 'return_date', 'return_dt'])),
+            'RMA' => jtgpt_shipping_export_pick($row, ['rma', 'ls_rma']),
+        ];
+    }
+    return $out;
+}
+
 function jtgpt_shipping_export_source_rows(PDO $pdo, array $args): array {
     if (!function_exists('jtgpt_tool_shipping_where')) {
         return [];
     }
     $where = jtgpt_tool_shipping_where($pdo, $args);
-    $sql = "SELECT * FROM ShipingList {$where['sql']} ORDER BY ship_datetime DESC, id DESC";
+    $schema = $where['schema'] ?? (function_exists('jtgpt_tool_shipping_schema') ? jtgpt_tool_shipping_schema($pdo) : []);
+    $order = [];
+    if (!empty($schema['date'])) {
+        $order[] = '`' . $schema['date'] . '` DESC';
+    } elseif (function_exists('jtgpt_tool_shipping_column_name')) {
+        $fallbackDate = jtgpt_tool_shipping_column_name($pdo, ['ship_date', 'ship_datetime', 'ship_dt', 'shipping_date', 'shipment_date']);
+        if ($fallbackDate) $order[] = '`' . $fallbackDate . '` DESC';
+    }
+    if (!empty($schema['id'])) {
+        $order[] = '`' . $schema['id'] . '` DESC';
+    } elseif (function_exists('jtgpt_tool_shipping_column_name')) {
+        $fallbackId = jtgpt_tool_shipping_column_name($pdo, ['id']);
+        if ($fallbackId) $order[] = '`' . $fallbackId . '` DESC';
+    }
+    $sql = 'SELECT * FROM ShipingList ' . ($where['sql'] ?? '');
+    if ($order) {
+        $sql .= ' ORDER BY ' . implode(', ', $order);
+    }
     $st = $pdo->prepare($sql);
-    $st->execute($where['params']);
+    $st->execute($where['params'] ?? []);
     $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
-    return array_values(array_map(static function ($row) {
-        if (!is_array($row)) {
-            return [];
-        }
-        foreach ($row as $k => $v) {
-            if (is_bool($v)) {
-                $row[$k] = $v ? '1' : '0';
-            } elseif ($v === null) {
-                $row[$k] = '';
-            } elseif (is_scalar($v)) {
-                $row[$k] = (string)$v;
-            } else {
-                $row[$k] = json_encode($v, JSON_UNESCAPED_UNICODE);
-            }
-        }
-        return $row;
-    }, $rows));
+    return jtgpt_shipping_export_normalize_rows($rows);
 }
 
 function jtgpt_shipping_create_export(PDO $pdo, array $args): ?array {
