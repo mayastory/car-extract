@@ -912,6 +912,285 @@ function jtgpt_answer_quality_top_points(array $result, array $args): string {
 ", $lines);
 }
 
+
+function jtgpt_quality_recent_rows_parse_tool_cavity(string $toolCavity): array {
+    $toolCavity = strtoupper(trim($toolCavity));
+    if ($toolCavity === '') {
+        return ['', ''];
+    }
+    if (preg_match('/^([A-Z0-9]+)\s*#\s*([0-9]+)$/', $toolCavity, $m)) {
+        return [trim((string)$m[1]), trim((string)$m[2])];
+    }
+    if (preg_match('/^([A-Z]+)\s*([0-9]+)$/', $toolCavity, $m)) {
+        return [trim((string)$m[1]), trim((string)$m[2])];
+    }
+    if (preg_match('/^([A-Z0-9]+)\s*[-_/]\s*([0-9]+)$/', $toolCavity, $m)) {
+        return [trim((string)$m[1]), trim((string)$m[2])];
+    }
+    return [$toolCavity, ''];
+}
+
+function jtgpt_quality_recent_rows_pick_phrase(string $bucket, array $options, string $fingerprint = ''): string {
+    if (!$options) {
+        return '';
+    }
+    if (!isset($_SESSION['jtgpt_phrase_rotate']) || !is_array($_SESSION['jtgpt_phrase_rotate'])) {
+        $_SESSION['jtgpt_phrase_rotate'] = [];
+    }
+    $count = count($options);
+    $base = (int)($_SESSION['jtgpt_phrase_rotate'][$bucket] ?? 0);
+    $_SESSION['jtgpt_phrase_rotate'][$bucket] = $base + 1;
+    $salt = $fingerprint !== '' ? abs(crc32($fingerprint)) : 0;
+    $index = ($base + $salt) % $count;
+    return (string)$options[$index];
+}
+
+function jtgpt_quality_recent_rows_features(array $rows, bool $multiModule = false): array {
+    $toolMap = [];
+    $moduleToolMap = [];
+    $pointStats = [];
+    $dateCounts = [];
+
+    foreach ($rows as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $moduleLabel = trim((string)($row['module_label'] ?? ''));
+        if ($moduleLabel === '') {
+            $moduleLabel = strtoupper(trim((string)($row['module'] ?? '')));
+        }
+        $toolCavity = trim((string)($row['tool_cavity'] ?? ''));
+        [$tool, $cavity] = jtgpt_quality_recent_rows_parse_tool_cavity($toolCavity);
+        if ($tool !== '') {
+            if (!isset($toolMap[$tool])) {
+                $toolMap[$tool] = [];
+            }
+            if ($cavity !== '') {
+                $toolMap[$tool][$cavity] = true;
+            }
+            if ($multiModule) {
+                if (!isset($moduleToolMap[$moduleLabel])) {
+                    $moduleToolMap[$moduleLabel] = [];
+                }
+                if (!isset($moduleToolMap[$moduleLabel][$tool])) {
+                    $moduleToolMap[$moduleLabel][$tool] = [];
+                }
+                if ($cavity !== '') {
+                    $moduleToolMap[$moduleLabel][$tool][$cavity] = true;
+                }
+            }
+        }
+
+        $pointNo = trim((string)($row['point_no'] ?? ''));
+        if ($pointNo !== '') {
+            if (!isset($pointStats[$pointNo])) {
+                $pointStats[$pointNo] = [
+                    'count' => 0,
+                    'tool_cavities' => [],
+                    'dates' => [],
+                ];
+            }
+            $pointStats[$pointNo]['count']++;
+            if ($tool !== '') {
+                if (!isset($pointStats[$pointNo]['tool_cavities'][$tool])) {
+                    $pointStats[$pointNo]['tool_cavities'][$tool] = [];
+                }
+                if ($cavity !== '') {
+                    $pointStats[$pointNo]['tool_cavities'][$tool][$cavity] = true;
+                }
+            }
+            $eventDate = trim((string)($row['event_date'] ?? ''));
+            if ($eventDate !== '') {
+                $pointStats[$pointNo]['dates'][$eventDate] = true;
+            }
+        }
+
+        $eventDate = trim((string)($row['event_date'] ?? ''));
+        if ($eventDate !== '') {
+            $dateCounts[$eventDate] = (int)($dateCounts[$eventDate] ?? 0) + 1;
+        }
+    }
+
+    ksort($toolMap, SORT_NATURAL);
+    foreach ($toolMap as $tool => $cavities) {
+        $list = array_keys($cavities);
+        natsort($list);
+        $toolMap[$tool] = array_values($list);
+    }
+    ksort($moduleToolMap, SORT_NATURAL);
+    foreach ($moduleToolMap as $moduleLabel => $toolRows) {
+        ksort($toolRows, SORT_NATURAL);
+        foreach ($toolRows as $tool => $cavities) {
+            $list = array_keys($cavities);
+            natsort($list);
+            $moduleToolMap[$moduleLabel][$tool] = array_values($list);
+        }
+    }
+
+    foreach ($pointStats as $pointNo => $stat) {
+        $tcCount = 0;
+        foreach ((array)$stat['tool_cavities'] as $tool => $cavities) {
+            $list = array_keys((array)$cavities);
+            natsort($list);
+            $pointStats[$pointNo]['tool_cavities'][$tool] = array_values($list);
+            $tcCount += count($list);
+        }
+        ksort($pointStats[$pointNo]['tool_cavities'], SORT_NATURAL);
+        $dates = array_keys((array)$stat['dates']);
+        sort($dates, SORT_NATURAL);
+        $pointStats[$pointNo]['dates'] = $dates;
+        $pointStats[$pointNo]['tc_count'] = $tcCount;
+        $pointStats[$pointNo]['tool_count'] = count((array)$pointStats[$pointNo]['tool_cavities']);
+    }
+
+    uasort($pointStats, static function (array $a, array $b): int {
+        $aCount = (int)($a['count'] ?? 0);
+        $bCount = (int)($b['count'] ?? 0);
+        if ($aCount !== $bCount) {
+            return $bCount <=> $aCount;
+        }
+        $aTc = (int)($a['tc_count'] ?? 0);
+        $bTc = (int)($b['tc_count'] ?? 0);
+        if ($aTc !== $bTc) {
+            return $bTc <=> $aTc;
+        }
+        return 0;
+    });
+    arsort($dateCounts, SORT_NUMERIC);
+
+    return [
+        'tool_map' => $toolMap,
+        'module_tool_map' => $moduleToolMap,
+        'point_stats' => $pointStats,
+        'date_counts' => $dateCounts,
+    ];
+}
+
+function jtgpt_quality_recent_rows_tool_cavity_summary_lines(array $features, bool $multiModule = false): array {
+    $lines = [];
+    if ($multiModule) {
+        $moduleToolMap = (array)($features['module_tool_map'] ?? []);
+        if ($moduleToolMap) {
+            $lines[] = 'Tool/Cavity 요약';
+            foreach ($moduleToolMap as $moduleLabel => $toolRows) {
+                $lines[] = '- ' . $moduleLabel;
+                foreach ((array)$toolRows as $tool => $cavities) {
+                    $lines[] = '  - ' . $tool . ':' . implode(',', (array)$cavities);
+                }
+            }
+            return $lines;
+        }
+    }
+    $toolMap = (array)($features['tool_map'] ?? []);
+    if (!$toolMap) {
+        return $lines;
+    }
+    $lines[] = 'Tool/Cavity 요약';
+    foreach ($toolMap as $tool => $cavities) {
+        $lines[] = '- ' . $tool . ':' . implode(',', (array)$cavities);
+    }
+    return $lines;
+}
+
+function jtgpt_quality_recent_rows_tc_text(array $toolCavities, int $maxTools = 2): string {
+    $chunks = [];
+    $count = 0;
+    foreach ($toolCavities as $tool => $cavities) {
+        $tool = strtoupper(trim((string)$tool));
+        if ($tool === '') {
+            continue;
+        }
+        $cavityList = array_values(array_filter(array_map(static function ($value): string {
+            return trim((string)$value);
+        }, (array)$cavities), static function (string $value): bool {
+            return $value !== '';
+        }));
+        if (!$cavityList) {
+            continue;
+        }
+        $chunks[] = $tool . '#' . implode(',#', $cavityList);
+        $count++;
+        if ($count >= $maxTools) {
+            break;
+        }
+    }
+    return implode(' / ', $chunks);
+}
+
+function jtgpt_quality_recent_rows_natural_lines(array $features): array {
+    $pointStats = (array)($features['point_stats'] ?? []);
+    $dateCounts = (array)($features['date_counts'] ?? []);
+    if (!$pointStats && !$dateCounts) {
+        return [];
+    }
+
+    $fingerprint = implode('|', array_slice(array_keys($pointStats), 0, 5)) . '|' . implode('|', array_slice(array_keys($dateCounts), 0, 5));
+    $lines = [];
+
+    $topPointNo = '';
+    $topPoint = null;
+    foreach ($pointStats as $pointNo => $stat) {
+        $topPointNo = (string)$pointNo;
+        $topPoint = $stat;
+        break;
+    }
+    if ($topPointNo !== '' && is_array($topPoint) && (int)($topPoint['count'] ?? 0) > 0) {
+        $lead = jtgpt_quality_recent_rows_pick_phrase('quality_nat_point_lead', ['추가로 보면', '결과를 보면', '흐름상 보면', '패턴으로 보면'], $fingerprint);
+        $tail = jtgpt_quality_recent_rows_pick_phrase('quality_nat_point_tail', ['반복해서 보입니다.', '겹쳐서 보입니다.', '상대적으로 자주 보입니다.', '눈에 자주 들어옵니다.'], $fingerprint);
+        $tcText = jtgpt_quality_recent_rows_tc_text((array)($topPoint['tool_cavities'] ?? []), 2);
+        $line = $lead . ' ' . $topPointNo . ' 포인트';
+        if ($tcText !== '') {
+            $line .= '는 ' . $tcText . ' 쪽에서 ' . $tail;
+        } else {
+            $line .= '가 ' . jtgpt_tool_format_int($topPoint['count'] ?? 0) . '건으로 가장 많이 잡힙니다.';
+        }
+        $lines[] = trim($line);
+    }
+
+    if ($dateCounts) {
+        $topDateCount = (int)reset($dateCounts);
+        $topDates = [];
+        foreach ($dateCounts as $eventDate => $count) {
+            if ((int)$count !== $topDateCount) {
+                break;
+            }
+            $topDates[] = (string)$eventDate;
+            if (count($topDates) >= 3) {
+                break;
+            }
+        }
+        if ($topDates) {
+            $lead = jtgpt_quality_recent_rows_pick_phrase('quality_nat_date_lead', ['생산일로는', '날짜 흐름으로는', '생산일 기준으로는', '날짜로 보면'], $fingerprint);
+            $tail = jtgpt_quality_recent_rows_pick_phrase('quality_nat_date_tail', ['상대적으로 많이 모여 있습니다.', 'NG가 조금 더 모여 보입니다.', '같이 묶여 보입니다.', '건수가 상대적으로 두드러집니다.'], $fingerprint);
+            $lines[] = $lead . ' ' . implode(', ', $topDates) . ' 쪽이 ' . $tail;
+        }
+    }
+
+    $narrowPointNo = '';
+    $narrowPoint = null;
+    foreach ($pointStats as $pointNo => $stat) {
+        if ($pointNo === $topPointNo) {
+            continue;
+        }
+        $tcCount = (int)($stat['tc_count'] ?? 0);
+        if ($tcCount > 0 && $tcCount <= 2) {
+            $narrowPointNo = (string)$pointNo;
+            $narrowPoint = $stat;
+            break;
+        }
+    }
+    if ($narrowPointNo !== '' && is_array($narrowPoint)) {
+        $lead = jtgpt_quality_recent_rows_pick_phrase('quality_nat_narrow_lead', ['반면', '같이 보면', '한편', '또'], $fingerprint);
+        $tail = jtgpt_quality_recent_rows_pick_phrase('quality_nat_narrow_tail', ['일부 Tool#Cavity에만 제한적으로 보입니다.', '국소적으로만 보입니다.', '넓게 퍼지기보다는 일부 위치에 모여 있습니다.', '범위가 넓지는 않은 편입니다.'], $fingerprint);
+        $tcText = jtgpt_quality_recent_rows_tc_text((array)($narrowPoint['tool_cavities'] ?? []), 2);
+        if ($tcText !== '') {
+            $lines[] = $lead . ' ' . $narrowPointNo . ' 포인트는 ' . $tcText . '처럼 ' . $tail;
+        }
+    }
+
+    return array_slice($lines, 0, 3);
+}
+
 function jtgpt_answer_quality_recent_rows(array $result, array $args): string {
     if (empty($result['found'])) {
         return jtgpt_quality_no_data_text($result, $args, '조건에 맞는 이력이 없습니다.');
@@ -936,6 +1215,24 @@ function jtgpt_answer_quality_recent_rows(array $result, array $args): string {
         if ($ngText !== '') $chunk[] = $ngText;
         $lines[] = implode(' | ', $chunk);
     }
+
+    $features = jtgpt_quality_recent_rows_features((array)($result['rows'] ?? []), $multiModule);
+    $summaryLines = jtgpt_quality_recent_rows_tool_cavity_summary_lines($features, $multiModule);
+    if ($summaryLines) {
+        $lines[] = '';
+        foreach ($summaryLines as $line) {
+            $lines[] = $line;
+        }
+    }
+
+    $naturalLines = jtgpt_quality_recent_rows_natural_lines($features);
+    if ($naturalLines) {
+        $lines[] = '';
+        foreach ($naturalLines as $line) {
+            $lines[] = '- ' . $line;
+        }
+    }
+
     if (!empty($result['resolution'])) {
         foreach (jtgpt_quality_resolution_tail_lines((array)$result['resolution']) as $line) {
             $lines[] = '- ' . $line;
@@ -944,6 +1241,7 @@ function jtgpt_answer_quality_recent_rows(array $result, array $args): string {
     return implode("
 ", $lines);
 }
+
 
 function jtgpt_answer_quality_point_detail(array $result, array $args): string {
     if (empty($result['found'])) {
