@@ -127,14 +127,23 @@ if (!function_exists('jtgpt_tool_shipping_group_summary_rows')) {
                     'prod_dates' => [],
                     'tools' => [],
                     'cavities' => [],
+                    'tool_cavity_map' => [],
                 ];
             }
             $groups[$key]['total_qty'] += (int)($row['qty'] ?? 0);
             $prodDate = jtgpt_tool_shipping_normalize_date_text($row['prod_date'] ?? '');
             if ($prodDate !== '') $groups[$key]['prod_dates'][$prodDate] = $prodDate;
             $tool = strtoupper(trim((string)($row['tool'] ?? '')));
-            if ($tool !== '') $groups[$key]['tools'][$tool] = $tool;
             $cavity = strtoupper(trim((string)($row['cavity'] ?? '')));
+            if ($tool !== '') {
+                $groups[$key]['tools'][$tool] = $tool;
+                if (!isset($groups[$key]['tool_cavity_map'][$tool])) {
+                    $groups[$key]['tool_cavity_map'][$tool] = [];
+                }
+                if ($cavity !== '') {
+                    $groups[$key]['tool_cavity_map'][$tool][$cavity] = $cavity;
+                }
+            }
             if ($cavity !== '') $groups[$key]['cavities'][$cavity] = $cavity;
         }
 
@@ -143,12 +152,22 @@ if (!function_exists('jtgpt_tool_shipping_group_summary_rows')) {
             $prodDates = jtgpt_tool_shipping_sort_values(array_values($group['prod_dates']));
             $tools = jtgpt_tool_shipping_sort_values(array_values($group['tools']));
             $cavities = jtgpt_tool_shipping_sort_values(array_values($group['cavities']));
+            $toolCavityMap = [];
+            foreach (($group['tool_cavity_map'] ?? []) as $tool => $toolCavities) {
+                $toolKey = strtoupper(trim((string)$tool));
+                if ($toolKey === '') continue;
+                $toolCavityMap[$toolKey] = jtgpt_tool_shipping_sort_values(array_values((array)$toolCavities));
+            }
+            uksort($toolCavityMap, static function (string $a, string $b): int {
+                return strnatcasecmp($a, $b);
+            });
             $out[] = [
                 'model_name' => $group['model_name'],
                 'total_qty' => (int)$group['total_qty'],
                 'prod_dates' => $prodDates,
                 'tools' => $tools,
                 'cavities' => $cavities,
+                'tool_cavity_map' => $toolCavityMap,
                 'lot_count' => count($prodDates),
                 'tool_count' => count($tools),
                 'cavity_count' => count($cavities),

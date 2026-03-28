@@ -530,6 +530,44 @@ function jtgpt_format_scope(array $args): string {
     return $parts ? ('[' . implode(' / ', $parts) . ']') : '';
 }
 
+function jtgpt_shipping_tool_cavity_text(array $row): string {
+    $toolCavityMap = $row['tool_cavity_map'] ?? [];
+    if (!is_array($toolCavityMap)) {
+        $toolCavityMap = [];
+    }
+    $chunks = [];
+    foreach ($toolCavityMap as $tool => $cavities) {
+        $tool = strtoupper(trim((string)$tool));
+        if ($tool === '') {
+            continue;
+        }
+        $cavities = array_values(array_filter(array_map(static function ($value): string {
+            return trim((string)$value);
+        }, (array)$cavities)));
+        $chunks[] = $cavities ? ($tool . ':' . implode(',', $cavities)) : $tool;
+    }
+    if ($chunks) {
+        return implode(' / ', $chunks);
+    }
+
+    $tools = array_values(array_filter(array_map(static function ($value): string {
+        return trim((string)$value);
+    }, (array)($row['tools'] ?? []))));
+    $cavities = array_values(array_filter(array_map(static function ($value): string {
+        return trim((string)$value);
+    }, (array)($row['cavities'] ?? []))));
+    if ($tools && $cavities) {
+        return 'Tool ' . implode(', ', $tools) . ' | Cavity ' . implode(', ', $cavities);
+    }
+    if ($tools) {
+        return 'Tool ' . implode(', ', $tools);
+    }
+    if ($cavities) {
+        return 'Cavity ' . implode(', ', $cavities);
+    }
+    return '';
+}
+
 function jtgpt_answer_shipping_summary(array $result, array $args): string {
     if (empty($result['found'])) {
         return '조건에 맞는 출하 데이터가 없습니다.';
@@ -564,21 +602,12 @@ function jtgpt_answer_shipping_summary(array $result, array $args): string {
                 $segments[] = '생산일 ' . implode(', ', $prodDates);
             }
 
-            $tools = array_values(array_filter(array_map(static function ($value): string {
-                return trim((string)$value);
-            }, (array)($row['tools'] ?? []))));
-            if ($tools) {
-                $segments[] = 'Tool ' . implode(', ', $tools);
-            }
-
-            $cavities = array_values(array_filter(array_map(static function ($value): string {
-                return trim((string)$value);
-            }, (array)($row['cavities'] ?? []))));
-            if ($cavities) {
-                $segments[] = 'Cavity ' . implode(', ', $cavities);
-            }
-
             $lines[] = '- ' . implode(' | ', $segments);
+
+            $toolCavityText = jtgpt_shipping_tool_cavity_text($row);
+            if ($toolCavityText !== '') {
+                $lines[] = '  Tool/Cavity ' . $toolCavityText;
+            }
         }
     } elseif (!empty($result['top_parts'])) {
         foreach ($result['top_parts'] as $row) {
