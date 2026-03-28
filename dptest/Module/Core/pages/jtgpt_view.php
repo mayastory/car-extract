@@ -593,23 +593,27 @@ function jtgpt_answer_shipping_summary(array $result, array $args): string {
             if (!is_array($row)) continue;
             $label = trim((string)($row['model_name'] ?? '-'));
             if ($label === '') $label = '-';
+
+            $lines[] = '';
             $lines[] = '- ' . $label . ': ' . jtgpt_tool_format_int($row['total_qty'] ?? 0) . ' EA';
 
             $prodDates = array_values(array_filter(array_map(static function ($value): string {
                 return trim((string)$value);
             }, (array)($row['prod_dates'] ?? []))));
             if ($prodDates) {
-                $lines[] = '  생산일';
+                $lines[] = '';
+                $lines[] = '생산일';
                 foreach ($prodDates as $prodDate) {
-                    $lines[] = '  - ' . $prodDate;
+                    $lines[] = $prodDate;
                 }
             }
 
             $toolCavityLines = jtgpt_shipping_tool_cavity_lines($row);
             if ($toolCavityLines) {
-                $lines[] = '  Tool/Cavity';
+                $lines[] = '';
+                $lines[] = 'Tool/Cavity';
                 foreach ($toolCavityLines as $toolCavityLine) {
-                    $lines[] = '  - ' . $toolCavityLine;
+                    $lines[] = $toolCavityLine;
                 }
             }
         }
