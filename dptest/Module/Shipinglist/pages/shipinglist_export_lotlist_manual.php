@@ -4044,8 +4044,9 @@ $openPart = function(string $partName, int $rowCount) use (
     //    → 샘플 삭제/스타일 복제/숫자 포맷 범위를 기본 포맷 기준으로 처리한다.
     $useJawhaLotList = ($IS_JAWHA && $partName !== 'MEM-Z-STOPPER');
     // merge 해제는 하지 않음 (템플릿 레이아웃/선 유지)
-    // 샘플 데이터만 "작게" 지우기
-    for ($rr = 2; $rr <= $CLEAR_SAMPLE_ROWS; $rr++) {
+    // 수동 성적서는 첫 행(row 2)은 템플릿 값을 그대로 두고,
+    // 그 아래 샘플 행만 비워 둔다.
+    for ($rr = 3; $rr <= $CLEAR_SAMPLE_ROWS; $rr++) {
         foreach (($useJawhaLotList ? range('A','J') : range('A','I')) as $c) {
             $sheet->setCellValueExplicit($c.$rr, null, DataType::TYPE_NULL);
         }
@@ -4068,33 +4069,31 @@ $openPart = function(string $partName, int $rowCount) use (
     return [$spreadsheet, $sheet];
 };
 
-// 스트리밍 루프
+// 수동 성적서는 ShipingList 시트에 가짜 행을 쓰지 않는다.
+// OQC/CMM 집계용으로만 manualRows를 순회하고,
+// REPORT 엑셀은 템플릿 첫 행을 유지한 채 Shipping Date(B2)만 갱신한다.
 $processed = 0;
 foreach ($manualRows as $row) {
     $pn = trim((string)$row['part_name']);
     if ($pn === '' || !isset($PART_MAP[$pn])) continue;
 
-    // OQC 집계(파트별/생산일별 Tool#Cavity set)
     if (!isset($oqcAgg[$pn])) $oqcAgg[$pn] = ['dates'=>[], 'cavs'=>[], 'pairs'=>[], 'by_date'=>[]];
 
     $cv = (int)($row['cavity'] ?? 0);
     if ($cv > 0) $oqcAgg[$pn]['cavs'][$cv] = true;
 
-    // 생산일 (YYYY-MM-DD) : 출하내역에서 중복제거 리스트 만들기
     $d = '';
     if ($prodCol && !empty($row['prod_date'])) {
         $d = substr((string)$row['prod_date'], 0, 10);
         if ($d !== '') $oqcAgg[$pn]['dates'][$d] = true;
     }
 
-    // Tool#Cavity (출하내역 기준) : 생산일별로 따로 모아둔다 (중복 제거)
     if ($toolCol && $cv > 0) {
         $tRaw = (string)($row['tool'] ?? '');
         $t = $tRaw !== '' ? extract_tool_letter($tRaw) : null;
         if ($t) {
             $k = $t . '#' . $cv;
             $oqcAgg[$pn]['pairs'][$k] = true;
-
             if ($d !== '') {
                 if (!isset($oqcAgg[$pn]['by_date'][$d])) $oqcAgg[$pn]['by_date'][$d] = ['pairs'=>[]];
                 $oqcAgg[$pn]['by_date'][$d]['pairs'][$k] = true;
@@ -4102,119 +4101,34 @@ foreach ($manualRows as $row) {
         }
     }
 
-    // 파트 전환
-    if ($currentPart === null) {
-        $currentPart = $pn;
-        if (!isset($counts[$currentPart])) $counts[$currentPart] = 0;
-
-        // 템플릿을 먼저 열고 성공했을 때만 "모델 시작" 로그를 출력 (미매칭/스킵 시 로그 도배 방지)
-        [$spreadsheet, $sheet] = $openPart($currentPart, $counts[$currentPart]);
-        if (!$spreadsheet || !$sheet) {
-            $currentPart = null;
-            continue;
-        }
-        logline(" - {$currentPart} 모델 시작 {$counts[$currentPart]} 행");
-    } elseif ($pn !== $currentPart) {
-        // 이전 파트 마감
-        $finalizePart();
-
-        $currentPart = $pn;
-        [$spreadsheet, $sheet] = $openPart($currentPart, $counts[$currentPart]);
-        if (!$spreadsheet || !$sheet) {
-            $currentPart = null;
-            continue;
-        }
-        logline(" - {$currentPart} 모델 시작 {$counts[$currentPart]} 행");
-    }
-
-    if (!$spreadsheet || !$sheet) continue;
-
-    // pack 처리(merge 계획)
-    $packNo = (string)($row['pack_no'] ?: '(NO PACK_NO)');
-    if ($curPack === null) {
-        $curPack = $packNo;
-        $packStartRow = $curRow;
-        $packTotalQty = 0;
-    } elseif ($packNo !== $curPack) {
-        // 이전 pack 종료
-        $packEnd = $curRow - 1;
-        $mergePlans[] = [$packStartRow, $packEnd, $packTotalQty];
-
-        // 새 pack 시작
-        $curPack = $packNo;
-        $packStartRow = $curRow;
-        $packTotalQty = 0;
-    }
-    // inner package (Shipping Lot List D열)
-    // ✅ customer_lot_id를 그대로 사용한다 (하드코딩 prefix / pack_barcode 보강 없음)
-    $info = $PART_MAP[$currentPart];
-    $innerPackage = trim((string)($row['customer_lot_id'] ?? ''));
-
-    $qty = (int)($row['qty'] ?? 0);
-    $packTotalQty += $qty;
-
-    // row 데이터
-    // JAWHA(자화전자(주)) Shipping Lot List: Annealing Date(ann_date)는 D열, Build는 C열(템플릿 변경 반영)
-    $annRaw = trim((string)($row['ann_date'] ?? ''));
-    $annDateStr = '';
-    if ($annRaw !== '') {
-        if (preg_match('/^\d{8}$/', $annRaw)) {
-            $annDateStr = substr($annRaw, 0, 4) . '-' . substr($annRaw, 4, 2) . '-' . substr($annRaw, 6, 2);
-        } else if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $annRaw)) {
-            $annDateStr = $annRaw;
-        } else {
-            // 기타 포맷은 그대로(혹시 "2025/12/12" 등)
-            $annDateStr = $annRaw;
-        }
-    }
-
-    // ✅ 자화(JAWHA)라도 Z-STOPPER는 어닐링일자(Annealing Date)가 없으므로
-    //    Shipping Lot List는 기본 포맷(Annealing Date 컬럼 없음)으로 출력한다.
-    if ($IS_JAWHA && $currentPart !== 'MEM-Z-STOPPER') {
-        // (JAWHA 전용 포맷)
-        // A:APN, B:ShipDate, C:Build(MP), D:AnnealingDate, E:InnerPkg, F:PackNo, G:TotalQty(merge), H:Cavity, I:ShipQty, J:Unit
-        $chunkData[] = [
-            (string)$info['apn'],         // A
-            (string)$shippingDateStr,     // B
-            'MP',                         // C
-            (string)$annDateStr,          // D
-            (string)$innerPackage,        // E
-            (string)$packNo,              // F
-            null,                         // G (나중에 packStartRow에만 total)
-            (int)$cv,                     // H
-            (int)$qty,                    // I
-            'PCS',                        // J
-        ];
-    } else {
-        // 기본(LGIT 등): A:APN, B:ShipDate, C:Build(MP), D:InnerPkg, E:PackNo, F:TotalQty(merge), G:Cavity, H:ShipQty, I:Unit
-        $chunkData[] = [
-            (string)$info['apn'],         // A
-            (string)$shippingDateStr,     // B
-            'MP',                         // C
-            (string)$innerPackage,        // D
-            (string)$packNo,              // E
-            null,                         // F (나중에 packStartRow에만 total)
-            (int)$cv,                     // G
-            (int)$qty,                    // H
-            'PCS',                        // I
-        ];
-    }
-
-    $curRow++;
     $processed++;
+}
 
-    // chunk flush
-    if (count($chunkData) >= 2000) {
-        $startCell = "A" . ($curRow - count($chunkData));
-        $sheet->fromArray($chunkData, null, $startCell, true);
-        $chunkData = [];
+$partsOrder = [];
+foreach (manual_report_part_defs() as $def) {
+    $p = (string)($def['part'] ?? '');
+    if ($p !== '' && isset($counts[$p])) $partsOrder[] = $p;
+}
+foreach (array_keys($counts) as $p) {
+    if (!in_array($p, $partsOrder, true)) $partsOrder[] = $p;
+}
+
+foreach ($partsOrder as $pn) {
+    $currentPart = $pn;
+    [$spreadsheet, $sheet] = $openPart($currentPart, 1);
+    if (!$spreadsheet || !$sheet) {
+        $currentPart = null;
+        continue;
     }
 
-// 로그 갱신
-//    if ($processed % 5000 === 0) {
-//        logline("   진행: {$processed} rows...");
-//    }
+    // Shipping Date 열(B)은 수동 발행일(to_date)만 반영하고,
+    // 나머지 템플릿 값은 그대로 둔다.
+    $sheet->setCellValueExplicit('B2', (string)$shippingDateStr, DataType::TYPE_STRING);
+
+    logline(" - {$currentPart} 모델 시작 (수동 템플릿 유지)");
+    $finalizePart();
 }
+$currentPart = null;
 
 // 마지막 파트 마감 (마지막 pack도 마감)
 if ($currentPart !== null && $spreadsheet && $sheet) {
@@ -5730,13 +5644,10 @@ try {
     sort($partsUniq);
 
     $partsArr = [];
-    $totalShipQty = 0;
     foreach ($partsUniq as $p) {
-        $q = (int)($sumQty[$p] ?? 0);
-        $partsArr[] = ['part' => $p, 'ship_qty' => $q];
-        $totalShipQty += $q;
+        $partsArr[] = ['part' => $p, 'ship_qty' => '?'];
     }
-    $partsPayload = ['parts' => $partsArr, 'total_ship_qty' => $totalShipQty];
+    $partsPayload = ['parts' => $partsArr];
 
     // ✅ 발행(build) 시 실제 마킹한 header_id/컬럼/날짜 로그 저장(취소 롤백용)
     if (function_exists('oqc_marklog_export_grouped')) {

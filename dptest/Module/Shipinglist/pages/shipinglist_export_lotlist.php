@@ -2727,6 +2727,7 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
             <?php foreach ($histRows as $r): ?>
               <?php
                 $isCanceled = ((int)($r['is_canceled'] ?? 0) === 1);
+                $isManualPublished = (stripos((string)($r['zip_name'] ?? ''), '[manual]') !== false);
 
                 // parts_json에서 (품번 목록 / 출하수량) 표시용 파싱
                 $partsLines = [];
@@ -2758,7 +2759,10 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
                         }
                     }
                 }
-                if ($partsLines && !$qtyLines) {
+                if ($isManualPublished) {
+                    if ($partsLines) $qtyLines = array_fill(0, count($partsLines), '?');
+                    $totalShipQty = null;
+                } elseif ($partsLines && !$qtyLines) {
                     $qtyLines = array_fill(0, count($partsLines), '-');
                 }
 
@@ -2819,7 +2823,6 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
                       <div class="mini"><?=h((string)($r['canceled_by'] ?? ''))?></div>
                     <?php endif; ?>
                   <?php else: ?>
-                    <?php $isManualPublished = (stripos((string)($r['zip_name'] ?? ''), '[manual]') !== false); ?>
                     <span class="badge"><?= $isManualPublished ? '수동발행' : '발행' ?></span>
                     <?php $viewOk = is_dir(JTMES_ROOT . '/exports/reports/rf_' . (int)($r['id'] ?? 0)); ?>
                   <?php if ($viewOk): ?>
