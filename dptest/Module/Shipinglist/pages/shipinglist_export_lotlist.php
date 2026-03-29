@@ -2727,12 +2727,13 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
             <?php foreach ($histRows as $r): ?>
               <?php
                 $isCanceled = ((int)($r['is_canceled'] ?? 0) === 1);
-                $isManualPublished = (stripos((string)($r['zip_name'] ?? ''), '[manual]') !== false);
 
                 // parts_json에서 (품번 목록 / 출하수량) 표시용 파싱
                 $partsLines = [];
                 $qtyLines = [];
                 $totalShipQty = null;
+                $allQtyQuestion = true;
+                $hasPartQtyValue = false;
 
                 $pjText = $r['parts_json'] ?? '';
                 if (is_string($pjText) && $pjText !== '') {
@@ -2749,9 +2750,22 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
                                 foreach ($tmp['parts'] as $it) {
                                     if (is_array($it) && isset($it['part'])) {
                                         $partsLines[] = (string)$it['part'];
-                                        $qtyLines[]   = number_format((int)($it['ship_qty'] ?? $it['qty'] ?? 0));
+                                        $rawQty = $it['ship_qty'] ?? $it['qty'] ?? null;
+                                        if ($rawQty !== null) {
+                                            $hasPartQtyValue = true;
+                                            $rawQtyStr = trim((string)$rawQty);
+                                            if ($rawQtyStr === '?') {
+                                                $qtyLines[] = '?';
+                                            } else {
+                                                $allQtyQuestion = false;
+                                                $qtyLines[] = number_format((int)$rawQty);
+                                            }
+                                        } else {
+                                            $allQtyQuestion = false;
+                                        }
                                     } elseif (is_string($it) && $it !== '') {
                                         $partsLines[] = $it;
+                                        $allQtyQuestion = false;
                                     }
                                 }
                             }
@@ -2759,6 +2773,12 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
                         }
                     }
                 }
+                $zipNameForDetect = (string)($r['zip_name'] ?? '');
+                $isManualPublished = (
+                    stripos($zipNameForDetect, '[manual]') !== false
+                    || stripos($zipNameForDetect, 'manual') !== false
+                    || ($partsLines && $hasPartQtyValue && $allQtyQuestion)
+                );
                 if ($isManualPublished) {
                     if ($partsLines) $qtyLines = array_fill(0, count($partsLines), '?');
                     $totalShipQty = null;
