@@ -1257,9 +1257,29 @@ var reportConfirmModal    = document.getElementById('reportConfirmModal');
 var reportConfirmContinue = document.getElementById('reportConfirmContinue');
 var reportConfirmCancel   = document.getElementById('reportConfirmCancel');
 
+var REPORT_BUILD_MODES = {
+    auto: {
+        url: '<?= $APP_BASE ?>/shipinglist_export_lotlist.php',
+        postUrl: 'shipinglist_export_lotlist.php',
+        title: '성적서 제작'
+    },
+    manual: {
+        url: '<?= $APP_BASE ?>/shipinglist_export_lotlist_manual.php',
+        postUrl: 'shipinglist_export_lotlist_manual.php',
+        title: '수동 성적서 제작'
+    }
+};
+var reportMode = 'auto';
 var reportBuildToken = null;
 var reportRunning = false;
 var reportCancelRequested = false;
+
+function getReportModeConfig(){
+    return REPORT_BUILD_MODES[reportMode] || REPORT_BUILD_MODES.auto;
+}
+function setReportMode(mode){
+    reportMode = (mode === 'manual') ? 'manual' : 'auto';
+}
 
 function makeBuildToken(){
     return String(Date.now()) + '_' + Math.random().toString(16).slice(2);
@@ -1269,7 +1289,8 @@ function buildReportUrl(){
     var qs = window.location.search || '';
     // embed=1(있으면 그대로)
     var hasEmbed = /(^|[?&])embed=1(&|$)/.test(qs);
-    var url = '<?= $APP_BASE ?>/shipinglist_export_lotlist.php' + qs;
+    var cfg = getReportModeConfig();
+    var url = cfg.url + qs;
     url += (qs ? '&' : '?') + 'ts=' + Date.now();
     if (!hasEmbed) url += '&embed=1';
     if (reportBuildToken) url += '&build_token=' + encodeURIComponent(reportBuildToken);
@@ -1299,7 +1320,8 @@ async function requestCancelReportBuild(){
             var body = new URLSearchParams();
             body.set('action', 'build_cancel');
             body.set('build_token', reportBuildToken);
-            await fetch('shipinglist_export_lotlist.php', {
+            var cfg = getReportModeConfig();
+            await fetch(cfg.postUrl, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'},
                 body: body.toString(),
@@ -1313,7 +1335,9 @@ async function requestCancelReportBuild(){
     closeReportBuildModal();
 }
 
-function openReportBuildModal(){
+function openReportBuildModal(mode){
+    setReportMode(mode || 'auto');
+
     // 매번 새 토큰
     reportBuildToken = makeBuildToken();
     // ✅ 발행 시작 전(폼 화면)에는 닫기 확인을 띄우지 않음
@@ -1331,7 +1355,8 @@ function openReportBuildModal(){
 
     var frame = document.getElementById('reportFrame');
     var url = buildReportUrl();
-    if (reportTitle) reportTitle.textContent = '성적서 제작';
+    var cfg = getReportModeConfig();
+    if (reportTitle) reportTitle.textContent = cfg.title;
     if (frame) frame.src = url;
 
     reportModal.classList.add('show');
@@ -2431,7 +2456,7 @@ body.jtmes-page input[type="submit"]:active {
             <div>
                 <!-- 성적서(Shipping Lot List) 버튼 -->
                 <button type="button" class="btn"
-                        onclick="openReportBuildModal();">
+                        onclick="openReportBuildModal('auto');">
                     성적서 제작
                 </button>
 
