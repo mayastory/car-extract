@@ -1045,6 +1045,34 @@ function pageLink(int $p, int $per): string {
     background:#202124;
 }
 
+
+/* ✅ 수동 성적서 2차 모달 (독립 오버레이) */
+.manual-report-backdrop{ z-index:930; background:rgba(0,0,0,0.62); }
+.manual-report-modal{
+    position:fixed;
+    left:50%;
+    top:50%;
+    transform:translate(-50%, -50%);
+    background:#2b2b2b;
+    border-radius:18px;
+    box-shadow:0 24px 46px rgba(0,0,0,0.78);
+    width:1240px;
+    max-width:96%;
+    padding:10px 12px 12px;
+    display:none;
+    z-index:931;
+}
+.manual-report-modal.show{ display:block; }
+.manual-report-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:6px 6px 8px;
+}
+.manual-report-title{ font-size:15px; font-weight:600; }
+.manual-report-close{ border:none; background:transparent; color:#f1f3f4; font-size:20px; cursor:pointer; line-height:1; }
+.manual-report-modal iframe{ width:100%; height:76vh; border:none; border-radius:12px; background:#202124; }
+
 /* ✅ 성적서 발행 중 닫기 확인 모달 */
 .report-confirm-backdrop{z-index:930;}
 .report-confirm-modal{
@@ -1251,6 +1279,10 @@ var reportTitle    = document.getElementById('reportTitle');
 var reportCloseBtn = document.getElementById('reportCloseBtn');
 var reportPopBtn   = document.getElementById('reportPopBtn');
 
+var manualReportBackdrop = document.getElementById('manualReportBackdrop');
+var manualReportModal    = document.getElementById('manualReportModal');
+var manualReportCloseBtn = document.getElementById('manualReportCloseBtn');
+
 // 닫기 확인 모달
 var reportConfirmBackdrop = document.getElementById('reportConfirmBackdrop');
 var reportConfirmModal    = document.getElementById('reportConfirmModal');
@@ -1280,6 +1312,39 @@ function getReportModeConfig(){
 function setReportMode(mode){
     reportMode = (mode === 'manual') ? 'manual' : 'auto';
 }
+
+function buildManualOverlayUrl(ctx){
+    ctx = ctx || {};
+    var qs = [];
+    qs.push('embed=1');
+    if (ctx.from_date) qs.push('from_date=' + encodeURIComponent(ctx.from_date));
+    if (ctx.to_date)   qs.push('to_date='   + encodeURIComponent(ctx.to_date));
+    if (ctx.ship_to)   qs.push('ship_to='   + encodeURIComponent(ctx.ship_to));
+    qs.push('ts=' + Date.now());
+    return '<?= $APP_BASE ?>/shipinglist_export_lotlist_manual.php?' + qs.join('&');
+}
+
+function openManualReportBuildOverlay(ctx){
+    var url = buildManualOverlayUrl(ctx || {});
+    var frame = document.getElementById('manualReportFrame');
+    if (!manualReportModal || !manualReportBackdrop || !frame) {
+        var w = window.open(url, 'manual_report_build', 'width=1280,height=900,menubar=no,toolbar=no,location=no,status=no');
+        if (!w) location.href = url;
+        return;
+    }
+    frame.src = url;
+    manualReportModal.classList.add('show');
+    manualReportBackdrop.classList.add('show');
+}
+window.openManualReportBuildOverlay = openManualReportBuildOverlay;
+
+function closeManualReportBuildOverlay(){
+    var frame = document.getElementById('manualReportFrame');
+    if (frame) frame.src = 'about:blank';
+    if (manualReportModal) manualReportModal.classList.remove('show');
+    if (manualReportBackdrop) manualReportBackdrop.classList.remove('show');
+}
+window.closeManualReportBuildOverlay = closeManualReportBuildOverlay;
 
 function makeBuildToken(){
     return String(Date.now()) + '_' + Math.random().toString(16).slice(2);
@@ -1413,6 +1478,8 @@ window.addEventListener('message', function(ev){
 
 if (reportBackdrop) reportBackdrop.addEventListener('click', attemptCloseReportBuildModal);
 if (reportCloseBtn) reportCloseBtn.addEventListener('click', attemptCloseReportBuildModal);
+if (manualReportCloseBtn) manualReportCloseBtn.addEventListener('click', closeManualReportBuildOverlay);
+if (manualReportBackdrop) manualReportBackdrop.addEventListener('click', closeManualReportBuildOverlay);
 if (reportPopBtn) reportPopBtn.addEventListener('click', popReportBuildModal);
 
 if (reportConfirmBackdrop) reportConfirmBackdrop.addEventListener('click', function(){ closeReportConfirm(); });
@@ -1427,6 +1494,10 @@ document.addEventListener('keydown', function(e){
     // 확인 모달이 떠있으면 먼저 닫기
     if (reportConfirmModal && reportConfirmModal.classList && reportConfirmModal.classList.contains('show')) {
         closeReportConfirm();
+        return;
+    }
+    if (manualReportModal && manualReportModal.classList && manualReportModal.classList.contains('show')) {
+        closeManualReportBuildOverlay();
         return;
     }
     // 성적서 모달이 열려있을 때만 닫기 시도

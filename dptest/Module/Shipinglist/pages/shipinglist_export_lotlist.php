@@ -2819,7 +2819,8 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
                       <div class="mini"><?=h((string)($r['canceled_by'] ?? ''))?></div>
                     <?php endif; ?>
                   <?php else: ?>
-                    <span class="badge">발행</span>
+                    <?php $isManual = (stripos((string)($r['zip_name'] ?? ''), '[manual]') !== false); ?>
+                    <span class="badge"><?= $isManual ? '수동발행' : '발행' ?></span>
                     <?php $viewOk = is_dir(JTMES_ROOT . '/exports/reports/rf_' . (int)($r['id'] ?? 0)); ?>
                   <?php if ($viewOk): ?>
                     <button type="button" class="btn btn-secondary btn-sm" style="margin-left:6px;" onclick="openReportView(<?= (int)($r['id'] ?? 0) ?>)">View</button>
@@ -2847,18 +2848,6 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
 </div>
 
 
-
-<!-- Manual Report Build Modal -->
-<div id="manualReportModal" class="rv-modal" style="display:none; z-index:10020;">
-  <div class="rv-backdrop" onclick="closeManualReportBuild()"></div>
-  <div class="rv-panel" role="dialog" aria-modal="true">
-    <div class="rv-head">
-      <div class="rv-title">수동 성적서 제작</div>
-      <button class="rv-close" type="button" onclick="closeManualReportBuild()">닫기</button>
-    </div>
-    <iframe id="manualReportFrame" class="rv-iframe" src="about:blank"></iframe>
-  </div>
-</div>
 
 <!-- Report View Modal -->
 <div id="reportViewModal" class="rv-modal" style="display:none;">
@@ -2888,30 +2877,28 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
     var form = document.getElementById('buildForm');
     var from = form && form.querySelector('input[name="from_date"]') ? form.querySelector('input[name="from_date"]').value : '';
     var to   = form && form.querySelector('input[name="to_date"]')   ? form.querySelector('input[name="to_date"]').value   : '';
-    var url  = 'shipinglist_export_lotlist_manual.php?embed=1';
-    if (from) url += '&from_date=' + encodeURIComponent(from);
-    if (to)   url += '&to_date='   + encodeURIComponent(to);
+    var shipTo = form && form.querySelector('select[name="ship_to"]') ? form.querySelector('select[name="ship_to"]').value : '';
+    var url  = '<?= $APP_BASE ?>/shipinglist_export_lotlist_manual.php?embed=1';
+    if (from)   url += '&from_date=' + encodeURIComponent(from);
+    if (to)     url += '&to_date='   + encodeURIComponent(to);
+    if (shipTo) url += '&ship_to='   + encodeURIComponent(shipTo);
     url += '&ts=' + Date.now();
     return url;
   }
 
   function openManualReportBuild(){
-    var m = document.getElementById('manualReportModal');
-    var f = document.getElementById('manualReportFrame');
     var url = buildManualReportUrl();
-    if (!m || !f) {
-      window.location.href = url;
-      return;
-    }
-    f.src = url;
-    m.style.display = 'block';
-  }
-
-  function closeManualReportBuild(){
-    var m = document.getElementById('manualReportModal');
-    var f = document.getElementById('manualReportFrame');
-    if (f) f.src = 'about:blank';
-    if (m) m.style.display = 'none';
+    try {
+      if (window.parent && window.parent !== window && typeof window.parent.openManualReportBuildOverlay === 'function') {
+        window.parent.openManualReportBuildOverlay({
+          from_date: (document.querySelector('input[name="from_date"]') || {}).value || '',
+          to_date:   (document.querySelector('input[name="to_date"]')   || {}).value || '',
+          ship_to:   (document.querySelector('select[name="ship_to"]')   || {}).value || ''
+        });
+        return;
+      }
+    } catch (e) {}
+    window.open(url, 'manual_report_build', 'width=1200,height=850,menubar=no,toolbar=no,location=no,status=no');
   }
 
   function openReportView(id){

@@ -178,173 +178,6 @@ if (!function_exists('normalize_date_ymd')) {
 }
 
 
-if (!function_exists('normalize_manual_prod_date')) {
-    function normalize_manual_prod_date(?string $s): string {
-        $s = trim((string)($s ?? ''));
-        if ($s === '') return '';
-        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $s, $m)) {
-            $y = (int)$m[1]; $mo = (int)$m[2]; $d = (int)$m[3];
-            return checkdate($mo, $d, $y) ? sprintf('%04d-%02d-%02d', $y, $mo, $d) : '';
-        }
-        if (preg_match('/^(\d{8})$/', $s, $m)) {
-            $y = (int)substr($m[1], 0, 4);
-            $mo = (int)substr($m[1], 4, 2);
-            $d = (int)substr($m[1], 6, 2);
-            return checkdate($mo, $d, $y) ? sprintf('%04d-%02d-%02d', $y, $mo, $d) : '';
-        }
-        if (preg_match('/^(\d{6})$/', $s, $m)) {
-            $y = 2000 + (int)substr($m[1], 0, 2);
-            $mo = (int)substr($m[1], 2, 2);
-            $d = (int)substr($m[1], 4, 2);
-            return checkdate($mo, $d, $y) ? sprintf('%04d-%02d-%02d', $y, $mo, $d) : '';
-        }
-        return '';
-    }
-}
-
-if (!function_exists('manual_report_part_defs')) {
-    function manual_report_part_defs(): array {
-        return [
-            'ir' => ['label' => 'IR', 'part' => 'MEM-IR-BASE'],
-            'xc' => ['label' => 'XC', 'part' => 'MEM-X-CARRIER'],
-            'yc' => ['label' => 'YC', 'part' => 'MEM-Y-CARRIER'],
-            'zc' => ['label' => 'ZC', 'part' => 'MEM-Z-CARRIER'],
-            'zs' => ['label' => 'ZS', 'part' => 'MEM-Z-STOPPER'],
-        ];
-    }
-}
-
-if (!function_exists('manual_report_parse_block')) {
-    function manual_report_parse_block(string $text): array {
-        $lines = preg_split('/\r\n|\r|\n/', (string)$text);
-        $dates = [];
-        $pairs = [];
-        $errors = [];
-
-        foreach ($lines as $idx => $rawLine) {
-            $lineNo = $idx + 1;
-            $line = trim((string)$rawLine);
-            if ($line === '') continue;
-
-            $dateYmd = normalize_manual_prod_date($line);
-            if ($dateYmd !== '') {
-                $dates[$dateYmd] = true;
-                continue;
-            }
-
-            if (preg_match('/^([^:]+)\s*:\s*(.+)$/u', $line, $m)) {
-                $tool = extract_tool_letter((string)$m[1]);
-                if (!$tool) {
-                    $errors[] = "라인 {$lineNo}: Tool 문자를 해석할 수 없습니다. ({$line})";
-                    continue;
-                }
-                $rhs = trim((string)$m[2]);
-                if ($rhs === '') {
-                    $errors[] = "라인 {$lineNo}: cavity 값이 비어 있습니다. ({$line})";
-                    continue;
-                }
-                $vals = preg_split('/\s*,\s*/', $rhs);
-                $validFound = false;
-                foreach ($vals as $v) {
-                    $v = trim((string)$v);
-                    if ($v === '') continue;
-                    if (!preg_match('/^\d+$/', $v)) {
-                        $errors[] = "라인 {$lineNo}: cavity 값은 숫자만 가능합니다. ({$line})";
-                        continue;
-                    }
-                    $cv = (int)$v;
-                    if ($cv < 1 || $cv > 99) {
-                        $errors[] = "라인 {$lineNo}: cavity 값 범위가 올바르지 않습니다. ({$line})";
-                        continue;
-                    }
-                    $pairs[$tool . '#' . $cv] = ['tool' => $tool, 'cavity' => $cv];
-                    $validFound = true;
-                }
-                if (!$validFound) {
-                    $errors[] = "라인 {$lineNo}: 유효한 cavity 값이 없습니다. ({$line})";
-                }
-                continue;
-            }
-
-            $errors[] = "라인 {$lineNo}: 해석할 수 없는 형식입니다. ({$line})";
-        }
-
-        ksort($dates);
-        uksort($pairs, 'strnatcasecmp');
-
-        return [
-            'dates' => array_keys($dates),
-            'pairs' => array_values($pairs),
-            'errors' => $errors,
-        ];
-    }
-}
-
-if (!function_exists('manual_report_build_rows')) {
-    function manual_report_build_rows(array $manualTexts, string $shippingDateStr): array {
-        $defs = manual_report_part_defs();
-        $result = [
-            'rows' => [],
-            'counts' => [],
-            'sumQty' => [],
-            'errors' => [],
-            'parts' => [],
-        ];
-
-        foreach ($defs as $key => $def) {
-            $text = trim((string)($manualTexts[$key] ?? ''));
-            if ($text === '') continue;
-
-            $parsed = manual_report_parse_block($text);
-            foreach (($parsed['errors'] ?? []) as $err) {
-                $result['errors'][] = '[' . $def['label'] . '] ' . $err;
-            }
-            $dates = $parsed['dates'] ?? [];
-            $pairs = $parsed['pairs'] ?? [];
-            if (!$dates || !$pairs) {
-                $result['errors'][] = '[' . $def['label'] . '] 생산일과 Tool/Cavity를 모두 입력해야 합니다.';
-                continue;
-            }
-
-            $part = (string)$def['part'];
-            $result['parts'][$part] = true;
-            foreach ($dates as $dateYmd) {
-                $packNo = str_replace('-', '', $dateYmd);
-                $packTotal = count($pairs);
-                foreach ($pairs as $pair) {
-                    $tool = (string)($pair['tool'] ?? '');
-                    $cv = (int)($pair['cavity'] ?? 0);
-                    if ($tool === '' || $cv <= 0) continue;
-                    $result['rows'][] = [
-                        'ship_datetime'    => $shippingDateStr . ' 00:00:00',
-                        'part_name'        => $part,
-                        'cavity'           => $cv,
-                        'qty'              => 1,
-                        'customer_lot_id'  => $dateYmd . '-' . $tool . $cv,
-                        'pack_no'          => $packNo,
-                        'ann_date'         => '',
-                        'prod_date'        => $dateYmd,
-                        'tool'             => $tool,
-                        '_manual_pack_qty' => $packTotal,
-                    ];
-                    if (!isset($result['counts'][$part])) $result['counts'][$part] = 0;
-                    if (!isset($result['sumQty'][$part])) $result['sumQty'][$part] = 0;
-                    $result['counts'][$part] += 1;
-                    $result['sumQty'][$part] += 1;
-                }
-            }
-        }
-
-        usort($result['rows'], function($a, $b){
-            $ka = [$a['part_name'] ?? '', $a['pack_no'] ?? '', $a['tool'] ?? '', (int)($a['cavity'] ?? 0)];
-            $kb = [$b['part_name'] ?? '', $b['pack_no'] ?? '', $b['tool'] ?? '', (int)($b['cavity'] ?? 0)];
-            return $ka <=> $kb;
-        });
-
-        return $result;
-    }
-}
-
 // ─────────────────────────────
 // PhpSpreadsheet 캐시(메모리 절감)
 // ─────────────────────────────
@@ -475,8 +308,6 @@ $SHIP_TO_TEMPLATE_SUBDIR = [
     '자화전자(주)'       => 'JAWHA',
     // 필요하면 계속 추가
 ];
-
-$IS_MANUAL_REPORT = true;
 
 // ship_to (build 화면은 GET, 취소/재시도는 POST일 수 있음)
 $shipTo = trim((string)($_GET['ship_to'] ?? ($_POST['ship_to'] ?? '')));
@@ -2077,14 +1908,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && $action === 'build_cancel')
 
 
 // ─────────────────────────────
-// (AJAX) 수동 성적서용 납품처 목록
-if (($IS_MANUAL_REPORT ?? false) && ($_SERVER['REQUEST_METHOD'] ?? '') === 'GET' && $action === 'ship_to_list') {
-    header('Content-Type: application/json; charset=UTF-8');
-    $list = array_values(array_keys($SHIP_TO_TEMPLATE_SUBDIR));
-    echo json_encode(['ok' => true, 'ship_to_list' => $list], JSON_UNESCAPED_UNICODE);
-    exit;
-}
-
 // (AJAX) 날짜 범위로 납품처 목록 가져오기
 //  - GET action=ship_to_list&from_date=YYYY-MM-DD&to_date=YYYY-MM-DD
 //  - JS에서 날짜 선택 시 납품처 셀렉트를 자동 갱신하기 위함
@@ -2546,47 +2369,47 @@ if ($action !== 'build') {
 
     $today = date('Y-m-d');
 
-    $fromDate = normalize_date_ymd($_REQUEST['from_date'] ?? $today);
-    $toDate   = normalize_date_ymd($_REQUEST['to_date']   ?? $today);
-    if ($fromDate === '') $fromDate = $today;
-    if ($toDate   === '') $toDate   = $today;
+$fromDate = normalize_date_ymd($_REQUEST['from_date'] ?? $today);
+$toDate   = normalize_date_ymd($_REQUEST['to_date']   ?? $today);
+if ($fromDate === '') $fromDate = $today;
+if ($toDate   === '') $toDate   = $today;
 
-    $shipToList = array_values(array_keys($SHIP_TO_TEMPLATE_SUBDIR));
-    if (empty($shipToList)) $shipToList = ['엘지이노텍(주)', '자화전자(주)'];
-    $selectedShipTo = trim((string)($_REQUEST['ship_to'] ?? ''));
-    if ($selectedShipTo === '' || !in_array($selectedShipTo, $shipToList, true)) {
-        $selectedShipTo = $shipToList[0] ?? '';
-    }
+$stmt = $pdo->query("SELECT DISTINCT ship_to FROM ShipingList WHERE ship_to <> '' ORDER BY ship_to");
+$shipToList = $stmt ? $stmt->fetchAll(PDO::FETCH_COLUMN) : [];
+$selectedShipTo = $_REQUEST['ship_to'] ?? ($shipToList[0] ?? '');
+if (empty($shipToList)) {
+    $shipToList = [''];
+    $selectedShipTo = '';
+}
 
-    $manualPartDefs = manual_report_part_defs();
-    $manualInputs = [];
-    foreach ($manualPartDefs as $key => $def) {
-        $manualInputs[$key] = (string)($_REQUEST['manual_' . $key] ?? '');
-    }
+$manualSpecDefault = [
+    'IR' => (string)($_REQUEST['manual_spec']['IR'] ?? ''),
+    'XC' => (string)($_REQUEST['manual_spec']['XC'] ?? ''),
+    'YC' => (string)($_REQUEST['manual_spec']['YC'] ?? ''),
+    'ZC' => (string)($_REQUEST['manual_spec']['ZC'] ?? ''),
+    'ZS' => (string)($_REQUEST['manual_spec']['ZS'] ?? ''),
+];
+
 
     // ─────────────────────────────
-    // (추가) 수동 발행 내역 조회 (월 단위)
+    // (추가) 발행 내역 조회 (월 단위)
     // ─────────────────────────────
     ensure_report_finish_table($pdo);
 
-    $histMonth = trim((string)($_REQUEST['hist_month'] ?? date('Y-m')));
+    $histMonth = trim($_GET['hist_month'] ?? date('Y-m'));
     if (!preg_match('/^\d{4}-\d{2}$/', $histMonth)) $histMonth = date('Y-m');
 
     $histRows  = report_finish_list_month($pdo, $histMonth);
-    $histRows = array_values(array_filter($histRows, function($r){
-        $zipName = (string)($r['zip_name'] ?? '');
-        return stripos($zipName, '[manual]') !== false;
-    }));
 
-    $cancelOk  = ((int)($_REQUEST['cancel_ok'] ?? 0) === 1);
-    $cancelMsg = trim((string)($_REQUEST['cancel_msg'] ?? ''));
+    $cancelOk  = ((int)($_GET['cancel_ok'] ?? 0) === 1);
+    $cancelMsg = trim((string)($_GET['cancel_msg'] ?? ''));
 
 ?>
 <!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>수동 성적서 만들기</title>
+<title>수동 성적서 제작</title>
 <style>
 :root{
   --bg:#202124; --card:#2b2b2b; --fg:#e8eaed;
@@ -2731,105 +2554,72 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
       <div class="row">
         <div class="col">
           <label>조회기간 (출하일자)</label>
-          <input type="hidden" name="from_date" value="<?= h($fromDate) ?>">
-          <input type="hidden" name="to_date" value="<?= h($toDate) ?>">
-          <div class="ctl" style="display:flex; align-items:center; min-width:250px; white-space:nowrap;">
-            <?= h($fromDate !== '' ? $fromDate : '-') ?>
-            <span style="padding:0 8px; color:#9aa0a6;">~</span>
-            <?= h($toDate !== '' ? $toDate : '-') ?>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <input type="date" name="from_date" class="filter-input-date" value="<?= h($fromDate) ?>" min="2000-01-01" max="9999-12-31">
+            <span style="font-size:11px; color:#9aa0a6;">~</span>
+            <input type="date" name="to_date" class="filter-input-date" value="<?= h($toDate) ?>" min="2000-01-01" max="9999-12-31">
           </div>
         </div>
         <div class="col">
           <label>납품처</label>
           <select name="ship_to">
             <?php foreach ($shipToList as $st): ?>
-              <option value="<?=h($st)?>" <?=($st === $selectedShipTo ? 'selected' : '')?>><?=h($st)?></option>
+              <?php $stLabel = ($st === '' ? '(납품처 없음)' : $st); ?>
+              <option value="<?=h($st)?>" <?=($st === $selectedShipTo ? 'selected' : '')?>><?=h($stLabel)?></option>
             <?php endforeach; ?>
           </select>
         </div>
         <div class="col">
           <label>&nbsp;</label>
-          <button type="submit" class="btn btn-primary">수동 성적서 생성</button>
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <button type="submit" class="btn btn-primary">수동성적서 생성</button>
+          </div>
         </div>
-      </div>
-
-      <div class="desc" style="margin-top:10px;">
-        탭별 입력 형식: 생산일 줄 + Tool:Cavity 줄을 입력합니다.<br>
-        예) <span class="mono">2026-03-21</span> 또는 <span class="mono">260321</span> / <span class="mono">A: 3,4</span>
       </div>
 
       <style>
-        .manual-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;margin-bottom:12px;}
-        .manual-tab{height:32px;padding:0 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.16);background:rgba(255,255,255,0.05);color:var(--fg);font-size:12.5px;font-weight:700;cursor:pointer;}
-        .manual-tab.active{background:rgba(79,140,255,0.18);border-color:rgba(138,180,248,0.55);color:#dce9ff;}
+        .manual-tabbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;margin-bottom:10px;}
+        .manual-tab{height:32px;padding:0 12px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--fg);cursor:pointer;font-weight:700;}
+        .manual-tab.active{background:rgba(79,140,255,.20);border-color:rgba(138,180,248,.55);color:#fff;}
         .manual-pane{display:none;}
         .manual-pane.active{display:block;}
-        .manual-text{width:100%;min-height:240px;resize:vertical;border-radius:12px;border:1px solid var(--border);background:var(--bg);color:var(--fg);padding:12px 14px;font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;box-sizing:border-box;}
-        .manual-help{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:8px;color:var(--muted);font-size:12px;}
+        .manual-spec{width:100%;min-height:260px;resize:vertical;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:var(--bg);color:var(--fg);font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;box-sizing:border-box;}
       </style>
-
-      <div class="manual-tabs" role="tablist" aria-label="수동 성적서 품목 탭">
-        <?php $manualTabIndex = 0; foreach ($manualPartDefs as $key => $def): ?>
-          <button type="button" class="manual-tab <?= $manualTabIndex === 0 ? 'active' : '' ?>" data-manual-tab="<?=h($key)?>"><?=h($def['label'])?></button>
-        <?php $manualTabIndex++; endforeach; ?>
+      <div class="desc" style="margin-bottom:10px;">생산일은 <b>2026-03-21</b>, <b>20260321</b>, <b>260321</b> 형식 모두 인식합니다. Tool/Cavity는 <b>A: 3,4</b> 형식으로 입력하세요.</div>
+      <div class="manual-tabbar">
+        <?php foreach (['IR','XC','YC','ZC','ZS'] as $i => $code): ?>
+          <button type="button" class="manual-tab <?= $i===0 ? 'active' : '' ?>" data-tab="<?=h($code)?>"><?=h($code)?></button>
+        <?php endforeach; ?>
       </div>
-
-      <?php $manualPaneIndex = 0; foreach ($manualPartDefs as $key => $def): ?>
-        <div class="manual-pane <?= $manualPaneIndex === 0 ? 'active' : '' ?>" data-manual-pane="<?=h($key)?>">
-          <div class="manual-help">
-            <div><strong><?=h($def['label'])?></strong> / <?=h($def['part'])?></div>
-            <div>빈 탭은 생성 대상에서 제외됩니다.</div>
-          </div>
-          <textarea class="manual-text" name="manual_<?=h($key)?>" spellcheck="false" placeholder="2026-03-21&#10;2026-03-22&#10;A: 3,4&#10;B: 1,3,4"><?=h($manualInputs[$key] ?? '')?></textarea>
+      <?php foreach (['IR','XC','YC','ZC','ZS'] as $i => $code): ?>
+        <div class="manual-pane <?= $i===0 ? 'active' : '' ?>" data-pane="<?=h($code)?>">
+          <label><?=h($code)?> 수동 입력</label>
+          <textarea class="manual-spec" name="manual_spec[<?=h($code)?>]" spellcheck="false"><?= h((string)($manualSpecDefault[$code] ?? '')) ?></textarea>
         </div>
-      <?php $manualPaneIndex++; endforeach; ?>
+      <?php endforeach; ?>
     </form>
 <script>
 (function(){
-  const form = document.getElementById('buildForm');
-  const topAlert = document.getElementById('topAlert');
-  const tabs = Array.from(document.querySelectorAll('.manual-tab'));
-  const panes = Array.from(document.querySelectorAll('.manual-pane'));
-
-  function showTopInfo(msg, bad){
-    if (!topAlert) {
-      alert(msg);
-      return;
-    }
-    topAlert.textContent = msg;
-    if (bad) topAlert.classList.add('bad');
-    else topAlert.classList.remove('bad');
-    topAlert.style.display = '';
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  function activateTab(key){
-    tabs.forEach(btn => btn.classList.toggle('active', btn.getAttribute('data-manual-tab') === key));
-    panes.forEach(pane => pane.classList.toggle('active', pane.getAttribute('data-manual-pane') === key));
-  }
-
-  tabs.forEach(btn => btn.addEventListener('click', function(){
-    activateTab(this.getAttribute('data-manual-tab') || '');
-  }));
-
-  if (form) {
-    form.addEventListener('submit', function(e){
-      const textareas = Array.from(form.querySelectorAll('textarea[name^="manual_"]'));
-      const hasValue = textareas.some(el => (el.value || '').trim() !== '');
-      if (!hasValue) {
-        e.preventDefault();
-        showTopInfo('최소 한 개 탭에 생산일 / Tool:Cavity를 입력해야 합니다.', true);
-      }
+  document.querySelectorAll('.manual-tab').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var code = btn.getAttribute('data-tab');
+      document.querySelectorAll('.manual-tab').forEach(function(x){ x.classList.remove('active'); });
+      document.querySelectorAll('.manual-pane').forEach(function(x){ x.classList.remove('active'); });
+      btn.classList.add('active');
+      var pane = document.querySelector('.manual-pane[data-pane="' + code + '"]');
+      if (pane) pane.classList.add('active');
     });
-  }
+  });
 })();
 </script>
+
+
   </div>
 
   <div class="card">
     <div class="card-head">
       <div>
-        <div class="card-title">수동성적서 발행 내역</div>
+        <div class="card-title">출하성적서 발행 내역</div>
       </div>
       <form method="get" style="display:flex;gap:8px;align-items:center;margin:0;">
         <input type="hidden" name="from_date" value="<?=h($fromDate)?>">
@@ -2951,7 +2741,8 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
                       <div class="mini"><?=h((string)($r['canceled_by'] ?? ''))?></div>
                     <?php endif; ?>
                   <?php else: ?>
-                    <span class="badge">수동발행</span>
+                    <?php $isManual = (stripos((string)($r['zip_name'] ?? ''), '[manual]') !== false); ?>
+                    <span class="badge"><?= $isManual ? '수동발행' : '발행' ?></span>
                     <?php $viewOk = is_dir(JTMES_ROOT . '/exports/reports/rf_' . (int)($r['id'] ?? 0)); ?>
                   <?php if ($viewOk): ?>
                     <button type="button" class="btn btn-secondary btn-sm" style="margin-left:6px;" onclick="openReportView(<?= (int)($r['id'] ?? 0) ?>)">View</button>
@@ -3004,6 +2795,34 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
 </style>
 
 <script>
+  function buildManualReportUrl(){
+    var form = document.getElementById('buildForm');
+    var from = form && form.querySelector('input[name="from_date"]') ? form.querySelector('input[name="from_date"]').value : '';
+    var to   = form && form.querySelector('input[name="to_date"]')   ? form.querySelector('input[name="to_date"]').value   : '';
+    var shipTo = form && form.querySelector('select[name="ship_to"]') ? form.querySelector('select[name="ship_to"]').value : '';
+    var url  = '<?= $APP_BASE ?>/shipinglist_export_lotlist_manual.php?embed=1';
+    if (from)   url += '&from_date=' + encodeURIComponent(from);
+    if (to)     url += '&to_date='   + encodeURIComponent(to);
+    if (shipTo) url += '&ship_to='   + encodeURIComponent(shipTo);
+    url += '&ts=' + Date.now();
+    return url;
+  }
+
+  function openManualReportBuild(){
+    var url = buildManualReportUrl();
+    try {
+      if (window.parent && window.parent !== window && typeof window.parent.openManualReportBuildOverlay === 'function') {
+        window.parent.openManualReportBuildOverlay({
+          from_date: (document.querySelector('input[name="from_date"]') || {}).value || '',
+          to_date:   (document.querySelector('input[name="to_date"]')   || {}).value || '',
+          ship_to:   (document.querySelector('select[name="ship_to"]')   || {}).value || ''
+        });
+        return;
+      }
+    } catch (e) {}
+    window.open(url, 'manual_report_build', 'width=1200,height=850,menubar=no,toolbar=no,location=no,status=no');
+  }
+
   function openReportView(id){
     var m = document.getElementById('reportViewModal');
     var f = document.getElementById('reportViewFrame');
@@ -3017,7 +2836,13 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
     m.style.display = 'none';
   }
   document.addEventListener('keydown', function(e){
-    if (e.key === 'Escape') closeReportView();
+    if (e.key !== 'Escape') return;
+    var manualModal = document.getElementById('manualReportModal');
+    if (manualModal && manualModal.style.display === 'block') {
+      closeManualReportBuild();
+      return;
+    }
+    closeReportView();
   });
 </script>
 
@@ -3043,6 +2868,23 @@ $toDate   = normalize_date_ymd($toDate);
 $shipTo   = trim((string)($_REQUEST['ship_to']   ?? ''));
 
 
+$manualSpecInput = (isset($_REQUEST['manual_spec']) && is_array($_REQUEST['manual_spec'])) ? $_REQUEST['manual_spec'] : [];
+$manualSpecsByPart = [];
+$manualErrors = [];
+foreach (['IR','XC','YC','ZC','ZS'] as $shortCode) {
+    $fullPart = manual_short_part_to_full($shortCode);
+    if (!$fullPart) continue;
+    $parsed = parse_manual_report_spec((string)($manualSpecInput[$shortCode] ?? ''));
+    if (!empty(trim((string)($manualSpecInput[$shortCode] ?? '')))) {
+        foreach (($parsed['errors'] ?? []) as $err) { $manualErrors[] = '[' . $shortCode . '] ' . $err; }
+        if (!empty($parsed['dates']) && !empty($parsed['tool_map'])) {
+            $manualSpecsByPart[$fullPart] = $parsed;
+        } elseif (empty($parsed['errors'])) {
+            $manualErrors[] = '[' . $shortCode . '] 생산일 또는 Tool/Cavity 정보가 부족합니다.';
+        }
+    }
+}
+
 $buildToken = preg_replace('/[^A-Za-z0-9_-]/', '', trim((string)($_GET['build_token'] ?? '')));
 if ($buildToken !== '') {
     // 이전 실행에서 남은 취소 플래그는 제거
@@ -3051,11 +2893,17 @@ if ($buildToken !== '') {
     $GLOBALS['PDO_REF'] = $pdo;
 }
 
-if ($fromDate === '' || $toDate === '' || $shipTo === '') {
-    // ✅ 납품처가 없는 상태에서 생성 버튼을 누르면 에러(die) 대신 안내 메시지로 되돌린다.
-    $msg = ($shipTo === '')
-        ? '해당 조회기간에는 납품처가 없어 성적서를 생성할 수 없습니다.'
-        : '필수 파라미터 누락 (from_date / to_date / ship_to)';
+if ($fromDate === '' || $toDate === '' || $shipTo === '' || !empty($manualErrors) || empty($manualSpecsByPart)) {
+    $msg = '';
+    if ($shipTo === '') {
+        $msg = '납품처를 선택해 주세요.';
+    } elseif ($fromDate === '' || $toDate === '') {
+        $msg = '조회기간(from_date / to_date)을 확인해 주세요.';
+    } elseif (!empty($manualErrors)) {
+        $msg = implode(' / ', $manualErrors);
+    } else {
+        $msg = '수동 입력된 생산일 / Tool#Cavity가 없습니다.';
+    }
 
     $params = [
         'from_date'  => ($fromDate !== '' ? $fromDate : date('Y-m-d')),
@@ -3064,13 +2912,13 @@ if ($fromDate === '' || $toDate === '' || $shipTo === '') {
         'cancel_ok'  => 1,
         'cancel_msg' => $msg,
     ];
-    if (isset($_GET['hist_month'])) $params['hist_month'] = (string)$_GET['hist_month'];
-    if (isset($_GET['embed']))     $params['embed']     = (string)$_GET['embed'];
-    if (isset($_GET['debug']))     $params['debug']     = (string)$_GET['debug'];
-    if (isset($_GET['emg_from']))  $params['emg_from']  = (string)$_GET['emg_from'];
-    if (isset($_GET['emg_to']))    $params['emg_to']    = (string)$_GET['emg_to'];
+    if (isset($_REQUEST['hist_month'])) $params['hist_month'] = (string)$_REQUEST['hist_month'];
+    if (isset($_REQUEST['embed']))     $params['embed']     = (string)$_REQUEST['embed'];
+    foreach (['IR','XC','YC','ZC','ZS'] as $shortCode) {
+        $params['manual_spec'][$shortCode] = (string)($manualSpecInput[$shortCode] ?? '');
+    }
 
-    $self = $_SERVER['PHP_SELF'] ?? 'shipinglist_export_lotlist.php';
+    $self = $_SERVER['PHP_SELF'] ?? 'shipinglist_export_lotlist_manual.php';
     header('Location: ' . $self . '?' . http_build_query($params));
     exit;
 }
@@ -3101,22 +2949,12 @@ $toolCol = detect_table_column($pdo, 'ShipingList', [
     'moldtype','mold_type','mold','moldtype_name','moldtypeid','mold_type_id'
 ]);
 
-$manualTexts = [];
-foreach (manual_report_part_defs() as $key => $def) {
-    $manualTexts[$key] = (string)($_REQUEST['manual_' . $key] ?? '');
-}
-$manualData = manual_report_build_rows($manualTexts, $shippingDateStr);
-$manualRows = $manualData['rows'] ?? [];
-$manualCounts = $manualData['counts'] ?? [];
-$manualSumQty = $manualData['sumQty'] ?? [];
-$manualErrors = $manualData['errors'] ?? [];
-
 ?>
 <!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>수동 성적서 발행 중...</title>
+<title>성적서 발행 중...</title>
 <style>
 body{margin:0;padding:20px;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#202124;color:#e8eaed;}
 .wrap{max-width:900px;margin:0 auto;}
@@ -3140,7 +2978,7 @@ body{margin:0;padding:20px;font-family:system-ui,-apple-system,BlinkMacSystemFon
 <div class="wrap">
   <h2 style="margin:0 0 12px;">수동 성적서 발행 중... <span class="badge">진행 로그</span></h2>
   <div class="card">
-    <div class="small">기간: <?=h($fromDate)?> ~ <?=h($toDate)?> / 납품처: <?=h($shipTo)?></div>
+    <div class="small">기간: <?=h($fromDate)?> ~ <?=h($toDate)?> / 납품처: <?=h($shipTo)?> / 방식: 수동 입력</div>
     <div id="log" class="log"><?php
 
 
@@ -3813,18 +3651,13 @@ if (!function_exists('sl_force_xlsx_full_recalc')) {
 
 //logline('ShipingList 컬럼 감지: prod_date=' . ($GLOBALS['prodCol'] ?? 'NONE') . ' / tool=' . ($GLOBALS['toolCol'] ?? 'NONE') . ' / cavity=cavity');
 
-logline('1) 수동 입력 데이터 집계 중...');
+logline('1) 수동 입력 데이터 정리 중...');
 
-if (!empty($manualErrors)) {
-    foreach ($manualErrors as $err) logline('[입력오류] ' . $err);
-    echo "</div></div></div></body></html>";
-    exit;
-}
-
-$counts = $manualCounts;
-$sumQty = $manualSumQty;
+[$manualRows, $counts] = manual_build_rows_from_specs($manualSpecsByPart, $toDate);
+$sumQty = [];
+foreach (array_keys($counts) as $p) { $sumQty[$p] = 0; }
 if (!$counts || !$manualRows) {
-    logline('수동 입력 데이터가 없습니다. 종료.');
+    logline('수동 입력 데이터 없음. 종료.');
     echo "</div></div></div></body></html>";
     exit;
 }
@@ -3877,7 +3710,14 @@ $oqcAgg = [];            // [part]['dates'=>set, 'cavs'=>set]
 $createdCmmFiles = [];   // cmm template files
 
 // 메인 조회(정렬) - 스트리밍 처리
-logline('2) 수동 성적서 발행 시작(스트리밍)...');
+logline('2) 성적서 발행 시작(스트리밍)...');
+
+$stmtRows = $manualRows;
+$stmtIndex = 0;
+$nextManualRow = function() use (&$stmtRows, &$stmtIndex) {
+    if (!isset($stmtRows[$stmtIndex])) return false;
+    return $stmtRows[$stmtIndex++];
+};
 
 // 파트별로 엑셀을 “열어두고” 처리
 $currentPart = null;
@@ -4070,7 +3910,7 @@ $openPart = function(string $partName, int $rowCount) use (
 
 // 스트리밍 루프
 $processed = 0;
-foreach ($manualRows as $row) {
+while (($row = $nextManualRow()) !== false) {
     $pn = trim((string)$row['part_name']);
     if ($pn === '' || !isset($PART_MAP[$pn])) continue;
 
@@ -5574,8 +5414,8 @@ logline('4) ZIP 묶는 중...');
 // ZIP 파일명: "YY.MM.DD (LGIT).zip" 형식
 $zipDate = date('y.m.d', strtotime($shippingDateStr));
 $shipCode = $SHIP_TO_TEMPLATE_SUBDIR[$shipTo] ?? 'SHIP';
-$zipBase = sprintf('%s (%s) [manual]', $zipDate, $shipCode);
-$zipName = $zipBase . '.zip';
+$zipBase = sprintf('%s (%s)', $zipDate, $shipCode);
+$zipName = '[manual] ' . $zipBase . '.zip';
 // 동일 이름이 이미 있으면 충돌 방지로 시간만 뒤에 붙임
 if (file_exists($workDir . DIRECTORY_SEPARATOR . $zipName)) {
     $zipName = $zipBase . '_' . date('His') . '.zip';
@@ -5725,18 +5565,11 @@ if (PDF_EXPORT_ENABLED) {
 // report_finish 기록 (발행 이력 저장)
 // ─────────────────────────────
 try {
-    // parts_json: 품번 + 출하수량(합계 포함)
+    // parts_json: 수동 발행은 품번 목록만 저장(출하수량은 ShipingList 미사용)
     $partsUniq = array_keys($counts);
     sort($partsUniq);
 
-    $partsArr = [];
-    $totalShipQty = 0;
-    foreach ($partsUniq as $p) {
-        $q = (int)($sumQty[$p] ?? 0);
-        $partsArr[] = ['part' => $p, 'ship_qty' => $q];
-        $totalShipQty += $q;
-    }
-    $partsPayload = ['parts' => $partsArr, 'total_ship_qty' => $totalShipQty];
+    $partsPayload = ['parts' => array_values($partsUniq)];
 
     // ✅ 발행(build) 시 실제 마킹한 header_id/컬럼/날짜 로그 저장(취소 롤백용)
     if (function_exists('oqc_marklog_export_grouped')) {
