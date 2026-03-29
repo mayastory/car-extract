@@ -2731,10 +2731,12 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
       <div class="row">
         <div class="col">
           <label>조회기간 (출하일자)</label>
-          <div style="display:flex; gap:6px; align-items:center;">
-            <input type="date" name="from_date" class="filter-input-date" value="<?= h($fromDate) ?>" min="2000-01-01" max="9999-12-31">
-            <span style="font-size:11px; color:#9aa0a6;">~</span>
-            <input type="date" name="to_date" class="filter-input-date" value="<?= h($toDate) ?>" min="2000-01-01" max="9999-12-31">
+          <input type="hidden" name="from_date" value="<?= h($fromDate) ?>">
+          <input type="hidden" name="to_date" value="<?= h($toDate) ?>">
+          <div class="ctl" style="display:flex; align-items:center; min-width:250px; white-space:nowrap;">
+            <?= h($fromDate !== '' ? $fromDate : '-') ?>
+            <span style="padding:0 8px; color:#9aa0a6;">~</span>
+            <?= h($toDate !== '' ? $toDate : '-') ?>
           </div>
         </div>
         <div class="col">

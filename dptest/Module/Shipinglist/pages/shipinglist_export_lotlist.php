@@ -2592,23 +2592,13 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
           <label>&nbsp;</label>
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
             <button type="submit" class="btn btn-primary">성적서 생성</button>
-            <button type="button" class="btn" onclick="openManualReportBuild();">수동성적서 생성</button>
+            <button type="button" class="btn btn-secondary" onclick="openManualReportBuild();">수동성적서 생성</button>
           </div>
         </div>
       </div>
 
     </form>
 <script>
-function openManualReportBuild(){
-  const from = document.querySelector('input[name="from_date"]');
-  const to   = document.querySelector('input[name="to_date"]');
-  const params = new URLSearchParams(window.location.search || '');
-  if (from) params.set('from_date', from.value || '');
-  if (to) params.set('to_date', to.value || '');
-  params.delete('action');
-  const qs = params.toString();
-  window.location.href = 'shipinglist_export_lotlist_manual.php' + (qs ? ('?' + qs) : '');
-}
 (function(){
   const from = document.querySelector('input[name="from_date"]');
   const to   = document.querySelector('input[name="to_date"]');
@@ -2858,6 +2848,18 @@ function openManualReportBuild(){
 
 
 
+<!-- Manual Report Build Modal -->
+<div id="manualReportModal" class="rv-modal" style="display:none; z-index:10020;">
+  <div class="rv-backdrop" onclick="closeManualReportBuild()"></div>
+  <div class="rv-panel" role="dialog" aria-modal="true">
+    <div class="rv-head">
+      <div class="rv-title">수동 성적서 제작</div>
+      <button class="rv-close" type="button" onclick="closeManualReportBuild()">닫기</button>
+    </div>
+    <iframe id="manualReportFrame" class="rv-iframe" src="about:blank"></iframe>
+  </div>
+</div>
+
 <!-- Report View Modal -->
 <div id="reportViewModal" class="rv-modal" style="display:none;">
   <div class="rv-backdrop" onclick="closeReportView()"></div>
@@ -2882,6 +2884,36 @@ function openManualReportBuild(){
 </style>
 
 <script>
+  function buildManualReportUrl(){
+    var form = document.getElementById('buildForm');
+    var from = form && form.querySelector('input[name="from_date"]') ? form.querySelector('input[name="from_date"]').value : '';
+    var to   = form && form.querySelector('input[name="to_date"]')   ? form.querySelector('input[name="to_date"]').value   : '';
+    var url  = 'shipinglist_export_lotlist_manual.php?embed=1';
+    if (from) url += '&from_date=' + encodeURIComponent(from);
+    if (to)   url += '&to_date='   + encodeURIComponent(to);
+    url += '&ts=' + Date.now();
+    return url;
+  }
+
+  function openManualReportBuild(){
+    var m = document.getElementById('manualReportModal');
+    var f = document.getElementById('manualReportFrame');
+    var url = buildManualReportUrl();
+    if (!m || !f) {
+      window.location.href = url;
+      return;
+    }
+    f.src = url;
+    m.style.display = 'block';
+  }
+
+  function closeManualReportBuild(){
+    var m = document.getElementById('manualReportModal');
+    var f = document.getElementById('manualReportFrame');
+    if (f) f.src = 'about:blank';
+    if (m) m.style.display = 'none';
+  }
+
   function openReportView(id){
     var m = document.getElementById('reportViewModal');
     var f = document.getElementById('reportViewFrame');
@@ -2895,7 +2927,13 @@ function openManualReportBuild(){
     m.style.display = 'none';
   }
   document.addEventListener('keydown', function(e){
-    if (e.key === 'Escape') closeReportView();
+    if (e.key !== 'Escape') return;
+    var manualModal = document.getElementById('manualReportModal');
+    if (manualModal && manualModal.style.display === 'block') {
+      closeManualReportBuild();
+      return;
+    }
+    closeReportView();
   });
 </script>
 
