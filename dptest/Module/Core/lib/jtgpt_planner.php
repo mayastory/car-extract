@@ -80,6 +80,126 @@ if (!function_exists('jtgpt_planner_part_alias_groups')) {
     }
 }
 
+
+/*
+ * JTGPT 자연어 라우팅 핵심 규칙
+ * ------------------------------------------------------------------
+ * 1) LG/엘지/자화/jawha 는 도메인 키워드가 아니라 공용 슬롯값이다.
+ *    - 출하 도메인에서는 납품처/고객사 의미
+ *    - OQC 플래그/성적서 가능 데이터 도메인에서는 meas_date/jmeas_date 의미
+ *    - 따라서 LG/자화 단어 하나만으로 출하/플래그 도메인을 결정하면 안 된다.
+ *
+ * 2) OQC/OMM/AOI/CMM 은 "영역" 단어이지 NG intent 자체가 아니다.
+ *    - OQC 라는 단어만 보고 recent_ng 로 보내면 안 된다.
+ *    - 플래그/성적서 가능/남은 데이터가 같이 있으면 cert_remaining 이 우선이다.
+ *
+ * 3) 몇건/몇개/얼마나/건수/수량/개수 는 모든 도메인에서 공통으로 쓰는 output=count 표현이다.
+ *    - count 표현만으로 출하/플래그/NG 도메인을 결정하면 안 된다.
+ *
+ * 4) 도메인 잠금 순서는 shipping -> cert_remaining -> ng 이다.
+ *    - 출하 단어가 있으면 출하로 잠금
+ *    - 플래그/성적서 가능/남은 데이터 단어가 있으면 cert_remaining 으로 잠금
+ *    - NG/USL/LSL/상한/하한/측정값/FAI 가 있을 때만 NG 도메인을 허용
+ *
+ * 5) fallback 안전장치
+ *    - 플래그 문장은 NG fallback 금지
+ *    - 출하 문장은 플래그/NG fallback 금지
+ *    - 애매하다고 OQC -> recent_ng 로 바로 밀어 넣지 않는다.
+ */
+if (!function_exists('jtgpt_planner_has_common_count_request')) {
+    function jtgpt_planner_has_common_count_request(string $message): bool {
+        $lower = mb_strtolower($message, 'UTF-8');
+        $compact = jtgpt_planner_compact_text($message);
+        if (jtgpt_planner_contains_any($lower, ['몇건', '몇 건', '몇개', '몇 개', '얼마나', '개수', '건수', '수량', '몇이나'])) {
+            return true;
+        }
+        return preg_match('/(?:몇건|몇개|얼마나|개수|건수|수량)/u', $compact) === 1;
+    }
+}
+
+if (!function_exists('jtgpt_planner_has_shipping_domain_signal')) {
+    function jtgpt_planner_has_shipping_domain_signal(string $message): bool {
+        $lower = mb_strtolower($message, 'UTF-8');
+        return jtgpt_planner_contains_any($lower, [
+            '출하내역', '출하', '출고', 'ship', 'shipping', 'lot', '포장', '납품처', '납품', '출하일자', '포장일자', 'tray'
+        ]);
+    }
+}
+
+if (!function_exists('jtgpt_planner_has_cert_domain_signal')) {
+    function jtgpt_planner_has_cert_domain_signal(string $message): bool {
+        $lower = mb_strtolower($message, 'UTF-8');
+        $compact = jtgpt_planner_compact_text($message);
+
+        $hasFlagWord = jtgpt_planner_contains_any($lower, ['flag', '플래그', '깃발']);
+        $hasDateEntity = jtgpt_planner_contains_any($lower, ['자화', 'jawha', '엘지', 'lg', 'meas_date', 'jmeas_date', 'jmeas', 'meas']);
+        $hasArea = jtgpt_planner_contains_any($lower, ['oqc']);
+        $hasCertAction = jtgpt_planner_contains_any($lower, [
+            '성적서', '발행 가능', '발행가능', '쓸 수 있는', '쓸수있는', '사용 가능', '사용가능', 'usable',
+            '남은 데이터', '남은데이터', '남은 거', '남은거', '잔여', '현황', '남아있는', '남아 있는', '남아있', '남아 있',
+            '남았', '남은', '남았니', '남았어'
+        ]) || preg_match('/(?:남은데이터|남은거|남았|남은|남아있|남아있는|잔여)/u', $compact) === 1;
+        $hasDataWord = jtgpt_planner_contains_any($lower, ['데이터', '현황', '목록', '리스트']);
+        $hasCountWord = jtgpt_planner_has_common_count_request($message);
+
+        if (jtgpt_planner_has_shipping_domain_signal($message)) {
+            return false;
+        }
+
+        if ($hasFlagWord && ($hasDateEntity || $hasArea || $hasCertAction || $hasDataWord || $hasCountWord)) {
+            return true;
+        }
+        if (($hasDateEntity || $hasArea) && $hasCertAction) {
+            return true;
+        }
+        if ($hasDateEntity && $hasDataWord && $hasCountWord) {
+            return true;
+        }
+        return false;
+    }
+}
+
+if (!function_exists('jtgpt_planner_has_ng_domain_signal')) {
+    function jtgpt_planner_has_ng_domain_signal(string $message, array $pointTerms = [], ?array $valueFilter = null): bool {
+        $lower = mb_strtolower($message, 'UTF-8');
+        if (jtgpt_planner_has_shipping_domain_signal($message) || jtgpt_planner_has_cert_domain_signal($message)) {
+            return false;
+        }
+
+        if (is_array($valueFilter) && !empty($valueFilter['enabled'])) {
+            return true;
+        }
+
+        $hasNgWords = jtgpt_planner_contains_any($lower, [
+            'ng', '불량', '포인트', 'point', 'fai', '측정값', 'value', 'usl', 'lsl', '상한', '하한', '초과', '미만'
+        ]);
+        if ($hasNgWords) {
+            return true;
+        }
+
+        $hasArea = jtgpt_planner_contains_any($lower, ['oqc', 'omm', 'cmm', 'aoi']);
+        if ($hasArea && (!empty($pointTerms) || preg_match('/\d+\s*(?:캐비티|cav|cavity)/u', $lower) || preg_match('/[a-z]\s*(?:차|차수|tool)/iu', $lower))) {
+            return true;
+        }
+        return false;
+    }
+}
+
+if (!function_exists('jtgpt_planner_detect_primary_domain')) {
+    function jtgpt_planner_detect_primary_domain(string $message, array $pointTerms = [], ?array $valueFilter = null): string {
+        if (jtgpt_planner_has_shipping_domain_signal($message)) {
+            return 'shipping';
+        }
+        if (jtgpt_planner_has_cert_domain_signal($message)) {
+            return 'cert_remaining';
+        }
+        if (jtgpt_planner_has_ng_domain_signal($message, $pointTerms, $valueFilter)) {
+            return 'ng';
+        }
+        return 'unknown';
+    }
+}
+
 if (!function_exists('jtgpt_planner_strip_part_aliases')) {
     function jtgpt_planner_strip_part_aliases(string $message): string {
         $text = $message;
@@ -189,30 +309,12 @@ if (!function_exists('jtgpt_planner_extract_cert_group_by')) {
 if (!function_exists('jtgpt_planner_is_cert_remaining_query')) {
     function jtgpt_planner_is_cert_remaining_query(string $message): bool {
         $lower = mb_strtolower($message, 'UTF-8');
-        $compact = jtgpt_planner_compact_text($message);
-
-        $hasRemaining = jtgpt_planner_contains_any($lower, ['남았', '남은', '남았니', '남았어', '잔여', '몇개 남', '몇 개 남', '몇건 남', '몇 건 남', '남아있', '남아 있', '남나'])
-            || preg_match('/(?:몇개|몇건)?남(?:았|은|아|아있|아있니)/u', $lower)
-            || preg_match('/(?:몇개|몇건)?남(?:았|은|아|아있|아있니)/u', $compact)
-            || preg_match('/몇개남(?:았|은|아|아있|아있니)/u', $compact)
-            || preg_match('/몇건남(?:았|은|아|아있|아있니)/u', $compact);
-        if (!$hasRemaining) {
-            return false;
-        }
-
-        $hasCert = jtgpt_planner_contains_any($lower, ['성적서', '발행 가능', '발행가능', '쓸 수 있는', '쓸수있는', 'usable']);
-        $hasFlag = jtgpt_planner_contains_any($lower, ['flag', '플래그', '깃발', '자화', 'jawha', '엘지', 'lg', 'meas_date', 'jmeas_date', 'jmeas', 'meas']);
-        $hasOqc = jtgpt_planner_contains_any($lower, ['oqc']);
-
-        if (!($hasCert || $hasFlag || $hasOqc)) {
-            return false;
-        }
 
         if (jtgpt_planner_contains_any($lower, ['ng만', 'ng 만', '불량만', '불량 만'])) {
             return false;
         }
 
-        return true;
+        return jtgpt_planner_has_cert_domain_signal($message);
     }
 }
 
@@ -398,7 +500,9 @@ if (!function_exists('jtgpt_planner_extract_quality_intent')) {
         if (jtgpt_planner_contains_any($lower, ['비교', 'compare'])) {
             return 'compare';
         }
-        if (jtgpt_planner_contains_any($lower, ['건수', '몇건', '몇 건', 'count', '개수', '몇개', '몇 개'])) {
+        // 몇건/몇개/얼마나/건수/수량은 NG 전용 표현이 아니라 모든 도메인 공통 count 요청이다.
+        // quality 도메인 안으로 들어온 뒤에만 count intent 로 해석한다.
+        if (jtgpt_planner_has_common_count_request($message) || jtgpt_planner_contains_any($lower, ['count'])) {
             return 'count';
         }
         if (jtgpt_planner_contains_any($lower, ['많은 포인트', 'ng 포인트', '불량 포인트', 'top', '상위', '가장 많은'])) {
@@ -1000,6 +1104,7 @@ if (!function_exists('jtgpt_planner_plan')) {
         $limit = jtgpt_planner_extract_limit($text);
         $valueFilter = jtgpt_planner_extract_quality_value_filter($text);
         $output = jtgpt_planner_extract_quality_output_format($text);
+        $domain = jtgpt_planner_detect_primary_domain($text, $pointTerms, $valueFilter);
 
         if ($text === '') {
             return [
@@ -1036,8 +1141,10 @@ if (!function_exists('jtgpt_planner_plan')) {
             return ['kind' => 'action', 'tool' => $actionType, 'args' => ['graph_spec' => $spec], 'autorun' => true];
         }
 
-        $shippingNeedles = ['출하', '출고', 'ship', 'shipping', 'lot', '포장', '납품', '수량', 'qty', 'ea', 'tray'];
-        if (jtgpt_planner_contains_any($lower, $shippingNeedles)) {
+        // 도메인 잠금 순서: shipping -> cert_remaining -> ng
+        // LG/자화/OQC/몇건 같은 공용 단어는 도메인 결정 키워드가 아니므로,
+        // 반드시 행동 단어가 강한 도메인을 먼저 잠근 뒤 세부 intent 를 해석한다.
+        if ($domain === 'shipping') {
             $metric = 'summary';
             if (jtgpt_planner_contains_any($lower, ['최근 출하일', '제일 최근 출하일', '최근출하일', '마지막 출하일', '마지막으로 출하', '최신 출하일'])) {
                 return ['kind' => 'tool', 'tool' => 'shipping_last_ship_date', 'args' => ['from' => $range['from'], 'to' => $range['to'], 'range' => $range, 'part_name' => $partName, 'customer' => $customer]];
@@ -1048,7 +1155,9 @@ if (!function_exists('jtgpt_planner_plan')) {
             return ['kind' => 'tool', 'tool' => 'shipping_summary', 'args' => ['from' => $range['from'], 'to' => $range['to'], 'range' => $range, 'part_name' => $partName, 'customer' => $customer, 'metric' => $metric]];
         }
 
-        if (jtgpt_planner_is_cert_remaining_query($text)) {
+        // 플래그/성적서 가능/남은 데이터 문장은 NG fallback 금지.
+        // date_field 는 LG/엘지=meas_date, 자화/jawha=jmeas_date 로 해석한다.
+        if ($domain === 'cert_remaining') {
             $slots = jtgpt_planner_build_quality_slots($text, $state, $range, $partName, $tools, $cavities, $pointTerms, $limit, null);
             $slots['intent'] = 'cert_remaining';
             $slots['module'] = 'oqc';
@@ -1064,11 +1173,7 @@ if (!function_exists('jtgpt_planner_plan')) {
             return ['kind' => 'tool', 'tool' => 'quality_cert_remaining', 'args' => $slots, 'slots' => $slots];
         }
 
-        $mentionsQuality = (
-            jtgpt_planner_contains_any($lower, ['ng', '불량', '포인트', 'point', 'fai', 'oqc', 'omm', 'cmm', 'aoi', '측정값', 'value', 'usl', 'lsl', 'flag', '플래그', '깃발', '자화', 'jawha', '엘지', 'lg'])
-            && !jtgpt_planner_is_cert_remaining_query($text)
-        ) || (is_array($valueFilter) && !empty($valueFilter['enabled']));
-        if ($mentionsQuality) {
+        if ($domain === 'ng') {
             $slots = jtgpt_planner_build_quality_slots($text, $state, $range, $partName, $tools, $cavities, $pointTerms, $limit, $valueFilter);
             $intent = (string)($slots['intent'] ?? 'recent_ng');
 
