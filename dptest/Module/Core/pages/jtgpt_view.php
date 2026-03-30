@@ -300,18 +300,23 @@ function jtgpt_quality_export_rows_normalize(array $rows, array $args, array $re
         if (!is_array($row)) continue;
         $moduleLabel = trim((string)($row['module_label'] ?? $defaultLabel));
         $module = strtolower(trim((string)($row['module'] ?? $defaultModule)));
-        $out[] = [
+        $ngSide = strtoupper(trim((string)($row['ng_side'] ?? '')));
+        $line = [
             '날짜' => (string)($row['event_date'] ?? '-'),
             '타입' => $moduleLabel !== '' ? $moduleLabel : strtoupper($module),
             'Tool/Cavity' => trim((string)($row['tool_cavity'] ?? '')),
             'FAI' => trim((string)($row['point_no'] ?? '')),
-            'NG' => strtoupper(trim((string)($row['ng_side'] ?? ''))),
+            'NG' => $ngSide,
             '기준값' => jtgpt_tool_format_float($row['ng_limit'] ?? null),
             '측정값' => jtgpt_tool_format_float($row['value'] ?? null),
             'USL' => jtgpt_tool_format_float($row['usl'] ?? null),
             'LSL' => jtgpt_tool_format_float($row['lsl'] ?? null),
             '모델' => trim((string)($row['part_name'] ?? $args['part_name'] ?? '')),
         ];
+        if ($ngSide !== '') {
+            $line['__cell_styles'] = ['날짜' => 'ng_date'];
+        }
+        $out[] = $line;
     }
     return $out;
 }
@@ -412,20 +417,231 @@ function jtgpt_quality_xlsx_xml_escape(string $value): string {
     return htmlspecialchars($value, ENT_XML1 | ENT_QUOTES, 'UTF-8');
 }
 
+function jtgpt_quality_cert_detail_sheet_name(string $modelName, int $index): string {
+    $name = trim($modelName);
+    if ($name === '') {
+        $name = 'MODEL' . $index;
+    }
+    $name = preg_replace('/[\\\/?\*\[\]:]+/u', '_', $name);
+    $name = trim((string)$name);
+    if ($name === '') {
+        $name = 'MODEL' . $index;
+    }
+    if (mb_strlen($name, 'UTF-8') > 31) {
+        $name = mb_substr($name, 0, 31, 'UTF-8');
+    }
+    return $name;
+}
+
+function jtgpt_quality_cert_detail_build_sheets(array $result, array $args): array {
+    $sheets = [];
+    $sheetIndex = 1;
+    foreach ((array)($result['model_groups'] ?? []) as $modelGroup) {
+        $modelName = trim((string)($modelGroup['model'] ?? '모델미상'));
+        $toolGroups = array_values((array)($modelGroup['tools'] ?? []));
+        if (!$toolGroups) {
+            continue;
+        }
+        $grid = [];
+        $colCursor = 1;
+        foreach ($toolGroups as $toolGroup) {
+            $cavityGroups = array_values((array)($toolGroup['cavities'] ?? []));
+            if (!$cavityGroups) {
+                $cavityGroups = [['cavity' => '-', 'dates' => []]];
+            }
+            $startCol = $colCursor;
+            $grid[1]['values'][$startCol] = jtgpt_quality_cert_tool_label_text((string)($toolGroup['tool'] ?? '-'));
+            $grid[1]['styles'][$startCol] = 1;
+            $blockBottom = 2;
+            foreach (array_values($cavityGroups) as $offset => $cavityGroup) {
+                $col = $startCol + $offset;
+                $grid[2]['values'][$col] = (string)($cavityGroup['cavity'] ?? '-');
+                $grid[2]['styles'][$col] = 1;
+                $rowNo = 3;
+                foreach ((array)($cavityGroup['dates'] ?? []) as $dateRow) {
+                    $grid[$rowNo]['values'][$col] = (string)($dateRow['date'] ?? '');
+                    if (!empty($dateRow['is_ng'])) {
+                        $grid[$rowNo]['styles'][$col] = 2;
+                    }
+                    $rowNo++;
+                }
+                $blockBottom = max($blockBottom, $rowNo - 1);
+            }
+            $toolNgCount = (int)($toolGroup['ng_count'] ?? 0);
+            if ($toolNgCount > 0) {
+                $grid[$blockBottom + 1]['values'][$startCol] = '사용 불가 예상(NG): ' . $toolNgCount . '건';
+                $grid[$blockBottom + 1]['styles'][$startCol] = 2;
+                $blockBottom++;
+            }
+            $colCursor = $startCol + max(1, count($cavityGroups)) + 1;
+        }
+
+        ksort($grid);
+        $sheetRows = [];
+        foreach ($grid as $rowNo => $rowDef) {
+            $valuesMap = (array)($rowDef['values'] ?? []);
+            $stylesMap = (array)($rowDef['styles'] ?? []);
+            if (!$valuesMap) {
+                continue;
+            }
+            $maxCol = max(array_keys($valuesMap));
+            $values = [];
+            $styles = [];
+            for ($col = 1; $col <= $maxCol; $col++) {
+                $values[] = (string)($valuesMap[$col] ?? '');
+                $styles[] = (int)($stylesMap[$col] ?? 0);
+            }
+            $sheetRows[] = ['values' => $values, 'styles' => $styles];
+        }
+
+        $sheets[] = [
+            'name' => jtgpt_quality_cert_detail_sheet_name($modelName, $sheetIndex++),
+            'rows' => $sheetRows,
+        ];
+    }
+    return $sheets;
+}
+
+function jtgpt_quality_sheet_rows_to_xml(array $sheetRows, array $styleMap): string {
+    $sheetXml = [];
+    $sheetXml[] = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+    $sheetXml[] = '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>';
+    foreach ($sheetRows as $rIdx => $row) {
+        $rowNo = $rIdx + 1;
+        $values = (array)($row['values'] ?? []);
+        $styles = (array)($row['styles'] ?? []);
+        $sheetXml[] = '<row r="' . $rowNo . '">';
+        foreach ($values as $cIdx => $value) {
+            if ($value === '' && (int)($styles[$cIdx] ?? 0) === 0) {
+                continue;
+            }
+            $cellRef = jtgpt_quality_xlsx_col_name($cIdx + 1) . $rowNo;
+            $styleIndex = (int)($styles[$cIdx] ?? $styleMap['default']);
+            $style = $styleIndex > 0 ? ' s="' . $styleIndex . '"' : '';
+            if ($value !== '' && is_numeric($value) && !preg_match('/^0\d+/', $value)) {
+                $sheetXml[] = '<c r="' . $cellRef . '"' . $style . '><v>' . jtgpt_quality_xlsx_xml_escape((string)$value) . '</v></c>';
+            } else {
+                $sheetXml[] = '<c r="' . $cellRef . '" t="inlineStr"' . $style . '><is><t>' . jtgpt_quality_xlsx_xml_escape((string)$value) . '</t></is></c>';
+            }
+        }
+        $sheetXml[] = '</row>';
+    }
+    $sheetXml[] = '</sheetData></worksheet>';
+    return implode('', $sheetXml);
+}
+
+function jtgpt_quality_styles_xml(): string {
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        . '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        . '<fonts count="3">'
+        . '<font><sz val="11"/><name val="Calibri"/></font>'
+        . '<font><b/><sz val="11"/><name val="Calibri"/></font>'
+        . '<font><sz val="11"/><color rgb="FF9C0006"/><name val="Calibri"/></font>'
+        . '</fonts>'
+        . '<fills count="3">'
+        . '<fill><patternFill patternType="none"/></fill>'
+        . '<fill><patternFill patternType="gray125"/></fill>'
+        . '<fill><patternFill patternType="solid"><fgColor rgb="FFFDE9D9"/><bgColor indexed="64"/></patternFill></fill>'
+        . '</fills>'
+        . '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
+        . '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+        . '<cellXfs count="3">'
+        . '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
+        . '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>'
+        . '<xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>'
+        . '</cellXfs>'
+        . '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>'
+        . '</styleSheet>';
+}
+
+function jtgpt_quality_write_cert_detail_xlsx_file(string $path, array $result, array $args): void {
+    if (!class_exists('ZipArchive')) {
+        throw new RuntimeException('ZipArchive 확장을 찾지 못했습니다.');
+    }
+    $styleMap = ['default' => 0, 'header' => 1, 'ng_date' => 2];
+    $sheets = jtgpt_quality_cert_detail_build_sheets($result, $args);
+    if (!$sheets) {
+        throw new RuntimeException('상세 엑셀 시트 데이터를 만들 수 없습니다.');
+    }
+
+    $zip = new ZipArchive();
+    if ($zip->open($path, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+        throw new RuntimeException('엑셀 파일을 만들 수 없습니다.');
+    }
+
+    $contentTypes = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>', '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">', '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>', '<Default Extension="xml" ContentType="application/xml"/>', '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>', '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>', '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>', '<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>'];
+    $workbookSheets = [];
+    $workbookRels = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>', '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'];
+    foreach (array_values($sheets) as $i => $sheet) {
+        $sheetId = $i + 1;
+        $sheetName = (string)($sheet['name'] ?? ('Sheet' . $sheetId));
+        $sheetXml = jtgpt_quality_sheet_rows_to_xml((array)($sheet['rows'] ?? []), $styleMap);
+        $zip->addFromString('xl/worksheets/sheet' . $sheetId . '.xml', $sheetXml);
+        $contentTypes[] = '<Override PartName="/xl/worksheets/sheet' . $sheetId . '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>';
+        $workbookSheets[] = '<sheet name="' . jtgpt_quality_xlsx_xml_escape($sheetName) . '" sheetId="' . $sheetId . '" r:id="rId' . $sheetId . '"/>';
+        $workbookRels[] = '<Relationship Id="rId' . $sheetId . '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' . $sheetId . '.xml"/>';
+    }
+    $styleRelId = count($sheets) + 1;
+    $workbookRels[] = '<Relationship Id="rId' . $styleRelId . '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>';
+    $workbookRels[] = '</Relationships>';
+    $contentTypes[] = '</Types>';
+
+    $zip->addFromString('[Content_Types].xml', implode('', $contentTypes));
+    $zip->addFromString('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        . '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+        . '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>'
+        . '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>'
+        . '</Relationships>');
+    $zip->addFromString('xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        . '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        . '<sheets>' . implode('', $workbookSheets) . '</sheets></workbook>');
+    $zip->addFromString('xl/_rels/workbook.xml.rels', implode('', $workbookRels));
+    $zip->addFromString('xl/styles.xml', jtgpt_quality_styles_xml());
+    $zip->addFromString('docProps/core.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        . '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+        . '<dc:title>JTGPT Export</dc:title><dc:creator>JTGPT</dc:creator></cp:coreProperties>');
+    $zip->addFromString('docProps/app.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        . '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">'
+        . '<Application>JTGPT</Application></Properties>');
+    $zip->close();
+}
+
 function jtgpt_quality_write_xlsx_file(string $path, array $rows): void {
     if (!class_exists('ZipArchive')) {
         throw new RuntimeException('ZipArchive 확장을 찾지 못했습니다.');
     }
 
-    $headers = $rows ? array_keys($rows[0]) : ['날짜','타입','Tool/Cavity','FAI','NG','기준값','측정값','USL','LSL','모델'];
+    $styleMap = [
+        'default' => 0,
+        'header' => 1,
+        'ng_date' => 2,
+    ];
+
+    $headers = ['날짜','타입','Tool/Cavity','FAI','NG','기준값','측정값','USL','LSL','모델'];
+    if ($rows) {
+        $headers = [];
+        foreach (array_keys($rows[0]) as $key) {
+            if (strncmp((string)$key, '__', 2) === 0) continue;
+            $headers[] = (string)$key;
+        }
+        if (!$headers) {
+            $headers = ['날짜','타입','Tool/Cavity','FAI','NG','기준값','측정값','USL','LSL','모델'];
+        }
+    }
+
     $sheetRows = [];
-    $sheetRows[] = $headers;
+    $sheetRows[] = ['values' => $headers, 'styles' => array_fill(0, count($headers), $styleMap['header'])];
     foreach ($rows as $row) {
         $line = [];
+        $lineStyles = [];
+        $cellStyles = is_array($row['__cell_styles'] ?? null) ? (array)$row['__cell_styles'] : [];
         foreach ($headers as $header) {
             $line[] = (string)($row[$header] ?? '');
+            $styleKey = (string)($cellStyles[$header] ?? 'default');
+            $lineStyles[] = $styleMap[$styleKey] ?? $styleMap['default'];
         }
-        $sheetRows[] = $line;
+        $sheetRows[] = ['values' => $line, 'styles' => $lineStyles];
     }
 
     $sheetXml = [];
@@ -433,10 +649,13 @@ function jtgpt_quality_write_xlsx_file(string $path, array $rows): void {
     $sheetXml[] = '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>';
     foreach ($sheetRows as $rIdx => $row) {
         $rowNo = $rIdx + 1;
+        $values = (array)($row['values'] ?? []);
+        $styles = (array)($row['styles'] ?? []);
         $sheetXml[] = '<row r="' . $rowNo . '">';
-        foreach ($row as $cIdx => $value) {
+        foreach ($values as $cIdx => $value) {
             $cellRef = jtgpt_quality_xlsx_col_name($cIdx + 1) . $rowNo;
-            $style = $rIdx === 0 ? ' s="1"' : '';
+            $styleIndex = (int)($styles[$cIdx] ?? $styleMap['default']);
+            $style = $styleIndex > 0 ? ' s="' . $styleIndex . '"' : '';
             if ($value !== '' && is_numeric($value) && !preg_match('/^0\d+/', $value)) {
                 $sheetXml[] = '<c r="' . $cellRef . '"' . $style . '><v>' . jtgpt_quality_xlsx_xml_escape((string)$value) . '</v></c>';
             } else {
@@ -448,15 +667,7 @@ function jtgpt_quality_write_xlsx_file(string $path, array $rows): void {
     $sheetXml[] = '</sheetData></worksheet>';
     $sheetXml = implode('', $sheetXml);
 
-    $stylesXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-        . '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-        . '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>'
-        . '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>'
-        . '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
-        . '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
-        . '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs>'
-        . '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>'
-        . '</styleSheet>';
+    $stylesXml = jtgpt_quality_styles_xml();
 
     $zip = new ZipArchive();
     if ($zip->open($path, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
@@ -502,15 +713,30 @@ function jtgpt_quality_create_export(PDO $pdo, string $tool, array $args, array 
     if (!in_array($output, ['excel', 'csv'], true)) {
         return null;
     }
-    $rows = jtgpt_quality_export_source_rows($pdo, $tool, $args, $result);
-    if (!$rows) {
-        return null;
-    }
 
     $dir = jtgpt_quality_temp_dir_fs();
     $ext = $output === 'csv' ? 'csv' : 'xlsx';
     $filename = jtgpt_quality_export_filename($args, $ext);
     $path = rtrim($dir, '/\\') . '/' . $filename;
+
+    if ($tool === 'quality_cert_remaining' && $output === 'excel' && !empty($args['detail_export'])) {
+        jtgpt_quality_write_cert_detail_xlsx_file($path, $result, $args);
+        $download = jtgpt_quality_register_download($path, $filename, $output, (int)($result['total_count'] ?? 0));
+        return [
+            'name' => $filename,
+            'path' => $path,
+            'url' => $download['url'],
+            'token' => $download['token'],
+            'row_count' => (int)($result['total_count'] ?? 0),
+            'format' => $output,
+            'expires_in_sec' => $download['expires_in_sec'],
+        ];
+    }
+
+    $rows = jtgpt_quality_export_source_rows($pdo, $tool, $args, $result);
+    if (!$rows) {
+        return null;
+    }
     if ($output === 'csv') {
         jtgpt_quality_write_csv_file($path, $rows);
     } else {
@@ -1428,7 +1654,11 @@ function jtgpt_answer_quality_cert_remaining(array $result, array $args): string
 
             if ($groupBy === 'tool') {
                 $lines[] = '  - ' . $tool . ' - ' . $toolCount . '건';
+                if ((int)($toolGroup['ng_count'] ?? 0) > 0) {
+                    if ((int)($toolGroup['ng_count'] ?? 0) > 0) {
                 $lines[] = '    - 사용 불가 예상(NG): ' . $toolNgCount . '건';
+            }
+                }
                 continue;
             }
 
@@ -1436,7 +1666,9 @@ function jtgpt_answer_quality_cert_remaining(array $result, array $args): string
             foreach (($toolGroup['cavities'] ?? []) as $cavityRow) {
                 $lines[] = '    - ' . (string)($cavityRow['cavity'] ?? '-') . ' - ' . jtgpt_tool_format_int($cavityRow['count'] ?? 0) . '건';
             }
-            $lines[] = '    - 사용 불가 예상(NG): ' . $toolNgCount . '건';
+            if ((int)($toolGroup['ng_count'] ?? 0) > 0) {
+                $lines[] = '    - 사용 불가 예상(NG): ' . $toolNgCount . '건';
+            }
         }
     }
 
@@ -1767,6 +1999,14 @@ function jtgpt_build_exportable_followup_plan_from_tool_args(string $tool, array
         return null;
     }
     $args['output'] = $output;
+    $lower = mb_strtolower($message, 'UTF-8');
+    if ($tool === 'quality_cert_remaining') {
+        if (jtgpt_planner_contains_any($lower, ['상세내역', '상세 내역', '상세', 'detail'])) {
+            $args['detail_export'] = true;
+        } else {
+            unset($args['detail_export']);
+        }
+    }
     return [
         'kind' => 'tool',
         'tool' => $tool,

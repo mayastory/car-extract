@@ -271,6 +271,25 @@ if (!function_exists('jtgpt_quality_cert_candidate_fields')) {
     }
 }
 
+if (!function_exists('jtgpt_quality_cert_pick_display_date')) {
+    function jtgpt_quality_cert_pick_display_date(array $row, array $flagCols): string {
+        foreach (array_values($flagCols) as $i => $col) {
+            $value = trim((string)($row['flag_col_' . $i] ?? ''));
+            if ($value === '') {
+                continue;
+            }
+            if (preg_match('/^(\d{4}-\d{2}-\d{2})/', $value, $m)) {
+                return $m[1];
+            }
+            if (preg_match('/^(\d{4})[\/.](\d{1,2})[\/.](\d{1,2})$/', $value, $m)) {
+                return sprintf('%04d-%02d-%02d', (int)$m[1], (int)$m[2], (int)$m[3]);
+            }
+            return $value;
+        }
+        return '';
+    }
+}
+
 if (!function_exists('jtgpt_quality_parse_tool_cavity_parts')) {
     function jtgpt_quality_parse_tool_cavity_parts(?string $rawTool, ?string $rawCavity, ?string $rawToolCavity): array {
         $tool = jtgpt_quality_normalize_tool($rawTool);
@@ -1254,8 +1273,22 @@ if (!function_exists('jtgpt_tool_quality_cert_remaining')) {
         $cavityExpr = !empty($schema['cavity_col']) ? "h.`{$schema['cavity_col']}`" : "''";
         $toolCavityExpr = !empty($schema['tool_cavity_col']) ? "h.`{$schema['tool_cavity_col']}`" : "''";
         $headerPkExpr = !empty($schema['header_pk_col']) ? "h.`{$schema['header_pk_col']}`" : 'NULL';
+        $flagSelects = [];
+        foreach (array_values($flagCols) as $i => $col) {
+            $flagSelects[] = "h.`{$col}` AS flag_col_{$i}";
+        }
+        $selectCols = [
+            "{$headerPkExpr} AS header_pk",
+            "{$partExpr} AS part_name",
+            "{$toolExpr} AS raw_tool",
+            "{$cavityExpr} AS raw_cavity",
+            "{$toolCavityExpr} AS raw_tool_cavity",
+        ];
+        if ($flagSelects) {
+            $selectCols = array_merge($selectCols, $flagSelects);
+        }
 
-        $sql = "SELECT {$headerPkExpr} AS header_pk, {$partExpr} AS part_name, {$toolExpr} AS raw_tool, {$cavityExpr} AS raw_cavity, {$toolCavityExpr} AS raw_tool_cavity FROM `{$schema['header_table']}` h";
+        $sql = "SELECT " . implode(', ', $selectCols) . " FROM `{$schema['header_table']}` h";
         if ($where) {
             $sql .= ' WHERE ' . implode(' AND ', $where);
         }
@@ -1278,6 +1311,27 @@ if (!function_exists('jtgpt_tool_quality_cert_remaining')) {
             ];
         }
 
+        $ngHeaderSet = [];
+        if (!empty($schema['ng_predicate']) && !empty($schema['header_id_col']) && !empty($schema['header_pk_col'])) {
+            $ngSql = "SELECT DISTINCT h.`{$schema['header_pk_col']}` AS header_pk FROM `{$schema['header_table']}` h JOIN `{$schema['result_table']}` r ON r.`{$schema['header_id_col']}` = h.`{$schema['header_pk_col']}`";
+            $ngWhere = $where;
+            $ngWhere[] = '(' . $schema['ng_predicate'] . ')';
+            if ($ngWhere) {
+                $ngSql .= ' WHERE ' . implode(' AND ', $ngWhere);
+            }
+            $ngSt = $pdo->prepare($ngSql);
+            foreach ($params as $k => $v) {
+                $ngSt->bindValue($k, $v);
+            }
+            $ngSt->execute();
+            foreach (($ngSt->fetchAll(PDO::FETCH_ASSOC) ?: []) as $ngRow) {
+                $headerPk = trim((string)($ngRow['header_pk'] ?? ''));
+                if ($headerPk !== '') {
+                    $ngHeaderSet[$headerPk] = true;
+                }
+            }
+        }
+
         $models = [];
         foreach ($fetched as $row) {
             $model = trim((string)($row['part_name'] ?? ''));
@@ -1286,6 +1340,8 @@ if (!function_exists('jtgpt_tool_quality_cert_remaining')) {
             $tool = $parsed['tool'] !== '' ? $parsed['tool'] : '-';
             $cavity = $parsed['cavity'] !== '' ? $parsed['cavity'] : '-';
             $headerPk = trim((string)($row['header_pk'] ?? ''));
+            $isNg = ($headerPk !== '' && isset($ngHeaderSet[$headerPk]));
+            $displayDate = jtgpt_quality_cert_pick_display_date($row, $flagCols);
 
             if (!isset($models[$model])) {
                 $models[$model] = ['model' => $model, 'count' => 0, 'tools' => [], 'cavities' => [], 'tool_cavity' => []];
@@ -1296,11 +1352,20 @@ if (!function_exists('jtgpt_tool_quality_cert_remaining')) {
                 $models[$model]['tools'][$tool] = ['tool' => $tool, 'count' => 0, 'ng_count' => 0, 'cavities' => []];
             }
             $models[$model]['tools'][$tool]['count']++;
+            if ($isNg) {
+                $models[$model]['tools'][$tool]['ng_count']++;
+            }
 
             if (!isset($models[$model]['tools'][$tool]['cavities'][$cavity])) {
-                $models[$model]['tools'][$tool]['cavities'][$cavity] = ['cavity' => $cavity, 'count' => 0, 'ng_count' => 0];
+                $models[$model]['tools'][$tool]['cavities'][$cavity] = ['cavity' => $cavity, 'count' => 0, 'ng_count' => 0, 'dates' => []];
             }
             $models[$model]['tools'][$tool]['cavities'][$cavity]['count']++;
+            if ($isNg) {
+                $models[$model]['tools'][$tool]['cavities'][$cavity]['ng_count']++;
+            }
+            if ($displayDate !== '') {
+                $models[$model]['tools'][$tool]['cavities'][$cavity]['dates'][] = ['date' => $displayDate, 'is_ng' => $isNg, 'header_pk' => $headerPk];
+            }
 
             if (!isset($models[$model]['cavities'][$cavity])) {
                 $models[$model]['cavities'][$cavity] = ['cavity' => $cavity, 'count' => 0];
@@ -1312,41 +1377,6 @@ if (!function_exists('jtgpt_tool_quality_cert_remaining')) {
                 $models[$model]['tool_cavity'][$tcKey] = ['tool' => $tool, 'cavity' => $cavity, 'count' => 0];
             }
             $models[$model]['tool_cavity'][$tcKey]['count']++;
-        }
-
-        if (!empty($schema['ng_predicate']) && !empty($schema['header_id_col']) && !empty($schema['header_pk_col'])) {
-            $ngSql = "SELECT COUNT(DISTINCT h.`{$schema['header_pk_col']}`) AS ng_count, {$partExpr} AS part_name, {$toolExpr} AS raw_tool, {$cavityExpr} AS raw_cavity, {$toolCavityExpr} AS raw_tool_cavity FROM `{$schema['header_table']}` h JOIN `{$schema['result_table']}` r ON r.`{$schema['header_id_col']}` = h.`{$schema['header_pk_col']}`";
-            $ngWhere = $where;
-            $ngWhere[] = '(' . $schema['ng_predicate'] . ')';
-            if ($ngWhere) {
-                $ngSql .= ' WHERE ' . implode(' AND ', $ngWhere);
-            }
-            $ngSql .= ' GROUP BY part_name, raw_tool, raw_cavity, raw_tool_cavity';
-
-            $ngSt = $pdo->prepare($ngSql);
-            foreach ($params as $k => $v) {
-                $ngSt->bindValue($k, $v);
-            }
-            $ngSt->execute();
-            $ngRows = $ngSt->fetchAll(PDO::FETCH_ASSOC) ?: [];
-            foreach ($ngRows as $ngRow) {
-                $model = trim((string)($ngRow['part_name'] ?? ''));
-                if ($model === '') $model = '모델미상';
-                if (!isset($models[$model])) {
-                    continue;
-                }
-                $parsed = jtgpt_quality_parse_tool_cavity_parts($ngRow['raw_tool'] ?? '', $ngRow['raw_cavity'] ?? '', $ngRow['raw_tool_cavity'] ?? '');
-                $tool = $parsed['tool'] !== '' ? $parsed['tool'] : '-';
-                $cavity = $parsed['cavity'] !== '' ? $parsed['cavity'] : '-';
-                $ngCount = (int)($ngRow['ng_count'] ?? 0);
-                if (!isset($models[$model]['tools'][$tool])) {
-                    continue;
-                }
-                $models[$model]['tools'][$tool]['ng_count'] += $ngCount;
-                if (isset($models[$model]['tools'][$tool]['cavities'][$cavity])) {
-                    $models[$model]['tools'][$tool]['cavities'][$cavity]['ng_count'] += $ngCount;
-                }
-            }
         }
 
         $modelGroups = array_values($models);
@@ -1364,6 +1394,14 @@ if (!function_exists('jtgpt_tool_quality_cert_remaining')) {
                 usort($cavityGroups, static function (array $a, array $b): int {
                     return jtgpt_quality_cavity_compare($a['cavity'] ?? '', $b['cavity'] ?? '');
                 });
+                foreach ($cavityGroups as &$cavityGroup) {
+                    $dates = array_values((array)($cavityGroup['dates'] ?? []));
+                    usort($dates, static function (array $a, array $b): int {
+                        return [(string)($a['date'] ?? ''), (string)($a['header_pk'] ?? '')] <=> [(string)($b['date'] ?? ''), (string)($b['header_pk'] ?? '')];
+                    });
+                    $cavityGroup['dates'] = $dates;
+                }
+                unset($cavityGroup);
                 $toolGroup['cavities'] = $cavityGroups;
             }
             unset($toolGroup);
