@@ -425,6 +425,21 @@ if (!function_exists('jtgpt_planner_extract_quality_output_format')) {
     }
 }
 
+if (!function_exists('jtgpt_planner_is_detail_export_message')) {
+    function jtgpt_planner_is_detail_export_message(string $message): bool {
+        $lower = mb_strtolower(trim($message), 'UTF-8');
+        if ($lower === '') {
+            return false;
+        }
+        $hasExport = jtgpt_planner_contains_any($lower, ['엑셀', 'excel', 'xlsx', 'csv', '표로', '테이블', 'table', '출력', '다운로드', '내려', '저장', '파일', '내보내', '추출', '뽑아']);
+        if (!$hasExport) {
+            return false;
+        }
+        return jtgpt_planner_contains_any($lower, ['상세내역', '상세 내역', '상세', 'detail', '내역']);
+    }
+}
+
+
 if (!function_exists('jtgpt_planner_last_quality_context')) {
     function jtgpt_planner_last_quality_context(array $state = []): ?array {
         $tool = trim((string)($state['last_quality_tool'] ?? ''));
@@ -468,10 +483,12 @@ if (!function_exists('jtgpt_planner_is_quality_export_followup')) {
         }
 
         $lower = mb_strtolower($message, 'UTF-8');
-        $followNeedles = ['엑셀', 'excel', 'xlsx', 'csv', '표로', '테이블', 'table', '출력', '다운로드', '내려', '저장', '파일', '그거', '그 결과', '방금', '아까', '저거', '그걸'];
+        $followNeedles = ['엑셀', 'excel', 'xlsx', 'csv', '표로', '테이블', 'table', '출력', '다운로드', '내려', '저장', '파일', '그거', '그 결과', '방금', '아까', '저거', '그걸', '내보내', '추출', '뽑아'];
         if (!jtgpt_planner_contains_any($lower, $followNeedles)) {
             return false;
         }
+
+        $isDetailExport = jtgpt_planner_is_detail_export_message($message);
 
         $hasNewScope = false;
         if (trim((string)$partName) !== '') $hasNewScope = true;
@@ -479,6 +496,14 @@ if (!function_exists('jtgpt_planner_is_quality_export_followup')) {
         if (is_array($valueFilter) && !empty($valueFilter['enabled'])) $hasNewScope = true;
         if (empty($range['implicit'])) $hasNewScope = true;
         if (jtgpt_planner_contains_any($lower, ['oqc', 'omm', 'aoi', 'cmm', 'ng', '불량', '측정값', 'usl', 'lsl'])) $hasNewScope = true;
+
+        if ($isDetailExport) {
+            $detailOnly = preg_replace('/(?:상세내역|상세\s*내역|상세|detail|내역|엑셀|excel|xlsx|csv|표로|테이블|table|출력|다운로드|내려|저장|파일|내보내|추출|뽑아|줘|주라|줄래|해줘|해\s*줘|좀|으로|로|만|부탁|바로|해|를|을|좀)/u', ' ', $lower);
+            $detailOnly = trim((string)preg_replace('/\s+/u', ' ', $detailOnly));
+            if ($detailOnly === '') {
+                return true;
+            }
+        }
 
         return !$hasNewScope;
     }
@@ -977,6 +1002,13 @@ if (!function_exists('jtgpt_planner_plan')) {
             $savedArgs = (array)($lastQuality['args'] ?? []);
             if ($savedTool !== '' && $savedArgs) {
                 $savedArgs['output'] = $output;
+                if ($savedTool === 'quality_cert_remaining') {
+                    if (jtgpt_planner_is_detail_export_message($text)) {
+                        $savedArgs['detail_export'] = true;
+                    } else {
+                        unset($savedArgs['detail_export']);
+                    }
+                }
                 return ['kind' => 'tool', 'tool' => $savedTool, 'args' => $savedArgs, 'slots' => $savedArgs, 'followup' => true, 'followup_source' => (string)($lastQuality['source'] ?? 'state')];
             }
         }
