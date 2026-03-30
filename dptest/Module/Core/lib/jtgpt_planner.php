@@ -189,14 +189,30 @@ if (!function_exists('jtgpt_planner_extract_cert_group_by')) {
 if (!function_exists('jtgpt_planner_is_cert_remaining_query')) {
     function jtgpt_planner_is_cert_remaining_query(string $message): bool {
         $lower = mb_strtolower($message, 'UTF-8');
-        $hasRemaining = jtgpt_planner_contains_any($lower, ['남았', '남은', '남았니', '남았어', '잔여', '몇개 남', '몇 개 남', '몇건 남', '몇 건 남']);
+        $compact = jtgpt_planner_compact_text($message);
+
+        $hasRemaining = jtgpt_planner_contains_any($lower, ['남았', '남은', '남았니', '남았어', '잔여', '몇개 남', '몇 개 남', '몇건 남', '몇 건 남', '남아있', '남아 있', '남나'])
+            || preg_match('/(?:몇개|몇건)?남(?:았|은|아|아있|아있니)/u', $lower)
+            || preg_match('/(?:몇개|몇건)?남(?:았|은|아|아있|아있니)/u', $compact)
+            || preg_match('/몇개남(?:았|은|아|아있|아있니)/u', $compact)
+            || preg_match('/몇건남(?:았|은|아|아있|아있니)/u', $compact);
         if (!$hasRemaining) {
             return false;
         }
+
         $hasCert = jtgpt_planner_contains_any($lower, ['성적서', '발행 가능', '발행가능', '쓸 수 있는', '쓸수있는', 'usable']);
-        $hasFlag = jtgpt_planner_contains_any($lower, ['flag', '플래그', '깃발', '자화', 'jawha', '엘지', 'lg', 'meas_date', 'jmeas_date']);
+        $hasFlag = jtgpt_planner_contains_any($lower, ['flag', '플래그', '깃발', '자화', 'jawha', '엘지', 'lg', 'meas_date', 'jmeas_date', 'jmeas', 'meas']);
         $hasOqc = jtgpt_planner_contains_any($lower, ['oqc']);
-        return $hasCert || $hasFlag || $hasOqc;
+
+        if (!($hasCert || $hasFlag || $hasOqc)) {
+            return false;
+        }
+
+        if (jtgpt_planner_contains_any($lower, ['ng만', 'ng 만', '불량만', '불량 만'])) {
+            return false;
+        }
+
+        return true;
     }
 }
 
@@ -1043,10 +1059,15 @@ if (!function_exists('jtgpt_planner_plan')) {
             $slots['point_terms'] = [];
             $slots['fais'] = [];
             $slots['point_no'] = null;
+            $slots['date_field'] = jtgpt_planner_extract_quality_date_field($text);
+            $slots['group_by'] = jtgpt_planner_extract_cert_group_by($text);
             return ['kind' => 'tool', 'tool' => 'quality_cert_remaining', 'args' => $slots, 'slots' => $slots];
         }
 
-        $mentionsQuality = jtgpt_planner_contains_any($lower, ['ng', '불량', '포인트', 'point', 'fai', 'oqc', 'omm', 'cmm', 'aoi', '측정값', 'value', 'usl', 'lsl', 'flag', '플래그', '깃발', '자화', 'jawha', '엘지', 'lg']) || (is_array($valueFilter) && !empty($valueFilter['enabled']));
+        $mentionsQuality = (
+            jtgpt_planner_contains_any($lower, ['ng', '불량', '포인트', 'point', 'fai', 'oqc', 'omm', 'cmm', 'aoi', '측정값', 'value', 'usl', 'lsl', 'flag', '플래그', '깃발', '자화', 'jawha', '엘지', 'lg'])
+            && !jtgpt_planner_is_cert_remaining_query($text)
+        ) || (is_array($valueFilter) && !empty($valueFilter['enabled']));
         if ($mentionsQuality) {
             $slots = jtgpt_planner_build_quality_slots($text, $state, $range, $partName, $tools, $cavities, $pointTerms, $limit, $valueFilter);
             $intent = (string)($slots['intent'] ?? 'recent_ng');
