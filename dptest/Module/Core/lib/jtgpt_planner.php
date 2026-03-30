@@ -148,6 +148,58 @@ if (!function_exists('jtgpt_planner_extract_customer')) {
     }
 }
 
+if (!function_exists('jtgpt_planner_extract_quality_date_field')) {
+    function jtgpt_planner_extract_quality_date_field(string $message): string {
+        $lower = mb_strtolower($message, 'UTF-8');
+        if (jtgpt_planner_contains_any($lower, ['자화 플래그', '자화깃발', 'j flag', 'jflag', 'j 플래그', 'j플래그', 'j 깃발', 'j깃발', 'jawha flag', 'jawha'])) {
+            return 'jmeas_date';
+        }
+        if (jtgpt_planner_contains_any($lower, ['엘지 플래그', '엘지깃발', 'lg flag', 'lgflag', 'lg 플래그', 'lg플래그', 'lg 깃발', 'lg깃발', 'm flag', 'mflag', 'meas flag', 'meas_date', '엘지', 'lg'])) {
+            return 'meas_date';
+        }
+        if (jtgpt_planner_contains_any($lower, ['jmeas_date', 'jmeas'])) {
+            return 'jmeas_date';
+        }
+        if (jtgpt_planner_contains_any($lower, ['flag', '플래그', '깃발'])) {
+            return 'both';
+        }
+        return 'both';
+    }
+}
+
+if (!function_exists('jtgpt_planner_extract_cert_group_by')) {
+    function jtgpt_planner_extract_cert_group_by(string $message): string {
+        $lower = mb_strtolower($message, 'UTF-8');
+        if (jtgpt_planner_contains_any($lower, ['툴캐비티별', '툴 캐비티별', 'tool cavity', 'tool-cavity', 'tool#cavity', '툴#캐비티별'])) {
+            return 'tool_cavity';
+        }
+        if (jtgpt_planner_contains_any($lower, ['캐비티별', 'cavity별', 'cav별'])) {
+            return 'cavity';
+        }
+        if (jtgpt_planner_contains_any($lower, ['툴별', '차수별', 'tool별'])) {
+            return 'tool';
+        }
+        if (jtgpt_planner_contains_any($lower, ['모델별'])) {
+            return 'model';
+        }
+        return 'model_tool_cavity';
+    }
+}
+
+if (!function_exists('jtgpt_planner_is_cert_remaining_query')) {
+    function jtgpt_planner_is_cert_remaining_query(string $message): bool {
+        $lower = mb_strtolower($message, 'UTF-8');
+        $hasRemaining = jtgpt_planner_contains_any($lower, ['남았', '남은', '남았니', '남았어', '잔여', '몇개 남', '몇 개 남', '몇건 남', '몇 건 남']);
+        if (!$hasRemaining) {
+            return false;
+        }
+        $hasCert = jtgpt_planner_contains_any($lower, ['성적서', '발행 가능', '발행가능', '쓸 수 있는', '쓸수있는', 'usable']);
+        $hasFlag = jtgpt_planner_contains_any($lower, ['flag', '플래그', '깃발', '자화', 'jawha', '엘지', 'lg', 'meas_date', 'jmeas_date']);
+        $hasOqc = jtgpt_planner_contains_any($lower, ['oqc']);
+        return $hasCert || $hasFlag || $hasOqc;
+    }
+}
+
 if (!function_exists('jtgpt_planner_detect_time_hint')) {
     function jtgpt_planner_detect_time_hint(string $text): ?string {
         if (preg_match('/최근\s*(\d{1,3})\s*일/u', $text, $m)) {
@@ -570,7 +622,7 @@ if (!function_exists('jtgpt_planner_extract_tools')) {
     function jtgpt_planner_extract_tools(string $message): array {
         $tools = [];
         $delim = '(?:,|\/|&|와|과|랑|하고|및|and)';
-        $token = '[A-Z0-9]';
+        $token = '[A-Z]';
         $seq = '(' . $token . '(?:\s*' . $delim . '\s*' . $token . ')+)';
 
         $appendTokens = static function (array $items) use (&$tools): void {
@@ -720,7 +772,10 @@ if (!function_exists('jtgpt_planner_collect_quality_point_terms')) {
             if ($token === '') {
                 continue;
             }
-            if (in_array($token, ['OQC', 'OMM', 'CMM', 'AOI', 'NG'], true)) {
+            if (in_array($token, ['OQC', 'OMM', 'CMM', 'AOI', 'NG', 'LG', 'FLAG'], true)) {
+                continue;
+            }
+            if (preg_match('/^(?:자화|JAWHA|플래그|깃발)$/u', $token)) {
                 continue;
             }
             if (in_array($token, $tools, true)) {
@@ -779,7 +834,7 @@ if (!function_exists('jtgpt_planner_collect_quality_point_terms')) {
             if (preg_match('/^-?\d+\.\d+$/', $term)) {
                 continue;
             }
-            if (preg_match('/(?:엑셀|출력|다운로드|파일|테이블|표로|조건|검색|EXCEL|XLSX|CSV|TABLE|FILE|DOWNLOAD)/u', $term)) {
+            if (preg_match('/(?:엑셀|출력|다운로드|파일|테이블|표로|조건|검색|EXCEL|XLSX|CSV|TABLE|FILE|DOWNLOAD|LG|FLAG|자화|JAWHA|플래그|깃발)/u', $term)) {
                 continue;
             }
             $out[] = $term;
@@ -878,6 +933,8 @@ if (!function_exists('jtgpt_planner_build_quality_slots')) {
             'value_filter' => $valueFilter,
             'output_mode' => $outputMode,
             'output' => $output,
+            'date_field' => jtgpt_planner_extract_quality_date_field($message),
+            'group_by' => jtgpt_planner_extract_cert_group_by($message),
             'slot_mode' => true,
         ];
 
@@ -943,7 +1000,21 @@ if (!function_exists('jtgpt_planner_plan')) {
             return ['kind' => 'tool', 'tool' => 'shipping_summary', 'args' => ['from' => $range['from'], 'to' => $range['to'], 'range' => $range, 'part_name' => $partName, 'customer' => $customer, 'metric' => $metric]];
         }
 
-        $mentionsQuality = jtgpt_planner_contains_any($lower, ['ng', '불량', '포인트', 'point', 'fai', 'oqc', 'omm', 'cmm', 'aoi', '측정값', 'value', 'usl', 'lsl']) || (is_array($valueFilter) && !empty($valueFilter['enabled']));
+        if (jtgpt_planner_is_cert_remaining_query($text)) {
+            $slots = jtgpt_planner_build_quality_slots($text, $state, $range, $partName, $tools, $cavities, $pointTerms, $limit, null);
+            $slots['intent'] = 'cert_remaining';
+            $slots['module'] = 'oqc';
+            $slots['modules'] = ['oqc'];
+            $slots['type'] = 'OQC';
+            $slots['all_modules'] = false;
+            $slots['ng_only'] = false;
+            $slots['point_terms'] = [];
+            $slots['fais'] = [];
+            $slots['point_no'] = null;
+            return ['kind' => 'tool', 'tool' => 'quality_cert_remaining', 'args' => $slots, 'slots' => $slots];
+        }
+
+        $mentionsQuality = jtgpt_planner_contains_any($lower, ['ng', '불량', '포인트', 'point', 'fai', 'oqc', 'omm', 'cmm', 'aoi', '측정값', 'value', 'usl', 'lsl', 'flag', '플래그', '깃발', '자화', 'jawha', '엘지', 'lg']) || (is_array($valueFilter) && !empty($valueFilter['enabled']));
         if ($mentionsQuality) {
             $slots = jtgpt_planner_build_quality_slots($text, $state, $range, $partName, $tools, $cavities, $pointTerms, $limit, $valueFilter);
             $intent = (string)($slots['intent'] ?? 'recent_ng');

@@ -244,6 +244,88 @@ if (!function_exists('jtgpt_quality_collect_values')) {
     }
 }
 
+if (!function_exists('jtgpt_quality_cert_field_label')) {
+    function jtgpt_quality_cert_field_label(string $dateField): string {
+        $dateField = strtolower(trim($dateField));
+        if ($dateField === 'meas_date') return 'LG';
+        if ($dateField === 'jmeas_date') return '자화';
+        return '플래그';
+    }
+}
+
+if (!function_exists('jtgpt_quality_cert_candidate_fields')) {
+    function jtgpt_quality_cert_candidate_fields(array $headerCols, string $dateField): array {
+        $dateField = strtolower(trim($dateField));
+        $out = [];
+        if ($dateField === 'meas_date' || $dateField === 'both') {
+            foreach (['meas_date', 'meas_date2'] as $col) {
+                if (isset($headerCols[strtolower($col)])) $out[] = $col;
+            }
+        }
+        if ($dateField === 'jmeas_date' || $dateField === 'both') {
+            foreach (['jmeas_date', 'jmeas_date2'] as $col) {
+                if (isset($headerCols[strtolower($col)])) $out[] = $col;
+            }
+        }
+        return jtgpt_quality_unique_list($out);
+    }
+}
+
+if (!function_exists('jtgpt_quality_parse_tool_cavity_parts')) {
+    function jtgpt_quality_parse_tool_cavity_parts(?string $rawTool, ?string $rawCavity, ?string $rawToolCavity): array {
+        $tool = jtgpt_quality_normalize_tool($rawTool);
+        $cavity = jtgpt_quality_normalize_cavity($rawCavity);
+        $raw = strtoupper(trim((string)$rawToolCavity));
+
+        if (($tool === '' || $cavity === '') && $raw !== '') {
+            if ($tool === '' && preg_match('/(?:TOOL\s*)?([A-Z]+)\s*#\s*(\d{1,2})/u', $raw, $m)) {
+                $tool = jtgpt_quality_normalize_tool($m[1]);
+                if ($cavity === '') $cavity = jtgpt_quality_normalize_cavity($m[2]);
+            }
+            if ($tool === '' && preg_match('/^([A-Z]+)\s*[-\/ ]\s*(\d{1,2})(?:CAV)?$/u', $raw, $m)) {
+                $tool = jtgpt_quality_normalize_tool($m[1]);
+                if ($cavity === '') $cavity = jtgpt_quality_normalize_cavity($m[2]);
+            }
+            if ($tool === '' && preg_match('/\bTOOL\s*([A-Z]+)\b/u', $raw, $m)) {
+                $tool = jtgpt_quality_normalize_tool($m[1]);
+            }
+            if ($cavity === '' && preg_match('/\b(\d{1,2})\s*CAV\b/u', $raw, $m)) {
+                $cavity = jtgpt_quality_normalize_cavity($m[1]);
+            }
+        }
+
+        if ($cavity === '' && preg_match('/^(\d{1,2})$/', trim((string)$rawCavity), $m)) {
+            $cavity = jtgpt_quality_normalize_cavity($m[1]);
+        }
+
+        return ['tool' => $tool, 'cavity' => $cavity];
+    }
+}
+
+if (!function_exists('jtgpt_quality_tool_sort_tuple')) {
+    function jtgpt_quality_tool_sort_tuple(?string $tool): array {
+        $tool = strtoupper(trim((string)$tool));
+        if ($tool === '') return [9, 9999, ''];
+        if (preg_match('/^[A-Z]$/', $tool)) return [0, ord($tool), $tool];
+        return [8, 9999, $tool];
+    }
+}
+
+if (!function_exists('jtgpt_quality_tool_compare')) {
+    function jtgpt_quality_tool_compare(?string $a, ?string $b): int {
+        return jtgpt_quality_tool_sort_tuple($a) <=> jtgpt_quality_tool_sort_tuple($b);
+    }
+}
+
+if (!function_exists('jtgpt_quality_cavity_compare')) {
+    function jtgpt_quality_cavity_compare(?string $a, ?string $b): int {
+        $na = 9999; $nb = 9999;
+        if (preg_match('/^(\d{1,2})/u', strtoupper(trim((string)$a)), $m)) $na = (int)$m[1];
+        if (preg_match('/^(\d{1,2})/u', strtoupper(trim((string)$b)), $m)) $nb = (int)$m[1];
+        return [$na, strtoupper(trim((string)$a))] <=> [$nb, strtoupper(trim((string)$b))];
+    }
+}
+
 if (!function_exists('jtgpt_quality_named_placeholders')) {
     function jtgpt_quality_named_placeholders(string $prefix, array $values, array &$params): array {
         $placeholders = [];
@@ -1051,6 +1133,231 @@ if (!function_exists('jtgpt_tool_quality_summary')) {
             'top_rows' => $topRows,
             'resolution' => $recent['resolution'] ?? null,
             'error' => empty($recent['rows']) ? ($recent['error'] ?? null) : null,
+        ];
+    }
+}
+
+
+if (!function_exists('jtgpt_tool_quality_cert_remaining')) {
+    function jtgpt_tool_quality_cert_remaining(PDO $pdo, array $args): array {
+        $schema = jtgpt_quality_module_schema($pdo, 'oqc');
+        if (empty($schema['available'])) {
+            return [
+                'found' => false,
+                'module' => 'oqc',
+                'label' => 'OQC',
+                'error' => $schema['error'] ?? 'OQC 구조를 찾지 못했습니다.',
+            ];
+        }
+
+        $headerCols = jtgpt_quality_columns($pdo, $schema['header_table']);
+        $dateField = strtolower(trim((string)($args['date_field'] ?? 'both')));
+        if (!in_array($dateField, ['meas_date', 'jmeas_date', 'both'], true)) {
+            $dateField = 'both';
+        }
+        $flagCols = jtgpt_quality_cert_candidate_fields($headerCols, $dateField);
+        if (!$flagCols) {
+            return [
+                'found' => false,
+                'module' => 'oqc',
+                'label' => 'OQC',
+                'date_field' => $dateField,
+                'date_field_label' => jtgpt_quality_cert_field_label($dateField),
+                'error' => '플래그 컬럼을 찾지 못했습니다.',
+            ];
+        }
+
+        $where = [];
+        $params = [];
+        $dateConds = [];
+        foreach (array_values($flagCols) as $i => $col) {
+            $cond = "NULLIF(TRIM(CAST(h.`{$col}` AS CHAR)), '') IS NOT NULL";
+            if (!empty($args['from']) && !empty($args['to'])) {
+                $fromKey = ':flag_from_' . $i;
+                $toKey = ':flag_to_' . $i;
+                $params[$fromKey] = (string)$args['from'];
+                $params[$toKey] = (string)$args['to'];
+                $cond .= " AND h.`{$col}` >= {$fromKey} AND h.`{$col}` <= {$toKey}";
+            }
+            $dateConds[] = '(' . $cond . ')';
+        }
+        if ($dateConds) {
+            $where[] = '(' . implode(' OR ', $dateConds) . ')';
+        }
+
+        $partName = trim((string)($args['part_name'] ?? ''));
+        if ($partName !== '' && !empty($schema['part_col'])) {
+            $partNorms = jtgpt_quality_part_norm_variants($partName);
+            if ($partNorms) {
+                $partExpr = "REPLACE(REPLACE(UPPER(h.`{$schema['part_col']}`), '-', ''), ' ', '')";
+                $partConds = [];
+                foreach (array_values($partNorms) as $i => $partNorm) {
+                    $name = ':part_norm_' . $i;
+                    $params[$name] = '%' . $partNorm . '%';
+                    $partConds[] = $partExpr . ' LIKE ' . $name;
+                }
+                if ($partConds) {
+                    $where[] = '(' . implode(' OR ', $partConds) . ')';
+                }
+            }
+        }
+
+        $tools = jtgpt_quality_collect_values($args, 'tools', 'tool', 'jtgpt_quality_normalize_tool');
+        if ($tools) {
+            if (!empty($schema['tool_col'])) {
+                $placeholders = jtgpt_quality_named_placeholders('tool', $tools, $params);
+                $where[] = "UPPER(CAST(h.`{$schema['tool_col']}` AS CHAR)) IN (" . implode(', ', $placeholders) . ')';
+            } elseif (!empty($schema['tool_cavity_col'])) {
+                $conds = [];
+                foreach (array_values($tools) as $i => $tool) {
+                    $name = ':tool_like_' . $i;
+                    $params[$name] = '%' . $tool . '%';
+                    $conds[] = "UPPER(h.`{$schema['tool_cavity_col']}`) LIKE {$name}";
+                }
+                if ($conds) {
+                    $where[] = '(' . implode(' OR ', $conds) . ')';
+                }
+            }
+        }
+
+        $cavities = jtgpt_quality_collect_values($args, 'cavities', 'cavity', 'jtgpt_quality_normalize_cavity');
+        if ($cavities) {
+            if (!empty($schema['cavity_col'])) {
+                $colExpr = "REPLACE(UPPER(CAST(h.`{$schema['cavity_col']}` AS CHAR)), ' ', '')";
+                $conds = [];
+                foreach (array_values($cavities) as $i => $cavity) {
+                    $rawKey = ':cavity_raw_' . $i;
+                    $numKey = ':cavity_num_' . $i;
+                    $params[$rawKey] = $cavity;
+                    $params[$numKey] = (string)((int)$cavity);
+                    $conds[] = "{$colExpr} = {$rawKey}";
+                    $conds[] = "{$colExpr} = {$numKey}";
+                }
+                if ($conds) {
+                    $where[] = '(' . implode(' OR ', $conds) . ')';
+                }
+            } elseif (!empty($schema['tool_cavity_col'])) {
+                $conds = [];
+                foreach (array_values($cavities) as $i => $cavity) {
+                    $name = ':cavity_like_' . $i;
+                    $params[$name] = '%' . $cavity . '%';
+                    $conds[] = "UPPER(h.`{$schema['tool_cavity_col']}`) LIKE {$name}";
+                }
+                if ($conds) {
+                    $where[] = '(' . implode(' OR ', $conds) . ')';
+                }
+            }
+        }
+
+        $partExpr = !empty($schema['part_col']) ? "h.`{$schema['part_col']}`" : "''";
+        $toolExpr = !empty($schema['tool_col']) ? "h.`{$schema['tool_col']}`" : "''";
+        $cavityExpr = !empty($schema['cavity_col']) ? "h.`{$schema['cavity_col']}`" : "''";
+        $toolCavityExpr = !empty($schema['tool_cavity_col']) ? "h.`{$schema['tool_cavity_col']}`" : "''";
+
+        $sql = "SELECT {$partExpr} AS part_name, {$toolExpr} AS raw_tool, {$cavityExpr} AS raw_cavity, {$toolCavityExpr} AS raw_tool_cavity FROM `{$schema['header_table']}` h";
+        if ($where) {
+            $sql .= ' WHERE ' . implode(' AND ', $where);
+        }
+
+        $st = $pdo->prepare($sql);
+        foreach ($params as $k => $v) {
+            $st->bindValue($k, $v);
+        }
+        $st->execute();
+        $fetched = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        if (!$fetched) {
+            return [
+                'found' => false,
+                'module' => 'oqc',
+                'label' => 'OQC',
+                'date_field' => $dateField,
+                'date_field_label' => jtgpt_quality_cert_field_label($dateField),
+                'group_by' => (string)($args['group_by'] ?? 'model_tool_cavity'),
+                'error' => '조건에 맞는 성적서 가능 데이터가 없습니다.',
+            ];
+        }
+
+        $models = [];
+        foreach ($fetched as $row) {
+            $model = trim((string)($row['part_name'] ?? ''));
+            if ($model === '') $model = '모델미상';
+            $parsed = jtgpt_quality_parse_tool_cavity_parts($row['raw_tool'] ?? '', $row['raw_cavity'] ?? '', $row['raw_tool_cavity'] ?? '');
+            $tool = $parsed['tool'] !== '' ? $parsed['tool'] : '-';
+            $cavity = $parsed['cavity'] !== '' ? $parsed['cavity'] : '-';
+
+            if (!isset($models[$model])) {
+                $models[$model] = ['model' => $model, 'count' => 0, 'tools' => [], 'cavities' => [], 'tool_cavity' => []];
+            }
+            $models[$model]['count']++;
+
+            if (!isset($models[$model]['tools'][$tool])) {
+                $models[$model]['tools'][$tool] = ['tool' => $tool, 'count' => 0, 'cavities' => []];
+            }
+            $models[$model]['tools'][$tool]['count']++;
+
+            if (!isset($models[$model]['tools'][$tool]['cavities'][$cavity])) {
+                $models[$model]['tools'][$tool]['cavities'][$cavity] = ['cavity' => $cavity, 'count' => 0];
+            }
+            $models[$model]['tools'][$tool]['cavities'][$cavity]['count']++;
+
+            if (!isset($models[$model]['cavities'][$cavity])) {
+                $models[$model]['cavities'][$cavity] = ['cavity' => $cavity, 'count' => 0];
+            }
+            $models[$model]['cavities'][$cavity]['count']++;
+
+            $tcKey = $tool . '#' . $cavity;
+            if (!isset($models[$model]['tool_cavity'][$tcKey])) {
+                $models[$model]['tool_cavity'][$tcKey] = ['tool' => $tool, 'cavity' => $cavity, 'count' => 0];
+            }
+            $models[$model]['tool_cavity'][$tcKey]['count']++;
+        }
+
+        $modelGroups = array_values($models);
+        usort($modelGroups, static function (array $a, array $b): int {
+            return [jtgpt_quality_norm_token($a['model'] ?? ''), (string)($a['model'] ?? '')] <=> [jtgpt_quality_norm_token($b['model'] ?? ''), (string)($b['model'] ?? '')];
+        });
+
+        foreach ($modelGroups as &$modelGroup) {
+            $toolGroups = array_values($modelGroup['tools']);
+            usort($toolGroups, static function (array $a, array $b): int {
+                return jtgpt_quality_tool_compare($a['tool'] ?? '', $b['tool'] ?? '');
+            });
+            foreach ($toolGroups as &$toolGroup) {
+                $cavityGroups = array_values($toolGroup['cavities']);
+                usort($cavityGroups, static function (array $a, array $b): int {
+                    return jtgpt_quality_cavity_compare($a['cavity'] ?? '', $b['cavity'] ?? '');
+                });
+                $toolGroup['cavities'] = $cavityGroups;
+            }
+            unset($toolGroup);
+
+            $cavityOnlyGroups = array_values($modelGroup['cavities']);
+            usort($cavityOnlyGroups, static function (array $a, array $b): int {
+                return jtgpt_quality_cavity_compare($a['cavity'] ?? '', $b['cavity'] ?? '');
+            });
+
+            $toolCavityGroups = array_values($modelGroup['tool_cavity']);
+            usort($toolCavityGroups, static function (array $a, array $b): int {
+                $cmp = jtgpt_quality_tool_compare($a['tool'] ?? '', $b['tool'] ?? '');
+                if ($cmp !== 0) return $cmp;
+                return jtgpt_quality_cavity_compare($a['cavity'] ?? '', $b['cavity'] ?? '');
+            });
+
+            $modelGroup['tools'] = $toolGroups;
+            $modelGroup['cavities'] = $cavityOnlyGroups;
+            $modelGroup['tool_cavity'] = $toolCavityGroups;
+        }
+        unset($modelGroup);
+
+        return [
+            'found' => true,
+            'module' => 'oqc',
+            'label' => 'OQC',
+            'date_field' => $dateField,
+            'date_field_label' => jtgpt_quality_cert_field_label($dateField),
+            'group_by' => (string)($args['group_by'] ?? 'model_tool_cavity'),
+            'total_count' => count($fetched),
+            'model_groups' => $modelGroups,
         ];
     }
 }

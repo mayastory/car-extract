@@ -1321,6 +1321,85 @@ function jtgpt_answer_quality_count(array $result, array $args): string {
 ", $lines);
 }
 
+
+
+function jtgpt_quality_cert_field_label_text(array $result, array $args): string {
+    $dateField = strtolower(trim((string)($result['date_field'] ?? $args['date_field'] ?? 'both')));
+    if ($dateField === 'meas_date') return 'LG';
+    if ($dateField === 'jmeas_date') return '자화';
+    return '플래그';
+}
+
+function jtgpt_quality_cert_tool_label_text(?string $tool): string {
+    $tool = strtoupper(trim((string)$tool));
+    if ($tool === '' || $tool === '-') {
+        return '-';
+    }
+    if (preg_match('/^[A-Z]$/', $tool)) {
+        return $tool . '차';
+    }
+    if (preg_match('/^[A-Z]차$/u', $tool)) {
+        return $tool;
+    }
+    return $tool;
+}
+
+function jtgpt_answer_quality_cert_remaining(array $result, array $args): string {
+    if (empty($result['found'])) {
+        return trim((string)($result['error'] ?? '조건에 맞는 성적서 가능 데이터가 없습니다.'));
+    }
+
+    $scope = jtgpt_format_scope($args);
+    $fieldLabel = jtgpt_quality_cert_field_label_text($result, $args);
+    $lines = [trim('OQC ' . $scope . ' ' . $fieldLabel . ' 성적서 가능 데이터 현황입니다.')];
+
+    $groupBy = (string)($result['group_by'] ?? $args['group_by'] ?? 'model_tool_cavity');
+    foreach (($result['model_groups'] ?? []) as $modelGroup) {
+        $modelName = trim((string)($modelGroup['model'] ?? '모델미상'));
+        $modelCount = jtgpt_tool_format_int($modelGroup['count'] ?? 0);
+
+        if ($groupBy === 'model') {
+            $lines[] = '- ' . $modelName . ' - ' . $modelCount . '건';
+            continue;
+        }
+
+        $lines[] = '- ' . $modelName . ' - ' . $modelCount . '건';
+
+        if ($groupBy === 'cavity') {
+            foreach (($modelGroup['cavities'] ?? []) as $cavityRow) {
+                $lines[] = '  - ' . (string)($cavityRow['cavity'] ?? '-') . ' - ' . jtgpt_tool_format_int($cavityRow['count'] ?? 0) . '건';
+            }
+            continue;
+        }
+
+        if ($groupBy === 'tool_cavity') {
+            foreach (($modelGroup['tool_cavity'] ?? []) as $tcRow) {
+                $tool = jtgpt_quality_cert_tool_label_text((string)($tcRow['tool'] ?? '-'));
+                $cavity = (string)($tcRow['cavity'] ?? '-');
+                $lines[] = '  - ' . $tool . ' / ' . $cavity . ' - ' . jtgpt_tool_format_int($tcRow['count'] ?? 0) . '건';
+            }
+            continue;
+        }
+
+        foreach (($modelGroup['tools'] ?? []) as $toolGroup) {
+            $tool = jtgpt_quality_cert_tool_label_text((string)($toolGroup['tool'] ?? '-'));
+            $toolCount = jtgpt_tool_format_int($toolGroup['count'] ?? 0);
+
+            if ($groupBy === 'tool') {
+                $lines[] = '  - ' . $tool . ' - ' . $toolCount . '건';
+                continue;
+            }
+
+            $lines[] = '  - ' . $tool . ' - ' . $toolCount . '건';
+            foreach (($toolGroup['cavities'] ?? []) as $cavityRow) {
+                $lines[] = '    - ' . (string)($cavityRow['cavity'] ?? '-') . ' - ' . jtgpt_tool_format_int($cavityRow['count'] ?? 0) . '건';
+            }
+        }
+    }
+
+    return implode("\n", $lines);
+}
+
 function jtgpt_answer_quality_summary(array $result, array $args): string {
     if (empty($result['found'])) {
         return jtgpt_quality_no_data_text($result, $args, '조건에 맞는 요약이 없습니다.');
@@ -1545,6 +1624,8 @@ function jtgpt_quality_export_brief_text(string $tool, array $args, array $resul
         $count = (int)$result['total_ng_count'];
     } elseif ($tool === 'quality_summary' && isset($result['total_ng_count'])) {
         $count = (int)$result['total_ng_count'];
+    } elseif ($tool === 'quality_cert_remaining' && isset($result['total_count'])) {
+        $count = (int)$result['total_count'];
     }
 
     $parts = array_values(array_filter([$title !== '' ? $title : '', $scope !== '' ? $scope : '', $queryText !== '' ? $queryText : '결과']));
@@ -1909,6 +1990,11 @@ function jtgpt_build_answer(string $message, array $clientHistory = [], ?array $
                     $answer = jtgpt_answer_quality_summary($res, $args);
                     $modules = jtgpt_quality_module_list_from_args($args);
                     $statePatch['last_module'] = strtolower((string)($modules[0] ?? $args['module'] ?? 'oqc'));
+                    break;
+                case 'quality_cert_remaining':
+                    $res = jtgpt_tool_quality_cert_remaining($pdo, $args);
+                    $answer = jtgpt_answer_quality_cert_remaining($res, $args);
+                    $statePatch['last_module'] = 'oqc';
                     break;
                 case 'oqc_top_ng_points':
                     $res = jtgpt_tool_oqc_top_ng_points($pdo, $args);
