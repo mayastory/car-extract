@@ -126,6 +126,20 @@ if (!function_exists('jtgpt_planner_has_shipping_domain_signal')) {
     }
 }
 
+if (!function_exists('jtgpt_planner_has_cert_status_signal')) {
+    function jtgpt_planner_has_cert_status_signal(string $message): bool {
+        $lower = mb_strtolower($message, 'UTF-8');
+        $compact = jtgpt_planner_compact_text($message);
+        if (jtgpt_planner_contains_any($lower, [
+            '충분하', '충분해', '충분함', '부족하', '부족해', '모자라', '모자람', '쓸만하', '쓸 만하',
+            '쓸 거 있', '쓸거있', '될 만큼 있', '될만큼있', '성적서 쓸 거', '성적서쓸거', '발행할 만큼 있', '발행할만큼있'
+        ])) {
+            return true;
+        }
+        return preg_match('/(?:충분하|부족하|모자라|쓸만하|쓸거있|될만큼있)/u', $compact) === 1;
+    }
+}
+
 if (!function_exists('jtgpt_planner_has_cert_domain_signal')) {
     function jtgpt_planner_has_cert_domain_signal(string $message): bool {
         $lower = mb_strtolower($message, 'UTF-8');
@@ -134,6 +148,7 @@ if (!function_exists('jtgpt_planner_has_cert_domain_signal')) {
         $hasFlagWord = jtgpt_planner_contains_any($lower, ['flag', '플래그', '깃발']);
         $hasDateEntity = jtgpt_planner_contains_any($lower, ['자화', 'jawha', '엘지', 'lg', 'meas_date', 'jmeas_date', 'jmeas', 'meas']);
         $hasArea = jtgpt_planner_contains_any($lower, ['oqc']);
+        $hasStatusWord = jtgpt_planner_has_cert_status_signal($message);
         $hasCertAction = jtgpt_planner_contains_any($lower, [
             '성적서', '발행 가능', '발행가능', '쓸 수 있는', '쓸수있는', '사용 가능', '사용가능', 'usable',
             '남은 데이터', '남은데이터', '남은 거', '남은거', '잔여', '현황', '남아있는', '남아 있는', '남아있', '남아 있',
@@ -146,13 +161,16 @@ if (!function_exists('jtgpt_planner_has_cert_domain_signal')) {
             return false;
         }
 
-        if ($hasFlagWord && ($hasDateEntity || $hasArea || $hasCertAction || $hasDataWord || $hasCountWord)) {
+        if ($hasFlagWord && ($hasDateEntity || $hasArea || $hasCertAction || $hasStatusWord || $hasDataWord || $hasCountWord)) {
             return true;
         }
-        if (($hasDateEntity || $hasArea) && $hasCertAction) {
+        if (($hasDateEntity || $hasArea) && ($hasCertAction || $hasStatusWord)) {
             return true;
         }
-        if ($hasDateEntity && $hasDataWord && $hasCountWord) {
+        if ($hasDateEntity && $hasDataWord && ($hasCountWord || $hasStatusWord)) {
+            return true;
+        }
+        if ($hasArea && $hasDataWord && ($hasCountWord || $hasStatusWord)) {
             return true;
         }
         return false;
@@ -1170,6 +1188,10 @@ if (!function_exists('jtgpt_planner_plan')) {
             $slots['point_no'] = null;
             $slots['date_field'] = jtgpt_planner_extract_quality_date_field($text);
             $slots['group_by'] = jtgpt_planner_extract_cert_group_by($text);
+            $slots['cert_status_request'] = jtgpt_planner_has_cert_status_signal($text);
+            if (!empty($slots['cert_status_request'])) {
+                $slots['output_mode'] = 'status';
+            }
             return ['kind' => 'tool', 'tool' => 'quality_cert_remaining', 'args' => $slots, 'slots' => $slots];
         }
 

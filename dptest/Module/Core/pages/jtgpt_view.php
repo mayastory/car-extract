@@ -1617,7 +1617,16 @@ function jtgpt_answer_quality_cert_remaining(array $result, array $args): string
 
     $scope = jtgpt_format_scope($args);
     $fieldLabel = jtgpt_quality_cert_field_label_text($result, $args);
-    $lines = [trim('OQC ' . $scope . ' ' . $fieldLabel . ' 성적서 가능 데이터 현황입니다.')];
+    $totalCount = (int)($result['total_count'] ?? 0);
+    $isStatusRequest = !empty($args['cert_status_request']) || (string)($args['output_mode'] ?? '') === 'status';
+    if ($isStatusRequest) {
+        $headline = $totalCount > 0
+            ? trim('OQC ' . $scope . ' ' . $fieldLabel . ' 성적서 가능 데이터는 현재 확인됩니다. 아래는 현황입니다.')
+            : trim('OQC ' . $scope . ' ' . $fieldLabel . ' 성적서 가능 데이터는 현재 부족합니다.');
+    } else {
+        $headline = trim('OQC ' . $scope . ' ' . $fieldLabel . ' 성적서 가능 데이터 현황입니다.');
+    }
+    $lines = [$headline];
 
     $groupBy = (string)($result['group_by'] ?? $args['group_by'] ?? 'model_tool_cavity');
     foreach (($result['model_groups'] ?? []) as $modelGroup) {
