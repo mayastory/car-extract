@@ -316,6 +316,43 @@ function jtgpt_quality_export_rows_normalize(array $rows, array $args, array $re
     return $out;
 }
 
+function jtgpt_quality_export_cert_remaining_rows(array $result, array $args): array {
+    $scope = trim(jtgpt_format_scope($args));
+    $fieldLabel = jtgpt_quality_cert_field_label_text($result, $args);
+    $rows = [];
+    foreach ((array)($result['model_groups'] ?? []) as $modelGroup) {
+        $modelName = trim((string)($modelGroup['model'] ?? '모델미상'));
+        foreach ((array)($modelGroup['tools'] ?? []) as $toolGroup) {
+            $toolLabel = jtgpt_quality_cert_tool_label_text((string)($toolGroup['tool'] ?? '-'));
+            $toolCount = (int)($toolGroup['count'] ?? 0);
+            $toolNgCount = (int)($toolGroup['ng_count'] ?? 0);
+            $rows[] = [
+                '구분' => 'TOOL',
+                '기간' => $scope,
+                '플래그' => $fieldLabel,
+                '모델' => $modelName,
+                '차수' => $toolLabel,
+                '캐비티' => '',
+                '성적서 가능 건수' => (string)$toolCount,
+                '사용 불가 예상(NG)' => (string)$toolNgCount,
+            ];
+            foreach ((array)($toolGroup['cavities'] ?? []) as $cavityGroup) {
+                $rows[] = [
+                    '구분' => 'CAVITY',
+                    '기간' => $scope,
+                    '플래그' => $fieldLabel,
+                    '모델' => $modelName,
+                    '차수' => $toolLabel,
+                    '캐비티' => (string)($cavityGroup['cavity'] ?? '-'),
+                    '성적서 가능 건수' => (string)((int)($cavityGroup['count'] ?? 0)),
+                    '사용 불가 예상(NG)' => '',
+                ];
+            }
+        }
+    }
+    return $rows;
+}
+
 function jtgpt_quality_export_source_rows(PDO $pdo, string $tool, array $args, array $result): array {
     if ($tool === 'quality_recent_ng_rows') {
         return jtgpt_quality_export_rows_normalize((array)($result['rows'] ?? []), $args, $result);
@@ -331,6 +368,9 @@ function jtgpt_quality_export_source_rows(PDO $pdo, string $tool, array $args, a
             }
         }
         return jtgpt_quality_export_rows_normalize($rows, $args, $result);
+    }
+    if ($tool === 'quality_cert_remaining') {
+        return jtgpt_quality_export_cert_remaining_rows($result, $args);
     }
 
     $workingArgs = $args;
@@ -1384,9 +1424,11 @@ function jtgpt_answer_quality_cert_remaining(array $result, array $args): string
         foreach (($modelGroup['tools'] ?? []) as $toolGroup) {
             $tool = jtgpt_quality_cert_tool_label_text((string)($toolGroup['tool'] ?? '-'));
             $toolCount = jtgpt_tool_format_int($toolGroup['count'] ?? 0);
+            $toolNgCount = jtgpt_tool_format_int($toolGroup['ng_count'] ?? 0);
 
             if ($groupBy === 'tool') {
                 $lines[] = '  - ' . $tool . ' - ' . $toolCount . '건';
+                $lines[] = '    - 사용 불가 예상(NG): ' . $toolNgCount . '건';
                 continue;
             }
 
@@ -1394,10 +1436,12 @@ function jtgpt_answer_quality_cert_remaining(array $result, array $args): string
             foreach (($toolGroup['cavities'] ?? []) as $cavityRow) {
                 $lines[] = '    - ' . (string)($cavityRow['cavity'] ?? '-') . ' - ' . jtgpt_tool_format_int($cavityRow['count'] ?? 0) . '건';
             }
+            $lines[] = '    - 사용 불가 예상(NG): ' . $toolNgCount . '건';
         }
     }
 
-    return implode("\n", $lines);
+    return implode("
+", $lines);
 }
 
 function jtgpt_answer_quality_summary(array $result, array $args): string {

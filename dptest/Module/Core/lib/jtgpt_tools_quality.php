@@ -1253,8 +1253,9 @@ if (!function_exists('jtgpt_tool_quality_cert_remaining')) {
         $toolExpr = !empty($schema['tool_col']) ? "h.`{$schema['tool_col']}`" : "''";
         $cavityExpr = !empty($schema['cavity_col']) ? "h.`{$schema['cavity_col']}`" : "''";
         $toolCavityExpr = !empty($schema['tool_cavity_col']) ? "h.`{$schema['tool_cavity_col']}`" : "''";
+        $headerPkExpr = !empty($schema['header_pk_col']) ? "h.`{$schema['header_pk_col']}`" : 'NULL';
 
-        $sql = "SELECT {$partExpr} AS part_name, {$toolExpr} AS raw_tool, {$cavityExpr} AS raw_cavity, {$toolCavityExpr} AS raw_tool_cavity FROM `{$schema['header_table']}` h";
+        $sql = "SELECT {$headerPkExpr} AS header_pk, {$partExpr} AS part_name, {$toolExpr} AS raw_tool, {$cavityExpr} AS raw_cavity, {$toolCavityExpr} AS raw_tool_cavity FROM `{$schema['header_table']}` h";
         if ($where) {
             $sql .= ' WHERE ' . implode(' AND ', $where);
         }
@@ -1284,6 +1285,7 @@ if (!function_exists('jtgpt_tool_quality_cert_remaining')) {
             $parsed = jtgpt_quality_parse_tool_cavity_parts($row['raw_tool'] ?? '', $row['raw_cavity'] ?? '', $row['raw_tool_cavity'] ?? '');
             $tool = $parsed['tool'] !== '' ? $parsed['tool'] : '-';
             $cavity = $parsed['cavity'] !== '' ? $parsed['cavity'] : '-';
+            $headerPk = trim((string)($row['header_pk'] ?? ''));
 
             if (!isset($models[$model])) {
                 $models[$model] = ['model' => $model, 'count' => 0, 'tools' => [], 'cavities' => [], 'tool_cavity' => []];
@@ -1291,12 +1293,12 @@ if (!function_exists('jtgpt_tool_quality_cert_remaining')) {
             $models[$model]['count']++;
 
             if (!isset($models[$model]['tools'][$tool])) {
-                $models[$model]['tools'][$tool] = ['tool' => $tool, 'count' => 0, 'cavities' => []];
+                $models[$model]['tools'][$tool] = ['tool' => $tool, 'count' => 0, 'ng_count' => 0, 'cavities' => []];
             }
             $models[$model]['tools'][$tool]['count']++;
 
             if (!isset($models[$model]['tools'][$tool]['cavities'][$cavity])) {
-                $models[$model]['tools'][$tool]['cavities'][$cavity] = ['cavity' => $cavity, 'count' => 0];
+                $models[$model]['tools'][$tool]['cavities'][$cavity] = ['cavity' => $cavity, 'count' => 0, 'ng_count' => 0];
             }
             $models[$model]['tools'][$tool]['cavities'][$cavity]['count']++;
 
@@ -1310,6 +1312,41 @@ if (!function_exists('jtgpt_tool_quality_cert_remaining')) {
                 $models[$model]['tool_cavity'][$tcKey] = ['tool' => $tool, 'cavity' => $cavity, 'count' => 0];
             }
             $models[$model]['tool_cavity'][$tcKey]['count']++;
+        }
+
+        if (!empty($schema['ng_predicate']) && !empty($schema['header_id_col']) && !empty($schema['header_pk_col'])) {
+            $ngSql = "SELECT COUNT(DISTINCT h.`{$schema['header_pk_col']}`) AS ng_count, {$partExpr} AS part_name, {$toolExpr} AS raw_tool, {$cavityExpr} AS raw_cavity, {$toolCavityExpr} AS raw_tool_cavity FROM `{$schema['header_table']}` h JOIN `{$schema['result_table']}` r ON r.`{$schema['header_id_col']}` = h.`{$schema['header_pk_col']}`";
+            $ngWhere = $where;
+            $ngWhere[] = '(' . $schema['ng_predicate'] . ')';
+            if ($ngWhere) {
+                $ngSql .= ' WHERE ' . implode(' AND ', $ngWhere);
+            }
+            $ngSql .= ' GROUP BY part_name, raw_tool, raw_cavity, raw_tool_cavity';
+
+            $ngSt = $pdo->prepare($ngSql);
+            foreach ($params as $k => $v) {
+                $ngSt->bindValue($k, $v);
+            }
+            $ngSt->execute();
+            $ngRows = $ngSt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            foreach ($ngRows as $ngRow) {
+                $model = trim((string)($ngRow['part_name'] ?? ''));
+                if ($model === '') $model = '모델미상';
+                if (!isset($models[$model])) {
+                    continue;
+                }
+                $parsed = jtgpt_quality_parse_tool_cavity_parts($ngRow['raw_tool'] ?? '', $ngRow['raw_cavity'] ?? '', $ngRow['raw_tool_cavity'] ?? '');
+                $tool = $parsed['tool'] !== '' ? $parsed['tool'] : '-';
+                $cavity = $parsed['cavity'] !== '' ? $parsed['cavity'] : '-';
+                $ngCount = (int)($ngRow['ng_count'] ?? 0);
+                if (!isset($models[$model]['tools'][$tool])) {
+                    continue;
+                }
+                $models[$model]['tools'][$tool]['ng_count'] += $ngCount;
+                if (isset($models[$model]['tools'][$tool]['cavities'][$cavity])) {
+                    $models[$model]['tools'][$tool]['cavities'][$cavity]['ng_count'] += $ngCount;
+                }
+            }
         }
 
         $modelGroups = array_values($models);
