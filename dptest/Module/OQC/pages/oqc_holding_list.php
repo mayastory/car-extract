@@ -1,159 +1,213 @@
 <?php
-if (!function_exists('h')) {
-    function h($v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
-}
-
-$models = [
-    'MEM-IR-BASE',
-    'MEM-X-CARRIER',
-    'MEM-Y-CARRIER',
-    'MEM-Z-CARRIER',
-    'MEM-Z-STOPPER',
+$holdingTabs = [
+    'mem-ir-base'   => 'MEM-IR-BASE',
+    'mem-x-carrier' => 'MEM-X-CARRIER',
+    'mem-y-carrier' => 'MEM-Y-CARRIER',
+    'mem-z-carrier' => 'MEM-Z-CARRIER',
+    'mem-z-stopper' => 'MEM-Z-STOPPER',
 ];
-
-$currentModel = trim((string)($_GET['model'] ?? 'MEM-IR-BASE'));
-if (!in_array($currentModel, $models, true)) {
-    $currentModel = 'MEM-IR-BASE';
+$activeHoldingTab = (string)($_GET['tab'] ?? 'mem-ir-base');
+if (!isset($holdingTabs[$activeHoldingTab])) {
+    $activeHoldingTab = 'mem-ir-base';
 }
 ?>
-<!doctype html>
-<html lang="ko">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>OQC 홀딩리스트</title>
 <style>
-html, body {
-    margin: 0;
-    padding: 0;
-    background: transparent !important;
-    color: #e8edf3;
-    font-family: inherit;
+.ohl-page,
+.ohl-page * {
+  box-sizing: border-box;
 }
 
-body {
-    min-height: 100%;
+.ohl-page {
+  width: min(1550px, calc(100% - 32px));
+  margin: 18px auto 40px;
+  position: relative;
+  color: #e8eaed;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-.oqc-holding-page {
-    padding: 18px 18px 28px;
-    background: transparent;
+.ohl-title {
+  margin: 0 0 10px;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
-.oqc-holding-window {
-    max-width: 1280px;
+.ohl-window {
+  position: relative;
 }
 
-.oqc-holding-title {
-    margin: 0 0 10px;
-    font-size: 15px;
-    font-weight: 700;
-    color: #f0f4f8;
-    letter-spacing: 0.2px;
+.ohl-tabs {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  margin: 0 0 -1px 10px;
+  padding: 0;
+  list-style: none;
 }
 
-.folder-tabs {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 2px;
-    align-items: flex-end;
-    margin: 0 0 -1px;
-    padding: 0 10px;
-    position: relative;
-    z-index: 2;
+.ohl-tab {
+  appearance: none;
+  border: 1px solid #4d5560;
+  border-bottom: 1px solid #3c4043;
+  background: linear-gradient(180deg, #2b3036, #1d2126);
+  color: #e6ebef;
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 1;
+  height: 29px;
+  padding: 0 14px;
+  border-radius: 10px 10px 0 0;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+  opacity: .95;
+  transition: filter .12s ease, opacity .12s ease, border-color .12s ease, background .12s ease, color .12s ease;
 }
 
-.folder-tab {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 30px;
-    padding: 0 12px;
-    border: 1px solid rgba(109, 124, 150, 0.72);
-    border-bottom: 0;
-    border-radius: 6px 6px 0 0;
-    background: linear-gradient(180deg, rgba(55, 65, 84, 0.96) 0%, rgba(28, 36, 49, 0.96) 100%);
-    color: #f5f8fb;
-    text-decoration: none;
-    font-size: 11px;
-    font-weight: 800;
-    line-height: 1;
-    white-space: nowrap;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+.ohl-tab:hover {
+  filter: brightness(1.06);
+  opacity: 1;
+  color: #ffffff;
+  border-color: #6a7380;
 }
 
-.folder-tab:hover {
-    color: #ffffff;
-    background: linear-gradient(180deg, rgba(68, 78, 98, 0.98) 0%, rgba(36, 45, 60, 0.98) 100%);
+.ohl-tab.is-active {
+  background: linear-gradient(180deg, #1f8f58, #146a42);
+  color: #ffffff;
+  border-color: #2fb06f;
+  border-bottom-color: #2b2b2b;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 0 0 1px rgba(14,78,49,.25), 0 1px 0 rgba(0,0,0,.28);
+  opacity: 1;
+  filter: none;
 }
 
-.folder-tab.active {
-    border-color: rgba(138, 221, 154, 0.92);
-    background: linear-gradient(180deg, rgba(43, 159, 79, 0.98) 0%, rgba(31, 121, 58, 0.98) 100%);
-    color: #ffffff;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.16);
+.ohl-tab.is-active:hover {
+  filter: none;
+  border-color: #37c17a;
 }
 
-.folder-pane {
-    position: relative;
-    border: 1px solid rgba(77, 95, 122, 0.7);
-    border-radius: 0 12px 12px 12px;
-    background: linear-gradient(180deg, rgba(20, 24, 31, 0.88) 0%, rgba(24, 27, 35, 0.84) 100%);
-    box-shadow:
-        0 10px 28px rgba(0, 0, 0, 0.26),
-        inset 0 1px 0 rgba(255,255,255,0.03);
-    padding: 14px;
-    backdrop-filter: blur(1px);
+.ohl-card {
+  position: relative;
+  z-index: 1;
+  background: #2b2b2b;
+  border-radius: 18px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.55);
+  padding: 14px 16px 16px;
 }
 
-.placeholder-viewer {
-    min-height: 430px;
-    border: 1px solid rgba(56, 70, 90, 0.9);
-    border-radius: 8px;
-    background: linear-gradient(90deg, rgba(14, 19, 28, 0.95) 0%, rgba(29, 36, 49, 0.96) 52%, rgba(14, 19, 28, 0.95) 100%);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+.ohl-viewer {
+  width: 100%;
+  min-height: 320px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #3c4043;
+  background: rgba(0,0,0,.10);
 }
 
-@media (max-width: 900px) {
-    .oqc-holding-page {
-        padding: 14px 14px 24px;
-    }
+.ohl-pane {
+  display: none;
+  min-height: 320px;
+}
 
-    .folder-tabs {
-        padding: 0 6px;
-    }
+.ohl-pane.is-active {
+  display: block;
+}
 
-    .folder-tab {
-        font-size: 10px;
-        padding: 0 10px;
-    }
+@media (max-width: 1600px) {
+  .ohl-page {
+    width: calc(100% - 28px);
+  }
+}
 
-    .placeholder-viewer {
-        min-height: 340px;
-    }
+@media (max-width: 980px) {
+  .ohl-page {
+    width: calc(100% - 20px);
+    margin-top: 14px;
+  }
+
+  .ohl-tabs {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 2px;
+    scrollbar-width: thin;
+  }
+
+  .ohl-card {
+    padding: 12px;
+  }
+
+  .ohl-viewer,
+  .ohl-pane {
+    min-height: 260px;
+  }
 }
 </style>
-</head>
-<body>
-<div class="oqc-holding-page">
-    <div class="oqc-holding-window">
-        <h1 class="oqc-holding-title">OQC 홀딩리스트</h1>
 
-        <div class="folder-tabs" role="tablist" aria-label="OQC 홀딩리스트 모델 탭">
-            <?php foreach ($models as $model): ?>
-                <a
-                    class="folder-tab<?= $model === $currentModel ? ' active' : '' ?>"
-                    href="?model=<?= rawurlencode($model) ?>"
-                    role="tab"
-                    aria-selected="<?= $model === $currentModel ? 'true' : 'false' ?>"
-                ><?= h($model) ?></a>
-            <?php endforeach; ?>
-        </div>
+<div class="ohl-page">
+  <h1 class="ohl-title">OQC 홀딩리스트</h1>
 
-        <div class="folder-pane">
-            <div class="placeholder-viewer" aria-label="<?= h($currentModel) ?> placeholder viewer"></div>
-        </div>
+  <div class="ohl-window">
+    <div class="ohl-tabs" role="tablist" aria-label="OQC 홀딩리스트 모델 탭">
+      <?php foreach ($holdingTabs as $tabKey => $tabLabel): ?>
+        <button
+          type="button"
+          class="ohl-tab<?= $tabKey === $activeHoldingTab ? ' is-active' : '' ?>"
+          data-holding-tab="<?= htmlspecialchars($tabKey, ENT_QUOTES, 'UTF-8') ?>"
+          role="tab"
+          aria-selected="<?= $tabKey === $activeHoldingTab ? 'true' : 'false' ?>"
+          aria-controls="holding-pane-<?= htmlspecialchars($tabKey, ENT_QUOTES, 'UTF-8') ?>"
+          id="holding-tab-<?= htmlspecialchars($tabKey, ENT_QUOTES, 'UTF-8') ?>"
+        ><?= htmlspecialchars($tabLabel, ENT_QUOTES, 'UTF-8') ?></button>
+      <?php endforeach; ?>
     </div>
+
+    <div class="ohl-card">
+      <?php foreach ($holdingTabs as $tabKey => $tabLabel): ?>
+        <section
+          class="ohl-pane<?= $tabKey === $activeHoldingTab ? ' is-active' : '' ?>"
+          id="holding-pane-<?= htmlspecialchars($tabKey, ENT_QUOTES, 'UTF-8') ?>"
+          role="tabpanel"
+          aria-labelledby="holding-tab-<?= htmlspecialchars($tabKey, ENT_QUOTES, 'UTF-8') ?>"
+        >
+          <div class="ohl-viewer"></div>
+        </section>
+      <?php endforeach; ?>
+    </div>
+  </div>
 </div>
-</body>
-</html>
+
+<script>
+(function () {
+  var root = document.currentScript && document.currentScript.previousElementSibling;
+  while (root && !root.classList.contains('ohl-page')) {
+    root = root.previousElementSibling;
+  }
+  if (!root) {
+    root = document.querySelector('.ohl-page');
+  }
+  if (!root) return;
+
+  var tabs = root.querySelectorAll('.ohl-tab');
+  var panes = root.querySelectorAll('.ohl-pane');
+
+  function activate(tabKey) {
+    tabs.forEach(function (tab) {
+      var active = tab.getAttribute('data-holding-tab') === tabKey;
+      tab.classList.toggle('is-active', active);
+      tab.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+
+    panes.forEach(function (pane) {
+      pane.classList.toggle('is-active', pane.id === 'holding-pane-' + tabKey);
+    });
+  }
+
+  tabs.forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      activate(tab.getAttribute('data-holding-tab'));
+    });
+  });
+})();
+</script>
