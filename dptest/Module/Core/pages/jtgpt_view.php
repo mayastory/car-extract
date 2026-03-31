@@ -12,7 +12,7 @@ require_once __DIR__ . '/../lib/jtgpt_tools_shipping.php';
 
 function jtgpt_json_response(array $payload): void {
     header('Content-Type: application/json; charset=UTF-8');
-    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
 
@@ -422,7 +422,7 @@ function jtgpt_quality_cert_detail_sheet_name(string $modelName, int $index): st
     if ($name === '') {
         $name = 'MODEL' . $index;
     }
-    $name = preg_replace('/[\\\/?\*\[\]:]+/u', '_', $name);
+    $name = preg_replace('/[\\/?\*\[\]:]+/u', '_', $name);
     $name = trim((string)$name);
     if ($name === '') {
         $name = 'MODEL' . $index;
@@ -433,9 +433,50 @@ function jtgpt_quality_cert_detail_sheet_name(string $modelName, int $index): st
     return $name;
 }
 
+function jtgpt_quality_cert_detail_unique_sheet_name(string $modelName, int $index, array &$usedNames): string {
+    $base = jtgpt_quality_cert_detail_sheet_name($modelName, $index);
+    $candidate = $base;
+    $suffix = 2;
+    while (isset($usedNames[mb_strtolower($candidate, 'UTF-8')])) {
+        $tag = '_' . $suffix;
+        $limit = max(1, 31 - mb_strlen($tag, 'UTF-8'));
+        $candidate = mb_substr($base, 0, $limit, 'UTF-8') . $tag;
+        $suffix++;
+    }
+    $usedNames[mb_strtolower($candidate, 'UTF-8')] = true;
+    return $candidate;
+}
+
+function jtgpt_quality_cert_detail_unique_dates(array $dateRows): array {
+    $bucket = [];
+    foreach ($dateRows as $dateRow) {
+        $date = trim((string)($dateRow['date'] ?? ''));
+        if ($date === '') {
+            continue;
+        }
+        if (!isset($bucket[$date])) {
+            $bucket[$date] = [
+                'date' => $date,
+                'is_ng' => !empty($dateRow['is_ng']),
+                'header_pk' => (string)($dateRow['header_pk'] ?? ''),
+            ];
+            continue;
+        }
+        if (!empty($dateRow['is_ng'])) {
+            $bucket[$date]['is_ng'] = true;
+        }
+    }
+    $unique = array_values($bucket);
+    usort($unique, static function (array $a, array $b): int {
+        return [(string)($a['date'] ?? ''), (string)($a['header_pk'] ?? '')] <=> [(string)($b['date'] ?? ''), (string)($b['header_pk'] ?? '')];
+    });
+    return $unique;
+}
+
 function jtgpt_quality_cert_detail_build_sheets(array $result, array $args): array {
     $sheets = [];
     $sheetIndex = 1;
+    $usedSheetNames = [];
     foreach ((array)($result['model_groups'] ?? []) as $modelGroup) {
         $modelName = trim((string)($modelGroup['model'] ?? '모델미상'));
         $toolGroups = array_values((array)($modelGroup['tools'] ?? []));
@@ -458,7 +499,7 @@ function jtgpt_quality_cert_detail_build_sheets(array $result, array $args): arr
                 $grid[2]['values'][$col] = (string)($cavityGroup['cavity'] ?? '-');
                 $grid[2]['styles'][$col] = 1;
                 $rowNo = 3;
-                foreach ((array)($cavityGroup['dates'] ?? []) as $dateRow) {
+                foreach (jtgpt_quality_cert_detail_unique_dates((array)($cavityGroup['dates'] ?? [])) as $dateRow) {
                     $grid[$rowNo]['values'][$col] = (string)($dateRow['date'] ?? '');
                     if (!empty($dateRow['is_ng'])) {
                         $grid[$rowNo]['styles'][$col] = 2;
@@ -495,7 +536,7 @@ function jtgpt_quality_cert_detail_build_sheets(array $result, array $args): arr
         }
 
         $sheets[] = [
-            'name' => jtgpt_quality_cert_detail_sheet_name($modelName, $sheetIndex++),
+            'name' => jtgpt_quality_cert_detail_unique_sheet_name($modelName, $sheetIndex++, $usedSheetNames),
             'rows' => $sheetRows,
         ];
     }
@@ -1617,16 +1658,7 @@ function jtgpt_answer_quality_cert_remaining(array $result, array $args): string
 
     $scope = jtgpt_format_scope($args);
     $fieldLabel = jtgpt_quality_cert_field_label_text($result, $args);
-    $totalCount = (int)($result['total_count'] ?? 0);
-    $isStatusRequest = !empty($args['cert_status_request']) || (string)($args['output_mode'] ?? '') === 'status';
-    if ($isStatusRequest) {
-        $headline = $totalCount > 0
-            ? trim('OQC ' . $scope . ' ' . $fieldLabel . ' 성적서 가능 데이터는 현재 확인됩니다. 아래는 현황입니다.')
-            : trim('OQC ' . $scope . ' ' . $fieldLabel . ' 성적서 가능 데이터는 현재 부족합니다.');
-    } else {
-        $headline = trim('OQC ' . $scope . ' ' . $fieldLabel . ' 성적서 가능 데이터 현황입니다.');
-    }
-    $lines = [$headline];
+    $lines = [trim('OQC ' . $scope . ' ' . $fieldLabel . ' 성적서 가능 데이터 현황입니다.')];
 
     $groupBy = (string)($result['group_by'] ?? $args['group_by'] ?? 'model_tool_cavity');
     foreach (($result['model_groups'] ?? []) as $modelGroup) {
@@ -1945,16 +1977,8 @@ function jtgpt_is_output_only_followup_message(string $message): bool {
     if ($lower === '') {
         return false;
     }
-    if (!jtgpt_planner_contains_any($lower, ['엑셀', 'excel', 'xlsx', 'csv', '표로', '테이블', 'table', '출력', '다운로드', '내려', '저장', '파일', '내보내', '추출', '뽑아'])) {
+    if (!jtgpt_planner_contains_any($lower, ['엑셀', 'excel', 'xlsx', 'csv', '표로', '테이블', 'table', '출력', '다운로드', '내려', '저장', '파일'])) {
         return false;
-    }
-
-    if (function_exists('jtgpt_planner_is_detail_export_message') && jtgpt_planner_is_detail_export_message($message)) {
-        $detailOnly = preg_replace('/(?:상세내역|상세\s*내역|상세|detail|내역|엑셀|excel|xlsx|csv|표로|테이블|table|출력|다운로드|내려|저장|파일|내보내|추출|뽑아|줘|주라|줄래|해줘|해\s*줘|좀|으로|로|만|부탁|바로|해|를|을|좀)/u', ' ', $lower);
-        $detailOnly = trim((string)preg_replace('/\s+/u', ' ', $detailOnly));
-        if ($detailOnly === '') {
-            return true;
-        }
     }
 
     $range = jtgpt_planner_detect_date_range($lower);
@@ -2018,7 +2042,7 @@ function jtgpt_build_exportable_followup_plan_from_tool_args(string $tool, array
     $args['output'] = $output;
     $lower = mb_strtolower($message, 'UTF-8');
     if ($tool === 'quality_cert_remaining') {
-        if ((function_exists('jtgpt_planner_is_detail_export_message') && jtgpt_planner_is_detail_export_message($message)) || jtgpt_planner_contains_any($lower, ['상세내역', '상세 내역', '상세', 'detail', '내역'])) {
+        if (jtgpt_planner_contains_any($lower, ['상세내역', '상세 내역', '상세', 'detail'])) {
             $args['detail_export'] = true;
         } else {
             unset($args['detail_export']);
@@ -2774,32 +2798,6 @@ if ($isAjax) {
         bubble.appendChild(link);
     }
 
-    function parseJsonLoose(rawText) {
-        const text = String(rawText || '').trim();
-        if (!text) return null;
-        try {
-            return JSON.parse(text);
-        } catch (_) {}
-
-        const firstBrace = text.indexOf('{');
-        const lastBrace = text.lastIndexOf('}');
-        if (firstBrace >= 0 && lastBrace > firstBrace) {
-            const candidate = text.slice(firstBrace, lastBrace + 1);
-            try {
-                return JSON.parse(candidate);
-            } catch (_) {}
-        }
-        return null;
-    }
-
-    function extractServerErrorText(rawText) {
-        const text = String(rawText || '').trim();
-        if (!text) return '';
-        const collapsed = text.replace(/\s+/g, ' ').trim();
-        if (!collapsed) return '';
-        return collapsed.slice(0, 240);
-    }
-
     async function sendMessage() {
         const message = inputEl.value.trim();
         if (!message) return;
@@ -2821,11 +2819,7 @@ if ($isAjax) {
                 },
                 body: JSON.stringify({ message, client_history: clientHistory.slice(-12), last_quality_plan: lastQualityPlan, last_exportable_plan: lastExportablePlan })
             });
-            const rawText = await res.text();
-            const json = parseJsonLoose(rawText);
-            if (!json) {
-                throw new Error(extractServerErrorText(rawText) || '응답 JSON 파싱 실패');
-            }
+            const json = await res.json();
             const answerText = (json && json.answer) ? json.answer : '응답을 받지 못했어요.';
             await typeText(assistantBubble, answerText, { downloadUrl: json && json.download_url ? json.download_url : '' });
             clientHistory.push({ role: 'assistant', text: answerText });
@@ -2844,8 +2838,7 @@ if ($isAjax) {
                 scrollBottom(false);
             }
         } catch (e) {
-            const rawMessage = e && typeof e.message === 'string' ? e.message.trim() : '';
-            const errText = rawMessage ? rawMessage : '지금 응답을 불러오지 못했어요.';
+            const errText = '지금 응답을 불러오지 못했어요.';
             await typeText(assistantBubble, errText, { downloadUrl: '' });
             clientHistory.push({ role: 'assistant', text: errText });
         } finally {
