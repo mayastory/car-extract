@@ -1338,9 +1338,15 @@ if (!function_exists('jtgpt_tool_quality_cert_remaining')) {
 
         $ngHeaderSet = [];
         if (!empty($schema['ng_predicate']) && !empty($schema['header_id_col']) && !empty($schema['header_pk_col'])) {
-            $ngSql = "SELECT DISTINCT h.`{$schema['header_pk_col']}` AS header_pk FROM `{$schema['header_table']}` h JOIN `{$schema['result_table']}` r ON r.`{$schema['header_id_col']}` = h.`{$schema['header_pk_col']}`";
+            $fromClause = jtgpt_quality_from_clause($schema, 'oqc');
+            $pointExpr = jtgpt_quality_point_expr($schema, 'oqc');
+            $ngSql = "SELECT DISTINCT h.`{$schema['header_pk_col']}` AS header_pk {$fromClause}";
             $ngWhere = $where;
             $ngWhere[] = '(' . $schema['ng_predicate'] . ')';
+            // OQC에서 (DC) 포인트는 NG/사용 불가 예상에서 제외한다.
+            // cert remaining 채팅/상세엑셀 모두 동일한 기준을 쓰기 위해
+            // NG 헤더 집계 단계에서부터 (DC)를 걸러야 한다.
+            $ngWhere[] = "UPPER(REPLACE(CAST({$pointExpr} AS CHAR), ' ', '')) NOT LIKE :cert_dc_like";
             if ($ngWhere) {
                 $ngSql .= ' WHERE ' . implode(' AND ', $ngWhere);
             }
@@ -1348,6 +1354,7 @@ if (!function_exists('jtgpt_tool_quality_cert_remaining')) {
             foreach ($params as $k => $v) {
                 $ngSt->bindValue($k, $v);
             }
+            $ngSt->bindValue(':cert_dc_like', '%(DC)%');
             $ngSt->execute();
             foreach (($ngSt->fetchAll(PDO::FETCH_ASSOC) ?: []) as $ngRow) {
                 $headerPk = trim((string)($ngRow['header_pk'] ?? ''));
