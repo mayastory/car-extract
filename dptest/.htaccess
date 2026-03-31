@@ -20,6 +20,7 @@ RewriteRule ^jtgpt/?$ public/legacy/app.php?view=jtgpt [L,QSA]
 RewriteRule ^shipinglist/?$ public/legacy/app.php?view=shipinglist [L,QSA]
 RewriteRule ^rma/?$ public/legacy/app.php?view=rma [L,QSA]
 RewriteRule ^oqc/?$ public/legacy/app.php?view=oqc [L,QSA]
+RewriteRule ^oqc_holdinglist/?$ public/legacy/app.php?view=oqc_holdinglist [L,QSA]
 RewriteRule ^ipqc/?$ public/legacy/app.php?view=ipqc [L,QSA]
 
 RewriteRule ^admin_settings/?$ public/legacy/admin_settings.php [L,QSA]

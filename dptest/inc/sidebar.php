@@ -48,6 +48,13 @@ function dp_sidebar_render(string $active = ''): string
 			'icon'  => '📏',
 		],
 		[
+			'key'   => 'oqc_holdinglist',
+			'title' => 'OQC 홀딩리스트',
+			'href'  => dp_url('oqc_holdinglist'), // pretty url (fallback)
+			'nav'   => '/oqc_holdinglist',       // dp_shell.js용
+			'icon'  => '🔐',
+		],
+		[
 			'key'   => 'ipqc',
 			'title' => 'JMP Assist (IPQC)',
 			'href'  => dp_url('ipqc'),         // pretty url (fallback)
