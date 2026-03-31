@@ -187,6 +187,13 @@ function classify_ng_side(array $row): string
     return 'USL';
 }
 
+function is_dc_point(?string $pointNo): bool
+{
+    $text = trim((string)$pointNo);
+    if ($text === '') return false;
+    return (bool)preg_match('/\(\s*dc\s*\)/i', $text);
+}
+
 function daterange_inclusive(string $start, string $end): array
 {
     $out = [];
@@ -344,7 +351,7 @@ try {
                     $stmtNg->execute($chunk);
                     foreach ($stmtNg->fetchAll(PDO::FETCH_ASSOC) as $ng) {
                         $pointNo = (string)($ng['point_no'] ?? '');
-                        if ($pointNo !== '' && isset($ignorePoints[$pointNo])) {
+                        if ($pointNo !== '' && (isset($ignorePoints[$pointNo]) || is_dc_point($pointNo))) {
                             continue;
                         }
                         $headerId = (int)$ng['header_id'];
@@ -413,11 +420,11 @@ try {
     --card-border:#4a4d55;
     --card-shadow:0 14px 28px rgba(0,0,0,.28), 0 10px 10px rgba(0,0,0,.18);
     --title:#f2f4f7;
-    --folder:#4e5561;
-    --folder-border:#6e7582;
+    --folder:#535d6c;
+    --folder-border:#77808e;
     --folder-text:#f4f6fa;
-    --folder-active:#2aa45f;
-    --folder-active-border:#52c57f;
+    --folder-active:#3b9857;
+    --folder-active-border:#5ebf79;
     --table-bg:#f6f6f6;
     --th-bg:#ece8e2;
     --th-bg-2:#f3eee8;
@@ -466,7 +473,7 @@ body{
     border:1px solid var(--folder-border);
     border-bottom:none;
     border-radius:6px 6px 0 0;
-    background:linear-gradient(to bottom, #56606f 0%, #4c5562 100%);
+    background:linear-gradient(to bottom, #5e6877 0%, #4f5866 100%);
     color:var(--folder-text);
     text-decoration:none;
     font-size:11px;
@@ -476,7 +483,7 @@ body{
     box-shadow:0 -1px 0 rgba(255,255,255,.08) inset;
 }
 .folder-tab.active{
-    background:linear-gradient(to bottom, var(--folder-active) 0%, #278f56 100%);
+    background:linear-gradient(to bottom, var(--folder-active) 0%, #2f8448 100%);
     border-color:var(--folder-active-border);
     color:#fff;
     position:relative;
