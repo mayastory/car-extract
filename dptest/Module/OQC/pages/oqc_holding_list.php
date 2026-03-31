@@ -748,7 +748,7 @@ try {
     --th-bg:#ece8e2;
     --th-bg-2:#f3eee8;
     --cell-bg:#ffffff;
-    --ng-bg:#FDF2ED;
+    --usl-zone-bg:#FDF2ED;
     --ok-bg:#CFE9CF;
     --idle-bg:#f5f5f5;
     --grid:#2d2d2d;
@@ -875,9 +875,10 @@ body{
 .holding-table td.qty{
     background:#fff;
 }
-.holding-table td.ng-cell{
-    background:var(--ng-bg);
+.holding-table td.usl-zone{
+    background:var(--usl-zone-bg);
 }
+.holding-table td.lsl-zone,
 .holding-table td.blank-oqc{
     background:#fff;
 }
@@ -994,19 +995,19 @@ body{
                                     <td colspan="6" class="state-cell state-idle">비가동</td>
                                 <?php else: ?>
                                     <?php if (($row['side'] ?? '') === 'USL'): ?>
-                                        <td class="ng-cell"><?= h($row['fai'] ?? '') ?></td>
-                                        <td class="ng-cell"><?= h($row['usl'] ?? '') ?></td>
-                                        <td class="ng-cell"><?= h($row['measured'] ?? '') ?></td>
-                                        <td class="blank-oqc"></td>
-                                        <td class="blank-oqc"></td>
-                                        <td class="blank-oqc"></td>
+                                        <td class="usl-zone"><?= h($row['fai'] ?? '') ?></td>
+                                        <td class="usl-zone"><?= h($row['usl'] ?? '') ?></td>
+                                        <td class="usl-zone"><?= h($row['measured'] ?? '') ?></td>
+                                        <td class="lsl-zone"></td>
+                                        <td class="lsl-zone"></td>
+                                        <td class="lsl-zone"></td>
                                     <?php else: ?>
-                                        <td class="blank-oqc"></td>
-                                        <td class="blank-oqc"></td>
-                                        <td class="blank-oqc"></td>
-                                        <td class="ng-cell"><?= h($row['fai'] ?? '') ?></td>
-                                        <td class="ng-cell"><?= h($row['lsl'] ?? '') ?></td>
-                                        <td class="ng-cell"><?= h($row['measured'] ?? '') ?></td>
+                                        <td class="usl-zone"></td>
+                                        <td class="usl-zone"></td>
+                                        <td class="usl-zone"></td>
+                                        <td class="lsl-zone"><?= h($row['fai'] ?? '') ?></td>
+                                        <td class="lsl-zone"><?= h($row['lsl'] ?? '') ?></td>
+                                        <td class="lsl-zone"><?= h($row['measured'] ?? '') ?></td>
                                     <?php endif; ?>
                                 <?php endif; ?>
 
