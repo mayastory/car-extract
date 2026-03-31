@@ -44,53 +44,143 @@ $defaultTab = $tabs[0];
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OQC 홀딩리스트</title>
 <style>
-html,body{height:100%;margin:0;background:<?= $embed ? '#202124' : '#f3f4f6' ?>;color:#111;font-family:Arial,"Malgun Gothic","맑은 고딕",sans-serif;font-size:12px;}
-body[data-embed="1"]{overflow:hidden;}
-.page{min-height:100%;box-sizing:border-box;padding:<?= $embed ? '18px 18px 22px' : '20px' ?>;overflow:auto;}
-.page-title{margin:0 0 12px;font-size:14px;font-weight:700;color:#e8eaed;}
-.hold-window{width:min(100%,1400px);background:rgba(27,31,38,.96);border:1px solid #30363d;border-radius:12px;box-shadow:0 18px 40px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.03);overflow:hidden;}
-.hold-window-head{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.05);background:linear-gradient(180deg,rgba(38,45,58,.98) 0%,rgba(29,34,43,.98) 100%);}
-.hold-window-dot{width:10px;height:10px;border-radius:50%;background:#2e7d32;box-shadow:0 0 0 1px rgba(255,255,255,.08) inset;flex:0 0 auto;}
-.hold-window-title{font-size:12px;font-weight:700;letter-spacing:.01em;color:#e8eaed;}
-.hold-window-body{padding:12px 12px 14px;}
-.hold-subtabs{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 12px;}
-.hold-subtab{appearance:none;border:1px solid #2b313a;background:linear-gradient(180deg,#272c35 0%,#1f2430 100%);color:#e8eaed;font-weight:700;font-size:12px;padding:8px 14px;border-radius:6px 6px 0 0;cursor:pointer;line-height:1;box-shadow:inset 0 1px 0 rgba(255,255,255,.06);}
-.hold-subtab:hover{filter:brightness(1.05);}
-.hold-subtab.active{border-color:#2e7d32;background:linear-gradient(180deg,#1f5530 0%,#1a4628 100%);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 0 0 1px rgba(46,125,50,.16);}
-.hold-panel{display:none;}
-.hold-panel.active{display:block;}
-.hold-viewer{min-height:340px;border:1px solid #34383d;border-radius:0 10px 10px 10px;background:linear-gradient(180deg,rgba(39,44,53,.96) 0%,rgba(24,28,34,.96) 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.03),0 1px 3px rgba(0,0,0,.18);}
-@media (max-width: 900px){
-  .page{padding:<?= $embed ? '12px 12px 16px' : '14px' ?>;}
-  .hold-window-body{padding:10px;}
-  .hold-viewer{min-height:300px;}
-}
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+        margin:0;
+        padding:0;
+        font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+        background:#202124;
+        color:#e8eaed;
+    }
+    body[data-embed="1"]{
+        overflow:auto;
+    }
+    .page-wrap{
+        width:min(1550px, calc(100vw - 24px));
+        margin:20px auto 40px;
+        padding:0 24px;
+        box-sizing:border-box;
+        position:relative;
+    }
+    .page-title{
+        font-size:20px;
+        font-weight:600;
+        margin:0 0 10px;
+        color:#e8eaed;
+    }
+    .card-filter{
+        background:#062b14;
+        border-radius:14px;
+        box-shadow:0 8px 20px rgba(0,0,0,.45);
+        padding:12px 16px 10px;
+        margin-bottom:14px;
+    }
+    .hold-subtabs{
+        display:flex;
+        flex-wrap:wrap;
+        gap:8px;
+        align-items:center;
+    }
+    .hold-subtab{
+        appearance:none;
+        border:1px solid #3c4043;
+        background:#202124;
+        color:#e8eaed;
+        font-size:12px;
+        font-weight:600;
+        line-height:1;
+        padding:7px 12px;
+        border-radius:6px;
+        cursor:pointer;
+        transition:background-color .12s ease,border-color .12s ease,color .12s ease,box-shadow .12s ease;
+    }
+    .hold-subtab:hover{
+        background:#2a2d31;
+    }
+    .hold-subtab.active{
+        background:#1f6f3f;
+        border-color:#2ea043;
+        color:#ffffff;
+        box-shadow:0 0 0 1px rgba(46,160,67,.18) inset;
+    }
+    .card-list{
+        background:#2b2b2b;
+        border-radius:18px;
+        box-shadow:0 12px 30px rgba(0,0,0,.55);
+        padding:14px 16px 0;
+    }
+    .top-bar{
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        margin-bottom:6px;
+        min-height:22px;
+    }
+    .top-bar-title{
+        font-size:13px;
+        font-weight:600;
+        color:#e8eaed;
+    }
+    .table-wrap{
+        margin-top:6px;
+        border-radius:12px 12px 0 0;
+        overflow:hidden;
+        border:1px solid #3c4043;
+        background:rgba(0,0,0,.10);
+    }
+    .hold-panel{display:none}
+    .hold-panel.active{display:block}
+    .hold-viewer{
+        min-height:650px;
+        background:linear-gradient(180deg, rgba(30,34,40,.88) 0%, rgba(24,27,32,.95) 100%);
+    }
+    @media (max-width: 900px){
+        .page-wrap{
+            width:min(1550px, calc(100vw - 12px));
+            margin:12px auto 24px;
+            padding:0 10px;
+        }
+        .page-title{
+            font-size:18px;
+            margin-bottom:8px;
+        }
+        .card-filter{
+            padding:10px 12px 9px;
+            margin-bottom:12px;
+        }
+        .card-list{
+            padding:12px 12px 0;
+        }
+        .hold-subtabs{gap:6px}
+        .hold-subtab{padding:7px 10px}
+        .hold-viewer{min-height:520px}
+    }
 </style>
 </head>
 <body data-embed="<?= $embed ? '1' : '0' ?>">
-<div class="page">
-    <?php if (!$embed): ?>
-        <h1 class="page-title">OQC 홀딩리스트</h1>
-    <?php endif; ?>
+<div class="page-wrap">
+    <h1 class="page-title">OQC 홀딩리스트</h1>
 
-    <section class="hold-window" aria-label="OQC 홀딩리스트 창">
-        <div class="hold-window-head">
-            <span class="hold-window-dot" aria-hidden="true"></span>
-            <div class="hold-window-title">OQC 홀딩리스트</div>
+    <section class="card-filter" aria-label="OQC 홀딩리스트 모델 탭">
+        <div class="hold-subtabs" role="tablist" aria-label="OQC 홀딩리스트 모델 탭">
+            <?php foreach ($tabs as $tab): ?>
+                <button
+                    type="button"
+                    class="hold-subtab<?= $tab === $defaultTab ? ' active' : '' ?>"
+                    data-hold-panel="<?= h($tab) ?>"
+                    aria-selected="<?= $tab === $defaultTab ? 'true' : 'false' ?>"
+                ><?= h($tab) ?></button>
+            <?php endforeach; ?>
+        </div>
+    </section>
+
+    <section class="card-list" aria-label="OQC 홀딩리스트 뷰어">
+        <div class="top-bar">
+            <div class="top-bar-title"></div>
         </div>
 
-        <div class="hold-window-body">
-            <div class="hold-subtabs" role="tablist" aria-label="OQC 홀딩리스트 모델 탭">
-                <?php foreach ($tabs as $tab): ?>
-                    <button
-                        type="button"
-                        class="hold-subtab<?= $tab === $defaultTab ? ' active' : '' ?>"
-                        data-hold-panel="<?= h($tab) ?>"
-                        aria-selected="<?= $tab === $defaultTab ? 'true' : 'false' ?>"
-                    ><?= h($tab) ?></button>
-                <?php endforeach; ?>
-            </div>
-
+        <div class="table-wrap">
             <?php foreach ($tabs as $tab): ?>
                 <section class="hold-panel<?= $tab === $defaultTab ? ' active' : '' ?>" data-hold-panel-id="<?= h($tab) ?>">
                     <div class="hold-viewer" aria-label="<?= h($tab) ?> placeholder viewer"></div>
