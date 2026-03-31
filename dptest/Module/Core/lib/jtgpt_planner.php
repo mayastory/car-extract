@@ -131,12 +131,27 @@ if (!function_exists('jtgpt_planner_has_cert_status_signal')) {
         $lower = mb_strtolower($message, 'UTF-8');
         $compact = jtgpt_planner_compact_text($message);
         if (jtgpt_planner_contains_any($lower, [
-            '충분하', '충분해', '충분함', '부족하', '부족해', '모자라', '모자람', '쓸만하', '쓸 만하',
-            '쓸 거 있', '쓸거있', '될 만큼 있', '될만큼있', '성적서 쓸 거', '성적서쓸거', '발행할 만큼 있', '발행할만큼있'
+            '충분하', '충분해', '충분함', '부족하', '부족해', '모자라', '모자람',
+            '쓸만하', '쓸 만하', '쓸 거 있', '쓸거있', '될 만큼 있', '될만큼있',
+            '성적서 쓸 거', '성적서쓸거', '발행할 만큼 있', '발행할만큼있'
         ])) {
             return true;
         }
         return preg_match('/(?:충분하|부족하|모자라|쓸만하|쓸거있|될만큼있)/u', $compact) === 1;
+    }
+}
+
+if (!function_exists('jtgpt_planner_has_cert_existence_signal')) {
+    function jtgpt_planner_has_cert_existence_signal(string $message): bool {
+        $lower = mb_strtolower($message, 'UTF-8');
+        $compact = jtgpt_planner_compact_text($message);
+        if (jtgpt_planner_contains_any($lower, [
+            '있냐', '있나', '있니', '있어', '있음', '남겨있', '남겨 있어', '남겨있나', '남겨있어',
+            '남아있', '남아 있어', '남아있나', '남아있어', '있을까', '있을지'
+        ])) {
+            return true;
+        }
+        return preg_match('/(?:있냐|있나|있니|있어|있음|남겨있|남아있|있을까|있을지)/u', $compact) === 1;
     }
 }
 
@@ -149,11 +164,12 @@ if (!function_exists('jtgpt_planner_has_cert_domain_signal')) {
         $hasDateEntity = jtgpt_planner_contains_any($lower, ['자화', 'jawha', '엘지', 'lg', 'meas_date', 'jmeas_date', 'jmeas', 'meas']);
         $hasArea = jtgpt_planner_contains_any($lower, ['oqc']);
         $hasStatusWord = jtgpt_planner_has_cert_status_signal($message);
+        $hasExistenceWord = jtgpt_planner_has_cert_existence_signal($message);
         $hasCertAction = jtgpt_planner_contains_any($lower, [
             '성적서', '발행 가능', '발행가능', '쓸 수 있는', '쓸수있는', '사용 가능', '사용가능', 'usable',
             '남은 데이터', '남은데이터', '남은 거', '남은거', '잔여', '현황', '남아있는', '남아 있는', '남아있', '남아 있',
-            '남았', '남은', '남았니', '남았어'
-        ]) || preg_match('/(?:남은데이터|남은거|남았|남은|남아있|남아있는|잔여)/u', $compact) === 1;
+            '남겨있는', '남겨 있는', '남겨있', '남겨 있', '남았', '남은', '남았니', '남았어'
+        ]) || preg_match('/(?:남은데이터|남은거|남았|남은|남아있|남아있는|남겨있|남겨있는|잔여)/u', $compact) === 1;
         $hasDataWord = jtgpt_planner_contains_any($lower, ['데이터', '현황', '목록', '리스트']);
         $hasCountWord = jtgpt_planner_has_common_count_request($message);
 
@@ -161,16 +177,17 @@ if (!function_exists('jtgpt_planner_has_cert_domain_signal')) {
             return false;
         }
 
-        if ($hasFlagWord && ($hasDateEntity || $hasArea || $hasCertAction || $hasStatusWord || $hasDataWord || $hasCountWord)) {
+        if ($hasFlagWord && ($hasDateEntity || $hasArea || $hasCertAction || $hasStatusWord || $hasExistenceWord || $hasDataWord || $hasCountWord)) {
             return true;
         }
-        if (($hasDateEntity || $hasArea) && ($hasCertAction || $hasStatusWord)) {
+        if (($hasDateEntity || $hasArea) && ($hasCertAction || $hasStatusWord || $hasExistenceWord)) {
             return true;
         }
-        if ($hasDateEntity && $hasDataWord && ($hasCountWord || $hasStatusWord)) {
+        if (($hasDateEntity || $hasArea) && $hasDataWord && ($hasCountWord || $hasStatusWord || $hasExistenceWord)) {
             return true;
         }
-        if ($hasArea && $hasDataWord && ($hasCountWord || $hasStatusWord)) {
+        // "oqc 데이터 있냐 / 남겨있나" 는 플래그/성적서 가능 데이터 현황 질의로 본다.
+        if ($hasArea && $hasDataWord && ($hasExistenceWord || preg_match('/(?:데이터.*있|데이터.*남겨|데이터.*남아)/u', $compact) === 1)) {
             return true;
         }
         return false;
@@ -547,17 +564,39 @@ if (!function_exists('jtgpt_planner_extract_quality_output_mode')) {
     }
 }
 
+if (!function_exists('jtgpt_planner_has_general_export_signal')) {
+    function jtgpt_planner_has_general_export_signal(string $message): bool {
+        $lower = mb_strtolower(trim($message), 'UTF-8');
+        $compact = jtgpt_planner_compact_text($message);
+        if ($lower === '') {
+            return false;
+        }
+        // follow-up export 는 "엑셀"을 직접 말하지 않아도 파일/다운로드/내보내기 표현이면 기본 XLSX 로 본다.
+        if (jtgpt_planner_contains_any($lower, ['엑셀', 'excel', 'xlsx', 'csv', '표로', '테이블', 'table', '출력', '다운로드', '내려', '저장', '파일', '내보내', '추출', '뽑아'])) {
+            return true;
+        }
+        return preg_match('/(?:파일줘|파일로줘|파일로주|다운로드해|내보내줘|추출해줘|뽑아줘)/u', $compact) === 1;
+    }
+}
+
 if (!function_exists('jtgpt_planner_extract_quality_output_format')) {
     function jtgpt_planner_extract_quality_output_format(string $message): string {
         $lower = mb_strtolower($message, 'UTF-8');
         if (jtgpt_planner_contains_any($lower, ['csv', '.csv', '콤마분리', '쉼표파일'])) {
             return 'csv';
         }
+        if (jtgpt_planner_contains_any($lower, ['표로', '테이블', 'table'])) {
+            return 'table';
+        }
         if (jtgpt_planner_contains_any($lower, ['엑셀', 'excel', 'xlsx', '.xlsx', 'xls', '.xls'])) {
             return 'excel';
         }
-        if (jtgpt_planner_contains_any($lower, ['표로', '테이블', 'table'])) {
-            return 'table';
+        if (jtgpt_planner_has_general_export_signal($message)) {
+            return 'excel';
+        }
+        // "상세내역 줘" 같이 형식을 안 말해도 후속 export 관용 표현이면 기본 XLSX 로 본다.
+        if (preg_match('/(?:상세내역|상세|내역)(?:줘|주라|줄래|보여줘|보여줄래)?$/u', jtgpt_planner_compact_text($message)) === 1) {
+            return 'excel';
         }
         return 'chat';
     }
@@ -566,14 +605,19 @@ if (!function_exists('jtgpt_planner_extract_quality_output_format')) {
 if (!function_exists('jtgpt_planner_is_detail_export_message')) {
     function jtgpt_planner_is_detail_export_message(string $message): bool {
         $lower = mb_strtolower(trim($message), 'UTF-8');
+        $compact = jtgpt_planner_compact_text($message);
         if ($lower === '') {
             return false;
         }
-        $hasExport = jtgpt_planner_contains_any($lower, ['엑셀', 'excel', 'xlsx', 'csv', '표로', '테이블', 'table', '출력', '다운로드', '내려', '저장', '파일', '내보내', '추출', '뽑아']);
-        if (!$hasExport) {
+        $hasDetail = jtgpt_planner_contains_any($lower, ['상세내역', '상세 내역', '상세', 'detail', '내역']);
+        if (!$hasDetail) {
             return false;
         }
-        return jtgpt_planner_contains_any($lower, ['상세내역', '상세 내역', '상세', 'detail', '내역']);
+        if (jtgpt_planner_has_general_export_signal($message)) {
+            return true;
+        }
+        // "상세내역 줘/보여줘" 같은 follow-up 은 파일 형식을 안 말해도 상세 export 로 본다.
+        return preg_match('/(?:상세내역|상세내역으로|상세|내역)(?:줘|주라|줄래|보여줘|보여주라|보여줄래)?$/u', $compact) === 1;
     }
 }
 
@@ -636,7 +680,7 @@ if (!function_exists('jtgpt_planner_is_quality_export_followup')) {
         if (jtgpt_planner_contains_any($lower, ['oqc', 'omm', 'aoi', 'cmm', 'ng', '불량', '측정값', 'usl', 'lsl'])) $hasNewScope = true;
 
         if ($isDetailExport) {
-            $detailOnly = preg_replace('/(?:상세내역|상세\s*내역|상세|detail|내역|엑셀|excel|xlsx|csv|표로|테이블|table|출력|다운로드|내려|저장|파일|내보내|추출|뽑아|줘|주라|줄래|해줘|해\s*줘|좀|으로|로|만|부탁|바로|해|를|을|좀)/u', ' ', $lower);
+            $detailOnly = preg_replace('/(?:상세내역|상세\s*내역|상세|detail|내역|엑셀|excel|xlsx|csv|표로|테이블|table|출력|다운로드|내려|저장|파일|내보내|추출|뽑아|줘|주라|줄래|해줘|해\s*줘|보여줘|보여\s*줘|좀|으로|로|만|부탁|바로|해|를|을|그리고|그리구|좀)/u', ' ', $lower);
             $detailOnly = trim((string)preg_replace('/\s+/u', ' ', $detailOnly));
             if ($detailOnly === '') {
                 return true;
@@ -1188,9 +1232,9 @@ if (!function_exists('jtgpt_planner_plan')) {
             $slots['point_no'] = null;
             $slots['date_field'] = jtgpt_planner_extract_quality_date_field($text);
             $slots['group_by'] = jtgpt_planner_extract_cert_group_by($text);
-            $slots['cert_status_request'] = jtgpt_planner_has_cert_status_signal($text);
-            if (!empty($slots['cert_status_request'])) {
-                $slots['output_mode'] = 'status';
+            // 한 문장 안에 조회 + 상세 export 가 같이 들어오면 follow-up 을 기다리지 말고 바로 detail_export 로 넘긴다.
+            if (jtgpt_planner_is_detail_export_message($text)) {
+                $slots['detail_export'] = true;
             }
             return ['kind' => 'tool', 'tool' => 'quality_cert_remaining', 'args' => $slots, 'slots' => $slots];
         }

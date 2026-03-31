@@ -760,8 +760,14 @@ function jtgpt_quality_create_export(PDO $pdo, string $tool, array $args, array 
     $filename = jtgpt_quality_export_filename($args, $ext);
     $path = rtrim($dir, '/\\') . '/' . $filename;
 
-    if ($tool === 'quality_cert_remaining' && $output === 'excel' && !empty($args['detail_export'])) {
-        jtgpt_quality_write_cert_detail_xlsx_file($path, $result, $args);
+    // 성적서 가능 데이터(quality_cert_remaining)의 XLSX 는 평면 TOOL/CAVITY 요약표를 만들지 않는다.
+    // 사용자가 실제로 보는/쓰는 형식은 모델별 시트 + 차수 가로 배치 + 캐비티별 날짜 상세 레이아웃이므로,
+    // detail_export 문구를 직접 말하지 않아도 Excel 출력은 항상 상세 레이아웃으로 통일한다.
+    // CSV 만 예외적으로 행 기반 내보내기를 허용한다.
+    if ($tool === 'quality_cert_remaining' && $output === 'excel') {
+        $detailArgs = $args;
+        $detailArgs['detail_export'] = true;
+        jtgpt_quality_write_cert_detail_xlsx_file($path, $result, $detailArgs);
         $download = jtgpt_quality_register_download($path, $filename, $output, (int)($result['total_count'] ?? 0));
         return [
             'name' => $filename,
