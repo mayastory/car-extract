@@ -271,20 +271,38 @@ if (!function_exists('jtgpt_quality_cert_candidate_fields')) {
     }
 }
 
+if (!function_exists('jtgpt_quality_cert_normalize_date_value')) {
+    function jtgpt_quality_cert_normalize_date_value($value): string {
+        $value = trim((string)$value);
+        if ($value === '') {
+            return '';
+        }
+        if (preg_match('/^(\d{4}-\d{2}-\d{2})/', $value, $m)) {
+            return $m[1];
+        }
+        if (preg_match('/^(\d{4})[\/.](\d{1,2})[\/.](\d{1,2})$/', $value, $m)) {
+            return sprintf('%04d-%02d-%02d', (int)$m[1], (int)$m[2], (int)$m[3]);
+        }
+        if (preg_match('/^(\d{4})(\d{2})(\d{2})$/', $value, $m)) {
+            return sprintf('%04d-%02d-%02d', (int)$m[1], (int)$m[2], (int)$m[3]);
+        }
+        return $value;
+    }
+}
+
 if (!function_exists('jtgpt_quality_cert_pick_display_date')) {
-    function jtgpt_quality_cert_pick_display_date(array $row, array $flagCols): string {
+    function jtgpt_quality_cert_pick_display_date(array $row, array $flagCols = []): string {
+        // 성적서 남은 데이터의 날짜 기준은 meas_date / jmeas_date 플래그 값이 아니라
+        // OQC 원본 헤더의 실제 날짜 컬럼(date_col)이다.
+        $sourceDate = jtgpt_quality_cert_normalize_date_value($row['source_date'] ?? '');
+        if ($sourceDate !== '') {
+            return $sourceDate;
+        }
         foreach (array_values($flagCols) as $i => $col) {
-            $value = trim((string)($row['flag_col_' . $i] ?? ''));
-            if ($value === '') {
-                continue;
+            $value = jtgpt_quality_cert_normalize_date_value($row['flag_col_' . $i] ?? '');
+            if ($value !== '') {
+                return $value;
             }
-            if (preg_match('/^(\d{4}-\d{2}-\d{2})/', $value, $m)) {
-                return $m[1];
-            }
-            if (preg_match('/^(\d{4})[\/.](\d{1,2})[\/.](\d{1,2})$/', $value, $m)) {
-                return sprintf('%04d-%02d-%02d', (int)$m[1], (int)$m[2], (int)$m[3]);
-            }
-            return $value;
         }
         return '';
     }
@@ -1188,20 +1206,25 @@ if (!function_exists('jtgpt_tool_quality_cert_remaining')) {
 
         $where = [];
         $params = [];
-        $dateConds = [];
-        foreach (array_values($flagCols) as $i => $col) {
-            $cond = "NULLIF(TRIM(CAST(h.`{$col}` AS CHAR)), '') IS NOT NULL";
-            if (!empty($args['from']) && !empty($args['to'])) {
-                $fromKey = ':flag_from_' . $i;
-                $toKey = ':flag_to_' . $i;
-                $params[$fromKey] = (string)$args['from'];
-                $params[$toKey] = (string)$args['to'];
-                $cond .= " AND h.`{$col}` >= {$fromKey} AND h.`{$col}` <= {$toKey}";
-            }
-            $dateConds[] = '(' . $cond . ')';
+
+        // 남은 데이터는 해당 플래그 컬럼(meas_date / jmeas_date)에 값이 "있는" 데이터가 아니라
+        // 아직 사용하지 않은 NULL/빈값 데이터만 대상으로 잡아야 한다.
+        $blankConds = [];
+        foreach (array_values($flagCols) as $col) {
+            $blankConds[] = "NULLIF(TRIM(CAST(h.`{$col}` AS CHAR)), '') IS NULL";
         }
-        if ($dateConds) {
-            $where[] = '(' . implode(' OR ', $dateConds) . ')';
+        if ($blankConds) {
+            $where[] = '(' . implode(' AND ', $blankConds) . ')';
+        }
+
+        // 날짜 기준은 플래그 컬럼 값이 아니라 OQC 헤더의 실제 날짜 컬럼(date_col)이다.
+        if (!empty($schema['date_col'])) {
+            $where[] = "NULLIF(TRIM(CAST(h.`{$schema['date_col']}` AS CHAR)), '') IS NOT NULL";
+            if (!empty($args['from']) && !empty($args['to'])) {
+                $params[':src_from'] = (string)$args['from'];
+                $params[':src_to'] = (string)$args['to'];
+                $where[] = "h.`{$schema['date_col']}` >= :src_from AND h.`{$schema['date_col']}` <= :src_to";
+            }
         }
 
         $partName = trim((string)($args['part_name'] ?? ''));
@@ -1273,6 +1296,7 @@ if (!function_exists('jtgpt_tool_quality_cert_remaining')) {
         $cavityExpr = !empty($schema['cavity_col']) ? "h.`{$schema['cavity_col']}`" : "''";
         $toolCavityExpr = !empty($schema['tool_cavity_col']) ? "h.`{$schema['tool_cavity_col']}`" : "''";
         $headerPkExpr = !empty($schema['header_pk_col']) ? "h.`{$schema['header_pk_col']}`" : 'NULL';
+        $sourceDateExpr = !empty($schema['date_col']) ? "h.`{$schema['date_col']}`" : "''";
         $flagSelects = [];
         foreach (array_values($flagCols) as $i => $col) {
             $flagSelects[] = "h.`{$col}` AS flag_col_{$i}";
@@ -1283,6 +1307,7 @@ if (!function_exists('jtgpt_tool_quality_cert_remaining')) {
             "{$toolExpr} AS raw_tool",
             "{$cavityExpr} AS raw_cavity",
             "{$toolCavityExpr} AS raw_tool_cavity",
+            "{$sourceDateExpr} AS source_date",
         ];
         if ($flagSelects) {
             $selectCols = array_merge($selectCols, $flagSelects);
@@ -1332,7 +1357,9 @@ if (!function_exists('jtgpt_tool_quality_cert_remaining')) {
             }
         }
 
-        $models = [];
+        // 동일한 성적서 가능 데이터 1건은 모델 + 실제날짜 + Tool + Cavity 조합으로 본다.
+        // 같은 날짜/같은 Tool/Cavity를 여러 raw row 가 만들어도 1건만 세야 채팅/상세엑셀이 일치한다.
+        $uniqueEntries = [];
         foreach ($fetched as $row) {
             $model = trim((string)($row['part_name'] ?? ''));
             if ($model === '') $model = '모델미상';
@@ -1342,6 +1369,33 @@ if (!function_exists('jtgpt_tool_quality_cert_remaining')) {
             $headerPk = trim((string)($row['header_pk'] ?? ''));
             $isNg = ($headerPk !== '' && isset($ngHeaderSet[$headerPk]));
             $displayDate = jtgpt_quality_cert_pick_display_date($row, $flagCols);
+            $entryKey = strtoupper($model . '|' . $displayDate . '|' . $tool . '|' . $cavity);
+            if (!isset($uniqueEntries[$entryKey])) {
+                $uniqueEntries[$entryKey] = [
+                    'model' => $model,
+                    'tool' => $tool,
+                    'cavity' => $cavity,
+                    'date' => $displayDate,
+                    'is_ng' => $isNg,
+                    'header_pks' => $headerPk !== '' ? [$headerPk => true] : [],
+                ];
+            } else {
+                if ($isNg) {
+                    $uniqueEntries[$entryKey]['is_ng'] = true;
+                }
+                if ($headerPk !== '') {
+                    $uniqueEntries[$entryKey]['header_pks'][$headerPk] = true;
+                }
+            }
+        }
+
+        $models = [];
+        foreach ($uniqueEntries as $entry) {
+            $model = $entry['model'];
+            $tool = $entry['tool'];
+            $cavity = $entry['cavity'];
+            $displayDate = $entry['date'];
+            $isNg = !empty($entry['is_ng']);
 
             if (!isset($models[$model])) {
                 $models[$model] = ['model' => $model, 'count' => 0, 'tools' => [], 'cavities' => [], 'tool_cavity' => []];
@@ -1364,7 +1418,7 @@ if (!function_exists('jtgpt_tool_quality_cert_remaining')) {
                 $models[$model]['tools'][$tool]['cavities'][$cavity]['ng_count']++;
             }
             if ($displayDate !== '') {
-                $models[$model]['tools'][$tool]['cavities'][$cavity]['dates'][] = ['date' => $displayDate, 'is_ng' => $isNg, 'header_pk' => $headerPk];
+                $models[$model]['tools'][$tool]['cavities'][$cavity]['dates'][] = ['date' => $displayDate, 'is_ng' => $isNg];
             }
 
             if (!isset($models[$model]['cavities'][$cavity])) {
@@ -1378,7 +1432,6 @@ if (!function_exists('jtgpt_tool_quality_cert_remaining')) {
             }
             $models[$model]['tool_cavity'][$tcKey]['count']++;
         }
-
         $modelGroups = array_values($models);
         usort($modelGroups, static function (array $a, array $b): int {
             return [jtgpt_quality_norm_token($a['model'] ?? ''), (string)($a['model'] ?? '')] <=> [jtgpt_quality_norm_token($b['model'] ?? ''), (string)($b['model'] ?? '')];
@@ -1396,8 +1449,21 @@ if (!function_exists('jtgpt_tool_quality_cert_remaining')) {
                 });
                 foreach ($cavityGroups as &$cavityGroup) {
                     $dates = array_values((array)($cavityGroup['dates'] ?? []));
+                    $dateMap = [];
+                    foreach ($dates as $dRow) {
+                        $d = trim((string)($dRow['date'] ?? ''));
+                        if ($d === '') {
+                            continue;
+                        }
+                        if (!isset($dateMap[$d])) {
+                            $dateMap[$d] = ['date' => $d, 'is_ng' => !empty($dRow['is_ng'])];
+                        } elseif (!empty($dRow['is_ng'])) {
+                            $dateMap[$d]['is_ng'] = true;
+                        }
+                    }
+                    $dates = array_values($dateMap);
                     usort($dates, static function (array $a, array $b): int {
-                        return [(string)($a['date'] ?? ''), (string)($a['header_pk'] ?? '')] <=> [(string)($b['date'] ?? ''), (string)($b['header_pk'] ?? '')];
+                        return [(string)($a['date'] ?? '')] <=> [(string)($b['date'] ?? '')];
                     });
                     $cavityGroup['dates'] = $dates;
                 }
@@ -1431,7 +1497,7 @@ if (!function_exists('jtgpt_tool_quality_cert_remaining')) {
             'date_field' => $dateField,
             'date_field_label' => jtgpt_quality_cert_field_label($dateField),
             'group_by' => (string)($args['group_by'] ?? 'model_tool_cavity'),
-            'total_count' => count($fetched),
+            'total_count' => count($uniqueEntries),
             'model_groups' => $modelGroups,
         ];
     }
