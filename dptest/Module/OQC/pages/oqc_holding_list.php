@@ -247,8 +247,11 @@ try {
     $hasMeasurements = table_exists($pdo, 'oqc_measurements');
     $hasIgnoreTable = table_exists($pdo, 'oqc_ng_ignore_point');
 
+    // 측정일 기준: meas_date / jmeas_date 계열은 날짜가 아니라 납품처 플래그로 쓰일 수 있으므로
+    // 홀딩리스트 날짜 축에서는 제외한다. 실제 측정일은 source_file 날짜를 최우선으로 보고,
+    // 필요할 때만 일반 날짜성 컬럼으로 느슨하게 fallback 한다.
     $priorityCols = [];
-    foreach (['meas_date', 'meas_date2', 'jmeas_date', 'jmeas_date2', 'ship_date', 'lot_date'] as $col) {
+    foreach (['measurement_date', 'measure_date', 'measured_date', 'inspect_date', 'inspection_date', 'date', 'lot_date', 'ship_date'] as $col) {
         if (isset($headerCols[$col])) $priorityCols[] = $col;
     }
 
