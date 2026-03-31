@@ -46,6 +46,7 @@ $defaultTab = $tabs[0];
 <style>
     *{box-sizing:border-box}
     html,body{height:100%}
+    html{background:transparent}
     body{
         margin:0;
         padding:0;
@@ -55,9 +56,11 @@ $defaultTab = $tabs[0];
     }
     body[data-embed="1"]{
         overflow:auto;
+        background:transparent;
     }
     .page-wrap{
-        width:min(1550px, calc(100vw - 24px));
+        width:1550px;
+        max-width:calc(100vw - 24px);
         margin:20px auto 40px;
         padding:0 24px;
         box-sizing:border-box;
@@ -70,7 +73,7 @@ $defaultTab = $tabs[0];
         color:#e8eaed;
     }
     .card-filter{
-        background:#062b14;
+        background:#2b2b2b;
         border-radius:14px;
         box-shadow:0 8px 20px rgba(0,0,0,.45);
         padding:12px 16px 10px;
@@ -108,7 +111,7 @@ $defaultTab = $tabs[0];
         background:#2b2b2b;
         border-radius:18px;
         box-shadow:0 12px 30px rgba(0,0,0,.55);
-        padding:14px 16px 0;
+        padding:14px 16px 16px;
     }
     .top-bar{
         display:flex;
@@ -124,20 +127,21 @@ $defaultTab = $tabs[0];
     }
     .table-wrap{
         margin-top:6px;
-        border-radius:12px 12px 0 0;
+        border-radius:12px;
         overflow:hidden;
         border:1px solid #3c4043;
-        background:rgba(0,0,0,.10);
+        background:#202124;
     }
     .hold-panel{display:none}
     .hold-panel.active{display:block}
     .hold-viewer{
         min-height:650px;
-        background:linear-gradient(180deg, rgba(30,34,40,.88) 0%, rgba(24,27,32,.95) 100%);
+        background:#202124;
     }
     @media (max-width: 900px){
         .page-wrap{
-            width:min(1550px, calc(100vw - 12px));
+            width:1550px;
+            max-width:calc(100vw - 12px);
             margin:12px auto 24px;
             padding:0 10px;
         }
