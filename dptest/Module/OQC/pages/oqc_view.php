@@ -578,7 +578,7 @@ endif; ?>
                             $hid = (int)$hrow['id'];
                             $val = $row['values'][$hid] ?? '';
                             $dispVal = ($val === '' || $val === null) ? '' : fmt_spec_4($val);
-                            $isNg = isset($ngMap[$hid][$pno]);
+                            $isNg = (strpos((string)$pno, '(DC)') === false) && isset($ngMap[$hid][$pno]);
                             ?>
                             <td class="<?= $isNg ? 'ng' : '' ?>"><?= $dispVal === '' ? '' : h($dispVal) ?></td>
                         <?php endforeach; ?>
