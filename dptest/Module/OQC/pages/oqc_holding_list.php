@@ -54,10 +54,10 @@ if (!isset($holdingTabs[$activeHoldingTab])) {
   background: linear-gradient(180deg, #2b3036, #1d2126);
   color: #e6ebef;
   font-weight: 700;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1;
-  height: 29px;
-  padding: 0 14px;
+  height: 33px;
+  padding: 0 16px;
   border-radius: 10px 10px 0 0;
   cursor: pointer;
   white-space: nowrap;
