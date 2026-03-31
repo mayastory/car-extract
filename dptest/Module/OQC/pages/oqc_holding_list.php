@@ -58,7 +58,26 @@ function fmt_display_value($value): string
     if ($value === null) return '';
     $text = trim((string)$value);
     if ($text === '') return '';
-    return $text;
+
+    if (!is_numeric($text)) {
+        return $text;
+    }
+
+    $negative = str_starts_with($text, '-');
+    $absText = ltrim($text, '+-');
+    $parts = explode('.', $absText, 2);
+    $intPart = $parts[0] !== '' ? $parts[0] : '0';
+    $decPart = $parts[1] ?? '';
+
+    if ($decPart === '') {
+        return ($negative ? '-' : '') . $intPart;
+    }
+
+    if (strlen($decPart) <= 4) {
+        return ($negative ? '-' : '') . $intPart . '.' . $decPart;
+    }
+
+    return number_format((float)$text, 4, '.', '');
 }
 
 function parse_numeric_or_null($value): ?float
@@ -420,11 +439,11 @@ try {
     --card-border:#4a4d55;
     --card-shadow:0 14px 28px rgba(0,0,0,.28), 0 10px 10px rgba(0,0,0,.18);
     --title:#f2f4f7;
-    --folder:#535d6c;
-    --folder-border:#77808e;
-    --folder-text:#f4f6fa;
-    --folder-active:#3b9857;
-    --folder-active-border:#5ebf79;
+    --folder:#1d2126;
+    --folder-border:#4d5560;
+    --folder-text:#e6ebef;
+    --folder-active:#1f8f58;
+    --folder-active-border:#2fb06f;
     --table-bg:#f6f6f6;
     --th-bg:#ece8e2;
     --th-bg-2:#f3eee8;
@@ -459,35 +478,54 @@ body{
 .folder-tabs{
     display:flex;
     align-items:flex-end;
-    gap:0;
-    padding-left:8px;
+    gap:3px;
+    padding-left:10px;
     margin:0 0 -1px;
 }
 .folder-tab{
     display:inline-flex;
     align-items:center;
     justify-content:center;
-    min-height:27px;
-    padding:0 15px;
-    margin-right:2px;
+    min-height:33px;
+    padding:0 16px;
+    margin-right:0;
     border:1px solid var(--folder-border);
-    border-bottom:none;
-    border-radius:6px 6px 0 0;
-    background:linear-gradient(to bottom, #5e6877 0%, #4f5866 100%);
+    border-bottom:1px solid #3c4043;
+    border-radius:10px 10px 0 0;
+    background:linear-gradient(180deg, #2b3036 0%, #1d2126 100%);
     color:var(--folder-text);
     text-decoration:none;
-    font-size:11px;
-    font-weight:800;
+    font-size:13px;
+    font-weight:700;
     line-height:1;
-    letter-spacing:.01em;
-    box-shadow:0 -1px 0 rgba(255,255,255,.08) inset;
+    letter-spacing:0;
+    white-space:nowrap;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
+    opacity:.95;
+    transition:filter .12s ease, opacity .12s ease, border-color .12s ease, background .12s ease, color .12s ease;
+}
+
+.folder-tab:hover{
+    filter:brightness(1.06);
+    opacity:1;
+    color:#fff;
+    border-color:#6a7380;
 }
 .folder-tab.active{
-    background:linear-gradient(to bottom, var(--folder-active) 0%, #2f8448 100%);
+    background:linear-gradient(180deg, var(--folder-active) 0%, #146a42 100%);
     border-color:var(--folder-active-border);
+    border-bottom-color:var(--card);
     color:#fff;
     position:relative;
     z-index:2;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.18), 0 0 0 1px rgba(14,78,49,.25), 0 1px 0 rgba(0,0,0,.28);
+    opacity:1;
+    filter:none;
+}
+
+.folder-tab.active:hover{
+    filter:none;
+    border-color:#37c17a;
 }
 .viewer-card{
     background:var(--card);
