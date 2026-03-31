@@ -1912,6 +1912,20 @@ function jtgpt_quality_export_brief_text(string $tool, array $args, array $resul
         return '방금 조회 결과를 ' . $label . ' 파일로 만들었습니다.';
     }
 
+    // quality_cert_remaining 는 NG/최근 이력 브리핑 문구를 재사용하면 안 된다.
+    // 이 도메인은 "성적서 가능 데이터가 있는지/남아있는지"를 보는 흐름이므로,
+    // export 안내도 최근 이력/몇건 브리핑 대신 짧은 파일 안내만 남긴다.
+    if ($tool === 'quality_cert_remaining') {
+        $scope = trim(jtgpt_format_scope($args));
+        $fieldLabel = trim(jtgpt_quality_cert_field_label_text($result, $args));
+        $parts = array_values(array_filter(['OQC', $scope !== '' ? $scope : '', $fieldLabel !== '' ? ($fieldLabel . ' 성적서 가능 데이터') : '성적서 가능 데이터']));
+        $prefix = trim(implode(' ', $parts));
+        if (!empty($args['detail_export'])) {
+            return trim($prefix . ' 상세내역을 ' . $label . ' 파일로 만들었습니다.');
+        }
+        return trim($prefix . '를 ' . $label . ' 파일로 만들었습니다.');
+    }
+
     $scope = trim(jtgpt_format_scope($args));
     $title = !empty($result['multi_module']) ? '전체' : trim((string)($result['label'] ?? strtoupper((string)($args['module'] ?? ''))));
     $queryKind = 'rows';
@@ -1947,8 +1961,6 @@ function jtgpt_quality_export_brief_text(string $tool, array $args, array $resul
         $count = (int)$result['total_ng_count'];
     } elseif ($tool === 'quality_summary' && isset($result['total_ng_count'])) {
         $count = (int)$result['total_ng_count'];
-    } elseif ($tool === 'quality_cert_remaining' && isset($result['total_count'])) {
-        $count = (int)$result['total_count'];
     }
 
     $parts = array_values(array_filter([$title !== '' ? $title : '', $scope !== '' ? $scope : '', $queryText !== '' ? $queryText : '결과']));
