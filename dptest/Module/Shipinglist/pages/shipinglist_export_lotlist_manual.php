@@ -5096,95 +5096,27 @@ foreach ($dateList as $prodDate) {
             }
         }
 
-        $emgPoolAnyNoFai = [];
-        $emgPoolFai = [];
-        $poolIdxAny = 0;
-        $poolIdxFai = 0;
-
-        if ($emptySlots > 0 && function_exists('oqc_emg_list_tc_candidates_v48')) {
-            // non-reserved: FAI는 제외하고(SPC 우선 포함) 전체 kind에서 후보 수집
-            $emgPoolAnyNoFai = oqc_emg_list_tc_candidates_v48($pdo, $meta, $part, null, ['FAI'], $shippingDateStr, 1200);
-            // reserved FAI: FAI만 후보 수집
-            $emgPoolFai      = oqc_emg_list_tc_candidates_v48($pdo, $meta, $part, 'FAI', null, $shippingDateStr, 1200);
+        $shipMissingOrdered = [];
+        $shipMissingIdx = 0;
+        if ($emptySlots > 0) {
+            $shipMissingSet = oqc_build_missing_tc_set_from_ship_and_slots($shipPairsAll, $toolPairs, $headerIds, true);
+            $shipMissingOrdered = sort_tool_cavity_pairs(array_keys($shipMissingSet));
             if ($DEBUG) {
-                logline("  [DEBUG] PASS3 tc pool: emptySlots={$emptySlots} poolAnyNoFai=" . count($emgPoolAnyNoFai) . " poolFai=" . count($emgPoolFai) . " usedTc=" . count($usedTcNorm));
+                logline("  [DEBUG] PASS3 tc source: emptySlots={$emptySlots} shipMissing=" . count($shipMissingOrdered) . " usedTc=" . count($usedTcNorm));
             }
         }
 
-        $pass3PickTcFromPool = static function(array $pool, int &$poolIdx, array &$usedTcNorm, array $allowedTcSet, bool $allowUsed): string {
-            while ($poolIdx < count($pool)) {
-                $cand = (string)$pool[$poolIdx++];
+        $pass3PickTcFromShipMissing = static function(array $orderedTc, int &$idx, array &$usedTcNorm, array $allowedTcSet): string {
+            while ($idx < count($orderedTc)) {
+                $cand = (string)$orderedTc[$idx++];
                 $norm = normalize_tool_cavity_key($cand);
-                if ($norm === '') continue;
+                if ($norm === '' || $norm === null) continue;
                 if (!empty($allowedTcSet) && !isset($allowedTcSet[$norm])) continue;
-                if (!$allowUsed && isset($usedTcNorm[$norm])) continue;
+                if (isset($usedTcNorm[$norm])) continue;
                 $usedTcNorm[$norm] = true;
                 return $cand;
             }
             return '';
-        };
-
-        $pass3ClonePickIdx = static function(int $slotIdx, string $tcWanted = '') use (&$toolPairs, &$headerIds, &$kinds, $reservedFaiCols): int {
-            $wantReserved = ($slotIdx < $reservedFaiCols);
-            $tcWantedNorm = normalize_tool_cavity_key($tcWanted);
-            $total = count($headerIds);
-
-            $scan = static function(callable $pred) use (&$toolPairs, &$headerIds, &$kinds, $total): int {
-                for ($ii = 0; $ii < $total; $ii++) {
-                    $hidX = (int)($headerIds[$ii] ?? 0);
-                    $tcX  = trim((string)($toolPairs[$ii] ?? ''));
-                    if ($hidX <= 0 || $tcX === '') continue;
-                    $kindX = strtoupper(trim((string)($kinds[$ii] ?? '')));
-                    if ($pred($ii, $hidX, $tcX, $kindX)) return $ii;
-                }
-                return -1;
-            };
-
-            if ($tcWantedNorm !== '') {
-                $idx = $scan(static function($ii, $hidX, $tcX, $kindX) use ($tcWantedNorm, $wantReserved): bool {
-                    $normX = normalize_tool_cavity_key($tcX);
-                    if ($normX !== $tcWantedNorm) return false;
-                    return $wantReserved ? ($kindX === 'FAI') : ($kindX === 'SPC');
-                });
-                if ($idx >= 0) return $idx;
-
-                $idx = $scan(static function($ii, $hidX, $tcX, $kindX) use ($tcWantedNorm): bool {
-                    return normalize_tool_cavity_key($tcX) === $tcWantedNorm;
-                });
-                if ($idx >= 0) return $idx;
-            }
-
-            if ($wantReserved) {
-                $idx = $scan(static function($ii, $hidX, $tcX, $kindX): bool { return $kindX === 'FAI'; });
-                if ($idx >= 0) return $idx;
-                $idx = $scan(static function($ii, $hidX, $tcX, $kindX): bool { return $kindX !== 'SPC'; });
-                if ($idx >= 0) return $idx;
-            } else {
-                $idx = $scan(static function($ii, $hidX, $tcX, $kindX): bool { return $kindX === 'SPC'; });
-                if ($idx >= 0) return $idx;
-                $idx = $scan(static function($ii, $hidX, $tcX, $kindX): bool { return $kindX !== 'FAI'; });
-                if ($idx >= 0) return $idx;
-            }
-
-            return $scan(static function($ii, $hidX, $tcX, $kindX): bool { return true; });
-        };
-
-        $pass3CloneApply = static function(int $slotIdx, int $srcIdx) use (&$toolPairs, &$sourceTags, &$headerIds, &$kinds, $reservedFaiCols): bool {
-            $hidX = (int)($headerIds[$srcIdx] ?? 0);
-            $tcX  = trim((string)($toolPairs[$srcIdx] ?? ''));
-            if ($hidX <= 0 || $tcX === '') return false;
-
-            $toolPairs[$slotIdx]  = $tcX;
-            $sourceTags[$slotIdx] = (string)($sourceTags[$srcIdx] ?? '');
-            $headerIds[$slotIdx]  = $hidX;
-
-            $kindX = strtoupper(trim((string)($kinds[$srcIdx] ?? '')));
-            if ($slotIdx < $reservedFaiCols) {
-                $kinds[$slotIdx] = 'FAI';
-            } else {
-                $kinds[$slotIdx] = ($kindX !== '' ? $kindX : 'SPC');
-            }
-            return true;
         };
 
         for ($i = 0; $i < 32; $i++) {
@@ -5192,34 +5124,17 @@ foreach ($dateList as $prodDate) {
             $hid = (int)($headerIds[$i] ?? 0);
             if ($hid > 0) continue;
 
-            // tc가 비어있으면(=아예 슬롯이 비어있으면) 긴급 풀에서 새 Tool#Cavity를 뽑아 넣는다.
+            // tc가 비어있으면 출하내역 기준 missing Tool#Cavity만 가져온다.
+            // 순서를 임의로 복제/재배치하면 전체 32칸이 한 칸씩 밀릴 수 있으므로,
+            // PASS3에서는 '실제 출하내역에 있으나 아직 header가 없는 tc'만 사용한다.
             if ($tc === '') {
-                if ($i < $reservedFaiCols) {
-                    $pickedTc = $pass3PickTcFromPool($emgPoolFai, $poolIdxFai, $usedTcNorm, $allowedTcSet, false);
-                    if ($pickedTc === '') {
-                        $retryIdx = 0;
-                        $pickedTc = $pass3PickTcFromPool($emgPoolFai, $retryIdx, $usedTcNorm, $allowedTcSet, true);
-                    }
-                } else {
-                    $pickedTc = $pass3PickTcFromPool($emgPoolAnyNoFai, $poolIdxAny, $usedTcNorm, $allowedTcSet, false);
-                    if ($pickedTc === '') {
-                        $retryIdx = 0;
-                        $pickedTc = $pass3PickTcFromPool($emgPoolAnyNoFai, $retryIdx, $usedTcNorm, $allowedTcSet, true);
-                    }
-                }
-
-                if ($pickedTc !== '') {
-                    $tc = $pickedTc;
-                    $toolPairs[$i] = $tc;
-                } else {
-                    $cloneIdx = $pass3ClonePickIdx($i, '');
-                    if ($cloneIdx >= 0 && $pass3CloneApply($i, $cloneIdx)) {
-                        $emgUsed++;
-                        continue;
-                    }
+                $pickedTc = $pass3PickTcFromShipMissing($shipMissingOrdered, $shipMissingIdx, $usedTcNorm, $allowedTcSet);
+                if ($pickedTc === '') {
                     $emgMiss[] = '(EMPTY)';
                     continue;
                 }
+                $tc = $pickedTc;
+                $toolPairs[$i] = $tc;
             }
 
             // 예약석은 FAI만, 그 외는 SPC 우선
@@ -5236,12 +5151,7 @@ foreach ($dateList as $prodDate) {
                 $sourceTags[$i] = (string)($pickE['src_tag'] ?? '');
                 $emgUsed++;
             } else {
-                $cloneIdx = $pass3ClonePickIdx($i, $tc);
-                if ($cloneIdx >= 0 && $pass3CloneApply($i, $cloneIdx)) {
-                    $emgUsed++;
-                } else {
-                    $emgMiss[] = $tc;
-                }
+                $emgMiss[] = $tc;
             }
         }
 
