@@ -5096,83 +5096,56 @@ foreach ($dateList as $prodDate) {
             }
         }
 
-        $shipMissingOrdered = [];
-        $shipMissingIdx = 0;
-        $shipDeferredDupOrdered = [];
-        $shipDeferredDupIdx = 0;
-        if ($emptySlots > 0) {
-            $shipMissingSet = oqc_build_missing_tc_set_from_ship_and_slots($shipPairsAll, $toolPairs, $headerIds, true);
-            $shipMissingOrdered = sort_tool_cavity_pairs(array_keys($shipMissingSet));
+        $emgPoolAnyNoFai = [];
+        $emgPoolFai = [];
+        $poolIdxAny = 0;
+        $poolIdxFai = 0;
 
-            // PASS2에서 다양성 우선 때문에 보류된 "중복 tc" 후보를 PASS3의 빈 슬롯 복원용으로 재사용한다.
-            // 핵심: 빈 슬롯(tc='')이 생겼을 때는 "남은 unique tc"만 보지 말고,
-            // 출하 순서(prod_date -> tool -> cavity)대로 보류된 중복 tc도 tc 복원 후보에 포함해야 32칸을 유지할 수 있다.
-            if (!empty($pass2DeferredDup)) {
-                $seenDeferKeys = [];
-                foreach ($pass2DeferredDup as $defer) {
-                    $prodDate = (string)($defer[0] ?? '');
-                    $tcRaw    = (string)($defer[1] ?? '');
-                    $tcNorm   = normalize_tool_cavity_key($tcRaw);
-                    if ($prodDate === '' || $tcNorm === '') continue;
-                    if (!empty($allowedTcSet) && !isset($allowedTcSet[$tcNorm])) continue;
-
-                    $dk = $prodDate . '|' . $tcNorm;
-                    if (isset($seenDeferKeys[$dk])) continue;
-                    $seenDeferKeys[$dk] = true;
-                    $shipDeferredDupOrdered[] = $tcNorm;
-                }
-            }
-
+        if ($emptySlots > 0 && function_exists('oqc_emg_list_tc_candidates_v48')) {
+            // non-reserved: FAI는 제외하고(SPC 우선 포함) 전체 kind에서 후보 수집
+            $emgPoolAnyNoFai = oqc_emg_list_tc_candidates_v48($pdo, $meta, $part, null, ['FAI'], $shippingDateStr, 1200);
+            // reserved FAI: FAI만 후보 수집
+            $emgPoolFai      = oqc_emg_list_tc_candidates_v48($pdo, $meta, $part, 'FAI', null, $shippingDateStr, 1200);
             if ($DEBUG) {
-                logline("  [DEBUG] PASS3 tc source: emptySlots={$emptySlots} shipMissing=" . count($shipMissingOrdered) . " deferredDup=" . count($shipDeferredDupOrdered) . " usedTc=" . count($usedTcNorm));
+                logline("  [DEBUG] PASS3 tc pool: emptySlots={$emptySlots} poolAnyNoFai=" . count($emgPoolAnyNoFai) . " poolFai=" . count($emgPoolFai) . " usedTc=" . count($usedTcNorm));
             }
         }
-
-        $pass3PickTcFromShipMissing = static function(array $orderedTc, int &$idx, array &$usedTcNorm, array $allowedTcSet): string {
-            while ($idx < count($orderedTc)) {
-                $cand = (string)$orderedTc[$idx++];
-                $norm = normalize_tool_cavity_key($cand);
-                if ($norm === '' || $norm === null) continue;
-                if (!empty($allowedTcSet) && !isset($allowedTcSet[$norm])) continue;
-                if (isset($usedTcNorm[$norm])) continue;
-                $usedTcNorm[$norm] = true;
-                return $cand;
-            }
-            return '';
-        };
-
-        $pass3PickTcFromDeferredDup = static function(array $orderedTc, int &$idx, array $allowedTcSet): string {
-            while ($idx < count($orderedTc)) {
-                $cand = (string)$orderedTc[$idx++];
-                $norm = normalize_tool_cavity_key($cand);
-                if ($norm === '' || $norm === null) continue;
-                if (!empty($allowedTcSet) && !isset($allowedTcSet[$norm])) continue;
-                return $norm;
-            }
-            return '';
-        };
 
         for ($i = 0; $i < 32; $i++) {
             $tc = trim((string)($toolPairs[$i] ?? ''));
             $hid = (int)($headerIds[$i] ?? 0);
             if ($hid > 0) continue;
 
-            // tc가 비어있으면 출하내역 기준 missing Tool#Cavity만 가져온다.
-            // 순서를 임의로 복제/재배치하면 전체 32칸이 한 칸씩 밀릴 수 있으므로,
-            // PASS3에서는 '실제 출하내역에 있으나 아직 header가 없는 tc'만 사용한다.
+            // tc가 비어있으면(=아예 슬롯이 비어있으면) 긴급 풀에서 새 Tool#Cavity를 뽑아 넣는다.
             if ($tc === '') {
-                $pickedTc = $pass3PickTcFromShipMissing($shipMissingOrdered, $shipMissingIdx, $usedTcNorm, $allowedTcSet);
-                if ($pickedTc === '') {
-                    // unique tc가 모두 소진된 경우에도, PASS2에서 보류됐던 "중복 tc"를
-                    // 출하 순서대로 다시 꺼내서 빈 슬롯의 tc를 복원한다.
-                    $pickedTc = $pass3PickTcFromDeferredDup($shipDeferredDupOrdered, $shipDeferredDupIdx, $allowedTcSet);
+                $pickedTc = '';
+                if ($i < $reservedFaiCols) {
+                    while ($poolIdxFai < count($emgPoolFai)) {
+                        $cand = (string)$emgPoolFai[$poolIdxFai++];
+                        $norm = normalize_tool_cavity_key($cand);
+                        if ($norm === '' || (!empty($allowedTcSet) && !isset($allowedTcSet[$norm])) || isset($usedTcNorm[$norm])) continue;
+                        $pickedTc = $cand;
+                        $usedTcNorm[$norm] = true;
+                        break;
+                    }
+                } else {
+                    while ($poolIdxAny < count($emgPoolAnyNoFai)) {
+                        $cand = (string)$emgPoolAnyNoFai[$poolIdxAny++];
+                        $norm = normalize_tool_cavity_key($cand);
+                        if ($norm === '' || (!empty($allowedTcSet) && !isset($allowedTcSet[$norm])) || isset($usedTcNorm[$norm])) continue;
+                        $pickedTc = $cand;
+                        $usedTcNorm[$norm] = true;
+                        break;
+                    }
                 }
-                if ($pickedTc === '') {
+
+                if ($pickedTc !== '') {
+                    $tc = $pickedTc;
+                    $toolPairs[$i] = $tc;
+                } else {
                     $emgMiss[] = '(EMPTY)';
                     continue;
                 }
-                $tc = $pickedTc;
-                $toolPairs[$i] = $tc;
             }
 
             // 예약석은 FAI만, 그 외는 SPC 우선
