@@ -5111,6 +5111,82 @@ foreach ($dateList as $prodDate) {
             }
         }
 
+        $pass3PickTcFromPool = static function(array $pool, int &$poolIdx, array &$usedTcNorm, array $allowedTcSet, bool $allowUsed): string {
+            while ($poolIdx < count($pool)) {
+                $cand = (string)$pool[$poolIdx++];
+                $norm = normalize_tool_cavity_key($cand);
+                if ($norm === '') continue;
+                if (!empty($allowedTcSet) && !isset($allowedTcSet[$norm])) continue;
+                if (!$allowUsed && isset($usedTcNorm[$norm])) continue;
+                $usedTcNorm[$norm] = true;
+                return $cand;
+            }
+            return '';
+        };
+
+        $pass3ClonePickIdx = static function(int $slotIdx, string $tcWanted = '') use (&$toolPairs, &$headerIds, &$kinds, $reservedFaiCols): int {
+            $wantReserved = ($slotIdx < $reservedFaiCols);
+            $tcWantedNorm = normalize_tool_cavity_key($tcWanted);
+            $total = count($headerIds);
+
+            $scan = static function(callable $pred) use (&$toolPairs, &$headerIds, &$kinds, $total): int {
+                for ($ii = 0; $ii < $total; $ii++) {
+                    $hidX = (int)($headerIds[$ii] ?? 0);
+                    $tcX  = trim((string)($toolPairs[$ii] ?? ''));
+                    if ($hidX <= 0 || $tcX === '') continue;
+                    $kindX = strtoupper(trim((string)($kinds[$ii] ?? '')));
+                    if ($pred($ii, $hidX, $tcX, $kindX)) return $ii;
+                }
+                return -1;
+            };
+
+            if ($tcWantedNorm !== '') {
+                $idx = $scan(static function($ii, $hidX, $tcX, $kindX) use ($tcWantedNorm, $wantReserved): bool {
+                    $normX = normalize_tool_cavity_key($tcX);
+                    if ($normX !== $tcWantedNorm) return false;
+                    return $wantReserved ? ($kindX === 'FAI') : ($kindX === 'SPC');
+                });
+                if ($idx >= 0) return $idx;
+
+                $idx = $scan(static function($ii, $hidX, $tcX, $kindX) use ($tcWantedNorm): bool {
+                    return normalize_tool_cavity_key($tcX) === $tcWantedNorm;
+                });
+                if ($idx >= 0) return $idx;
+            }
+
+            if ($wantReserved) {
+                $idx = $scan(static function($ii, $hidX, $tcX, $kindX): bool { return $kindX === 'FAI'; });
+                if ($idx >= 0) return $idx;
+                $idx = $scan(static function($ii, $hidX, $tcX, $kindX): bool { return $kindX !== 'SPC'; });
+                if ($idx >= 0) return $idx;
+            } else {
+                $idx = $scan(static function($ii, $hidX, $tcX, $kindX): bool { return $kindX === 'SPC'; });
+                if ($idx >= 0) return $idx;
+                $idx = $scan(static function($ii, $hidX, $tcX, $kindX): bool { return $kindX !== 'FAI'; });
+                if ($idx >= 0) return $idx;
+            }
+
+            return $scan(static function($ii, $hidX, $tcX, $kindX): bool { return true; });
+        };
+
+        $pass3CloneApply = static function(int $slotIdx, int $srcIdx) use (&$toolPairs, &$sourceTags, &$headerIds, &$kinds, $reservedFaiCols): bool {
+            $hidX = (int)($headerIds[$srcIdx] ?? 0);
+            $tcX  = trim((string)($toolPairs[$srcIdx] ?? ''));
+            if ($hidX <= 0 || $tcX === '') return false;
+
+            $toolPairs[$slotIdx]  = $tcX;
+            $sourceTags[$slotIdx] = (string)($sourceTags[$srcIdx] ?? '');
+            $headerIds[$slotIdx]  = $hidX;
+
+            $kindX = strtoupper(trim((string)($kinds[$srcIdx] ?? '')));
+            if ($slotIdx < $reservedFaiCols) {
+                $kinds[$slotIdx] = 'FAI';
+            } else {
+                $kinds[$slotIdx] = ($kindX !== '' ? $kindX : 'SPC');
+            }
+            return true;
+        };
+
         for ($i = 0; $i < 32; $i++) {
             $tc = trim((string)($toolPairs[$i] ?? ''));
             $hid = (int)($headerIds[$i] ?? 0);
@@ -5118,24 +5194,17 @@ foreach ($dateList as $prodDate) {
 
             // tc가 비어있으면(=아예 슬롯이 비어있으면) 긴급 풀에서 새 Tool#Cavity를 뽑아 넣는다.
             if ($tc === '') {
-                $pickedTc = '';
                 if ($i < $reservedFaiCols) {
-                    while ($poolIdxFai < count($emgPoolFai)) {
-                        $cand = (string)$emgPoolFai[$poolIdxFai++];
-                        $norm = normalize_tool_cavity_key($cand);
-                        if ($norm === '' || (!empty($allowedTcSet) && !isset($allowedTcSet[$norm])) || isset($usedTcNorm[$norm])) continue;
-                        $pickedTc = $cand;
-                        $usedTcNorm[$norm] = true;
-                        break;
+                    $pickedTc = $pass3PickTcFromPool($emgPoolFai, $poolIdxFai, $usedTcNorm, $allowedTcSet, false);
+                    if ($pickedTc === '') {
+                        $retryIdx = 0;
+                        $pickedTc = $pass3PickTcFromPool($emgPoolFai, $retryIdx, $usedTcNorm, $allowedTcSet, true);
                     }
                 } else {
-                    while ($poolIdxAny < count($emgPoolAnyNoFai)) {
-                        $cand = (string)$emgPoolAnyNoFai[$poolIdxAny++];
-                        $norm = normalize_tool_cavity_key($cand);
-                        if ($norm === '' || (!empty($allowedTcSet) && !isset($allowedTcSet[$norm])) || isset($usedTcNorm[$norm])) continue;
-                        $pickedTc = $cand;
-                        $usedTcNorm[$norm] = true;
-                        break;
+                    $pickedTc = $pass3PickTcFromPool($emgPoolAnyNoFai, $poolIdxAny, $usedTcNorm, $allowedTcSet, false);
+                    if ($pickedTc === '') {
+                        $retryIdx = 0;
+                        $pickedTc = $pass3PickTcFromPool($emgPoolAnyNoFai, $retryIdx, $usedTcNorm, $allowedTcSet, true);
                     }
                 }
 
@@ -5143,6 +5212,11 @@ foreach ($dateList as $prodDate) {
                     $tc = $pickedTc;
                     $toolPairs[$i] = $tc;
                 } else {
+                    $cloneIdx = $pass3ClonePickIdx($i, '');
+                    if ($cloneIdx >= 0 && $pass3CloneApply($i, $cloneIdx)) {
+                        $emgUsed++;
+                        continue;
+                    }
                     $emgMiss[] = '(EMPTY)';
                     continue;
                 }
@@ -5162,7 +5236,12 @@ foreach ($dateList as $prodDate) {
                 $sourceTags[$i] = (string)($pickE['src_tag'] ?? '');
                 $emgUsed++;
             } else {
-                $emgMiss[] = $tc;
+                $cloneIdx = $pass3ClonePickIdx($i, $tc);
+                if ($cloneIdx >= 0 && $pass3CloneApply($i, $cloneIdx)) {
+                    $emgUsed++;
+                } else {
+                    $emgMiss[] = $tc;
+                }
             }
         }
 
