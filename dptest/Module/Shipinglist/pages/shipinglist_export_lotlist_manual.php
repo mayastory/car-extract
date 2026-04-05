@@ -5100,6 +5100,17 @@ foreach ($dateList as $prodDate) {
         $emgPoolFai = [];
         $poolIdxAny = 0;
         $poolIdxFai = 0;
+        $deferredDupTcQueue = [];
+        $deferredDupIdx = 0;
+
+        if (!empty($pass2DeferredDup)) {
+            foreach ($pass2DeferredDup as $defer) {
+                $candTc = normalize_tool_cavity_key((string)($defer[1] ?? ''));
+                if ($candTc === '') continue;
+                if (!empty($allowedTcSet) && !isset($allowedTcSet[$candTc])) continue;
+                $deferredDupTcQueue[] = $candTc;
+            }
+        }
 
         if ($emptySlots > 0 && function_exists('oqc_emg_list_tc_candidates_v48')) {
             // non-reserved: FAI는 제외하고(SPC 우선 포함) 전체 kind에서 후보 수집
@@ -5107,7 +5118,7 @@ foreach ($dateList as $prodDate) {
             // reserved FAI: FAI만 후보 수집
             $emgPoolFai      = oqc_emg_list_tc_candidates_v48($pdo, $meta, $part, 'FAI', null, $shippingDateStr, 1200);
             if ($DEBUG) {
-                logline("  [DEBUG] PASS3 tc pool: emptySlots={$emptySlots} poolAnyNoFai=" . count($emgPoolAnyNoFai) . " poolFai=" . count($emgPoolFai) . " usedTc=" . count($usedTcNorm));
+                logline("  [DEBUG] PASS3 tc pool: emptySlots={$emptySlots} poolAnyNoFai=" . count($emgPoolAnyNoFai) . " poolFai=" . count($emgPoolFai) . " usedTc=" . count($usedTcNorm) . " deferredDup=" . count($deferredDupTcQueue));
             }
         }
 
@@ -5115,6 +5126,30 @@ foreach ($dateList as $prodDate) {
             $tc = trim((string)($toolPairs[$i] ?? ''));
             $hid = (int)($headerIds[$i] ?? 0);
             if ($hid > 0) continue;
+
+            // non-reserved 빈 슬롯은 PASS2에서 다양성 우선으로 보류했던 중복 tc를 먼저 재사용한다.
+            // 슬롯 순서는 건드리지 않고, 빈 칸에 대해서만 순서대로 후보를 다시 태운다.
+            if ($tc === '' && $i >= $reservedFaiCols && !empty($deferredDupTcQueue)) {
+                while ($deferredDupIdx < count($deferredDupTcQueue)) {
+                    $candTc = (string)$deferredDupTcQueue[$deferredDupIdx++];
+                    $candNorm = normalize_tool_cavity_key($candTc);
+                    if ($candNorm === '') continue;
+                    if (!empty($allowedTcSet) && !isset($allowedTcSet[$candNorm])) continue;
+
+                    $pickDup = oqc_pick_emergency_and_consume_v712($pdo, $meta, $part, $candNorm, 'SPC', $tmplNgMap, ['FAI'], $shippingDateStr);
+                    if (!$pickDup) {
+                        $pickDup = oqc_pick_emergency_and_consume_v712($pdo, $meta, $part, $candNorm, null, $tmplNgMap, ['FAI'], $shippingDateStr);
+                    }
+                    if (!$pickDup) continue;
+
+                    $toolPairs[$i]  = $candNorm;
+                    $headerIds[$i]  = (int)($pickDup['id'] ?? 0);
+                    $kinds[$i]      = strtoupper(trim((string)($pickDup['kind'] ?? '')));
+                    $sourceTags[$i] = (string)($pickDup['src_tag'] ?? '');
+                    $emgUsed++;
+                    continue 2;
+                }
+            }
 
             // tc가 비어있으면(=아예 슬롯이 비어있으면) 긴급 풀에서 새 Tool#Cavity를 뽑아 넣는다.
             if ($tc === '') {
