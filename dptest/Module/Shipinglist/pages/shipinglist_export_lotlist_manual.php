@@ -2132,6 +2132,148 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET' && $action === 'ship_to_list') 
 }
 
 
+if (!function_exists('ship_report_actor_meta')) {
+    function ship_report_actor_meta(PDO $pdo): array {
+        $meta = [
+            'no' => function_exists('dp_auth__session_user_no') ? dp_auth__session_user_no() : null,
+            'id' => function_exists('dp_auth__session_user_id') ? trim((string)(dp_auth__session_user_id() ?? '')) : trim((string)($_SESSION['ship_user_id'] ?? ($_SESSION['dp_admin_id'] ?? ''))),
+            'name' => '',
+            'role' => '',
+            'lv' => null,
+            'is_admin' => !empty($_SESSION['dp_admin_id']),
+        ];
+        try {
+            $sql = '';
+            $params = [];
+            if (!empty($meta['no'])) {
+                $sql = "SELECT `No`,`ID`,`NAME`,`role`,`lv` FROM `account` WHERE `No` = :no LIMIT 1";
+                $params = [':no' => (int)$meta['no']];
+            } elseif ($meta['id'] !== '') {
+                $sql = "SELECT `No`,`ID`,`NAME`,`role`,`lv` FROM `account` WHERE `ID` = :id LIMIT 1";
+                $params = [':id' => (string)$meta['id']];
+            }
+            if ($sql !== '') {
+                $st = $pdo->prepare($sql);
+                $st->execute($params);
+                $row = $st->fetch(PDO::FETCH_ASSOC);
+                if (is_array($row)) {
+                    if (!empty($row['No']))   $meta['no']   = (int)$row['No'];
+                    if (!empty($row['ID']))   $meta['id']   = trim((string)$row['ID']);
+                    if (!empty($row['NAME'])) $meta['name'] = trim((string)$row['NAME']);
+                    $meta['role'] = strtolower(trim((string)($row['role'] ?? '')));
+                    $meta['lv']   = isset($row['lv']) && $row['lv'] !== '' ? (int)$row['lv'] : null;
+                    if ($meta['role'] === 'admin') $meta['is_admin'] = true;
+                }
+            }
+        } catch (Throwable $e) {
+            // best effort
+        }
+        if ($meta['name'] === '') $meta['name'] = $meta['id'];
+        return $meta;
+    }
+}
+if (!function_exists('ensure_report_finish_cancel_request_columns')) {
+    function ensure_report_finish_cancel_request_columns(PDO $pdo): void {
+        $defs = [
+            'cancel_request_status'     => "ALTER TABLE `report_finish` ADD COLUMN `cancel_request_status` VARCHAR(20) NULL DEFAULT NULL",
+            'cancel_requested_at'       => "ALTER TABLE `report_finish` ADD COLUMN `cancel_requested_at` DATETIME NULL DEFAULT NULL",
+            'cancel_requested_by'       => "ALTER TABLE `report_finish` ADD COLUMN `cancel_requested_by` VARCHAR(100) NULL DEFAULT NULL",
+            'cancel_request_note'       => "ALTER TABLE `report_finish` ADD COLUMN `cancel_request_note` VARCHAR(255) NULL DEFAULT NULL",
+            'cancel_request_handled_at' => "ALTER TABLE `report_finish` ADD COLUMN `cancel_request_handled_at` DATETIME NULL DEFAULT NULL",
+            'cancel_request_handled_by' => "ALTER TABLE `report_finish` ADD COLUMN `cancel_request_handled_by` VARCHAR(100) NULL DEFAULT NULL",
+        ];
+        foreach ($defs as $col => $ddl) {
+            try {
+                $st = $pdo->prepare("SHOW COLUMNS FROM `report_finish` LIKE :c");
+                $st->execute([':c' => $col]);
+                $exists = $st->fetch(PDO::FETCH_ASSOC);
+                if (!$exists) {
+                    $pdo->exec($ddl);
+                }
+            } catch (Throwable $e) {
+                // best effort
+            }
+        }
+    }
+}
+if (!function_exists('report_finish_cancel_request_state_map')) {
+    function report_finish_cancel_request_state_map(PDO $pdo, array $ids): array {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        $ids = array_values(array_filter($ids, fn($v) => $v > 0));
+        if (!$ids) return [];
+        ensure_report_finish_cancel_request_columns($pdo);
+        $ph = [];
+        $params = [];
+        foreach ($ids as $i => $id) {
+            $k = ':id' . $i;
+            $ph[] = $k;
+            $params[$k] = $id;
+        }
+        $sql = "SELECT `id`,`cancel_request_status`,`cancel_requested_at`,`cancel_requested_by`,`cancel_request_note`,`cancel_request_handled_at`,`cancel_request_handled_by` FROM `report_finish` WHERE `id` IN (" . implode(',', $ph) . ")";
+        $st = $pdo->prepare($sql);
+        $st->execute($params);
+        $out = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $out[(int)$row['id']] = $row;
+        }
+        return $out;
+    }
+}
+if (!function_exists('report_finish_cancel_request_submit')) {
+    function report_finish_cancel_request_submit(PDO $pdo, int $id, string $by, ?string $note = null): array {
+        ensure_report_finish_cancel_request_columns($pdo);
+        $st = $pdo->prepare("SELECT `id`,`is_canceled`,`cancel_request_status` FROM `report_finish` WHERE `id` = :id LIMIT 1");
+        $st->execute([':id' => $id]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        if (!$row) return ['ok' => false, 'msg' => '발행 내역을 찾을 수 없습니다.'];
+        if ((int)($row['is_canceled'] ?? 0) === 1) return ['ok' => false, 'msg' => '이미 취소 완료된 발행 건입니다.'];
+        $status = trim((string)($row['cancel_request_status'] ?? ''));
+        if ($status === 'pending') return ['ok' => false, 'msg' => '이미 취소 신청된 발행 건입니다.'];
+        $sql = "UPDATE `report_finish` SET `cancel_request_status`='pending', `cancel_requested_at`=NOW(), `cancel_requested_by`=:by, `cancel_request_note`=:note, `cancel_request_handled_at`=NULL, `cancel_request_handled_by`=NULL WHERE `id`=:id LIMIT 1";
+        $pdo->prepare($sql)->execute([
+            ':id' => $id,
+            ':by' => mb_substr(trim((string)$by), 0, 100),
+            ':note' => mb_substr(trim((string)($note ?? '')), 0, 255),
+        ]);
+        return ['ok' => true, 'msg' => '취소 신청이 접수되었습니다. 관리자 승인 후 삭제됩니다.'];
+    }
+}
+if (!function_exists('report_finish_cancel_request_reject')) {
+    function report_finish_cancel_request_reject(PDO $pdo, int $id, string $adminUser): array {
+        ensure_report_finish_cancel_request_columns($pdo);
+        $st = $pdo->prepare("SELECT `id`,`is_canceled`,`cancel_request_status` FROM `report_finish` WHERE `id`=:id LIMIT 1");
+        $st->execute([':id' => $id]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        if (!$row) return ['ok' => false, 'msg' => '발행 내역을 찾을 수 없습니다.'];
+        if ((int)($row['is_canceled'] ?? 0) === 1) return ['ok' => false, 'msg' => '이미 취소 완료된 발행 건입니다.'];
+        if (trim((string)($row['cancel_request_status'] ?? '')) !== 'pending') return ['ok' => false, 'msg' => '승인 대기 중인 취소 신청이 없습니다.'];
+        $sql = "UPDATE `report_finish` SET `cancel_request_status`='rejected', `cancel_request_handled_at`=NOW(), `cancel_request_handled_by`=:by WHERE `id`=:id LIMIT 1";
+        $pdo->prepare($sql)->execute([':id' => $id, ':by' => mb_substr(trim((string)$adminUser), 0, 100)]);
+        return ['ok' => true, 'msg' => '취소 신청을 반려했습니다.'];
+    }
+}
+if (!function_exists('report_finish_cancel_request_mark_approved')) {
+    function report_finish_cancel_request_mark_approved(PDO $pdo, int $id, string $adminUser): void {
+        ensure_report_finish_cancel_request_columns($pdo);
+        $sql = "UPDATE `report_finish` SET `cancel_request_status`='approved', `cancel_request_handled_at`=NOW(), `cancel_request_handled_by`=:by WHERE `id`=:id LIMIT 1";
+        $pdo->prepare($sql)->execute([':id' => $id, ':by' => mb_substr(trim((string)$adminUser), 0, 100)]);
+    }
+}
+if (!function_exists('ship_report_cancel_redirect_back')) {
+    function ship_report_cancel_redirect_back(array $res, string $histMonth, string $from_date = '', string $to_date = '', string $ship_to = ''): void {
+        $qs = [
+            'hist_month' => (preg_match('/^\d{4}-\d{2}$/', $histMonth) ? $histMonth : date('Y-m')),
+            'cancel_ok'  => !empty($res['ok']) ? 1 : 0,
+            'cancel_msg' => (string)($res['msg'] ?? ''),
+        ];
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $from_date)) $qs['from_date'] = $from_date;
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $to_date))   $qs['to_date']   = $to_date;
+        if ($ship_to !== '') $qs['ship_to'] = $ship_to;
+        header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?') . '?' . http_build_query($qs));
+        exit;
+    }
+}
+
 // ─────────────────────────────
 // (추가) 발행 내역 취소(롤백)
 //  - POST action=cancel_report
@@ -2141,7 +2283,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'canc
     $histMonth = (string)($_POST['hist_month'] ?? '');
     if (!preg_match('/^\d{4}-\d{2}$/', $histMonth)) $histMonth = date('Y-m');
 
-    $byUser = (string)($_SESSION['ship_user_id'] ?? ($_SESSION['dp_admin_id'] ?? 'web'));
+    $from_date = trim((string)($_POST['from_date'] ?? ''));
+    $to_date   = trim((string)($_POST['to_date'] ?? ''));
+    $ship_to   = trim((string)($_POST['ship_to'] ?? ''));
+    $actorMeta = ship_report_actor_meta($pdo);
+    $byUser = (string)($actorMeta['id'] ?: ($_SESSION['ship_user_id'] ?? ($_SESSION['dp_admin_id'] ?? 'web')));
+    $approvePending = ((string)($_POST['_approve_pending'] ?? '') === '1');
+
+    if (!$actorMeta['is_admin']) {
+        $res = ($id > 0)
+            ? report_finish_cancel_request_submit($pdo, $id, $byUser)
+            : ['ok' => false, 'msg' => '잘못된 ID'];
+        ship_report_cancel_redirect_back($res, $histMonth, $from_date, $to_date, $ship_to);
+    }
 	if ($id <= 0) {
 	    $res = ['ok' => false, 'msg' => '잘못된 ID'];
 	} else {
@@ -2296,24 +2450,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'canc
 	        }
 	    }
 	}
-    // 결과를 GET 파라미터로 보여주기(간단)
-    $from_date = trim((string)($_POST['from_date'] ?? ''));
-    $to_date   = trim((string)($_POST['to_date'] ?? ''));
-    $ship_to   = trim((string)($_POST['ship_to'] ?? ''));
-
-    $qs = [
-        'hist_month' => $histMonth,
-        'cancel_ok'  => $res['ok'] ? 1 : 0,
-        'cancel_msg' => $res['msg'] ?? '',
-    ];
-    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $from_date)) $qs['from_date'] = $from_date;
-    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $to_date))   $qs['to_date']   = $to_date;
-    if ($ship_to !== '') $qs['ship_to'] = $ship_to;
-
-    $q = http_build_query($qs);
-
-    header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?') . '?' . $q);
-    exit;
+    ship_report_cancel_redirect_back($res, $histMonth, $from_date, $to_date, $ship_to);
 }
 
 
@@ -2321,6 +2458,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'canc
 // ─────────────────────────────
 // report_finish / rollback 액션 (UI 없어도 호출 가능)
 // ─────────────────────────────
+
+// ─────────────────────────────
+// 관리자용 취소 신청 승인/반려
+// ─────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array((string)($_POST['action'] ?? ''), ['cancel_report_approve','cancel_report_reject'], true)) {
+    $histMonth = (string)($_POST['hist_month'] ?? '');
+    if (!preg_match('/^\d{4}-\d{2}$/', $histMonth)) $histMonth = date('Y-m');
+    $from_date = trim((string)($_POST['from_date'] ?? ''));
+    $to_date   = trim((string)($_POST['to_date'] ?? ''));
+    $ship_to   = trim((string)($_POST['ship_to'] ?? ''));
+    $id = (int)($_POST['id'] ?? 0);
+    $actorMeta = ship_report_actor_meta($pdo);
+    $byUser = (string)($actorMeta['id'] ?: ($_SESSION['ship_user_id'] ?? ($_SESSION['dp_admin_id'] ?? 'web')));
+    if (!$actorMeta['is_admin']) {
+        ship_report_cancel_redirect_back(['ok' => false, 'msg' => '관리자만 승인/반려할 수 있습니다.'], $histMonth, $from_date, $to_date, $ship_to);
+    }
+    if (((string)($_POST['action'] ?? '')) === 'cancel_report_reject') {
+        $res = ($id > 0)
+            ? report_finish_cancel_request_reject($pdo, $id, $byUser)
+            : ['ok' => false, 'msg' => '잘못된 ID'];
+        ship_report_cancel_redirect_back($res, $histMonth, $from_date, $to_date, $ship_to);
+    }
+    $_POST['_approve_pending'] = '1';
+    $_POST['action'] = 'cancel_report';
+    $_REQUEST['_approve_pending'] = '1';
+    $_REQUEST['action'] = 'cancel_report';
+    $action = 'cancel_report';
+}
 
 // ─────────────────────────────
 if ($action === 'rollback_today' || $action === 'rollback_date') {
@@ -2349,6 +2514,20 @@ if ($action === 'report_cancel') {
         header('Content-Type: application/json; charset=UTF-8');
         echo json_encode(['ok' => false, 'error' => 'invalid id'], JSON_UNESCAPED_UNICODE);
         exit;
+    }
+    $actorMeta = ship_report_actor_meta($pdo);
+    $by = (string)($actorMeta['id'] ?: ($_SESSION['ship_user_id'] ?? ($_SESSION['dp_admin_id'] ?? 'web')));
+    $approvePending = ((string)($_REQUEST['_approve_pending'] ?? '') === '1');
+    if (!$actorMeta['is_admin']) {
+        $res = report_finish_cancel_request_submit($pdo, $id, $by);
+        $isAjax = ((string)($_REQUEST['ajax'] ?? '') === '1')
+                  || (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower((string)$_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest');
+        if ($isAjax) {
+            header('Content-Type: application/json; charset=UTF-8');
+            echo json_encode(['ok' => !empty($res['ok']), 'requested' => !empty($res['ok']), 'message' => (string)($res['msg'] ?? '')], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        ship_report_cancel_redirect_back($res, (string)($_REQUEST['hist_month'] ?? ''), trim((string)($_REQUEST['from_date'] ?? '')), trim((string)($_REQUEST['to_date'] ?? '')), trim((string)($_REQUEST['ship_to'] ?? '')));
     }
 
     $row = report_finish_get($pdo, $id);
@@ -2457,8 +2636,10 @@ if ($action === 'report_cancel') {
     $result = $resultAgg;
 
     if (!$dry) {
-        $by = (string)($_SESSION['ship_user_id'] ?? ($_SESSION['dp_admin_id'] ?? ''));
         report_finish_mark_canceled($pdo, $id, $by ?: null, '취소(롤백): ' . ($end ?? ''));
+        if ($approvePending) {
+            report_finish_cancel_request_mark_approved($pdo, $id, $by ?: null);
+        }
     // ✅ 서버 저장 폴더(exports/reports/rf_{id}/)도 함께 삭제
     $del = dp_delete_report_artifacts($id, $dry);
 

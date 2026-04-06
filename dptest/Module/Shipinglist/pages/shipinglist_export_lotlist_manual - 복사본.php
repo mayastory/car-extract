@@ -178,6 +178,173 @@ if (!function_exists('normalize_date_ymd')) {
 }
 
 
+if (!function_exists('normalize_manual_prod_date')) {
+    function normalize_manual_prod_date(?string $s): string {
+        $s = trim((string)($s ?? ''));
+        if ($s === '') return '';
+        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $s, $m)) {
+            $y = (int)$m[1]; $mo = (int)$m[2]; $d = (int)$m[3];
+            return checkdate($mo, $d, $y) ? sprintf('%04d-%02d-%02d', $y, $mo, $d) : '';
+        }
+        if (preg_match('/^(\d{8})$/', $s, $m)) {
+            $y = (int)substr($m[1], 0, 4);
+            $mo = (int)substr($m[1], 4, 2);
+            $d = (int)substr($m[1], 6, 2);
+            return checkdate($mo, $d, $y) ? sprintf('%04d-%02d-%02d', $y, $mo, $d) : '';
+        }
+        if (preg_match('/^(\d{6})$/', $s, $m)) {
+            $y = 2000 + (int)substr($m[1], 0, 2);
+            $mo = (int)substr($m[1], 2, 2);
+            $d = (int)substr($m[1], 4, 2);
+            return checkdate($mo, $d, $y) ? sprintf('%04d-%02d-%02d', $y, $mo, $d) : '';
+        }
+        return '';
+    }
+}
+
+if (!function_exists('manual_report_part_defs')) {
+    function manual_report_part_defs(): array {
+        return [
+            'ir' => ['label' => 'IR', 'part' => 'MEM-IR-BASE'],
+            'xc' => ['label' => 'XC', 'part' => 'MEM-X-CARRIER'],
+            'yc' => ['label' => 'YC', 'part' => 'MEM-Y-CARRIER'],
+            'zc' => ['label' => 'ZC', 'part' => 'MEM-Z-CARRIER'],
+            'zs' => ['label' => 'ZS', 'part' => 'MEM-Z-STOPPER'],
+        ];
+    }
+}
+
+if (!function_exists('manual_report_parse_block')) {
+    function manual_report_parse_block(string $text): array {
+        $lines = preg_split('/\r\n|\r|\n/', (string)$text);
+        $dates = [];
+        $pairs = [];
+        $errors = [];
+
+        foreach ($lines as $idx => $rawLine) {
+            $lineNo = $idx + 1;
+            $line = trim((string)$rawLine);
+            if ($line === '') continue;
+
+            $dateYmd = normalize_manual_prod_date($line);
+            if ($dateYmd !== '') {
+                $dates[$dateYmd] = true;
+                continue;
+            }
+
+            if (preg_match('/^([^:]+)\s*:\s*(.+)$/u', $line, $m)) {
+                $tool = extract_tool_letter((string)$m[1]);
+                if (!$tool) {
+                    $errors[] = "라인 {$lineNo}: Tool 문자를 해석할 수 없습니다. ({$line})";
+                    continue;
+                }
+                $rhs = trim((string)$m[2]);
+                if ($rhs === '') {
+                    $errors[] = "라인 {$lineNo}: cavity 값이 비어 있습니다. ({$line})";
+                    continue;
+                }
+                $vals = preg_split('/\s*,\s*/', $rhs);
+                $validFound = false;
+                foreach ($vals as $v) {
+                    $v = trim((string)$v);
+                    if ($v === '') continue;
+                    if (!preg_match('/^\d+$/', $v)) {
+                        $errors[] = "라인 {$lineNo}: cavity 값은 숫자만 가능합니다. ({$line})";
+                        continue;
+                    }
+                    $cv = (int)$v;
+                    if ($cv < 1 || $cv > 99) {
+                        $errors[] = "라인 {$lineNo}: cavity 값 범위가 올바르지 않습니다. ({$line})";
+                        continue;
+                    }
+                    $pairs[$tool . '#' . $cv] = ['tool' => $tool, 'cavity' => $cv];
+                    $validFound = true;
+                }
+                if (!$validFound) {
+                    $errors[] = "라인 {$lineNo}: 유효한 cavity 값이 없습니다. ({$line})";
+                }
+                continue;
+            }
+
+            $errors[] = "라인 {$lineNo}: 해석할 수 없는 형식입니다. ({$line})";
+        }
+
+        ksort($dates);
+        uksort($pairs, 'strnatcasecmp');
+
+        return [
+            'dates' => array_keys($dates),
+            'pairs' => array_values($pairs),
+            'errors' => $errors,
+        ];
+    }
+}
+
+if (!function_exists('manual_report_build_rows')) {
+    function manual_report_build_rows(array $manualTexts, string $shippingDateStr): array {
+        $defs = manual_report_part_defs();
+        $result = [
+            'rows' => [],
+            'counts' => [],
+            'sumQty' => [],
+            'errors' => [],
+            'parts' => [],
+        ];
+
+        foreach ($defs as $key => $def) {
+            $text = trim((string)($manualTexts[$key] ?? ''));
+            if ($text === '') continue;
+
+            $parsed = manual_report_parse_block($text);
+            foreach (($parsed['errors'] ?? []) as $err) {
+                $result['errors'][] = '[' . $def['label'] . '] ' . $err;
+            }
+            $dates = $parsed['dates'] ?? [];
+            $pairs = $parsed['pairs'] ?? [];
+            if (!$dates || !$pairs) {
+                $result['errors'][] = '[' . $def['label'] . '] 생산일과 Tool/Cavity를 모두 입력해야 합니다.';
+                continue;
+            }
+
+            $part = (string)$def['part'];
+            $result['parts'][$part] = true;
+            foreach ($dates as $dateYmd) {
+                $packNo = str_replace('-', '', $dateYmd);
+                $packTotal = count($pairs);
+                foreach ($pairs as $pair) {
+                    $tool = (string)($pair['tool'] ?? '');
+                    $cv = (int)($pair['cavity'] ?? 0);
+                    if ($tool === '' || $cv <= 0) continue;
+                    $result['rows'][] = [
+                        'ship_datetime'    => $shippingDateStr . ' 00:00:00',
+                        'part_name'        => $part,
+                        'cavity'           => $cv,
+                        'qty'              => 1,
+                        'customer_lot_id'  => $dateYmd . '-' . $tool . $cv,
+                        'pack_no'          => $packNo,
+                        'ann_date'         => '',
+                        'prod_date'        => $dateYmd,
+                        'tool'             => $tool,
+                        '_manual_pack_qty' => $packTotal,
+                    ];
+                    if (!isset($result['counts'][$part])) $result['counts'][$part] = 0;
+                    if (!isset($result['sumQty'][$part])) $result['sumQty'][$part] = 0;
+                    $result['counts'][$part] += 1;
+                    $result['sumQty'][$part] += 1;
+                }
+            }
+        }
+
+        usort($result['rows'], function($a, $b){
+            $ka = [$a['part_name'] ?? '', $a['pack_no'] ?? '', $a['tool'] ?? '', (int)($a['cavity'] ?? 0)];
+            $kb = [$b['part_name'] ?? '', $b['pack_no'] ?? '', $b['tool'] ?? '', (int)($b['cavity'] ?? 0)];
+            return $ka <=> $kb;
+        });
+
+        return $result;
+    }
+}
+
 // ─────────────────────────────
 // PhpSpreadsheet 캐시(메모리 절감)
 // ─────────────────────────────
@@ -308,6 +475,8 @@ $SHIP_TO_TEMPLATE_SUBDIR = [
     '자화전자(주)'       => 'JAWHA',
     // 필요하면 계속 추가
 ];
+
+$IS_MANUAL_REPORT = true;
 
 // ship_to (build 화면은 GET, 취소/재시도는 POST일 수 있음)
 $shipTo = trim((string)($_GET['ship_to'] ?? ($_POST['ship_to'] ?? '')));
@@ -1908,6 +2077,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && $action === 'build_cancel')
 
 
 // ─────────────────────────────
+// (AJAX) 수동 성적서용 납품처 목록
+if (($IS_MANUAL_REPORT ?? false) && ($_SERVER['REQUEST_METHOD'] ?? '') === 'GET' && $action === 'ship_to_list') {
+    header('Content-Type: application/json; charset=UTF-8');
+    $list = array_values(array_keys($SHIP_TO_TEMPLATE_SUBDIR));
+    echo json_encode(['ok' => true, 'ship_to_list' => $list], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 // (AJAX) 날짜 범위로 납품처 목록 가져오기
 //  - GET action=ship_to_list&from_date=YYYY-MM-DD&to_date=YYYY-MM-DD
 //  - JS에서 날짜 선택 시 납품처 셀렉트를 자동 갱신하기 위함
@@ -1955,148 +2132,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET' && $action === 'ship_to_list') 
 }
 
 
-if (!function_exists('ship_report_actor_meta')) {
-    function ship_report_actor_meta(PDO $pdo): array {
-        $meta = [
-            'no' => function_exists('dp_auth__session_user_no') ? dp_auth__session_user_no() : null,
-            'id' => function_exists('dp_auth__session_user_id') ? trim((string)(dp_auth__session_user_id() ?? '')) : trim((string)($_SESSION['ship_user_id'] ?? ($_SESSION['dp_admin_id'] ?? ''))),
-            'name' => '',
-            'role' => '',
-            'lv' => null,
-            'is_admin' => !empty($_SESSION['dp_admin_id']),
-        ];
-        try {
-            $sql = '';
-            $params = [];
-            if (!empty($meta['no'])) {
-                $sql = "SELECT `No`,`ID`,`NAME`,`role`,`lv` FROM `account` WHERE `No` = :no LIMIT 1";
-                $params = [':no' => (int)$meta['no']];
-            } elseif ($meta['id'] !== '') {
-                $sql = "SELECT `No`,`ID`,`NAME`,`role`,`lv` FROM `account` WHERE `ID` = :id LIMIT 1";
-                $params = [':id' => (string)$meta['id']];
-            }
-            if ($sql !== '') {
-                $st = $pdo->prepare($sql);
-                $st->execute($params);
-                $row = $st->fetch(PDO::FETCH_ASSOC);
-                if (is_array($row)) {
-                    if (!empty($row['No']))   $meta['no']   = (int)$row['No'];
-                    if (!empty($row['ID']))   $meta['id']   = trim((string)$row['ID']);
-                    if (!empty($row['NAME'])) $meta['name'] = trim((string)$row['NAME']);
-                    $meta['role'] = strtolower(trim((string)($row['role'] ?? '')));
-                    $meta['lv']   = isset($row['lv']) && $row['lv'] !== '' ? (int)$row['lv'] : null;
-                    if ($meta['role'] === 'admin') $meta['is_admin'] = true;
-                }
-            }
-        } catch (Throwable $e) {
-            // best effort
-        }
-        if ($meta['name'] === '') $meta['name'] = $meta['id'];
-        return $meta;
-    }
-}
-if (!function_exists('ensure_report_finish_cancel_request_columns')) {
-    function ensure_report_finish_cancel_request_columns(PDO $pdo): void {
-        $defs = [
-            'cancel_request_status'     => "ALTER TABLE `report_finish` ADD COLUMN `cancel_request_status` VARCHAR(20) NULL DEFAULT NULL",
-            'cancel_requested_at'       => "ALTER TABLE `report_finish` ADD COLUMN `cancel_requested_at` DATETIME NULL DEFAULT NULL",
-            'cancel_requested_by'       => "ALTER TABLE `report_finish` ADD COLUMN `cancel_requested_by` VARCHAR(100) NULL DEFAULT NULL",
-            'cancel_request_note'       => "ALTER TABLE `report_finish` ADD COLUMN `cancel_request_note` VARCHAR(255) NULL DEFAULT NULL",
-            'cancel_request_handled_at' => "ALTER TABLE `report_finish` ADD COLUMN `cancel_request_handled_at` DATETIME NULL DEFAULT NULL",
-            'cancel_request_handled_by' => "ALTER TABLE `report_finish` ADD COLUMN `cancel_request_handled_by` VARCHAR(100) NULL DEFAULT NULL",
-        ];
-        foreach ($defs as $col => $ddl) {
-            try {
-                $st = $pdo->prepare("SHOW COLUMNS FROM `report_finish` LIKE :c");
-                $st->execute([':c' => $col]);
-                $exists = $st->fetch(PDO::FETCH_ASSOC);
-                if (!$exists) {
-                    $pdo->exec($ddl);
-                }
-            } catch (Throwable $e) {
-                // best effort
-            }
-        }
-    }
-}
-if (!function_exists('report_finish_cancel_request_state_map')) {
-    function report_finish_cancel_request_state_map(PDO $pdo, array $ids): array {
-        $ids = array_values(array_unique(array_map('intval', $ids)));
-        $ids = array_values(array_filter($ids, fn($v) => $v > 0));
-        if (!$ids) return [];
-        ensure_report_finish_cancel_request_columns($pdo);
-        $ph = [];
-        $params = [];
-        foreach ($ids as $i => $id) {
-            $k = ':id' . $i;
-            $ph[] = $k;
-            $params[$k] = $id;
-        }
-        $sql = "SELECT `id`,`cancel_request_status`,`cancel_requested_at`,`cancel_requested_by`,`cancel_request_note`,`cancel_request_handled_at`,`cancel_request_handled_by` FROM `report_finish` WHERE `id` IN (" . implode(',', $ph) . ")";
-        $st = $pdo->prepare($sql);
-        $st->execute($params);
-        $out = [];
-        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $row) {
-            $out[(int)$row['id']] = $row;
-        }
-        return $out;
-    }
-}
-if (!function_exists('report_finish_cancel_request_submit')) {
-    function report_finish_cancel_request_submit(PDO $pdo, int $id, string $by, ?string $note = null): array {
-        ensure_report_finish_cancel_request_columns($pdo);
-        $st = $pdo->prepare("SELECT `id`,`is_canceled`,`cancel_request_status` FROM `report_finish` WHERE `id` = :id LIMIT 1");
-        $st->execute([':id' => $id]);
-        $row = $st->fetch(PDO::FETCH_ASSOC);
-        if (!$row) return ['ok' => false, 'msg' => '발행 내역을 찾을 수 없습니다.'];
-        if ((int)($row['is_canceled'] ?? 0) === 1) return ['ok' => false, 'msg' => '이미 취소 완료된 발행 건입니다.'];
-        $status = trim((string)($row['cancel_request_status'] ?? ''));
-        if ($status === 'pending') return ['ok' => false, 'msg' => '이미 취소 신청된 발행 건입니다.'];
-        $sql = "UPDATE `report_finish` SET `cancel_request_status`='pending', `cancel_requested_at`=NOW(), `cancel_requested_by`=:by, `cancel_request_note`=:note, `cancel_request_handled_at`=NULL, `cancel_request_handled_by`=NULL WHERE `id`=:id LIMIT 1";
-        $pdo->prepare($sql)->execute([
-            ':id' => $id,
-            ':by' => mb_substr(trim((string)$by), 0, 100),
-            ':note' => mb_substr(trim((string)($note ?? '')), 0, 255),
-        ]);
-        return ['ok' => true, 'msg' => '취소 신청이 접수되었습니다. 관리자 승인 후 삭제됩니다.'];
-    }
-}
-if (!function_exists('report_finish_cancel_request_reject')) {
-    function report_finish_cancel_request_reject(PDO $pdo, int $id, string $adminUser): array {
-        ensure_report_finish_cancel_request_columns($pdo);
-        $st = $pdo->prepare("SELECT `id`,`is_canceled`,`cancel_request_status` FROM `report_finish` WHERE `id`=:id LIMIT 1");
-        $st->execute([':id' => $id]);
-        $row = $st->fetch(PDO::FETCH_ASSOC);
-        if (!$row) return ['ok' => false, 'msg' => '발행 내역을 찾을 수 없습니다.'];
-        if ((int)($row['is_canceled'] ?? 0) === 1) return ['ok' => false, 'msg' => '이미 취소 완료된 발행 건입니다.'];
-        if (trim((string)($row['cancel_request_status'] ?? '')) !== 'pending') return ['ok' => false, 'msg' => '승인 대기 중인 취소 신청이 없습니다.'];
-        $sql = "UPDATE `report_finish` SET `cancel_request_status`='rejected', `cancel_request_handled_at`=NOW(), `cancel_request_handled_by`=:by WHERE `id`=:id LIMIT 1";
-        $pdo->prepare($sql)->execute([':id' => $id, ':by' => mb_substr(trim((string)$adminUser), 0, 100)]);
-        return ['ok' => true, 'msg' => '취소 신청을 반려했습니다.'];
-    }
-}
-if (!function_exists('report_finish_cancel_request_mark_approved')) {
-    function report_finish_cancel_request_mark_approved(PDO $pdo, int $id, string $adminUser): void {
-        ensure_report_finish_cancel_request_columns($pdo);
-        $sql = "UPDATE `report_finish` SET `cancel_request_status`='approved', `cancel_request_handled_at`=NOW(), `cancel_request_handled_by`=:by WHERE `id`=:id LIMIT 1";
-        $pdo->prepare($sql)->execute([':id' => $id, ':by' => mb_substr(trim((string)$adminUser), 0, 100)]);
-    }
-}
-if (!function_exists('ship_report_cancel_redirect_back')) {
-    function ship_report_cancel_redirect_back(array $res, string $histMonth, string $from_date = '', string $to_date = '', string $ship_to = ''): void {
-        $qs = [
-            'hist_month' => (preg_match('/^\d{4}-\d{2}$/', $histMonth) ? $histMonth : date('Y-m')),
-            'cancel_ok'  => !empty($res['ok']) ? 1 : 0,
-            'cancel_msg' => (string)($res['msg'] ?? ''),
-        ];
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $from_date)) $qs['from_date'] = $from_date;
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $to_date))   $qs['to_date']   = $to_date;
-        if ($ship_to !== '') $qs['ship_to'] = $ship_to;
-        header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?') . '?' . http_build_query($qs));
-        exit;
-    }
-}
-
 // ─────────────────────────────
 // (추가) 발행 내역 취소(롤백)
 //  - POST action=cancel_report
@@ -2106,19 +2141,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'canc
     $histMonth = (string)($_POST['hist_month'] ?? '');
     if (!preg_match('/^\d{4}-\d{2}$/', $histMonth)) $histMonth = date('Y-m');
 
-    $from_date = trim((string)($_POST['from_date'] ?? ''));
-    $to_date   = trim((string)($_POST['to_date'] ?? ''));
-    $ship_to   = trim((string)($_POST['ship_to'] ?? ''));
-    $actorMeta = ship_report_actor_meta($pdo);
-    $byUser = (string)($actorMeta['id'] ?: ($_SESSION['ship_user_id'] ?? ($_SESSION['dp_admin_id'] ?? 'web')));
-    $approvePending = ((string)($_POST['_approve_pending'] ?? '') === '1');
-
-    if (!$actorMeta['is_admin']) {
-        $res = ($id > 0)
-            ? report_finish_cancel_request_submit($pdo, $id, $byUser)
-            : ['ok' => false, 'msg' => '잘못된 ID'];
-        ship_report_cancel_redirect_back($res, $histMonth, $from_date, $to_date, $ship_to);
-    }
+    $byUser = (string)($_SESSION['ship_user_id'] ?? ($_SESSION['dp_admin_id'] ?? 'web'));
 	if ($id <= 0) {
 	    $res = ['ok' => false, 'msg' => '잘못된 ID'];
 	} else {
@@ -2273,7 +2296,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'canc
 	        }
 	    }
 	}
-    ship_report_cancel_redirect_back($res, $histMonth, $from_date, $to_date, $ship_to);
+    // 결과를 GET 파라미터로 보여주기(간단)
+    $from_date = trim((string)($_POST['from_date'] ?? ''));
+    $to_date   = trim((string)($_POST['to_date'] ?? ''));
+    $ship_to   = trim((string)($_POST['ship_to'] ?? ''));
+
+    $qs = [
+        'hist_month' => $histMonth,
+        'cancel_ok'  => $res['ok'] ? 1 : 0,
+        'cancel_msg' => $res['msg'] ?? '',
+    ];
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $from_date)) $qs['from_date'] = $from_date;
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $to_date))   $qs['to_date']   = $to_date;
+    if ($ship_to !== '') $qs['ship_to'] = $ship_to;
+
+    $q = http_build_query($qs);
+
+    header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?') . '?' . $q);
+    exit;
 }
 
 
@@ -2281,34 +2321,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'canc
 // ─────────────────────────────
 // report_finish / rollback 액션 (UI 없어도 호출 가능)
 // ─────────────────────────────
-
-// ─────────────────────────────
-// 관리자용 취소 신청 승인/반려
-// ─────────────────────────────
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array((string)($_POST['action'] ?? ''), ['cancel_report_approve','cancel_report_reject'], true)) {
-    $histMonth = (string)($_POST['hist_month'] ?? '');
-    if (!preg_match('/^\d{4}-\d{2}$/', $histMonth)) $histMonth = date('Y-m');
-    $from_date = trim((string)($_POST['from_date'] ?? ''));
-    $to_date   = trim((string)($_POST['to_date'] ?? ''));
-    $ship_to   = trim((string)($_POST['ship_to'] ?? ''));
-    $id = (int)($_POST['id'] ?? 0);
-    $actorMeta = ship_report_actor_meta($pdo);
-    $byUser = (string)($actorMeta['id'] ?: ($_SESSION['ship_user_id'] ?? ($_SESSION['dp_admin_id'] ?? 'web')));
-    if (!$actorMeta['is_admin']) {
-        ship_report_cancel_redirect_back(['ok' => false, 'msg' => '관리자만 승인/반려할 수 있습니다.'], $histMonth, $from_date, $to_date, $ship_to);
-    }
-    if (((string)($_POST['action'] ?? '')) === 'cancel_report_reject') {
-        $res = ($id > 0)
-            ? report_finish_cancel_request_reject($pdo, $id, $byUser)
-            : ['ok' => false, 'msg' => '잘못된 ID'];
-        ship_report_cancel_redirect_back($res, $histMonth, $from_date, $to_date, $ship_to);
-    }
-    $_POST['_approve_pending'] = '1';
-    $_POST['action'] = 'cancel_report';
-    $_REQUEST['_approve_pending'] = '1';
-    $_REQUEST['action'] = 'cancel_report';
-    $action = 'cancel_report';
-}
 
 // ─────────────────────────────
 if ($action === 'rollback_today' || $action === 'rollback_date') {
@@ -2337,20 +2349,6 @@ if ($action === 'report_cancel') {
         header('Content-Type: application/json; charset=UTF-8');
         echo json_encode(['ok' => false, 'error' => 'invalid id'], JSON_UNESCAPED_UNICODE);
         exit;
-    }
-    $actorMeta = ship_report_actor_meta($pdo);
-    $by = (string)($actorMeta['id'] ?: ($_SESSION['ship_user_id'] ?? ($_SESSION['dp_admin_id'] ?? 'web')));
-    $approvePending = ((string)($_REQUEST['_approve_pending'] ?? '') === '1');
-    if (!$actorMeta['is_admin']) {
-        $res = report_finish_cancel_request_submit($pdo, $id, $by);
-        $isAjax = ((string)($_REQUEST['ajax'] ?? '') === '1')
-                  || (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower((string)$_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest');
-        if ($isAjax) {
-            header('Content-Type: application/json; charset=UTF-8');
-            echo json_encode(['ok' => !empty($res['ok']), 'requested' => !empty($res['ok']), 'message' => (string)($res['msg'] ?? '')], JSON_UNESCAPED_UNICODE);
-            exit;
-        }
-        ship_report_cancel_redirect_back($res, (string)($_REQUEST['hist_month'] ?? ''), trim((string)($_REQUEST['from_date'] ?? '')), trim((string)($_REQUEST['to_date'] ?? '')), trim((string)($_REQUEST['ship_to'] ?? '')));
     }
 
     $row = report_finish_get($pdo, $id);
@@ -2459,10 +2457,8 @@ if ($action === 'report_cancel') {
     $result = $resultAgg;
 
     if (!$dry) {
+        $by = (string)($_SESSION['ship_user_id'] ?? ($_SESSION['dp_admin_id'] ?? ''));
         report_finish_mark_canceled($pdo, $id, $by ?: null, '취소(롤백): ' . ($end ?? ''));
-        if ($approvePending) {
-            report_finish_cancel_request_mark_approved($pdo, $id, $by ?: null);
-        }
     // ✅ 서버 저장 폴더(exports/reports/rf_{id}/)도 함께 삭제
     $del = dp_delete_report_artifacts($id, $dry);
 
@@ -2550,72 +2546,47 @@ if ($action !== 'build') {
 
     $today = date('Y-m-d');
 
-$fromDate = normalize_date_ymd($_GET['from_date'] ?? $today);
-$toDate   = normalize_date_ymd($_GET['to_date']   ?? $today);
+    $fromDate = normalize_date_ymd($_REQUEST['from_date'] ?? $today);
+    $toDate   = normalize_date_ymd($_REQUEST['to_date']   ?? $today);
+    if ($fromDate === '') $fromDate = $today;
+    if ($toDate   === '') $toDate   = $today;
 
-// normalize_date_ymd()가 빈 문자열을 반환하는 경우(이상한 값이 넘어온 경우) 화면에 빈값 대신 오늘 날짜로 표시
-if ($fromDate === '') $fromDate = $today;
-if ($toDate   === '') $toDate   = $today;
-
-// cutoff 계산 (shipinglist_list 와 동일 로직)
-    $cutoffTime = '08:30:00';
-    $fromTs = strtotime($fromDate . ' ' . $cutoffTime . ' -1 day');
-    $toTs   = strtotime($toDate   . ' ' . $cutoffTime);
-    $fromDt = date('Y-m-d H:i:s', $fromTs);
-    $toDt   = date('Y-m-d H:i:s', $toTs);
-
-    // 해당 기간의 납품처 목록
-    $stmt = $pdo->prepare("
-        SELECT DISTINCT ship_to
-        FROM ShipingList
-        WHERE ship_datetime >= :from_dt
-          AND ship_datetime <  :to_dt
-          AND ship_to <> ''
-        ORDER BY ship_to
-    ");
-    $stmt->execute([':from_dt' => $fromDt, ':to_dt' => $toDt]);
-    $shipToList = $stmt->fetchAll(PDO::FETCH_COLUMN);
-    $selectedShipTo = $_GET['ship_to'] ?? ($shipToList[0] ?? '');
-
-    // ✅ 납품처가 없는 기간이면 select가 비어버려서 build 시 필수 파라미터 누락이 발생함.
-    //    UI에서 '(해당 기간 납품처 없음)'을 보여주고, 생성 버튼은 안내 메시지로 막는다.
-    if (empty($shipToList)) {
-        $shipToList = [''];
-        $selectedShipTo = '';
+    $shipToList = array_values(array_keys($SHIP_TO_TEMPLATE_SUBDIR));
+    if (empty($shipToList)) $shipToList = ['엘지이노텍(주)', '자화전자(주)'];
+    $selectedShipTo = trim((string)($_REQUEST['ship_to'] ?? ''));
+    if ($selectedShipTo === '' || !in_array($selectedShipTo, $shipToList, true)) {
+        $selectedShipTo = $shipToList[0] ?? '';
     }
 
+    $manualPartDefs = manual_report_part_defs();
+    $manualInputs = [];
+    foreach ($manualPartDefs as $key => $def) {
+        $manualInputs[$key] = (string)($_REQUEST['manual_' . $key] ?? '');
+    }
 
     // ─────────────────────────────
-    // (추가) 발행 내역 조회 (월 단위)
+    // (추가) 수동 발행 내역 조회 (월 단위)
     // ─────────────────────────────
     ensure_report_finish_table($pdo);
 
-    $histMonth = trim($_GET['hist_month'] ?? date('Y-m'));
+    $histMonth = trim((string)($_REQUEST['hist_month'] ?? date('Y-m')));
     if (!preg_match('/^\d{4}-\d{2}$/', $histMonth)) $histMonth = date('Y-m');
 
     $histRows  = report_finish_list_month($pdo, $histMonth);
-    $cancelActor = ship_report_actor_meta($pdo);
-    ensure_report_finish_cancel_request_columns($pdo);
-    if (!empty($histRows)) {
-        $rfStateMap = report_finish_cancel_request_state_map($pdo, array_map(static function($r){ return (int)($r['id'] ?? 0); }, $histRows));
-        foreach ($histRows as &$__rfRow) {
-            $rid = (int)($__rfRow['id'] ?? 0);
-            if ($rid > 0 && isset($rfStateMap[$rid])) {
-                $__rfRow = array_merge($__rfRow, $rfStateMap[$rid]);
-            }
-        }
-        unset($__rfRow, $rfStateMap);
-    }
+    $histRows = array_values(array_filter($histRows, function($r){
+        $zipName = (string)($r['zip_name'] ?? '');
+        return stripos($zipName, '[manual]') !== false;
+    }));
 
-    $cancelOk  = ((int)($_GET['cancel_ok'] ?? 0) === 1);
-    $cancelMsg = trim((string)($_GET['cancel_msg'] ?? ''));
+    $cancelOk  = ((int)($_REQUEST['cancel_ok'] ?? 0) === 1);
+    $cancelMsg = trim((string)($_REQUEST['cancel_msg'] ?? ''));
 
 ?>
 <!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>Shipping Lot List 성적서 만들기</title>
+<title>수동 성적서 만들기</title>
 <style>
 :root{
   --bg:#202124; --card:#2b2b2b; --fg:#e8eaed;
@@ -2729,16 +2700,6 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
   background:rgba(232,93,93,0.12);
   color:#ffb4b4;
 }
-.badge.pending{
-  border-color:rgba(255,184,76,0.35);
-  background:rgba(255,184,76,0.14);
-  color:#ffd28c;
-}
-.badge.reject{
-  border-color:rgba(255,214,102,0.28);
-  background:rgba(255,214,102,0.12);
-  color:#ffe7a3;
-}
 .mini{font-size:11px;color:var(--muted);}
 .lines{display:flex;flex-direction:column;gap:2px;}
 .lines.right{align-items:flex-end;}
@@ -2762,372 +2723,112 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
 </head>
 <body>
 <div class="wrap">
-  <h1>성적서 제작</h1>
+  <h1>수동 성적서 제작</h1>
   <div id="topAlert" class="alert <?=($cancelOk ? '' : 'bad')?>" style="<?= empty($cancelMsg) ? 'display:none;' : '' ?>"><?=h($cancelMsg)?></div>
   <div class="card">
-    <form method="get" id="buildForm">
+    <form method="post" id="buildForm">
       <input type="hidden" name="action" value="build">
       <div class="row">
         <div class="col">
           <label>조회기간 (출하일자)</label>
-          <div style="display:flex; gap:6px; align-items:center;">
-            <input type="date" name="from_date"
-                   class="filter-input-date"
-                   value="<?= h($fromDate) ?>"
-                   min="2000-01-01" max="9999-12-31">
-            <span style="font-size:11px; color:#9aa0a6;">~</span>
-            <input type="date" name="to_date"
-                   class="filter-input-date"
-                   value="<?= h($toDate) ?>"
-                   min="2000-01-01" max="9999-12-31">
+          <input type="hidden" name="from_date" value="<?= h($fromDate) ?>">
+          <input type="hidden" name="to_date" value="<?= h($toDate) ?>">
+          <div class="ctl" style="display:flex; align-items:center; min-width:250px; white-space:nowrap;">
+            <?= h($fromDate !== '' ? $fromDate : '-') ?>
+            <span style="padding:0 8px; color:#9aa0a6;">~</span>
+            <?= h($toDate !== '' ? $toDate : '-') ?>
           </div>
         </div>
         <div class="col">
           <label>납품처</label>
           <select name="ship_to">
             <?php foreach ($shipToList as $st): ?>
-              <?php $stLabel = ($st === '' ? '(해당 기간 출하내역 없음)' : $st); ?>
-              <option value="<?=h($st)?>" <?=($st === $selectedShipTo ? 'selected' : '')?>><?=h($stLabel)?></option>
+              <option value="<?=h($st)?>" <?=($st === $selectedShipTo ? 'selected' : '')?>><?=h($st)?></option>
             <?php endforeach; ?>
           </select>
         </div>
         <div class="col">
           <label>&nbsp;</label>
-          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-            <button type="submit" class="btn btn-primary">성적서 생성</button>
-            <button type="button" class="btn btn-secondary" onclick="openManualReportBuild();">수동성적서 생성</button>
-          </div>
+          <button type="submit" class="btn btn-primary">수동 성적서 생성</button>
         </div>
       </div>
 
+      <div class="desc" style="margin-top:10px;">
+        탭별 입력 형식: 생산일 줄 + Tool:Cavity 줄을 입력합니다.<br>
+        예) <span class="mono">2026-03-21</span> 또는 <span class="mono">260321</span> / <span class="mono">A: 3,4</span>
+      </div>
+
+      <style>
+        .manual-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;margin-bottom:12px;}
+        .manual-tab{height:32px;padding:0 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.16);background:rgba(255,255,255,0.05);color:var(--fg);font-size:12.5px;font-weight:700;cursor:pointer;}
+        .manual-tab.active{background:rgba(79,140,255,0.18);border-color:rgba(138,180,248,0.55);color:#dce9ff;}
+        .manual-pane{display:none;}
+        .manual-pane.active{display:block;}
+        .manual-text{width:100%;min-height:240px;resize:vertical;border-radius:12px;border:1px solid var(--border);background:var(--bg);color:var(--fg);padding:12px 14px;font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;box-sizing:border-box;}
+        .manual-help{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:8px;color:var(--muted);font-size:12px;}
+      </style>
+
+      <div class="manual-tabs" role="tablist" aria-label="수동 성적서 품목 탭">
+        <?php $manualTabIndex = 0; foreach ($manualPartDefs as $key => $def): ?>
+          <button type="button" class="manual-tab <?= $manualTabIndex === 0 ? 'active' : '' ?>" data-manual-tab="<?=h($key)?>"><?=h($def['label'])?></button>
+        <?php $manualTabIndex++; endforeach; ?>
+      </div>
+
+      <?php $manualPaneIndex = 0; foreach ($manualPartDefs as $key => $def): ?>
+        <div class="manual-pane <?= $manualPaneIndex === 0 ? 'active' : '' ?>" data-manual-pane="<?=h($key)?>">
+          <div class="manual-help">
+            <div><strong><?=h($def['label'])?></strong> / <?=h($def['part'])?></div>
+            <div>빈 탭은 생성 대상에서 제외됩니다.</div>
+          </div>
+          <textarea class="manual-text" name="manual_<?=h($key)?>" spellcheck="false" placeholder="2026-03-21&#10;2026-03-22&#10;A: 3,4&#10;B: 1,3,4"><?=h($manualInputs[$key] ?? '')?></textarea>
+        </div>
+      <?php $manualPaneIndex++; endforeach; ?>
     </form>
 <script>
 (function(){
-  const from = document.querySelector('input[name="from_date"]');
-  const to   = document.querySelector('input[name="to_date"]');
-  const sel  = document.querySelector('select[name="ship_to"]');
-  if (!from || !to || !sel) return;
-
-  const form = document.getElementById('buildForm') || sel.closest('form');
+  const form = document.getElementById('buildForm');
   const topAlert = document.getElementById('topAlert');
+  const tabs = Array.from(document.querySelectorAll('.manual-tab'));
+  const panes = Array.from(document.querySelectorAll('.manual-pane'));
 
-  function showTopInfo(msg){
+  function showTopInfo(msg, bad){
     if (!topAlert) {
       alert(msg);
       return;
     }
     topAlert.textContent = msg;
-    topAlert.classList.remove('bad');
+    if (bad) topAlert.classList.add('bad');
+    else topAlert.classList.remove('bad');
     topAlert.style.display = '';
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  function activateTab(key){
+    tabs.forEach(btn => btn.classList.toggle('active', btn.getAttribute('data-manual-tab') === key));
+    panes.forEach(pane => pane.classList.toggle('active', pane.getAttribute('data-manual-pane') === key));
+  }
+
+  tabs.forEach(btn => btn.addEventListener('click', function(){
+    activateTab(this.getAttribute('data-manual-tab') || '');
+  }));
+
   if (form) {
     form.addEventListener('submit', function(e){
-      // ship_to가 없으면 build 호출 자체를 막고 안내만 표시
-      if (!sel.value) {
+      const textareas = Array.from(form.querySelectorAll('textarea[name^="manual_"]'));
+      const hasValue = textareas.some(el => (el.value || '').trim() !== '');
+      if (!hasValue) {
         e.preventDefault();
-        showTopInfo('해당 조회기간에는 출하내역이 존재하지않아 성적서를 생성할 수 없습니다.');
+        showTopInfo('최소 한 개 탭에 생산일 / Tool:Cavity를 입력해야 합니다.', true);
       }
     });
   }
-
-  let lastKey = '';
-  let inflight = null;
-
-  async function refreshShipTo(){
-    const fd = (from.value || '').trim();
-    const td = (to.value || '').trim();
-    if (!fd || !td) return;
-
-    const key = fd + '|' + td;
-    if (key === lastKey && !inflight) return;
-    lastKey = key;
-
-    const prevValue = sel.value;
-    sel.disabled = true;
-
-    try{
-      const url = new URL(location.href);
-      url.searchParams.set('action', 'ship_to_list');
-      url.searchParams.set('from_date', fd);
-      url.searchParams.set('to_date', td);
-
-      inflight = fetch(url.toString(), { headers: { 'Accept': 'application/json' } });
-      const res = await inflight;
-      inflight = null;
-
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const data = await res.json();
-      const list = Array.isArray(data.ship_to_list) ? data.ship_to_list : [];
-
-      sel.innerHTML = '';
-      if (list.length === 0) {
-        const opt = document.createElement('option');
-        opt.value = '';
-        opt.textContent = '(해당 기간 출하내역 없음)';
-        sel.appendChild(opt);
-        sel.value = '';
-      } else {
-        for (const st of list) {
-          const opt = document.createElement('option');
-          opt.value = st;
-          opt.textContent = st;
-          sel.appendChild(opt);
-        }
-        if (list.includes(prevValue)) sel.value = prevValue;
-        else sel.value = list[0];
-      }
-    } catch (e) {
-      console.error('[ship_to_list] failed', e);
-    } finally {
-      inflight = null;
-      sel.disabled = false;
-    }
-  }
-
-  from.addEventListener('change', refreshShipTo);
-  to.addEventListener('change', refreshShipTo);
-
-  // 페이지 로드시 날짜가 이미 선택되어 있으면 납품처 목록을 새로 로딩
-  if (from.value && to.value) refreshShipTo();
 })();
 </script>
-
-
   </div>
 
-  <div class="card">
-    <div class="card-head">
-      <div>
-        <div class="card-title">출하성적서 발행 내역</div>
-      </div>
-      <form method="get" style="display:flex;gap:8px;align-items:center;margin:0;">
-        <input type="hidden" name="from_date" value="<?=h($fromDate)?>">
-        <input type="hidden" name="to_date" value="<?=h($toDate)?>">
-        <input type="hidden" name="ship_to" value="<?=h($selectedShipTo)?>">
-        <input class="ctl" type="month" name="hist_month" value="<?=h($histMonth)?>">
-        <button type="submit" class="btn btn-secondary btn-sm">조회</button>
-      </form>
-    </div>
-
-    <div class="table-wrap">
-      <table class="history-table">
-        <thead>
-          <tr>
-            <th style="min-width:90px;">발행일시</th>
-            <th style="min-width:90px;">조회기간</th>
-            <th style="min-width:100px;">품번</th>
-            <th style="min-width:120px;">출하수량</th>
-            <th style="min-width:130px;">납품처</th>
-            <th style="min-width:160px;">상태</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php if (empty($histRows)): ?>
-            <tr><td colspan="6" style="color:var(--muted);">내역이 없습니다.</td></tr>
-          <?php else: ?>
-            <?php foreach ($histRows as $r): ?>
-              <?php
-                $isCanceled = ((int)($r['is_canceled'] ?? 0) === 1);
-                $cancelReqStatus = trim((string)($r['cancel_request_status'] ?? ''));
-                $cancelReqPending = ($cancelReqStatus === 'pending');
-                $cancelReqRejected = ($cancelReqStatus === 'rejected');
-                $cancelRequestedAt = trim((string)($r['cancel_requested_at'] ?? ''));
-                $cancelRequestedBy = trim((string)($r['cancel_requested_by'] ?? ''));
-                $cancelHandledAt = trim((string)($r['cancel_request_handled_at'] ?? ''));
-                $cancelHandledBy = trim((string)($r['cancel_request_handled_by'] ?? ''));
-
-                // parts_json에서 (품번 목록 / 출하수량) 표시용 파싱
-                $partsLines = [];
-                $qtyLines = [];
-                $totalShipQty = null;
-                $allQtyQuestion = true;
-                $hasPartQtyValue = false;
-
-                $pjText = $r['parts_json'] ?? '';
-                if (is_string($pjText) && $pjText !== '') {
-                    $tmp = json_decode($pjText, true);
-                    if (is_array($tmp)) {
-                        // 옛날 포맷: ["MEM-IR-BASE","MEM-X-CARRIER",...]
-                        if (array_keys($tmp) === range(0, count($tmp) - 1)) {
-                            foreach ($tmp as $v) {
-                                if (is_string($v) && $v !== '') $partsLines[] = $v;
-                            }
-                        } else {
-                            // 최신 포맷: {"parts":[{"part":"...","ship_qty":...},...], "total_ship_qty":...}
-                            if (isset($tmp['parts']) && is_array($tmp['parts'])) {
-                                foreach ($tmp['parts'] as $it) {
-                                    if (is_array($it) && isset($it['part'])) {
-                                        $partsLines[] = (string)$it['part'];
-                                        $rawQty = $it['ship_qty'] ?? $it['qty'] ?? null;
-                                        if ($rawQty !== null) {
-                                            $hasPartQtyValue = true;
-                                            $rawQtyStr = trim((string)$rawQty);
-                                            if ($rawQtyStr === '?') {
-                                                $qtyLines[] = '?';
-                                            } else {
-                                                $allQtyQuestion = false;
-                                                $qtyLines[] = number_format((int)$rawQty);
-                                            }
-                                        } else {
-                                            $allQtyQuestion = false;
-                                        }
-                                    } elseif (is_string($it) && $it !== '') {
-                                        $partsLines[] = $it;
-                                        $allQtyQuestion = false;
-                                    }
-                                }
-                            }
-                            if (isset($tmp['total_ship_qty'])) $totalShipQty = (int)$tmp['total_ship_qty'];
-                        }
-                    }
-                }
-                $zipNameForDetect = (string)($r['zip_name'] ?? '');
-                $isManualPublished = (
-                    stripos($zipNameForDetect, '[manual]') !== false
-                    || stripos($zipNameForDetect, 'manual') !== false
-                    || ($partsLines && $hasPartQtyValue && $allQtyQuestion)
-                );
-                if ($isManualPublished) {
-                    if ($partsLines) $qtyLines = array_fill(0, count($partsLines), '?');
-                    $totalShipQty = null;
-                } elseif ($partsLines && !$qtyLines) {
-                    $qtyLines = array_fill(0, count($partsLines), '-');
-                }
-
-                // 발행일시 표시용 분리 (YYYY-MM-DD / HH:MM:SS)
-                $faStr  = trim((string)($r['finished_at'] ?? ''));
-                $faDate = $faStr;
-                $faTime = '';
-                if ($faStr !== '') {
-                    if (strpos($faStr, ' ') !== false) {
-                        $p = explode(' ', $faStr, 2);
-                        $faDate = $p[0] ?? $faStr;
-                        $faTime = $p[1] ?? '';
-                    } else {
-                        $ts = strtotime($faStr);
-                        if ($ts !== false) {
-                            $faDate = date('Y-m-d', $ts);
-                            $faTime = date('H:i:s', $ts);
-                        }
-                    }
-                }
-              ?>
-              <tr>
-                <td class="mono"><div class="lines center"><div><?=h((string)$faDate)?></div><?php if ($faTime !== ''): ?><div><?=h((string)$faTime)?></div><?php endif; ?></div></td>
-                <td class="mono"><div class="lines center"><div><?=h((string)($r['from_date'] ?? ''))?></div><div>~</div><div><?=h((string)($r['to_date'] ?? ''))?></div></div></td>
-                <td>
-                  <?php if (!empty($partsLines)): ?>
-                    <div class="lines">
-                      <?php foreach ($partsLines as $pl): ?>
-                        <div><?=h((string)$pl)?></div>
-                      <?php endforeach; ?>
-                    </div>
-                  <?php else: ?>
-                    <span class="mini">-</span>
-                  <?php endif; ?>
-                </td>
-                <td>
-                  <?php if (!empty($qtyLines)): ?>
-                    <div class="lines center mono">
-                      <?php foreach ($qtyLines as $ql): ?>
-                        <div><?=h((string)$ql)?></div>
-                      <?php endforeach; ?>
-                      <?php if ($totalShipQty !== null): ?>
-                        <div class="sumline">합계 <?=h(number_format((int)$totalShipQty))?></div>
-                      <?php endif; ?>
-                    </div>
-                  <?php else: ?>
-                    <span class="mini">-</span>
-                  <?php endif; ?>
-                </td>
-                <td><?=h((string)($r['ship_to'] ?? ''))?></td>
-                <td>
-                  <?php $viewOk = is_dir(JTMES_ROOT . '/exports/reports/rf_' . (int)($r['id'] ?? 0)); ?>
-                  <?php if ($isCanceled): ?>
-                    <span class="badge cancel">취소완료</span>
-                    <?php if (!empty($r['canceled_at'])): ?>
-                      <div class="mini">취소: <?=h((string)($r['canceled_at'] ?? ''))?></div>
-                    <?php endif; ?>
-                    <?php if (!empty($r['canceled_by'])): ?>
-                      <div class="mini"><?=h((string)($r['canceled_by'] ?? ''))?></div>
-                    <?php endif; ?>
-                  <?php elseif ($cancelReqPending): ?>
-                    <span class="badge pending">취소신청중</span>
-                    <?php if ($cancelRequestedAt !== ''): ?>
-                      <div class="mini">신청: <?=h($cancelRequestedAt)?></div>
-                    <?php endif; ?>
-                    <?php if ($cancelRequestedBy !== ''): ?>
-                      <div class="mini"><?=h($cancelRequestedBy)?></div>
-                    <?php endif; ?>
-                    <?php if ($viewOk): ?>
-                      <button type="button" class="btn btn-secondary btn-sm" style="margin-left:6px;" onclick="openReportView(<?= (int)($r['id'] ?? 0) ?>)">View</button>
-                    <?php endif; ?>
-                    <?php if (!empty($cancelActor['is_admin'])): ?>
-                      <form method="post" style="display:inline;margin-left:6px;" onsubmit="return confirm('이 취소 신청을 승인하고 실제로 삭제(롤백)할까요?');">
-                        <input type="hidden" name="action" value="cancel_report_approve">
-                        <input type="hidden" name="id" value="<?=h((string)($r['id'] ?? '0'))?>">
-                        <input type="hidden" name="hist_month" value="<?=h($histMonth)?>">
-                        <input type="hidden" name="from_date" value="<?=h($fromDate)?>">
-                        <input type="hidden" name="to_date" value="<?=h($toDate)?>">
-                        <input type="hidden" name="ship_to" value="<?=h($selectedShipTo)?>">
-                        <button type="submit" class="btn btn-danger btn-sm">승인삭제</button>
-                      </form>
-                      <form method="post" style="display:inline;margin-left:6px;" onsubmit="return confirm('이 취소 신청을 반려할까요?');">
-                        <input type="hidden" name="action" value="cancel_report_reject">
-                        <input type="hidden" name="id" value="<?=h((string)($r['id'] ?? '0'))?>">
-                        <input type="hidden" name="hist_month" value="<?=h($histMonth)?>">
-                        <input type="hidden" name="from_date" value="<?=h($fromDate)?>">
-                        <input type="hidden" name="to_date" value="<?=h($toDate)?>">
-                        <input type="hidden" name="ship_to" value="<?=h($selectedShipTo)?>">
-                        <button type="submit" class="btn btn-secondary btn-sm">반려</button>
-                      </form>
-                    <?php endif; ?>
-                  <?php else: ?>
-                    <span class="badge"><?= $isManualPublished ? '수동발행' : '발행' ?></span>
-                    <?php if ($cancelReqRejected): ?>
-                      <div class="mini">취소반려<?= $cancelHandledAt !== '' ? ': ' . h($cancelHandledAt) : '' ?></div>
-                      <?php if ($cancelHandledBy !== ''): ?><div class="mini"><?=h($cancelHandledBy)?></div><?php endif; ?>
-                    <?php endif; ?>
-                    <?php if ($viewOk): ?>
-                      <button type="button" class="btn btn-secondary btn-sm" style="margin-left:6px;" onclick="openReportView(<?= (int)($r['id'] ?? 0) ?>)">View</button>
-                    <?php endif; ?>
-
-                    <form method="post" style="display:inline;margin-left:6px;"
-                      onsubmit="return confirm('<?= !empty($cancelActor['is_admin']) ? '이 발행 건을 취소(롤백)할까요?\n\n※ 발행일(=meas_date / meas_date2) 마킹을 되돌리고, 서버에 저장된 발행 파일도 삭제합니다.' : '이 발행 건의 취소를 신청할까요?\n\n※ 관리자인 role admin 승인 후에만 실제 삭제(롤백)됩니다.' ?>');">
-                      <input type="hidden" name="action" value="cancel_report">
-                      <input type="hidden" name="id" value="<?=h((string)($r['id'] ?? '0'))?>">
-                      <input type="hidden" name="hist_month" value="<?=h($histMonth)?>">
-                      <input type="hidden" name="from_date" value="<?=h($fromDate)?>">
-                      <input type="hidden" name="to_date" value="<?=h($toDate)?>">
-                      <input type="hidden" name="ship_to" value="<?=h($selectedShipTo)?>">
-                      <button type="submit" class="btn btn-danger btn-sm"><?= !empty($cancelActor['is_admin']) ? '취소' : ($cancelReqRejected ? '취소재신청' : '취소신청') ?></button>
-                    </form>
-                  <?php endif; ?>
-                </td>
-              </tr>
-            <?php endforeach; ?>
-          <?php endif; ?>
-        </tbody>
-      </table>
-    </div>
-  </div>
 </div>
 
 
-
-<!-- Manual Report Build Modal -->
-<div id="manualReportModal" class="rv-modal" style="display:none; z-index:10020;">
-  <div class="rv-backdrop" onclick="closeManualReportBuild()"></div>
-  <div class="rv-panel" role="dialog" aria-modal="true">
-    <div class="rv-head">
-      <div class="rv-title">수동 성적서 제작</div>
-      <button class="rv-close" type="button" onclick="closeManualReportBuild()">닫기</button>
-    </div>
-    <iframe id="manualReportFrame" class="rv-iframe" src="about:blank"></iframe>
-  </div>
-</div>
 
 <!-- Report View Modal -->
 <div id="reportViewModal" class="rv-modal" style="display:none;">
@@ -3153,36 +2854,6 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
 </style>
 
 <script>
-  function buildManualReportUrl(){
-    var form = document.getElementById('buildForm');
-    var from = form && form.querySelector('input[name="from_date"]') ? form.querySelector('input[name="from_date"]').value : '';
-    var to   = form && form.querySelector('input[name="to_date"]')   ? form.querySelector('input[name="to_date"]').value   : '';
-    var url  = 'shipinglist_export_lotlist_manual.php?embed=1';
-    if (from) url += '&from_date=' + encodeURIComponent(from);
-    if (to)   url += '&to_date='   + encodeURIComponent(to);
-    url += '&ts=' + Date.now();
-    return url;
-  }
-
-  function openManualReportBuild(){
-    var m = document.getElementById('manualReportModal');
-    var f = document.getElementById('manualReportFrame');
-    var url = buildManualReportUrl();
-    if (!m || !f) {
-      alert('수동 성적서 모달을 열 수 없습니다.');
-      return;
-    }
-    f.src = url;
-    m.style.display = 'block';
-  }
-
-  function closeManualReportBuild(){
-    var m = document.getElementById('manualReportModal');
-    var f = document.getElementById('manualReportFrame');
-    if (f) f.src = 'about:blank';
-    if (m) m.style.display = 'none';
-  }
-
   function openReportView(id){
     var m = document.getElementById('reportViewModal');
     var f = document.getElementById('reportViewFrame');
@@ -3196,13 +2867,7 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
     m.style.display = 'none';
   }
   document.addEventListener('keydown', function(e){
-    if (e.key !== 'Escape') return;
-    var manualModal = document.getElementById('manualReportModal');
-    if (manualModal && manualModal.style.display === 'block') {
-      closeManualReportBuild();
-      return;
-    }
-    closeReportView();
+    if (e.key === 'Escape') closeReportView();
   });
 </script>
 
@@ -3221,11 +2886,11 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
 while (ob_get_level() > 0) @ob_end_flush();
 @ob_implicit_flush(true);
 
-$fromDate = trim($_GET['from_date'] ?? '');
-$toDate   = trim($_GET['to_date']   ?? '');
+$fromDate = trim((string)($_REQUEST['from_date'] ?? ''));
+$toDate   = trim((string)($_REQUEST['to_date']   ?? ''));
 $fromDate = normalize_date_ymd($fromDate);
 $toDate   = normalize_date_ymd($toDate);
-$shipTo   = trim($_GET['ship_to']   ?? '');
+$shipTo   = trim((string)($_REQUEST['ship_to']   ?? ''));
 
 
 $buildToken = preg_replace('/[^A-Za-z0-9_-]/', '', trim((string)($_GET['build_token'] ?? '')));
@@ -3286,12 +2951,22 @@ $toolCol = detect_table_column($pdo, 'ShipingList', [
     'moldtype','mold_type','mold','moldtype_name','moldtypeid','mold_type_id'
 ]);
 
+$manualTexts = [];
+foreach (manual_report_part_defs() as $key => $def) {
+    $manualTexts[$key] = (string)($_REQUEST['manual_' . $key] ?? '');
+}
+$manualData = manual_report_build_rows($manualTexts, $shippingDateStr);
+$manualRows = $manualData['rows'] ?? [];
+$manualCounts = $manualData['counts'] ?? [];
+$manualSumQty = $manualData['sumQty'] ?? [];
+$manualErrors = $manualData['errors'] ?? [];
+
 ?>
 <!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>성적서 발행 중...</title>
+<title>수동 성적서 발행 중...</title>
 <style>
 body{margin:0;padding:20px;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#202124;color:#e8eaed;}
 .wrap{max-width:900px;margin:0 auto;}
@@ -3313,7 +2988,7 @@ body{margin:0;padding:20px;font-family:system-ui,-apple-system,BlinkMacSystemFon
 })();
 </script>
 <div class="wrap">
-  <h2 style="margin:0 0 12px;">성적서 발행 중... <span class="badge">진행 로그</span></h2>
+  <h2 style="margin:0 0 12px;">수동 성적서 발행 중... <span class="badge">진행 로그</span></h2>
   <div class="card">
     <div class="small">기간: <?=h($fromDate)?> ~ <?=h($toDate)?> / 납품처: <?=h($shipTo)?></div>
     <div id="log" class="log"><?php
@@ -3988,29 +3663,18 @@ if (!function_exists('sl_force_xlsx_full_recalc')) {
 
 //logline('ShipingList 컬럼 감지: prod_date=' . ($GLOBALS['prodCol'] ?? 'NONE') . ' / tool=' . ($GLOBALS['toolCol'] ?? 'NONE') . ' / cavity=cavity');
 
-logline('1) 데이터 카운트 집계 중...');
+logline('1) 수동 입력 데이터 집계 중...');
 
-// part별 행수(작은 쿼리)
-$stmtCnt = $pdo->prepare("
-    SELECT TRIM(part_name) AS part_name, COUNT(*) AS cnt, COALESCE(SUM(qty),0) AS qty_sum
-    FROM ShipingList
-    WHERE ship_datetime >= :from_dt
-      AND ship_datetime <  :to_dt
-      AND ship_to = :ship_to
-      AND TRIM(part_name) IN (" . $SHIP_PART_IN_SQL . ")
-    GROUP BY TRIM(part_name)
-    ORDER BY TRIM(part_name)
-");
-$stmtCnt->execute(array_merge([':from_dt'=>$fromDt, ':to_dt'=>$toDt, ':ship_to'=>$shipTo], $SHIP_PART_PARAMS));
-$counts = [];
-$sumQty = [];
-while ($r = $stmtCnt->fetch(PDO::FETCH_ASSOC)) {
-    $pn = (string)$r['part_name'];
-    $counts[$pn] = (int)$r['cnt'];
-    $sumQty[$pn] = (int)($r['qty_sum'] ?? 0);
+if (!empty($manualErrors)) {
+    foreach ($manualErrors as $err) logline('[입력오류] ' . $err);
+    echo "</div></div></div></body></html>";
+    exit;
 }
-if (!$counts) {
-    logline('데이터 없음. 종료.');
+
+$counts = $manualCounts;
+$sumQty = $manualSumQty;
+if (!$counts || !$manualRows) {
+    logline('수동 입력 데이터가 없습니다. 종료.');
     echo "</div></div></div></body></html>";
     exit;
 }
@@ -4063,23 +3727,7 @@ $oqcAgg = [];            // [part]['dates'=>set, 'cavs'=>set]
 $createdCmmFiles = [];   // cmm template files
 
 // 메인 조회(정렬) - 스트리밍 처리
-logline('2) 성적서 발행 시작(스트리밍)...');
-
-$extraSelect = '';
-if ($prodCol) $extraSelect .= ", `{$prodCol}` AS prod_date";
-if ($toolCol) $extraSelect .= ", `{$toolCol}` AS tool";
-
-$sql = "
-SELECT ship_datetime, TRIM(part_name) AS part_name, cavity, qty, customer_lot_id, pack_no, ann_date {$extraSelect}
-FROM ShipingList
-WHERE ship_datetime >= :from_dt
-  AND ship_datetime <  :to_dt
-  AND ship_to = :ship_to
-  AND TRIM(part_name) IN (" . $SHIP_PART_IN_SQL . ")
-ORDER BY TRIM(part_name), pack_no, ship_datetime, id
-";
-$stmt = $pdo->prepare($sql);
-$stmt->execute(array_merge([':from_dt'=>$fromDt, ':to_dt'=>$toDt, ':ship_to'=>$shipTo], $SHIP_PART_PARAMS));
+logline('2) 수동 성적서 발행 시작(스트리밍)...');
 
 // 파트별로 엑셀을 “열어두고” 처리
 $currentPart = null;
@@ -4246,8 +3894,9 @@ $openPart = function(string $partName, int $rowCount) use (
     //    → 샘플 삭제/스타일 복제/숫자 포맷 범위를 기본 포맷 기준으로 처리한다.
     $useJawhaLotList = ($IS_JAWHA && $partName !== 'MEM-Z-STOPPER');
     // merge 해제는 하지 않음 (템플릿 레이아웃/선 유지)
-    // 샘플 데이터만 "작게" 지우기
-    for ($rr = 2; $rr <= $CLEAR_SAMPLE_ROWS; $rr++) {
+    // 수동 성적서는 첫 행(row 2)은 템플릿 값을 그대로 두고,
+    // 그 아래 샘플 행만 비워 둔다.
+    for ($rr = 3; $rr <= $CLEAR_SAMPLE_ROWS; $rr++) {
         foreach (($useJawhaLotList ? range('A','J') : range('A','I')) as $c) {
             $sheet->setCellValueExplicit($c.$rr, null, DataType::TYPE_NULL);
         }
@@ -4270,33 +3919,31 @@ $openPart = function(string $partName, int $rowCount) use (
     return [$spreadsheet, $sheet];
 };
 
-// 스트리밍 루프
+// 수동 성적서는 ShipingList 시트에 가짜 행을 쓰지 않는다.
+// OQC/CMM 집계용으로만 manualRows를 순회하고,
+// REPORT 엑셀은 템플릿 첫 행을 유지한 채 Shipping Date(B2)만 갱신한다.
 $processed = 0;
-while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+foreach ($manualRows as $row) {
     $pn = trim((string)$row['part_name']);
     if ($pn === '' || !isset($PART_MAP[$pn])) continue;
 
-    // OQC 집계(파트별/생산일별 Tool#Cavity set)
     if (!isset($oqcAgg[$pn])) $oqcAgg[$pn] = ['dates'=>[], 'cavs'=>[], 'pairs'=>[], 'by_date'=>[]];
 
     $cv = (int)($row['cavity'] ?? 0);
     if ($cv > 0) $oqcAgg[$pn]['cavs'][$cv] = true;
 
-    // 생산일 (YYYY-MM-DD) : 출하내역에서 중복제거 리스트 만들기
     $d = '';
     if ($prodCol && !empty($row['prod_date'])) {
         $d = substr((string)$row['prod_date'], 0, 10);
         if ($d !== '') $oqcAgg[$pn]['dates'][$d] = true;
     }
 
-    // Tool#Cavity (출하내역 기준) : 생산일별로 따로 모아둔다 (중복 제거)
     if ($toolCol && $cv > 0) {
         $tRaw = (string)($row['tool'] ?? '');
         $t = $tRaw !== '' ? extract_tool_letter($tRaw) : null;
         if ($t) {
             $k = $t . '#' . $cv;
             $oqcAgg[$pn]['pairs'][$k] = true;
-
             if ($d !== '') {
                 if (!isset($oqcAgg[$pn]['by_date'][$d])) $oqcAgg[$pn]['by_date'][$d] = ['pairs'=>[]];
                 $oqcAgg[$pn]['by_date'][$d]['pairs'][$k] = true;
@@ -4304,119 +3951,34 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         }
     }
 
-    // 파트 전환
-    if ($currentPart === null) {
-        $currentPart = $pn;
-        if (!isset($counts[$currentPart])) $counts[$currentPart] = 0;
-
-        // 템플릿을 먼저 열고 성공했을 때만 "모델 시작" 로그를 출력 (미매칭/스킵 시 로그 도배 방지)
-        [$spreadsheet, $sheet] = $openPart($currentPart, $counts[$currentPart]);
-        if (!$spreadsheet || !$sheet) {
-            $currentPart = null;
-            continue;
-        }
-        logline(" - {$currentPart} 모델 시작 {$counts[$currentPart]} 행");
-    } elseif ($pn !== $currentPart) {
-        // 이전 파트 마감
-        $finalizePart();
-
-        $currentPart = $pn;
-        [$spreadsheet, $sheet] = $openPart($currentPart, $counts[$currentPart]);
-        if (!$spreadsheet || !$sheet) {
-            $currentPart = null;
-            continue;
-        }
-        logline(" - {$currentPart} 모델 시작 {$counts[$currentPart]} 행");
-    }
-
-    if (!$spreadsheet || !$sheet) continue;
-
-    // pack 처리(merge 계획)
-    $packNo = (string)($row['pack_no'] ?: '(NO PACK_NO)');
-    if ($curPack === null) {
-        $curPack = $packNo;
-        $packStartRow = $curRow;
-        $packTotalQty = 0;
-    } elseif ($packNo !== $curPack) {
-        // 이전 pack 종료
-        $packEnd = $curRow - 1;
-        $mergePlans[] = [$packStartRow, $packEnd, $packTotalQty];
-
-        // 새 pack 시작
-        $curPack = $packNo;
-        $packStartRow = $curRow;
-        $packTotalQty = 0;
-    }
-    // inner package (Shipping Lot List D열)
-    // ✅ customer_lot_id를 그대로 사용한다 (하드코딩 prefix / pack_barcode 보강 없음)
-    $info = $PART_MAP[$currentPart];
-    $innerPackage = trim((string)($row['customer_lot_id'] ?? ''));
-
-    $qty = (int)($row['qty'] ?? 0);
-    $packTotalQty += $qty;
-
-    // row 데이터
-    // JAWHA(자화전자(주)) Shipping Lot List: Annealing Date(ann_date)는 D열, Build는 C열(템플릿 변경 반영)
-    $annRaw = trim((string)($row['ann_date'] ?? ''));
-    $annDateStr = '';
-    if ($annRaw !== '') {
-        if (preg_match('/^\d{8}$/', $annRaw)) {
-            $annDateStr = substr($annRaw, 0, 4) . '-' . substr($annRaw, 4, 2) . '-' . substr($annRaw, 6, 2);
-        } else if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $annRaw)) {
-            $annDateStr = $annRaw;
-        } else {
-            // 기타 포맷은 그대로(혹시 "2025/12/12" 등)
-            $annDateStr = $annRaw;
-        }
-    }
-
-    // ✅ 자화(JAWHA)라도 Z-STOPPER는 어닐링일자(Annealing Date)가 없으므로
-    //    Shipping Lot List는 기본 포맷(Annealing Date 컬럼 없음)으로 출력한다.
-    if ($IS_JAWHA && $currentPart !== 'MEM-Z-STOPPER') {
-        // (JAWHA 전용 포맷)
-        // A:APN, B:ShipDate, C:Build(MP), D:AnnealingDate, E:InnerPkg, F:PackNo, G:TotalQty(merge), H:Cavity, I:ShipQty, J:Unit
-        $chunkData[] = [
-            (string)$info['apn'],         // A
-            (string)$shippingDateStr,     // B
-            'MP',                         // C
-            (string)$annDateStr,          // D
-            (string)$innerPackage,        // E
-            (string)$packNo,              // F
-            null,                         // G (나중에 packStartRow에만 total)
-            (int)$cv,                     // H
-            (int)$qty,                    // I
-            'PCS',                        // J
-        ];
-    } else {
-        // 기본(LGIT 등): A:APN, B:ShipDate, C:Build(MP), D:InnerPkg, E:PackNo, F:TotalQty(merge), G:Cavity, H:ShipQty, I:Unit
-        $chunkData[] = [
-            (string)$info['apn'],         // A
-            (string)$shippingDateStr,     // B
-            'MP',                         // C
-            (string)$innerPackage,        // D
-            (string)$packNo,              // E
-            null,                         // F (나중에 packStartRow에만 total)
-            (int)$cv,                     // G
-            (int)$qty,                    // H
-            'PCS',                        // I
-        ];
-    }
-
-    $curRow++;
     $processed++;
+}
 
-    // chunk flush
-    if (count($chunkData) >= 2000) {
-        $startCell = "A" . ($curRow - count($chunkData));
-        $sheet->fromArray($chunkData, null, $startCell, true);
-        $chunkData = [];
+$partsOrder = [];
+foreach (manual_report_part_defs() as $def) {
+    $p = (string)($def['part'] ?? '');
+    if ($p !== '' && isset($counts[$p])) $partsOrder[] = $p;
+}
+foreach (array_keys($counts) as $p) {
+    if (!in_array($p, $partsOrder, true)) $partsOrder[] = $p;
+}
+
+foreach ($partsOrder as $pn) {
+    $currentPart = $pn;
+    [$spreadsheet, $sheet] = $openPart($currentPart, 1);
+    if (!$spreadsheet || !$sheet) {
+        $currentPart = null;
+        continue;
     }
 
-// 로그 갱신
-//    if ($processed % 5000 === 0) {
-//        logline("   진행: {$processed} rows...");
-//    }
+    // Shipping Date 열(B)은 수동 발행일(to_date)만 반영하고,
+    // 나머지 템플릿 값은 그대로 둔다.
+    $sheet->setCellValueExplicit('B2', (string)$shippingDateStr, DataType::TYPE_STRING);
+
+    logline(" - {$currentPart} 모델 시작 (수동 템플릿 유지)");
+    $finalizePart();
 }
+$currentPart = null;
 
 // 마지막 파트 마감 (마지막 pack도 마감)
 if ($currentPart !== null && $spreadsheet && $sheet) {
@@ -5776,7 +5338,7 @@ logline('4) ZIP 묶는 중...');
 // ZIP 파일명: "YY.MM.DD (LGIT).zip" 형식
 $zipDate = date('y.m.d', strtotime($shippingDateStr));
 $shipCode = $SHIP_TO_TEMPLATE_SUBDIR[$shipTo] ?? 'SHIP';
-$zipBase = sprintf('%s (%s)', $zipDate, $shipCode);
+$zipBase = sprintf('%s (%s) [manual]', $zipDate, $shipCode);
 $zipName = $zipBase . '.zip';
 // 동일 이름이 이미 있으면 충돌 방지로 시간만 뒤에 붙임
 if (file_exists($workDir . DIRECTORY_SEPARATOR . $zipName)) {
@@ -5932,13 +5494,10 @@ try {
     sort($partsUniq);
 
     $partsArr = [];
-    $totalShipQty = 0;
     foreach ($partsUniq as $p) {
-        $q = (int)($sumQty[$p] ?? 0);
-        $partsArr[] = ['part' => $p, 'ship_qty' => $q];
-        $totalShipQty += $q;
+        $partsArr[] = ['part' => $p, 'ship_qty' => '?'];
     }
-    $partsPayload = ['parts' => $partsArr, 'total_ship_qty' => $totalShipQty];
+    $partsPayload = ['parts' => $partsArr];
 
     // ✅ 발행(build) 시 실제 마킹한 header_id/컬럼/날짜 로그 저장(취소 롤백용)
     if (function_exists('oqc_marklog_export_grouped')) {
