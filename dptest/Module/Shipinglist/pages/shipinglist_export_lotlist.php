@@ -2134,7 +2134,7 @@ if (!function_exists('ship_report_cancel_redirect_back')) {
 // (추가) 발행 내역 취소(롤백)
 //  - POST action=cancel_report
 // ─────────────────────────────
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'cancel_report')) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array((string)($_POST['action'] ?? ''), ['cancel_report','cancel_report_approve'], true)) {
     $id = (int)($_POST['id'] ?? 0);
     $histMonth = (string)($_POST['hist_month'] ?? '');
     if (!preg_match('/^\d{4}-\d{2}$/', $histMonth)) $histMonth = date('Y-m');
@@ -2144,7 +2144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'canc
     $ship_to   = trim((string)($_POST['ship_to'] ?? ''));
     $actorMeta = ship_report_actor_meta($pdo);
     $byUser = ship_report_actor_display_name($actorMeta);
-    $approvePending = ((string)($_POST['_approve_pending'] ?? '') === '1');
+    $approvePending = (((string)($_POST['_approve_pending'] ?? '') === '1') || ((string)($_POST['action'] ?? '') === 'cancel_report_approve'));
 
     if (!$actorMeta['is_admin']) {
         $res = ($id > 0)
@@ -2155,6 +2155,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'canc
 	if ($id <= 0) {
 	    $res = ['ok' => false, 'msg' => '잘못된 ID'];
 	} else {
+	    if ($approvePending) {
+	        $stPending = $pdo->prepare("SELECT `id`,`is_canceled`,`cancel_request_status` FROM `report_finish` WHERE `id` = :id LIMIT 1");
+	        $stPending->execute([':id' => $id]);
+	        $pendingRow = $stPending->fetch(PDO::FETCH_ASSOC) ?: null;
+	        if (!$pendingRow) {
+	            $res = ['ok' => false, 'msg' => '발행 내역을 찾을 수 없습니다.'];
+	            ship_report_cancel_redirect_back($res, $histMonth, $from_date, $to_date, $ship_to);
+	        }
+	        if ((int)($pendingRow['is_canceled'] ?? 0) === 1) {
+	            $res = ['ok' => false, 'msg' => '이미 취소완료된 내역입니다.'];
+	            ship_report_cancel_redirect_back($res, $histMonth, $from_date, $to_date, $ship_to);
+	        }
+	        if (trim((string)($pendingRow['cancel_request_status'] ?? '')) !== 'pending') {
+	            $res = ['ok' => false, 'msg' => '승인 대기 중인 취소 신청이 없습니다.'];
+	            ship_report_cancel_redirect_back($res, $histMonth, $from_date, $to_date, $ship_to);
+	        }
+	    }
 	    // report_finish 기반으로 납품처/품번을 알아내서, 해당 납품처에 맞는 컬럼(meas/jmeas)만 롤백
 	    $row = function_exists('report_finish_get') ? report_finish_get($pdo, $id) : null;
 	    if (!$row) {
@@ -2318,7 +2335,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'canc
 // ─────────────────────────────
 // 관리자용 취소 신청 승인/반려
 // ─────────────────────────────
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array((string)($_POST['action'] ?? ''), ['cancel_report_approve','cancel_report_reject'], true)) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'cancel_report_reject')) {
     $histMonth = (string)($_POST['hist_month'] ?? '');
     if (!preg_match('/^\d{4}-\d{2}$/', $histMonth)) $histMonth = date('Y-m');
     $from_date = trim((string)($_POST['from_date'] ?? ''));
