@@ -1995,6 +1995,39 @@ if (!function_exists('ship_report_actor_meta')) {
         return $meta;
     }
 }
+if (!function_exists('ship_report_actor_display_name')) {
+    function ship_report_actor_display_name(array $actorMeta): string {
+        $name = trim((string)($actorMeta['name'] ?? ''));
+        if ($name !== '') return mb_substr($name, 0, 100);
+        $id = trim((string)($actorMeta['id'] ?? ''));
+        if ($id !== '') return mb_substr($id, 0, 100);
+        $sid = trim((string)($_SESSION['ship_user_id'] ?? ($_SESSION['dp_admin_id'] ?? 'web')));
+        return mb_substr($sid !== '' ? $sid : 'web', 0, 100);
+    }
+}
+if (!function_exists('ship_report_actor_humanize_label')) {
+    function ship_report_actor_humanize_label(PDO $pdo, ?string $raw): string {
+        $raw = trim((string)($raw ?? ''));
+        if ($raw === '') return '';
+        static $cache = [];
+        if (array_key_exists($raw, $cache)) return $cache[$raw];
+        try {
+            $st = $pdo->prepare("SELECT `NAME`,`ID` FROM `account` WHERE `ID` = :id LIMIT 1");
+            $st->execute([':id' => $raw]);
+            $row = $st->fetch(PDO::FETCH_ASSOC);
+            if (is_array($row)) {
+                $name = trim((string)($row['NAME'] ?? ''));
+                if ($name !== '') {
+                    return $cache[$raw] = $name;
+                }
+            }
+        } catch (Throwable $e) {
+        }
+        return $cache[$raw] = $raw;
+    }
+}
+
+
 if (!function_exists('ensure_report_finish_cancel_request_columns')) {
     function ensure_report_finish_cancel_request_columns(PDO $pdo): void {
         $defs = [
@@ -2110,7 +2143,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'canc
     $to_date   = trim((string)($_POST['to_date'] ?? ''));
     $ship_to   = trim((string)($_POST['ship_to'] ?? ''));
     $actorMeta = ship_report_actor_meta($pdo);
-    $byUser = (string)($actorMeta['id'] ?: ($_SESSION['ship_user_id'] ?? ($_SESSION['dp_admin_id'] ?? 'web')));
+    $byUser = ship_report_actor_display_name($actorMeta);
     $approvePending = ((string)($_POST['_approve_pending'] ?? '') === '1');
 
     if (!$actorMeta['is_admin']) {
@@ -2293,7 +2326,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array((string)($_POST['action'] 
     $ship_to   = trim((string)($_POST['ship_to'] ?? ''));
     $id = (int)($_POST['id'] ?? 0);
     $actorMeta = ship_report_actor_meta($pdo);
-    $byUser = (string)($actorMeta['id'] ?: ($_SESSION['ship_user_id'] ?? ($_SESSION['dp_admin_id'] ?? 'web')));
+    $byUser = ship_report_actor_display_name($actorMeta);
     if (!$actorMeta['is_admin']) {
         ship_report_cancel_redirect_back(['ok' => false, 'msg' => '관리자만 승인/반려할 수 있습니다.'], $histMonth, $from_date, $to_date, $ship_to);
     }
@@ -2339,7 +2372,7 @@ if ($action === 'report_cancel') {
         exit;
     }
     $actorMeta = ship_report_actor_meta($pdo);
-    $by = (string)($actorMeta['id'] ?: ($_SESSION['ship_user_id'] ?? ($_SESSION['dp_admin_id'] ?? 'web')));
+    $by = ship_report_actor_display_name($actorMeta);
     $approvePending = ((string)($_REQUEST['_approve_pending'] ?? '') === '1');
     if (!$actorMeta['is_admin']) {
         $res = report_finish_cancel_request_submit($pdo, $id, $by);
@@ -2744,6 +2777,14 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
 .lines.right{align-items:flex-end;}
 .mono{font-variant-numeric:tabular-nums;}
 .sumline{margin-top:4px;padding-top:4px;border-top:1px solid rgba(255,255,255,0.10);color:var(--muted);font-size:11px;}
+.status-actions{display:flex;justify-content:center;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px;}
+.admin-menu{position:relative;display:inline-block;}
+.admin-menu summary{list-style:none;}
+.admin-menu summary::-webkit-details-marker{display:none;}
+.admin-menu[open]{z-index:5;}
+.admin-pop{position:absolute;right:0;top:calc(100% + 6px);min-width:120px;padding:8px;border-radius:12px;background:#202124;border:1px solid rgba(255,255,255,0.12);box-shadow:0 12px 24px rgba(0,0,0,0.38);display:flex;flex-direction:column;gap:6px;}
+.admin-pop form{margin:0;}
+.admin-pop .btn{width:100%;justify-content:center;}
 
 /* 발행내역 테이블: 가운데정렬(가로) */
 .history-table th,
@@ -2934,9 +2975,9 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
                 $cancelReqPending = ($cancelReqStatus === 'pending');
                 $cancelReqRejected = ($cancelReqStatus === 'rejected');
                 $cancelRequestedAt = trim((string)($r['cancel_requested_at'] ?? ''));
-                $cancelRequestedBy = trim((string)($r['cancel_requested_by'] ?? ''));
+                $cancelRequestedBy = ship_report_actor_humanize_label($pdo, (string)($r['cancel_requested_by'] ?? ''));
                 $cancelHandledAt = trim((string)($r['cancel_request_handled_at'] ?? ''));
-                $cancelHandledBy = trim((string)($r['cancel_request_handled_by'] ?? ''));
+                $cancelHandledBy = ship_report_actor_humanize_label($pdo, (string)($r['cancel_request_handled_by'] ?? ''));
 
                 // parts_json에서 (품번 목록 / 출하수량) 표시용 파싱
                 $partsLines = [];
@@ -3051,7 +3092,7 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
                       <div class="mini">취소: <?=h((string)($r['canceled_at'] ?? ''))?></div>
                     <?php endif; ?>
                     <?php if (!empty($r['canceled_by'])): ?>
-                      <div class="mini"><?=h((string)($r['canceled_by'] ?? ''))?></div>
+                      <div class="mini"><?=h(ship_report_actor_humanize_label($pdo, (string)($r['canceled_by'] ?? '')))?></div>
                     <?php endif; ?>
                   <?php elseif ($cancelReqPending): ?>
                     <span class="badge pending">취소신청중</span>
@@ -3061,40 +3102,48 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
                     <?php if ($cancelRequestedBy !== ''): ?>
                       <div class="mini"><?=h($cancelRequestedBy)?></div>
                     <?php endif; ?>
-                    <?php if ($viewOk): ?>
-                      <button type="button" class="btn btn-secondary btn-sm" style="margin-left:6px;" onclick="openReportView(<?= (int)($r['id'] ?? 0) ?>)">View</button>
-                    <?php endif; ?>
-                    <?php if (!empty($cancelActor['is_admin'])): ?>
-                      <form method="post" style="display:inline;margin-left:6px;" onsubmit="return confirm('이 취소 신청을 승인하고 실제로 삭제(롤백)할까요?');">
-                        <input type="hidden" name="action" value="cancel_report_approve">
-                        <input type="hidden" name="id" value="<?=h((string)($r['id'] ?? '0'))?>">
-                        <input type="hidden" name="hist_month" value="<?=h($histMonth)?>">
-                        <input type="hidden" name="from_date" value="<?=h($fromDate)?>">
-                        <input type="hidden" name="to_date" value="<?=h($toDate)?>">
-                        <input type="hidden" name="ship_to" value="<?=h($selectedShipTo)?>">
-                        <button type="submit" class="btn btn-danger btn-sm">승인삭제</button>
-                      </form>
-                      <form method="post" style="display:inline;margin-left:6px;" onsubmit="return confirm('이 취소 신청을 반려할까요?');">
-                        <input type="hidden" name="action" value="cancel_report_reject">
-                        <input type="hidden" name="id" value="<?=h((string)($r['id'] ?? '0'))?>">
-                        <input type="hidden" name="hist_month" value="<?=h($histMonth)?>">
-                        <input type="hidden" name="from_date" value="<?=h($fromDate)?>">
-                        <input type="hidden" name="to_date" value="<?=h($toDate)?>">
-                        <input type="hidden" name="ship_to" value="<?=h($selectedShipTo)?>">
-                        <button type="submit" class="btn btn-secondary btn-sm">반려</button>
-                      </form>
-                    <?php endif; ?>
+                    <div class="status-actions">
+                      <?php if ($viewOk): ?>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="openReportView(<?= (int)($r['id'] ?? 0) ?>)">View</button>
+                      <?php endif; ?>
+                      <?php if (!empty($cancelActor['is_admin'])): ?>
+                        <details class="admin-menu">
+                          <summary class="btn btn-secondary btn-sm">처리</summary>
+                          <div class="admin-pop">
+                            <form method="post" onsubmit="return confirm('이 취소 신청을 승인하고 실제로 삭제(롤백)할까요?');">
+                              <input type="hidden" name="action" value="cancel_report_approve">
+                              <input type="hidden" name="id" value="<?=h((string)($r['id'] ?? '0'))?>">
+                              <input type="hidden" name="hist_month" value="<?=h($histMonth)?>">
+                              <input type="hidden" name="from_date" value="<?=h($fromDate)?>">
+                              <input type="hidden" name="to_date" value="<?=h($toDate)?>">
+                              <input type="hidden" name="ship_to" value="<?=h($selectedShipTo)?>">
+                              <button type="submit" class="btn btn-danger btn-sm">승인삭제</button>
+                            </form>
+                            <form method="post" onsubmit="return confirm('이 취소 신청을 반려할까요?');">
+                              <input type="hidden" name="action" value="cancel_report_reject">
+                              <input type="hidden" name="id" value="<?=h((string)($r['id'] ?? '0'))?>">
+                              <input type="hidden" name="hist_month" value="<?=h($histMonth)?>">
+                              <input type="hidden" name="from_date" value="<?=h($fromDate)?>">
+                              <input type="hidden" name="to_date" value="<?=h($toDate)?>">
+                              <input type="hidden" name="ship_to" value="<?=h($selectedShipTo)?>">
+                              <button type="submit" class="btn btn-secondary btn-sm">반려</button>
+                            </form>
+                          </div>
+                        </details>
+                      <?php endif; ?>
+                    </div>
                   <?php else: ?>
                     <span class="badge"><?= $isManualPublished ? '수동발행' : '발행' ?></span>
                     <?php if ($cancelReqRejected): ?>
                       <div class="mini">취소반려<?= $cancelHandledAt !== '' ? ': ' . h($cancelHandledAt) : '' ?></div>
                       <?php if ($cancelHandledBy !== ''): ?><div class="mini"><?=h($cancelHandledBy)?></div><?php endif; ?>
                     <?php endif; ?>
-                    <?php if ($viewOk): ?>
-                      <button type="button" class="btn btn-secondary btn-sm" style="margin-left:6px;" onclick="openReportView(<?= (int)($r['id'] ?? 0) ?>)">View</button>
-                    <?php endif; ?>
+                    <div class="status-actions">
+                      <?php if ($viewOk): ?>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="openReportView(<?= (int)($r['id'] ?? 0) ?>)">View</button>
+                      <?php endif; ?>
 
-                    <form method="post" style="display:inline;margin-left:6px;"
+                      <form method="post" style="display:inline;"
                       onsubmit="return confirm('<?= !empty($cancelActor['is_admin']) ? '이 발행 건을 취소(롤백)할까요?\n\n※ 발행일(=meas_date / meas_date2) 마킹을 되돌리고, 서버에 저장된 발행 파일도 삭제합니다.' : '이 발행 건의 취소를 신청할까요?\n\n※ 관리자인 role admin 승인 후에만 실제 삭제(롤백)됩니다.' ?>');">
                       <input type="hidden" name="action" value="cancel_report">
                       <input type="hidden" name="id" value="<?=h((string)($r['id'] ?? '0'))?>">
@@ -3104,6 +3153,7 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
                       <input type="hidden" name="ship_to" value="<?=h($selectedShipTo)?>">
                       <button type="submit" class="btn btn-danger btn-sm"><?= !empty($cancelActor['is_admin']) ? '취소' : ($cancelReqRejected ? '취소재신청' : '취소신청') ?></button>
                     </form>
+                    </div>
                   <?php endif; ?>
                 </td>
               </tr>
