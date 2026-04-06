@@ -2978,6 +2978,13 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
                 $cancelRequestedBy = ship_report_actor_humanize_label($pdo, (string)($r['cancel_requested_by'] ?? ''));
                 $cancelHandledAt = trim((string)($r['cancel_request_handled_at'] ?? ''));
                 $cancelHandledBy = ship_report_actor_humanize_label($pdo, (string)($r['cancel_request_handled_by'] ?? ''));
+                $canceledAtDisplay = trim((string)($r['canceled_at'] ?? ''));
+                $canceledByDisplay = ship_report_actor_humanize_label($pdo, (string)($r['canceled_by'] ?? ''));
+                $approvedAtDisplay = ($cancelHandledAt !== '') ? $cancelHandledAt : $canceledAtDisplay;
+                $approvedByDisplay = ($cancelHandledBy !== '') ? $cancelHandledBy : $canceledByDisplay;
+                $showRequestAndApproval = ($cancelReqStatus === 'approved') && (
+                    $cancelRequestedAt !== '' || $cancelRequestedBy !== '' || $approvedAtDisplay !== '' || $approvedByDisplay !== ''
+                );
 
                 // parts_json에서 (품번 목록 / 출하수량) 표시용 파싱
                 $partsLines = [];
@@ -3088,11 +3095,26 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
                   <?php $viewOk = is_dir(JTMES_ROOT . '/exports/reports/rf_' . (int)($r['id'] ?? 0)); ?>
                   <?php if ($isCanceled): ?>
                     <span class="badge cancel">취소완료</span>
-                    <?php if (!empty($r['canceled_at'])): ?>
-                      <div class="mini">취소: <?=h((string)($r['canceled_at'] ?? ''))?></div>
-                    <?php endif; ?>
-                    <?php if (!empty($r['canceled_by'])): ?>
-                      <div class="mini"><?=h(ship_report_actor_humanize_label($pdo, (string)($r['canceled_by'] ?? '')))?></div>
+                    <?php if ($showRequestAndApproval): ?>
+                      <?php if ($cancelRequestedAt !== ''): ?>
+                        <div class="mini">신청: <?=h($cancelRequestedAt)?></div>
+                      <?php endif; ?>
+                      <?php if ($cancelRequestedBy !== ''): ?>
+                        <div class="mini"><?=h($cancelRequestedBy)?></div>
+                      <?php endif; ?>
+                      <?php if ($approvedAtDisplay !== ''): ?>
+                        <div class="mini">승인: <?=h($approvedAtDisplay)?></div>
+                      <?php endif; ?>
+                      <?php if ($approvedByDisplay !== ''): ?>
+                        <div class="mini"><?=h($approvedByDisplay)?></div>
+                      <?php endif; ?>
+                    <?php else: ?>
+                      <?php if ($canceledAtDisplay !== ''): ?>
+                        <div class="mini">취소: <?=h($canceledAtDisplay)?></div>
+                      <?php endif; ?>
+                      <?php if ($canceledByDisplay !== ''): ?>
+                        <div class="mini"><?=h($canceledByDisplay)?></div>
+                      <?php endif; ?>
                     <?php endif; ?>
                   <?php elseif ($cancelReqPending): ?>
                     <span class="badge pending">취소신청중</span>
