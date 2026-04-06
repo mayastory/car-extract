@@ -5223,20 +5223,22 @@ foreach ($dateList as $prodDate) {
         if ((int)($headerIds[$i] ?? 0) > 0) $filledCnt++;
     }
 
+    $oqcSummaryLeadSep = false;
     if ($oqcSummaryFirst) {
-        logline("──────────────────────────────");
+        $oqcSummaryLeadSep = true;
         $oqcSummaryFirst = false;
     }
-    logline("[OQC] {$part}");
+    $oqcSummaryLines = [];
+    $oqcSummaryLines[] = "[OQC] {$part}";
     if ((int)$pass0Cnt > 0) {
-        logline("  - PASS0(FAI): {$pass0Cnt}건");
+        $oqcSummaryLines[] = "  - PASS0(FAI): {$pass0Cnt}건";
     }
     if ((int)$pass1Cnt > 0) {
-        logline("  - PASS1: {$pass1Cnt}건");
+        $oqcSummaryLines[] = "  - PASS1: {$pass1Cnt}건";
     }
-    logline("  - PASS2: {$pass2Cnt}건");
-    logline("  - PASS3: {$pass3Cnt}건");
-logline("  - 총 채움: {$filledCnt}/32");
+    $oqcSummaryLines[] = "  - PASS2: {$pass2Cnt}건";
+    $oqcSummaryLines[] = "  - PASS3: {$pass3Cnt}건";
+    $oqcSummaryLines[] = "  - 총 채움: {$filledCnt}/32";
 
     // AK2(없는 Tool#Cavity) 표시용: 출하 기준 vs 실제 채워진 header_id 기준 비교 결과를 텍스트로 직접 계산
     // - 엑셀 동적 배열 재계산 실패 시에도 최소한 AK2가 빈칸으로 남지 않게 함
@@ -5309,6 +5311,9 @@ $outName = "OQC_{$part}.xlsx";
         );
         // (REPORT) OQC Rowdata → 성적서(FAI/SPC) 자동 채움
         $OQC_REPORT_POINT_MAP = $GLOBALS['OQC_REPORT_POINT_MAP'] ?? [];
+        if ($oqcSummaryLeadSep) {
+            logline("──────────────────────────────");
+        }
         if (isset($createdReportByPart[$part]) && isset($OQC_REPORT_POINT_MAP[$part]['pairs'])) {
             try {
                 $rInfo = patch_oqc_report_from_rowdata(
@@ -5329,6 +5334,9 @@ $outName = "OQC_{$part}.xlsx";
                 logline("  - REPORT 채움 실패: " . basename($createdReportByPart[$part]) . " / " . $e2->getMessage());
             }
         }
+        foreach ($oqcSummaryLines as $__oqcLn) {
+            logline($__oqcLn);
+        }
 
         $dataRows = (int)($wInfo['dataRows'] ?? count($dataByRow));
         logline("  - OQC 생성: $outName (toolCols=32, filled=32, dataRows={$dataRows})");
@@ -5348,6 +5356,12 @@ $outName = "OQC_{$part}.xlsx";
             }
         }
     } catch (Throwable $e) {
+        if ($oqcSummaryLeadSep) {
+            logline("──────────────────────────────");
+        }
+        foreach ($oqcSummaryLines as $__oqcLn) {
+            logline($__oqcLn);
+        }
         logline("  - OQC 생성 실패: $outName / " . $e->getMessage());
     }
     logline("──────────────────────────────");
