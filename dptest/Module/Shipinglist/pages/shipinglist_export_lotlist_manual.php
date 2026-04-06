@@ -5237,7 +5237,6 @@ foreach ($dateList as $prodDate) {
     logline("  - PASS2: {$pass2Cnt}건");
     logline("  - PASS3: {$pass3Cnt}건");
 logline("  - 총 채움: {$filledCnt}/32");
-    logline("──────────────────────────────");
 
     // AK2(없는 Tool#Cavity) 표시용: 출하 기준 vs 실제 채워진 header_id 기준 비교 결과를 텍스트로 직접 계산
     // - 엑셀 동적 배열 재계산 실패 시에도 최소한 AK2가 빈칸으로 남지 않게 함
@@ -5351,6 +5350,7 @@ $outName = "OQC_{$part}.xlsx";
     } catch (Throwable $e) {
         logline("  - OQC 생성 실패: $outName / " . $e->getMessage());
     }
+    logline("──────────────────────────────");
 }
 
 // OQC 파일이 하나도 생성되지 않으면(템플릿 경로 문제 등) 원인 텍스트를 oqc 폴더에 남김
