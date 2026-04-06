@@ -51,6 +51,127 @@ try {
 
 $headerCols = table_columns($pdo, 'oqc_header');
 
+if (!function_exists('dp_session_user_no_local')) {
+    function dp_session_user_no_local(): ?int {
+        foreach (['ship_user_no','user_no','dp_user_no','account_no','no','No'] as $k) {
+            if (isset($_SESSION[$k]) && is_numeric($_SESSION[$k])) return (int)$_SESSION[$k];
+        }
+        return null;
+    }
+}
+
+if (!function_exists('dp_session_user_id_local')) {
+    function dp_session_user_id_local(): ?string {
+        foreach (['ship_user_id','user_id','userid','username','id','ID'] as $k) {
+            if (!empty($_SESSION[$k])) return (string)$_SESSION[$k];
+        }
+        return null;
+    }
+}
+
+if (!function_exists('dp_current_account_row_local')) {
+    function dp_current_account_row_local(PDO $pdo): ?array {
+        $no = dp_session_user_no_local();
+        if ($no !== null) {
+            $st = $pdo->prepare('SELECT `No`,`ID`,`NAME`,`lv`,`role`,`status` FROM `account` WHERE `No` = :no LIMIT 1');
+            $st->execute([':no' => $no]);
+            $row = $st->fetch(PDO::FETCH_ASSOC);
+            if ($row) return $row;
+        }
+
+        $id = dp_session_user_id_local();
+        if ($id !== null && $id !== '') {
+            $st = $pdo->prepare('SELECT `No`,`ID`,`NAME`,`lv`,`role`,`status` FROM `account` WHERE `ID` = :id LIMIT 1');
+            $st->execute([':id' => $id]);
+            $row = $st->fetch(PDO::FETCH_ASSOC);
+            if ($row) return $row;
+        }
+
+        return null;
+    }
+}
+
+$viewerAccount = dp_current_account_row_local($pdo);
+$viewerLv = (int)($viewerAccount['lv'] ?? 0);
+$canManualMeasEdit = ($viewerLv >= 98);
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'oqc_manual_meas_save')) {
+    header('Content-Type: application/json; charset=utf-8');
+
+    if (!$canManualMeasEdit) {
+        http_response_code(403);
+        echo json_encode(['ok' => false, 'message' => '권한이 없습니다.']);
+        exit;
+    }
+
+    $headerId = (int)($_POST['header_id'] ?? 0);
+    $postCustomer = $_POST['customer'] ?? 'LG';
+    if ($postCustomer !== 'LG' && $postCustomer !== 'JH') $postCustomer = 'LG';
+    $postKey1 = ($postCustomer === 'JH') ? 'jmeas_date' : 'meas_date';
+    $postKey2 = ($postCustomer === 'JH') ? 'jmeas_date2' : 'meas_date2';
+
+    if ($headerId <= 0) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'message' => 'header_id가 올바르지 않습니다.']);
+        exit;
+    }
+    if (!isset($headerCols[$postKey1])) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'message' => '측정일 컬럼이 없습니다.']);
+        exit;
+    }
+
+    $date1 = trim((string)($_POST['date1'] ?? ''));
+    $date2 = trim((string)($_POST['date2'] ?? ''));
+    foreach (['date1' => $date1, 'date2' => $date2] as $label => $val) {
+        if ($val !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $val)) {
+            http_response_code(400);
+            echo json_encode(['ok' => false, 'message' => $label . ' 형식이 올바르지 않습니다.']);
+            exit;
+        }
+    }
+
+    $check = $pdo->prepare('SELECT `id`,`part_name`,`tool_cavity`,`excel_col`,`kind` FROM `oqc_header` WHERE `id` = :id LIMIT 1');
+    $check->execute([':id' => $headerId]);
+    $target = $check->fetch(PDO::FETCH_ASSOC);
+    if (!$target) {
+        http_response_code(404);
+        echo json_encode(['ok' => false, 'message' => '대상 헤더를 찾을 수 없습니다.']);
+        exit;
+    }
+
+    if (isset($headerCols[$postKey2])) {
+        $sql = "UPDATE `oqc_header` SET `{$postKey1}` = :d1, `{$postKey2}` = :d2 WHERE `id` = :id LIMIT 1";
+    } else {
+        $sql = "UPDATE `oqc_header` SET `{$postKey1}` = :d1 WHERE `id` = :id LIMIT 1";
+    }
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->bindValue(':d1', ($date1 === '' ? null : $date1), ($date1 === '' ? PDO::PARAM_NULL : PDO::PARAM_STR));
+    if (isset($headerCols[$postKey2])) {
+        $stmt->bindValue(':d2', ($date2 === '' ? null : $date2), ($date2 === '' ? PDO::PARAM_NULL : PDO::PARAM_STR));
+    }
+    $stmt->bindValue(':id', $headerId, PDO::PARAM_INT);
+    $stmt->execute();
+
+    $recommend = '';
+    if ($date1 === '') $recommend = $postKey1;
+    elseif (isset($headerCols[$postKey2]) && $date2 === '') $recommend = $postKey2;
+    else $recommend = '직접 수정';
+
+    echo json_encode([
+        'ok' => true,
+        'message' => '저장되었습니다.',
+        'header_id' => $headerId,
+        'date1' => $date1,
+        'date2' => $date2,
+        'key1' => $postKey1,
+        'key2' => isset($headerCols[$postKey2]) ? $postKey2 : '',
+        'recommend' => $recommend,
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
 // 검색 파라미터
 $part_name  = $_GET['part_name'] ?? '';
 $ship_date  = $_GET['ship_date'] ?? '';
@@ -444,6 +565,41 @@ td.ng{
   background:#202124;
 }
 
+.manual-date-trigger.can-edit{cursor:pointer; user-select:none;}
+.manual-date-trigger.can-edit:hover{color:#98ffbd; text-decoration:underline;}
+.manual-date-trigger.readonly{cursor:default;}
+
+.manual-meas-backdrop{
+  position:fixed; inset:0; background:rgba(0,0,0,0.56); z-index:10040;
+  display:none; align-items:center; justify-content:center; padding:18px;
+}
+.manual-meas-backdrop.open{display:flex;}
+.manual-meas-modal{
+  width:min(520px, calc(100vw - 24px));
+  background:#23262b; color:var(--fg); border:1px solid rgba(255,255,255,0.12);
+  border-radius:18px; box-shadow:0 18px 40px rgba(0,0,0,0.48); overflow:hidden;
+}
+.manual-meas-head{padding:14px 18px; border-bottom:1px solid rgba(255,255,255,0.08); font-size:20px; font-weight:800;}
+.manual-meas-body{padding:18px;}
+.manual-meas-meta{font-size:13px; line-height:1.7; margin-bottom:14px;}
+.manual-meas-meta strong{color:#fff;}
+.manual-meas-current{margin:0 0 14px; padding:12px 14px; border-radius:14px; background:#1e2126; border:1px solid rgba(255,255,255,0.08);}
+.manual-meas-row{display:flex; align-items:center; gap:10px; margin-top:8px;}
+.manual-meas-row:first-child{margin-top:0;}
+.manual-meas-key{width:96px; min-width:96px; color:#b7c0cb; font-size:12.5px;}
+.manual-meas-row input[type="date"]{flex:1; height:36px; border-radius:10px; border:1px solid var(--border); background:#121417; color:var(--fg); padding:0 10px;}
+.manual-meas-row input[type="date"]:focus{outline:none; border-color:var(--accent2); box-shadow:0 0 0 1px var(--accent2);}
+.manual-meas-row button{height:36px; padding:0 11px; border-radius:10px; border:1px solid rgba(255,255,255,0.12); background:#343942; color:#fff; cursor:pointer; font-size:12px; font-weight:700;}
+.manual-meas-row button:hover{background:#414754;}
+.manual-meas-hint{margin-top:12px; color:#8de6b0; font-size:13px; font-weight:700;}
+.manual-meas-error{display:none; margin-top:12px; color:#ffb4b4; font-size:12.5px;}
+.manual-meas-error.show{display:block;}
+.manual-meas-foot{display:flex; justify-content:flex-end; gap:10px; padding:14px 18px; border-top:1px solid rgba(255,255,255,0.08);}
+.manual-meas-foot button{height:38px; min-width:72px; border-radius:12px; border:1px solid rgba(255,255,255,0.12); background:#343942; color:#fff; cursor:pointer; font-weight:700;}
+.manual-meas-foot button.primary{background:rgba(29,185,84,0.22); border-color:rgba(29,185,84,0.55);}
+.manual-meas-foot button.primary:hover{background:rgba(29,185,84,0.30);}
+.manual-meas-foot button:hover{background:#414754;}
+
 </style>
 </head>
 <body>
@@ -555,7 +711,22 @@ endif; ?>
                                 ?>
                             </div>
                             <div class="main"><?=h($hrow['tool_cavity'])?></div>
-                            <div class="sub"><?=h($hrow['excel_col'])?> (<?=h($hrow['kind'])?>)</div>
+                            <?php $curDate1 = (string)($hrow[$measKey1] ?? ''); $curDate2 = (string)($hrow[$measKey2] ?? ''); ?>
+                            <div
+                                class="sub manual-date-trigger <?= $canManualMeasEdit ? 'can-edit' : 'readonly' ?>"
+                                data-header-id="<?= (int)$hrow['id'] ?>"
+                                data-customer="<?= h($customer) ?>"
+                                data-customer-label="<?= h($customerLabel) ?>"
+                                data-part-name="<?= h($headers[0]['part_name']) ?>"
+                                data-tool-cavity="<?= h($hrow['tool_cavity']) ?>"
+                                data-excel-col="<?= h($hrow['excel_col']) ?>"
+                                data-kind="<?= h($hrow['kind']) ?>"
+                                data-date1="<?= h($curDate1) ?>"
+                                data-date2="<?= h($curDate2) ?>"
+                                data-key1="<?= h($measKey1) ?>"
+                                data-key2="<?= h($measKey2) ?>"
+                                title="<?= $canManualMeasEdit ? '더블클릭하여 측정일 수동 입력/수정/삭제' : '' ?>"
+                            ><?=h($hrow['excel_col'])?> (<?=h($hrow['kind'])?>)</div>
                         </th>
                     <?php endforeach; ?>
                 </tr>
@@ -587,6 +758,45 @@ endif; ?>
                 </tbody>
             </table>
         </div>
+    <?php endif; ?>
+
+    <?php if ($headers && $canManualMeasEdit): ?>
+    <div id="manualMeasBackdrop" class="manual-meas-backdrop" aria-hidden="true">
+        <div class="manual-meas-modal" role="dialog" aria-modal="true" aria-labelledby="manualMeasTitle">
+            <div class="manual-meas-head" id="manualMeasTitle">측정일 수동 입력</div>
+            <form id="manualMeasForm">
+                <input type="hidden" name="action" value="oqc_manual_meas_save">
+                <input type="hidden" name="header_id" id="manualMeasHeaderId" value="">
+                <input type="hidden" name="customer" id="manualMeasCustomer" value="">
+                <div class="manual-meas-body">
+                    <div class="manual-meas-meta">
+                        <div>납품처: <strong id="manualMeasCustomerLabel"></strong></div>
+                        <div>모델: <strong id="manualMeasPartName"></strong></div>
+                        <div>Tool#Cavity: <strong id="manualMeasToolCavity"></strong></div>
+                        <div>열: <strong id="manualMeasExcelCol"></strong></div>
+                    </div>
+                    <div class="manual-meas-current">
+                        <div class="manual-meas-row">
+                            <div class="manual-meas-key" id="manualMeasKey1">meas_date</div>
+                            <input type="date" name="date1" id="manualMeasDate1" min="2000-01-01" max="9999-12-31">
+                            <button type="button" data-clear="1">삭제</button>
+                        </div>
+                        <div class="manual-meas-row">
+                            <div class="manual-meas-key" id="manualMeasKey2">meas_date2</div>
+                            <input type="date" name="date2" id="manualMeasDate2" min="2000-01-01" max="9999-12-31">
+                            <button type="button" data-clear="2">삭제</button>
+                        </div>
+                        <div class="manual-meas-hint" id="manualMeasHint"></div>
+                        <div class="manual-meas-error" id="manualMeasError"></div>
+                    </div>
+                </div>
+                <div class="manual-meas-foot">
+                    <button type="button" id="manualMeasCancel">취소</button>
+                    <button type="submit" class="primary" id="manualMeasSave">저장</button>
+                </div>
+            </form>
+        </div>
+    </div>
     <?php endif; ?>
 
 </div>
@@ -724,6 +934,136 @@ if (!is_array($__mb)) {
   });
 })();
 </script>
+
+<?php if ($headers && $canManualMeasEdit): ?>
+<script>
+(function(){
+  const backdrop = document.getElementById('manualMeasBackdrop');
+  const form = document.getElementById('manualMeasForm');
+  if (!backdrop || !form) return;
+
+  const headerIdEl = document.getElementById('manualMeasHeaderId');
+  const customerEl = document.getElementById('manualMeasCustomer');
+  const customerLabelEl = document.getElementById('manualMeasCustomerLabel');
+  const partNameEl = document.getElementById('manualMeasPartName');
+  const toolCavityEl = document.getElementById('manualMeasToolCavity');
+  const excelColEl = document.getElementById('manualMeasExcelCol');
+  const key1El = document.getElementById('manualMeasKey1');
+  const key2El = document.getElementById('manualMeasKey2');
+  const date1El = document.getElementById('manualMeasDate1');
+  const date2El = document.getElementById('manualMeasDate2');
+  const hintEl = document.getElementById('manualMeasHint');
+  const errorEl = document.getElementById('manualMeasError');
+  const cancelBtn = document.getElementById('manualMeasCancel');
+  const saveBtn = document.getElementById('manualMeasSave');
+  const triggers = document.querySelectorAll('.manual-date-trigger.can-edit');
+
+  let activeTrigger = null;
+
+  function showError(msg){
+    errorEl.textContent = msg || '';
+    errorEl.classList.toggle('show', !!msg);
+  }
+
+  function updateHint(){
+    const key1 = key1El.textContent.trim();
+    const key2 = key2El.textContent.trim();
+    const v1 = date1El.value.trim();
+    const v2 = date2El.value.trim();
+    let text = '';
+    if (!v1) text = '저장 대상 추천: ' + key1;
+    else if (key2 && !v2) text = '저장 대상 추천: ' + key2;
+    else text = '저장 대상 추천: 직접 수정';
+    hintEl.textContent = text;
+  }
+
+  function openModal(trigger){
+    activeTrigger = trigger;
+    const ds = trigger.dataset;
+    headerIdEl.value = ds.headerId || '';
+    customerEl.value = ds.customer || 'LG';
+    customerLabelEl.textContent = ds.customerLabel || '';
+    partNameEl.textContent = ds.partName || '';
+    toolCavityEl.textContent = ds.toolCavity || '';
+    excelColEl.textContent = ((ds.excelCol || '') + ' (' + (ds.kind || '') + ')').trim();
+    key1El.textContent = ds.key1 || 'meas_date';
+    key2El.textContent = ds.key2 || 'meas_date2';
+    date1El.value = ds.date1 || '';
+    date2El.value = ds.date2 || '';
+    showError('');
+    updateHint();
+    backdrop.classList.add('open');
+    backdrop.setAttribute('aria-hidden', 'false');
+    if (!date1El.value) date1El.focus();
+    else date2El.focus();
+  }
+
+  function closeModal(){
+    backdrop.classList.remove('open');
+    backdrop.setAttribute('aria-hidden', 'true');
+    showError('');
+    if (activeTrigger) activeTrigger.focus();
+  }
+
+  triggers.forEach(function(el){
+    el.addEventListener('dblclick', function(ev){
+      ev.preventDefault();
+      openModal(el);
+    });
+  });
+
+  [date1El, date2El].forEach(function(el){
+    el.addEventListener('input', updateHint);
+    el.addEventListener('change', updateHint);
+  });
+
+  backdrop.querySelectorAll('[data-clear]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      const which = btn.getAttribute('data-clear');
+      if (which === '1') date1El.value = '';
+      if (which === '2') date2El.value = '';
+      updateHint();
+    });
+  });
+
+  cancelBtn.addEventListener('click', closeModal);
+  backdrop.addEventListener('click', function(ev){
+    if (ev.target === backdrop) closeModal();
+  });
+  document.addEventListener('keydown', function(ev){
+    if (ev.key === 'Escape' && backdrop.classList.contains('open')) closeModal();
+  });
+
+  form.addEventListener('submit', function(ev){
+    ev.preventDefault();
+    showError('');
+    saveBtn.disabled = true;
+    saveBtn.textContent = '저장 중...';
+
+    const fd = new FormData(form);
+    fetch(window.location.href, { method:'POST', body:fd, headers:{'X-Requested-With':'XMLHttpRequest'} })
+      .then(async function(res){
+        const data = await res.json().catch(function(){ return null; });
+        if (!res.ok || !data || !data.ok) {
+          throw new Error((data && data.message) ? data.message : '저장에 실패했습니다.');
+        }
+        if (activeTrigger) {
+          activeTrigger.dataset.date1 = data.date1 || '';
+          activeTrigger.dataset.date2 = data.date2 || '';
+        }
+        window.location.reload();
+      })
+      .catch(function(err){
+        showError(err && err.message ? err.message : '저장에 실패했습니다.');
+      })
+      .finally(function(){
+        saveBtn.disabled = false;
+        saveBtn.textContent = '저장';
+      });
+  });
+})();
+</script>
+<?php endif; ?>
 
 </div>
 </body>
