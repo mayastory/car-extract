@@ -1890,6 +1890,7 @@ export class Overworld{
     this._loading=true;
     const from=this.map?.map_id||"?";
     const to=w.dest_map_id;
+    const entryDir = Number.isFinite(this.player?.dir) ? (this.player.dir|0) : 1;
     this._log(`워프: ${from} -> ${to} (warp ${w.warp_id} -> ${w.dest_warp_id})`);
     try{
       await this.loadPret(to);
@@ -1901,7 +1902,7 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
   this.player.y = (w.dest_y|0);
   this.player.px = this.player.x;
   this.player.py = this.player.y;
-  if (Number.isFinite(w.dest_dir)) this.player.dir = (w.dest_dir|0);
+  this.player.dir = Number.isFinite(w.dest_dir) ? (w.dest_dir|0) : entryDir;
 } else {
   // 2) legacy: destination warp tile id
   const destId=(w.dest_warp_id|0);
@@ -1915,6 +1916,7 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
     this.player.px = this.player.x;
     this.player.py = this.player.y;
   }
+  this.player.dir = entryDir;
 }
 
       this._warpCooldown=0.35;
