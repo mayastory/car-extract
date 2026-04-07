@@ -132,6 +132,7 @@ export class Overworld{
     this._syncInFlight=false;
     this._syncQueued=false;
     this._syncLatest=null;
+    this._syncPromise=null;
     this._lastSyncKey="";
 
     // Warp + map connection preview
@@ -1848,7 +1849,9 @@ export class Overworld{
       if(this._warpPending) return;
       this._warpCooldown=0.35;
       this._warpPending = true;
-      this._syncLockUntil = Math.max(this._syncLockUntil||0, performance.now() + 500);
+      this._queuedDir = null;
+      ["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].forEach(k=>this.keys.delete(k));
+      this._syncLockUntil = Math.max(this._syncLockUntil||0, performance.now() + 650);
       (async()=>{
         try{
           // Sync the source warp tile first. Without this, the server still thinks the
@@ -1915,6 +1918,8 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
 }
 
       this._warpCooldown=0.35;
+      this._queuedDir = null;
+      ["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].forEach(k=>this.keys.delete(k));
       await this._upsert();
       await this._fetchMobs();
       await this._fetchItems();
@@ -2533,60 +2538,66 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
 
     if(this._syncInFlight){
       this._syncQueued = true;
-      return;
+      return this._syncPromise || Promise.resolve();
     }
 
     if(key === this._lastSyncKey){
-      return;
+      return this._syncPromise || Promise.resolve();
     }
 
     this._syncInFlight = true;
-    try{
-      do{
-        this._syncQueued = false;
-        const send = this._syncLatest || this._syncPayload();
-        const sendKey = `${send.map_id}:${send.x}:${send.y}:${send.dir}`;
-
-        if(sendKey === this._lastSyncKey) continue;
-
-        let r = null;
-        try{
-          r = await fetch(`${this.apiBase}/rt/upsert.php`,{
-            method:"POST",
-            headers:{
-              "Content-Type":"application/json",
-              ...(this.playToken ? {"Authorization": `Bearer ${this.playToken}`} : {})
-            },
-            body:JSON.stringify(send)
-          });
-        }catch(e){
-          this.status("서버 연결 실패");
-          continue;
-        }
-
-        if(r.ok){
-          this._lastSyncKey = sendKey;
-          this.status("DB 동기화 OK");
-          continue;
-        }
-
-        const j = await r.json().catch(()=>null);
-        const err = (j && (j.error || j.err)) ? (j.error || j.err) : `${r.status}`;
-        this.status(`DB 동기화 실패: ${err}`);
-        if(r.status===400 || r.status===429){
+    this._syncPromise = (async()=>{
+      try{
+        do{
           this._syncQueued = false;
-          this._syncLockUntil = performance.now() + 340;
-          this._loading = true;
+          const send = this._syncLatest || this._syncPayload();
+          const sendKey = `${send.map_id}:${send.x}:${send.y}:${send.dir}`;
+
+          if(sendKey === this._lastSyncKey) continue;
+
+          let r = null;
           try{
-            await this._resyncFromServerState();
-          }finally{
-            this._loading = false;
+            r = await fetch(`${this.apiBase}/rt/upsert.php`,{
+              method:"POST",
+              headers:{
+                "Content-Type":"application/json",
+                ...(this.playToken ? {"Authorization": `Bearer ${this.playToken}`} : {})
+              },
+              body:JSON.stringify(send)
+            });
+          }catch(e){
+            this.status("서버 연결 실패");
+            continue;
           }
-        }
-      }while(this._syncQueued);
-    }finally{
-      this._syncInFlight = false;
-    }
+
+          if(r.ok){
+            this._lastSyncKey = sendKey;
+            this.status("DB 동기화 OK");
+            continue;
+          }
+
+          const j = await r.json().catch(()=>null);
+          const err = (j && (j.error || j.err)) ? (j.error || j.err) : `${r.status}`;
+          this.status(`DB 동기화 실패: ${err}`);
+          if(r.status===400 || r.status===429){
+            this._syncQueued = false;
+            this._queuedDir = null;
+            ["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].forEach(k=>this.keys.delete(k));
+            this._syncLockUntil = performance.now() + 650;
+            this._loading = true;
+            try{
+              await this._resyncFromServerState();
+            }finally{
+              this._loading = false;
+            }
+          }
+        }while(this._syncQueued);
+      }finally{
+        this._syncInFlight = false;
+        this._syncPromise = null;
+      }
+    })();
+    return this._syncPromise;
   }
 
   async _fetchMobs(){
