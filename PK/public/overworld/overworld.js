@@ -2187,81 +2187,6 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
       }
     }
 
-    // Monsters (visible encounters): render species icon if available
-    // Icon format in Packege is commonly 32x64 (2 frames stacked).
-    // 목표:
-    //  - tick-tick 제거: 서버 스냅샷 사이를 클라에서 한 칸 이동처럼 보간
-    //  - 캐릭터처럼: 픽셀 단위(16px)로 고정 프레임 이동 + 1px bob
-    //  - 방향: 플레이어와 동일한 dir 코드(0=down,1=up,2=left,3=right). 아이콘은 보통 LEFT가 기본이라 RIGHT일 때만 flip.
-    if(Array.isArray(this.mobs) && this.mobs.length){
-      const ts = this.tileSize || 16;
-      const drawW = this._mobIconDrawSize || 32;
-      const drawH = this._mobIconDrawSize || 32;
-      for(const m of this.mobs){
-        const p = this._mobPos(m);
-        const mx = +p.x;
-        const my = +p.y;
-        const imx = Math.floor(mx);
-        const imy = Math.floor(my);
-        if(imx<x0-2 || imx>x1+2 || imy<y0-2 || imy>y1+2) continue;
-
-        const img = this._getMobIconImg(m.species_key||'', m.species_id);
-
-        // bottom-center anchor (stands on tile)
-        const dx = Math.round(mx*ts + Math.floor((ts - drawW)/2));
-        const dy = Math.round(my*ts + Math.floor(ts - drawH) + (p.bob||0));
-
-        // 2-frame toggle ("팔딱팔딱" 복구)
-        // moving: 빠르게, idle: 느리게 (아이콘은 프레임 2개뿐이라 이게 최선)
-        const seed = (p.seed|0);
-        const div = p.moving ? 4 : 12; // 60fps 기준
-        const iconFrame = (Math.floor((this.frame + (seed & 63)) / div) & 1);
-
-        if(img && img.complete && img.naturalWidth>0){
-          const sw = 32;
-          const sh = 32;
-          const sx = 0;
-          const sy = iconFrame * this._mobIconFrameH;
-
-          if(p.flipX){
-            oc.save();
-            oc.translate(dx + drawW, dy);
-            oc.scale(-1, 1);
-            oc.drawImage(img, sx, sy, sw, sh, 0, 0, drawW, drawH);
-            oc.restore();
-          }else{
-            oc.drawImage(img, sx, sy, sw, sh, dx, dy, drawW, drawH);
-          }
-        }else{
-          // fallback: small red marker
-          const cx = mx*ts + ts/2;
-          const cy = my*ts + ts*0.62;
-          oc.save();
-          oc.fillStyle = "rgba(255,64,64,0.80)";
-          oc.beginPath();
-          oc.arc(cx, cy, 3.5, 0, Math.PI*2);
-          oc.fill();
-          oc.restore();
-        }
-
-    if(this.debug){
-          const cx = mx*ts + ts/2;
-          const lbl = "#" + (m.mob_id||0) + " S" + (m.species_id||0) + " L" + (m.level||0);
-          oc.save();
-          oc.font = "bold 8px system-ui";
-          oc.textAlign = "center";
-          oc.textBaseline = "bottom";
-          oc.lineWidth = 3;
-          oc.strokeStyle = "rgba(0,0,0,0.85)";
-          oc.fillStyle = "rgba(255,255,255,0.95)";
-          oc.strokeText(lbl, cx, my*ts - 2);
-          oc.fillText(lbl, cx, my*ts - 2);
-          oc.restore();
-        }
-      }
-    }
-
-
     // Map items (temporary debug render)
     // 사용자 요청: 기본 숨김(파란박스 방지). F3 디버그에서만 임시 표시.
     if(this.itemsEnabled && Array.isArray(this.items) && this.items.length){
@@ -2278,8 +2203,7 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
         oc.strokeStyle = "rgba(0,0,0,0.55)";
         oc.lineWidth = 2;
         oc.stroke();
-
-    if(this.debug){
+        if(this.debug){
           const lbl = String(it.item||"");
           oc.font = "bold 8px system-ui";
           oc.textAlign = "center";
@@ -2294,13 +2218,20 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
       }
     }
 
-
-    // NPC sprites (world pixel coords)
-    const npcs = Array.isArray(this.npcs) ? this.npcs : [];
-    const behindNpcs = [];
-    const frontNpcs = [];
-    const ptx = this.player.x|0;
-    const pty = this.player.y|0;
+    const drawTallGrassCoverAt = (tx, ty) => {
+      if(tx == null || ty == null) return;
+      const b = this._behaviorAt(tx, ty);
+      if(!this._isTallGrassBehavior(b)) return;
+      const info = this._tileInfoAt(tx, ty);
+      if(!info || !info.img) return;
+      const t = info.tile|0;
+      const cols = Math.max(1, (info.cols||16)|0);
+      const sx = (t % cols) * ts;
+      const sy = Math.floor(t / cols) * ts;
+      const dx = tx * ts;
+      const dy = ty * ts;
+      oc.drawImage(info.img, sx, sy + Math.floor(ts/2), ts, Math.ceil(ts/2), dx, dy + Math.floor(ts/2), ts, Math.ceil(ts/2));
+    };
 
     const drawNpc = (n)=>{
       const k = (n && n.sprite_key) ? String(n.sprite_key).trim() : "";
@@ -2308,20 +2239,16 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
       if(!img || !img.complete || !img.naturalWidth || !img.naturalHeight) return;
 
       const nx = n.x|0, ny = n.y|0, d = n.dir|0;
-
       const bx = nx*ts;
-      const by = ny*ts; // base tile (same anchoring as player)
-
+      const by = ny*ts;
       const iw = img.naturalWidth|0;
       const ih = img.naturalHeight|0;
 
       let frameW = 16, frameH = 32;
       let mode = "person";
-
       if(ih===16){
         frameW = 16; frameH = 16; mode = "small";
       }else if(ih===32 && iw<=64 && (iw%32===0)){
-        // big sprite sheets (e.g. some pokemon)
         frameW = 32; frameH = 32; mode = "big";
       }else if(ih===32){
         frameW = 16; frameH = 32; mode = "person";
@@ -2331,12 +2258,7 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
 
       const cols = Math.max(1, Math.floor(iw / frameW));
       let sx = 0, sy = 0, flip = false;
-
       if(mode==="person"){
-        // assume FR/LG object sprite layout: 0-2 down, 3-5 up, 6-8 side (right uses flip)
-        // Idle NPCs must stay on the standing frame instead of borrowing the
-        // player's walk animation. Otherwise every NPC appears to walk/turn
-        // whenever the player moves.
         const walkSeq = [0,1,2,1];
         const isMovingNpc = !!(n && (n.moving || n.walking || n.animating));
         const anim = isMovingNpc ? walkSeq[(this.animFrame|0) % walkSeq.length] : 1;
@@ -2361,73 +2283,150 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
       oc.restore();
     };
 
+    const drawPlayer = ()=>{
+      const px=Math.round(this._playerRenderX()*ts);
+      const pyBase=Math.round(this._playerRenderY()*ts);
+      const tJump = Math.max(0, Math.min(1, this._moveT||0));
+      const jumpRaise = (this._jumping && this.player.moving) ? (Math.sin(Math.PI*tJump) * 8) : 0;
+      const py = Math.round(pyBase - jumpRaise);
 
+      if(this._jumping && this.player.moving){
+        const cx = px + ts/2;
+        const cy = pyBase + ts - 3;
+        oc.save();
+        oc.fillStyle = "rgba(0,0,0,0.35)";
+        oc.beginPath();
+        oc.ellipse(cx, cy, ts*0.32, ts*0.14, 0, 0, Math.PI*2);
+        oc.fill();
+        oc.restore();
+      }
+
+      if(this.playerSprite.kind==="frlg9"){
+        const sw=this.playerSprite.frameW, sh=this.playerSprite.frameH;
+        const f=this.animFrame%3;
+        const d=this.player.dir;
+        const framesByDir = (d===0) ? [0,3,4]
+                          : (d===1) ? [1,5,6]
+                          :           [2,7,8];
+        const idx = framesByDir[f] ?? framesByDir[0];
+        const flip = (d===3);
+        const sx=idx*sw;
+        const sy=0;
+        oc.save();
+        if(flip){
+          oc.scale(-1, 1);
+          oc.drawImage(this.playerImg, sx, sy, sw, sh, -px-sw, py-(sh-ts), sw, sh);
+        }else{
+          oc.drawImage(this.playerImg, sx, sy, sw, sh, px, py-(sh-ts), sw, sh);
+        }
+        oc.restore();
+      }else{
+        const sprW=16, sprH=24;
+        const fx=this.animFrame;
+        const dir=this.player.dir;
+        oc.drawImage(this.playerImg, fx*sprW, dir*sprH, sprW, sprH, px, py-(sprH-ts), sprW, sprH);
+      }
+    };
+
+    const drawMob = (m)=>{
+      const p = this._mobPos(m);
+      const mx = +p.x;
+      const my = +p.y;
+      const imx = Math.floor(mx);
+      const imy = Math.floor(my);
+      if(imx<x0-2 || imx>x1+2 || imy<y0-2 || imy>y1+2) return;
+
+      const img = this._getMobIconImg(m.species_key||'', m.species_id);
+      const drawW = this._mobIconDrawSize || 32;
+      const drawH = this._mobIconDrawSize || 32;
+      const dx = Math.round(mx*ts + Math.floor((ts - drawW)/2));
+      const dy = Math.round(my*ts + Math.floor(ts - drawH) + (p.bob||0));
+      const seed = (p.seed|0);
+      const div = p.moving ? 4 : 12;
+      const iconFrame = (Math.floor((this.frame + (seed & 63)) / div) & 1);
+
+      if(img && img.complete && img.naturalWidth>0){
+        const sw = 32;
+        const sh = 32;
+        const sx = 0;
+        const sy = iconFrame * this._mobIconFrameH;
+        if(p.flipX){
+          oc.save();
+          oc.translate(dx + drawW, dy);
+          oc.scale(-1, 1);
+          oc.drawImage(img, sx, sy, sw, sh, 0, 0, drawW, drawH);
+          oc.restore();
+        }else{
+          oc.drawImage(img, sx, sy, sw, sh, dx, dy, drawW, drawH);
+        }
+      }else{
+        const cx = mx*ts + ts/2;
+        const cy = my*ts + ts*0.62;
+        oc.save();
+        oc.fillStyle = "rgba(255,64,64,0.80)";
+        oc.beginPath();
+        oc.arc(cx, cy, 3.5, 0, Math.PI*2);
+        oc.fill();
+        oc.restore();
+      }
+
+      if(this.debug){
+        const cx = mx*ts + ts/2;
+        const lbl = "#" + (m.mob_id||0) + " S" + (m.species_id||0) + " L" + (m.level||0);
+        oc.save();
+        oc.font = "bold 8px system-ui";
+        oc.textAlign = "center";
+        oc.textBaseline = "bottom";
+        oc.lineWidth = 3;
+        oc.strokeStyle = "rgba(0,0,0,0.85)";
+        oc.fillStyle = "rgba(255,255,255,0.95)";
+        oc.strokeText(lbl, cx, my*ts - 2);
+        oc.fillText(lbl, cx, my*ts - 2);
+        oc.restore();
+      }
+    };
+
+    const rowBuckets = new Map();
+    const queueRowDraw = (row, sortX, drawFn, cover=null) => {
+      const ry = row|0;
+      let bucket = rowBuckets.get(ry);
+      if(!bucket){
+        bucket = [];
+        rowBuckets.set(ry, bucket);
+      }
+      bucket.push({ x: +sortX || 0, draw: drawFn, cover });
+    };
+
+    if(Array.isArray(this.mobs) && this.mobs.length){
+      for(const m of this.mobs){
+        const p = this._mobPos(m);
+        const mx = +p.x;
+        const my = +p.y;
+        const tx = Math.floor(mx);
+        const ty = Math.floor(my);
+        queueRowDraw(ty, mx, ()=>drawMob(m), this._isTallGrassBehavior(this._behaviorAt(tx, ty)) ? {x:tx, y:ty} : null);
+      }
+    }
+
+    const npcs = Array.isArray(this.npcs) ? this.npcs : [];
     for(const n of npcs){
       if(!n) continue;
       const nx=n.x|0, ny=n.y|0;
-      if(ny < pty || (ny===pty && nx < ptx)) behindNpcs.push(n);
-      else frontNpcs.push(n);
-    }
-    behindNpcs.sort((a,b)=>((a.y|0)-(b.y|0)) || ((a.x|0)-(b.x|0)));
-    frontNpcs.sort((a,b)=>((a.y|0)-(b.y|0)) || ((a.x|0)-(b.x|0)));
-
-    for(const n of behindNpcs) drawNpc(n);
-
-    // Player sprite (world pixel coords)
-    const px=Math.round(this._playerRenderX()*ts);
-    const pyBase=Math.round(this._playerRenderY()*ts);
-    const tJump = Math.max(0, Math.min(1, this._moveT||0));
-    const jumpRaise = (this._jumping && this.player.moving) ? (Math.sin(Math.PI*tJump) * 8) : 0;
-    const py = Math.round(pyBase - jumpRaise);
-
-    // Ledge jump shadow
-    if(this._jumping && this.player.moving){
-      const cx = px + ts/2;
-      const cy = pyBase + ts - 3;
-      oc.save();
-      oc.fillStyle = "rgba(0,0,0,0.35)";
-      oc.beginPath();
-      oc.ellipse(cx, cy, ts*0.32, ts*0.14, 0, 0, Math.PI*2);
-      oc.fill();
-      oc.restore();
+      queueRowDraw(ny, nx, ()=>drawNpc(n), this._isTallGrassBehavior(this._behaviorAt(nx, ny)) ? {x:nx, y:ny} : null);
     }
 
-    if(this.playerSprite.kind==="frlg9"){
-      const sw=this.playerSprite.frameW, sh=this.playerSprite.frameH;
-      const f=this.animFrame%3; // 0=stand,1=walk1,2=walk2
-      const d=this.player.dir;
+    const pFoot = this._playerFootTile();
+    queueRowDraw(pFoot.y, this.player.x|0, ()=>drawPlayer(), this._isTallGrassBehavior(this._behaviorAt(pFoot.x, pFoot.y)) ? {x:pFoot.x, y:pFoot.y} : null);
 
-      const framesByDir = (d===0) ? [0,3,4]
-                        : (d===1) ? [1,5,6]
-                        :           [2,7,8];
-      const idx = framesByDir[f] ?? framesByDir[0];
-      const flip = (d===3);
-
-      const sx=idx*sw;
-      const sy=0;
-      oc.save();
-      if(flip){
-        oc.scale(-1, 1);
-        oc.drawImage(this.playerImg, sx, sy, sw, sh, -px-sw, py-(sh-ts), sw, sh);
-      }else{
-        oc.drawImage(this.playerImg, sx, sy, sw, sh, px, py-(sh-ts), sw, sh);
-      }
-      oc.restore();
-    }else{
-      const sprW=16, sprH=24;
-      const fx=this.animFrame;
-      const dir=this.player.dir;
-      oc.drawImage(this.playerImg, fx*sprW, dir*sprH, sprW, sprH, px, py-(sprH-ts), sprW, sprH);
-    }
-
-    // draw NPCs in front of the player
-    for(const n of frontNpcs) drawNpc(n);
-
-
-    // Upper tiles (metatile layer1) rendered after sprites.
-    // Use the same neighbor-aware lookup as the base tiles so connected maps
-    // do not lose roofs/trees when they are previewed beyond the border.
     for(let ty=y0; ty<=y1; ty++){
+      const bucket = rowBuckets.get(ty);
+      if(bucket && bucket.length){
+        bucket.sort((a,b)=>(a.x-b.x));
+        for(const op of bucket){
+          try{ op.draw(); }catch(_e){}
+        }
+      }
+
       for(let tx=x0; tx<=x1; tx++){
         const info = this._tileUpperInfoAt(tx, ty);
         if(!info || !info.img) continue;
@@ -2435,9 +2434,13 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
         const cols = info.cols||16;
         const sx = (t % cols) * ts;
         const sy = Math.floor(t / cols) * ts;
-        const dx = tx * ts;
-        const dy = ty * ts;
-        oc.drawImage(info.img, sx, sy, ts, ts, dx, dy, ts, ts);
+        oc.drawImage(info.img, sx, sy, ts, ts, tx*ts, ty*ts, ts, ts);
+      }
+
+      if(bucket && bucket.length){
+        for(const op of bucket){
+          if(op.cover) drawTallGrassCoverAt(op.cover.x, op.cover.y);
+        }
       }
     }
 
