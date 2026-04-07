@@ -47,7 +47,7 @@ try {
   
   // bump to force tileset regen when generator changes
   // Cache-buster for generated PNG/JSON. Bump when renderer logic changes.
-  $GEN_VER = 'r17_metatile_overlay_fix';
+  $GEN_VER = 'r18_cover_meta_export';
 $mapId = safe_id($_GET['map'] ?? '');
   if ($mapId==='') jexit(['ok'=>0,'err'=>'NO_MAP'], 400);
 
@@ -457,6 +457,45 @@ foreach($collisions as $c){ $collisionOut[] = ($c ? 1 : 0); }
     $behaviorOut = array_fill(0, count($tiles), 0);
   }
 
+  // exporter-backed cover metadata:
+  // - front_cover: this metatile has an upper/front overlay band that should be projected
+  //   onto the tile immediately north of it (roof eaves / tree canopy front / fence front).
+  // - grass_cover: this tile should only apply the local lower-body grass cover, not the
+  //   south/front occluder path.
+  $frontCoverOut = [];
+  $grassCoverOut = [];
+  try {
+    $pMetaBin3 = @file_get_contents($pDir . '/metatiles.bin');
+    $sMetaBin3 = @file_get_contents($sDir . '/metatiles.bin');
+    $pMetaCount3 = ($pMetaBin3 !== false) ? intdiv(strlen($pMetaBin3), 16) : 0;
+    if ($pMetaCount3 < 0) { $pMetaCount3 = 0; }
+
+    foreach ($tiles as $i => $mtId) {
+      $mtId = (int)$mtId;
+      $isSecMeta = ($pMetaCount3 > 0) ? ($mtId >= $pMetaCount3) : false;
+      $local = $isSecMeta ? ($mtId - $pMetaCount3) : $mtId;
+      $metaBin3 = $isSecMeta ? $sMetaBin3 : $pMetaBin3;
+
+      $hasUpper = false;
+      if ($metaBin3 !== false && $local >= 0) {
+        $entries3 = metatile_entries($metaBin3, $local);
+        for ($q = 4; $q < 8; $q++) {
+          if ((((int)$entries3[$q]) & 0x03FF) !== 0) {
+            $hasUpper = true;
+            break;
+          }
+        }
+      }
+      $frontCoverOut[] = $hasUpper ? 1 : 0;
+
+      $b = (int)($behaviorOut[$i] ?? 0);
+      $grassCoverOut[] = (($b === 0x02) || ($b === 0xD1) || ($b === 0x49) || ($b === 0x4A) || ($b === 0x48)) ? 1 : 0;
+    }
+  } catch (Throwable $e) {
+    $frontCoverOut = array_fill(0, count($tiles), 0);
+    $grassCoverOut = array_fill(0, count($tiles), 0);
+  }
+
 // border: layout-provided border_width/height (FRLG usually 2x2)
   $borderW = (int)($layout['border_width'] ?? 2);
   $borderH = (int)($layout['border_height'] ?? 2);
@@ -586,6 +625,8 @@ $out = [
   // gameplay helpers
   'collision' => $collisionOut,
   'behavior' => $behaviorOut,
+  'front_cover' => $frontCoverOut,
+  'grass_cover' => $grassCoverOut,
   'border' => $borderOut,
   'connections' => $connectionsOut,
   'warp_events' => $warpOut,

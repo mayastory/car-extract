@@ -716,7 +716,7 @@ export class Overworld{
   }
 
   _pretRequiredGenVer(){
-    return "r17_metatile_overlay_fix";
+    return "r18_cover_meta_export";
   }
 
   _pretMapNeedsRefresh(mapObj){
@@ -994,6 +994,24 @@ export class Overworld{
 
   _isTallGrassBehavior(b) {
     return b === 2 || b === 0x4A || b === 0x49 || b === 0x48;
+  }
+
+  _frontCoverAt(x, y) {
+    const W = this.map?.width|0, H = this.map?.height|0;
+    const arr = this.map?.front_cover;
+    if (!Array.isArray(arr) || arr.length !== W*H) return null;
+    if (x<0 || y<0 || x>=W || y>=H) return 0;
+    return arr[y*W+x] ? 1 : 0;
+  }
+
+  _grassCoverAt(x, y) {
+    const W = this.map?.width|0, H = this.map?.height|0;
+    const arr = this.map?.grass_cover;
+    if (Array.isArray(arr) && arr.length === W*H) {
+      if (x<0 || y<0 || x>=W || y>=H) return 0;
+      return arr[y*W+x] ? 1 : 0;
+    }
+    return this._isTallGrassBehavior(this._behaviorAt(x, y)) ? 1 : 0;
   }
 
   _playerFootTile() {
@@ -2224,8 +2242,7 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
 
     const drawTallGrassCoverAt = (tx, ty) => {
       if(tx == null || ty == null) return;
-      const b = this._behaviorAt(tx, ty);
-      if(!this._isTallGrassBehavior(b)) return;
+      if(!this._grassCoverAt(tx, ty)) return;
       const info = this._tileInfoAt(tx, ty);
       if(!info || !info.img) return;
       const t = info.tile|0;
@@ -2243,12 +2260,16 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
       if(!base || !base.img) return;
       const tileId = base.tile|0;
       const upper = this._tileUpperInfoAt(tx, ty);
+      const frontMeta = this._frontCoverAt(tx, ty);
       const blocked = this._isBlockedTile(tileId, tx, ty);
       const hasUpper = !!(upper && upper.img);
+      // Prefer exporter-backed cover metadata from Packege. If it is present, trust it.
+      // Only fall back to the old blocked/upper heuristic when legacy caches are loaded.
+      const shouldCover = (frontMeta !== null) ? !!frontMeta : (!!blocked || !!hasUpper);
       // South/front cover is for roofs / trees / fences etc. Tall grass uses its own
       // current-tile lower-body cover and must not come through this path, otherwise
       // the cover climbs into the head/label area when walking downward.
-      if(!blocked && !hasUpper) return;
+      if(!shouldCover) return;
 
       const cols = Math.max(1, (base.cols||16)|0);
       const sx = (tileId % cols) * ts;
@@ -2442,7 +2463,7 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
         const my = +p.y;
         const tx = Math.floor(mx);
         const ty = Math.floor(my);
-        const mobTallGrass = this._isTallGrassBehavior(this._behaviorAt(tx, ty));
+        const mobTallGrass = !!this._grassCoverAt(tx, ty);
         queueRowDraw(ty, mx, ()=>drawMob(m), mobTallGrass ? {x:tx, y:ty} : null, mobTallGrass ? null : {x:tx, y:ty+1});
       }
     }
@@ -2451,12 +2472,12 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
     for(const n of npcs){
       if(!n) continue;
       const nx=n.x|0, ny=n.y|0;
-      const npcTallGrass = this._isTallGrassBehavior(this._behaviorAt(nx, ny));
+      const npcTallGrass = !!this._grassCoverAt(nx, ny);
       queueRowDraw(ny, nx, ()=>drawNpc(n), npcTallGrass ? {x:nx, y:ny} : null, npcTallGrass ? null : {x:nx, y:ny+1});
     }
 
     const pFoot = this._playerFootTile();
-    const playerTallGrass = this._isTallGrassBehavior(this._behaviorAt(pFoot.x, pFoot.y));
+    const playerTallGrass = !!this._grassCoverAt(pFoot.x, pFoot.y);
     queueRowDraw(pFoot.y, this._playerRenderX(), ()=>drawPlayer(), playerTallGrass ? {x:pFoot.x, y:pFoot.y} : null, playerTallGrass ? null : {x:pFoot.x, y:pFoot.y+1});
 
     for(let ty=y0; ty<=y1; ty++){
