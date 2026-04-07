@@ -997,12 +997,13 @@ export class Overworld{
   }
 
   _playerFootTile() {
-    const ts = this.tileSize || 16;
-    const w = (this.player && this.player.w) ? this.player.w : 16;
-    const h = (this.player && this.player.h) ? this.player.h : 32;
-    const fx = (this.player ? this.player.x : 0) + Math.floor(w / 2);
-    const fy = (this.player ? this.player.y : 0) + (h - 1);
-    return { x: Math.floor(fx / ts), y: Math.floor(fy / ts) };
+    // player.x / player.y are tile coordinates, not world pixels.
+    // The previous implementation mixed sprite pixel size into tile coords,
+    // which collapsed most player positions toward (0,0) and broke row-based
+    // occlusion ordering for the player.
+    const rx = this._playerRenderX();
+    const ry = this._playerRenderY();
+    return { x: Math.round(rx), y: Math.round(ry) };
   }
 
   _ensureFxTallGrass() {
@@ -2233,6 +2234,35 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
       oc.drawImage(info.img, sx, sy + Math.floor(ts/2), ts, Math.ceil(ts/2), dx, dy + Math.floor(ts/2), ts, Math.ceil(ts/2));
     };
 
+    const drawSouthOccluderAt = (tx, ty) => {
+      if(tx == null || ty == null) return;
+      const base = this._tileInfoAt(tx, ty);
+      if(!base || !base.img) return;
+      const tileId = base.tile|0;
+      const blocked = this._isBlockedTile(tileId, tx, ty);
+      const behavior = this._behaviorAt(tx, ty);
+      if(!blocked && !this._isTallGrassBehavior(behavior)) return;
+
+      const cols = Math.max(1, (base.cols||16)|0);
+      const sx = (tileId % cols) * ts;
+      const sy = Math.floor(tileId / cols) * ts;
+      const dx = tx * ts;
+      const dy = ty * ts;
+      const half = Math.ceil(ts/2);
+
+      // Draw only the lower half as a cheap FRLG-style front-cover pass.
+      oc.drawImage(base.img, sx, sy + Math.floor(ts/2), ts, half, dx, dy + Math.floor(ts/2), ts, half);
+
+      const upper = this._tileUpperInfoAt(tx, ty);
+      if(upper && upper.img){
+        const ut = upper.tile|0;
+        const ucols = Math.max(1, (upper.cols||16)|0);
+        const usx = (ut % ucols) * ts;
+        const usy = Math.floor(ut / ucols) * ts;
+        oc.drawImage(upper.img, usx, usy + Math.floor(ts/2), ts, half, dx, dy + Math.floor(ts/2), ts, half);
+      }
+    };
+
     const drawNpc = (n)=>{
       const k = (n && n.sprite_key) ? String(n.sprite_key).trim() : "";
       const img = this._getNpcImg(k);
@@ -2387,14 +2417,14 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
     };
 
     const rowBuckets = new Map();
-    const queueRowDraw = (row, sortX, drawFn, cover=null) => {
+    const queueRowDraw = (row, sortX, drawFn, cover=null, southCover=null) => {
       const ry = row|0;
       let bucket = rowBuckets.get(ry);
       if(!bucket){
         bucket = [];
         rowBuckets.set(ry, bucket);
       }
-      bucket.push({ x: +sortX || 0, draw: drawFn, cover });
+      bucket.push({ x: +sortX || 0, draw: drawFn, cover, southCover });
     };
 
     if(Array.isArray(this.mobs) && this.mobs.length){
@@ -2404,7 +2434,7 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
         const my = +p.y;
         const tx = Math.floor(mx);
         const ty = Math.floor(my);
-        queueRowDraw(ty, mx, ()=>drawMob(m), this._isTallGrassBehavior(this._behaviorAt(tx, ty)) ? {x:tx, y:ty} : null);
+        queueRowDraw(ty, mx, ()=>drawMob(m), this._isTallGrassBehavior(this._behaviorAt(tx, ty)) ? {x:tx, y:ty} : null, {x:tx, y:ty+1});
       }
     }
 
@@ -2412,11 +2442,11 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
     for(const n of npcs){
       if(!n) continue;
       const nx=n.x|0, ny=n.y|0;
-      queueRowDraw(ny, nx, ()=>drawNpc(n), this._isTallGrassBehavior(this._behaviorAt(nx, ny)) ? {x:nx, y:ny} : null);
+      queueRowDraw(ny, nx, ()=>drawNpc(n), this._isTallGrassBehavior(this._behaviorAt(nx, ny)) ? {x:nx, y:ny} : null, {x:nx, y:ny+1});
     }
 
     const pFoot = this._playerFootTile();
-    queueRowDraw(pFoot.y, this.player.x|0, ()=>drawPlayer(), this._isTallGrassBehavior(this._behaviorAt(pFoot.x, pFoot.y)) ? {x:pFoot.x, y:pFoot.y} : null);
+    queueRowDraw(pFoot.y, this.player.x|0, ()=>drawPlayer(), this._isTallGrassBehavior(this._behaviorAt(pFoot.x, pFoot.y)) ? {x:pFoot.x, y:pFoot.y} : null, {x:pFoot.x, y:pFoot.y+1});
 
     for(let ty=y0; ty<=y1; ty++){
       const bucket = rowBuckets.get(ty);
@@ -2439,6 +2469,7 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
 
       if(bucket && bucket.length){
         for(const op of bucket){
+          if(op.southCover) drawSouthOccluderAt(op.southCover.x, op.southCover.y);
           if(op.cover) drawTallGrassCoverAt(op.cover.x, op.cover.y);
         }
       }
