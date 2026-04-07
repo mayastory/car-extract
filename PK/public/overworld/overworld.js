@@ -716,7 +716,7 @@ export class Overworld{
   }
 
   _pretRequiredGenVer(){
-    return "r19_split_upper_cover_band";
+    return "r19_split_upper_cover";
   }
 
   _pretMapNeedsRefresh(mapObj){
@@ -1002,14 +1002,6 @@ export class Overworld{
     if (!Array.isArray(arr) || arr.length !== W*H) return null;
     if (x<0 || y<0 || x>=W || y>=H) return 0;
     return arr[y*W+x] ? 1 : 0;
-  }
-
-  _frontBandAt(x, y) {
-    const W = this.map?.width|0, H = this.map?.height|0;
-    const arr = this.map?.front_band;
-    if (!Array.isArray(arr) || arr.length !== W*H) return null;
-    if (x<0 || y<0 || x>=W || y>=H) return 0;
-    return arr[y*W+x] | 0;
   }
 
   _grassCoverAt(x, y) {
@@ -2269,23 +2261,39 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
       const tileId = base.tile|0;
       const upper = this._tileUpperInfoAt(tx, ty);
       const frontMeta = this._frontCoverAt(tx, ty);
-      const frontBandMeta = this._frontBandAt(tx, ty);
       const blocked = this._isBlockedTile(tileId, tx, ty);
       const hasUpper = !!(upper && upper.img);
+
+      // Prefer exporter-backed Packege metadata. Legacy caches may not have it yet.
       const shouldCover = (frontMeta !== null) ? !!frontMeta : (!!blocked || !!hasUpper);
       if(!shouldCover) return;
 
-      const coverInfo = (upper && upper.img) ? upper : base;
-      const coverTile = coverInfo.tile|0;
-      const cols = Math.max(1, (coverInfo.cols||16)|0);
-      const sx = (coverTile % cols) * ts;
-      const sy = Math.floor(coverTile / cols) * ts;
       const dx = tx * ts;
-      const band = Math.max(1, Math.min(ts, (frontBandMeta !== null) ? (frontBandMeta|0) : Math.max(4, Math.floor(ts * 0.25))));
-      if(band <= 0) return;
+
+      // r19: exporter now splits lower/upper metatile sheets.
+      // Project the lower half of the UPPER layer onto the tile immediately north.
+      // This matches FRLG-style roof/tree/front bands much better than copying from
+      // the already-composited base tile.
+      if (upper && upper.img) {
+        const upperTileId = upper.tile|0;
+        const upperCols = Math.max(1, (upper.cols||16)|0);
+        const sx = (upperTileId % upperCols) * ts;
+        const sy = Math.floor(upperTileId / upperCols) * ts;
+        const band = Math.floor(ts / 2);
+        const srcY = sy + band;
+        const dstY = (ty - 1) * ts + band;
+        oc.drawImage(upper.img, sx, srcY, ts, band, dx, dstY, ts, band);
+        return;
+      }
+
+      // Legacy fallback for older caches that only had the composited base sheet.
+      const cols = Math.max(1, (base.cols||16)|0);
+      const sx = (tileId % cols) * ts;
+      const sy = Math.floor(tileId / cols) * ts;
+      const band = Math.max(4, Math.floor(ts * 0.25));
       const srcY = sy + ts - band;
       const dstY = (ty - 1) * ts + ts - band;
-      oc.drawImage(coverInfo.img, sx, srcY, ts, band, dx, dstY, ts, band);
+      oc.drawImage(base.img, sx, srcY, ts, band, dx, dstY, ts, band);
     };
 
     const drawNpc = (n)=>{
