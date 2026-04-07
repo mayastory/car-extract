@@ -2311,6 +2311,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array((string)($_POST['action'] 
 	                if (function_exists('report_finish_mark_canceled')) {
 	                    report_finish_mark_canceled($pdo, $id, $byUser, $reason);
 	                }
+	                if ($approvePending && function_exists('report_finish_cancel_request_mark_approved')) {
+	                    report_finish_cancel_request_mark_approved($pdo, $id, $byUser);
+	                }
 	                $del = dp_delete_report_artifacts($id, false);
 					$msg = '취소/롤백 완료';
 					if (!($del['ok'] ?? true)) {
