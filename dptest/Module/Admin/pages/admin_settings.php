@@ -526,7 +526,7 @@ if (in_array($qAcl, $allowedAclTabs, true)) {
     .hint{color:var(--mut); font-size:12px; margin-top:8px;}
     .inp-sm{height:30px; border-radius:8px; font-size:12px; padding:0 8px; min-width:0;}
     .btn-sm{padding:6px 8px; font-size:11px; border-radius:8px;}
-    .pw-table-wrap{overflow-x:auto; overflow-y:visible; border:1px solid rgba(255,255,255,.06); border-radius:12px;}
+    .pw-table-wrap{overflow:auto; border:1px solid rgba(255,255,255,.06); border-radius:12px;}
     .pw-table{min-width:1200px;}
     .pw-table td{vertical-align:middle;}
     .pw-id{font-weight:800;}
@@ -1291,57 +1291,6 @@ if (in_array($qAcl, $allowedAclTabs, true)) {
       setAclTab(key);
     });
   });
-
-
-// LV custom dropdown
-(function(){
-  const roots = Array.from(document.querySelectorAll('.js-lv-dd'));
-  if (!roots.length) return;
-
-  function closeAll(except){
-    roots.forEach(root => {
-      if (except && root === except) return;
-      root.classList.remove('open');
-      const btn = root.querySelector('.js-lv-btn');
-      if (btn) btn.setAttribute('aria-expanded', 'false');
-    });
-  }
-
-  roots.forEach(root => {
-    const btn = root.querySelector('.js-lv-btn');
-    const hidden = root.querySelector('.js-lv-input');
-    const current = root.querySelector('.js-lv-current');
-    const menu = root.querySelector('.lv-dd-menu');
-    const options = Array.from(root.querySelectorAll('.lv-dd-opt'));
-    if (!btn || !hidden || !current || !menu || !options.length) return;
-
-    btn.addEventListener('click', function(e){
-      e.preventDefault();
-      e.stopPropagation();
-      const willOpen = !root.classList.contains('open');
-      closeAll(root);
-      root.classList.toggle('open', willOpen);
-      btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
-    });
-
-    options.forEach(opt => {
-      opt.addEventListener('click', function(e){
-        e.preventDefault();
-        e.stopPropagation();
-        const val = String(opt.getAttribute('data-value') || '').trim();
-        if (val === '') return;
-        hidden.value = val;
-        options.forEach(x => x.classList.remove('active'));
-        opt.classList.add('active');
-        current.innerHTML = opt.innerHTML;
-        root.classList.remove('open');
-        btn.setAttribute('aria-expanded', 'false');
-      });
-    });
-  });
-
-  document.addEventListener('click', function(){ closeAll(null); });
-  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeAll(null); });
 })();
 </script>
 </body>
