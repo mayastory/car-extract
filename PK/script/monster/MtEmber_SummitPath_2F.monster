@@ -1,0 +1,7 @@
+# auto-generated from Packege/src/data/wild_encounters.json
+# map=MtEmber_SummitPath_2F id=MAP_MT_EMBER_SUMMIT_PATH_2F size=48x46
+MtEmber_SummitPath_2F,0,0,0	monster	land_geodude	48,46,SPECIES_GEODUDE,34,34,4,30,land
+MtEmber_SummitPath_2F,0,0,0	monster	land_machop	48,46,SPECIES_MACHOP,36,36,4,30,land
+MtEmber_SummitPath_2F,0,0,0	monster	land_machoke	48,46,SPECIES_MACHOKE,38,38,4,30,land
+MtEmber_SummitPath_2F,0,0,0	monster	rock_geodude	48,46,SPECIES_GEODUDE,5,20,2,45,rock
+MtEmber_SummitPath_2F,0,0,0	monster	rock_graveler	48,46,SPECIES_GRAVELER,25,40,2,45,rock

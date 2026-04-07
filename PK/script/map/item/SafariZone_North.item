@@ -1,0 +1,3 @@
+SafariZone_North,33,5,3	item_ball	ITEM_PROTEIN,1,flag=FLAG_HIDE_SAFARI_ZONE_NORTH_PROTEIN,script=SafariZone_North_EventScript_ItemProtein
+SafariZone_North,28,9,3	item_ball	ITEM_TM47,1,flag=FLAG_HIDE_SAFARI_ZONE_NORTH_TM47,script=SafariZone_North_EventScript_ItemTM47
+SafariZone_North,29,17,3	item_ball	ITEM_QUICK_CLAW,1,flag=FLAG_HIDE_SAFARI_ZONE_NORTH_QUICK_CLAW,script=SafariZone_North_EventScript_ItemQuickClaw

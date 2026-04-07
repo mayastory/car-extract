@@ -1,0 +1,2 @@
+Route4	connect	down	Route3	-60 // src=MAP_ROUTE3
+Route4	connect	right	CeruleanCity	-10 // src=MAP_CERULEAN_CITY

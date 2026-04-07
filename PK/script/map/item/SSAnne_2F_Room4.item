@@ -1,0 +1,1 @@
+SSAnne_2F_Room4,2,4,3	item_ball	ITEM_X_ATTACK,1,flag=FLAG_HIDE_SSANNE_2F_ROOM4_X_ATTACK,script=SSAnne_2F_Room4_EventScript_ItemXAttack

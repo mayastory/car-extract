@@ -1,0 +1,5 @@
+# auto-generated from Packege/src/data/wild_encounters.json
+# map=PokemonTower_7F id=MAP_POKEMON_TOWER_7F size=24x20
+PokemonTower_7F,0,0,0	monster	land_gastly	24,20,SPECIES_GASTLY,16,16,4,30,land
+PokemonTower_7F,0,0,0	monster	land_haunter	24,20,SPECIES_HAUNTER,23,23,4,30,land
+PokemonTower_7F,0,0,0	monster	land_cubone	24,20,SPECIES_CUBONE,17,17,4,30,land

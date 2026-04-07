@@ -1,0 +1,3 @@
+SilphCo_11F,7,2,0	warp	w0	1,1,SilphCo_10F,6,2 // elev=3 src=MAP_SILPH_CO_10F:0
+SilphCo_11F,2,5,0	warp	w1	1,1,SilphCo_7F,5,8 // elev=3 src=MAP_SILPH_CO_7F:1
+SilphCo_11F,13,3,0	warp	w2	1,1,SilphCo_Elevator,2,5 // elev=0 src=MAP_SILPH_CO_ELEVATOR:0

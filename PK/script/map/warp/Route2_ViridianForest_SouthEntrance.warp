@@ -1,0 +1,4 @@
+Route2_ViridianForest_SouthEntrance,6,10,0	warp	w0	1,1,Route2,5,51 // elev=3 src=MAP_ROUTE2:2
+Route2_ViridianForest_SouthEntrance,7,10,0	warp	w1	1,1,Route2,5,51 // elev=3 src=MAP_ROUTE2:2
+Route2_ViridianForest_SouthEntrance,8,10,0	warp	w2	1,1,Route2,5,51 // elev=3 src=MAP_ROUTE2:2
+Route2_ViridianForest_SouthEntrance,7,1,0	warp	w3	1,1,ViridianForest,29,62 // elev=3 src=MAP_VIRIDIAN_FOREST:0

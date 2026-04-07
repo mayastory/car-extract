@@ -1,0 +1,6 @@
+# auto-generated from Packege/src/data/wild_encounters.json
+# map=MtEmber_RubyPath_B2F_Stairs id=MAP_MT_EMBER_RUBY_PATH_B2F_STAIRS size=8x6
+MtEmber_RubyPath_B2F_Stairs,0,0,0	monster	land_geodude	8,6,SPECIES_GEODUDE,38,38,4,30,land
+MtEmber_RubyPath_B2F_Stairs,0,0,0	monster	land_slugma	8,6,SPECIES_SLUGMA,24,24,4,30,land
+MtEmber_RubyPath_B2F_Stairs,0,0,0	monster	rock_geodude	8,6,SPECIES_GEODUDE,25,35,2,45,rock
+MtEmber_RubyPath_B2F_Stairs,0,0,0	monster	rock_graveler	8,6,SPECIES_GRAVELER,30,45,2,45,rock

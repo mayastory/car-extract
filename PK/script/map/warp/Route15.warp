@@ -1,0 +1,2 @@
+Route15,9,11,0	warp	w0	1,1,Route15_WestEntrance_1F,1,6 // elev=3 src=MAP_ROUTE15_WEST_ENTRANCE_1F:0
+Route15,16,11,0	warp	w1	1,1,Route15_WestEntrance_1F,11,6 // elev=3 src=MAP_ROUTE15_WEST_ENTRANCE_1F:2

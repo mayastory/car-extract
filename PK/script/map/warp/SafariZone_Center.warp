@@ -1,0 +1,13 @@
+SafariZone_Center,25,30,0	warp	w0	1,1,FuchsiaCity_SafariZone_Entrance,4,1 // elev=3 src=MAP_FUCHSIA_CITY_SAFARI_ZONE_ENTRANCE:0
+SafariZone_Center,26,30,0	warp	w1	1,1,FuchsiaCity_SafariZone_Entrance,4,1 // elev=3 src=MAP_FUCHSIA_CITY_SAFARI_ZONE_ENTRANCE:0
+SafariZone_Center,27,30,0	warp	w2	1,1,FuchsiaCity_SafariZone_Entrance,4,1 // elev=3 src=MAP_FUCHSIA_CITY_SAFARI_ZONE_ENTRANCE:0
+SafariZone_Center,25,5,0	warp	w3	1,1,SafariZone_North,30,34 // elev=3 src=MAP_SAFARI_ZONE_NORTH:9
+SafariZone_Center,26,5,0	warp	w4	1,1,SafariZone_North,31,34 // elev=3 src=MAP_SAFARI_ZONE_NORTH:10
+SafariZone_Center,27,5,0	warp	w5	1,1,SafariZone_North,32,34 // elev=0 src=MAP_SAFARI_ZONE_NORTH:11
+SafariZone_Center,8,17,0	warp	w6	1,1,SafariZone_West,40,26 // elev=3 src=MAP_SAFARI_ZONE_WEST:6
+SafariZone_Center,8,18,0	warp	w7	1,1,SafariZone_West,40,27 // elev=3 src=MAP_SAFARI_ZONE_WEST:7
+SafariZone_Center,8,19,0	warp	w8	1,1,SafariZone_West,40,28 // elev=0 src=MAP_SAFARI_ZONE_WEST:8
+SafariZone_Center,43,15,0	warp	w9	1,1,SafariZone_East,8,26 // elev=3 src=MAP_SAFARI_ZONE_EAST:3
+SafariZone_Center,43,16,0	warp	w10	1,1,SafariZone_East,8,27 // elev=3 src=MAP_SAFARI_ZONE_EAST:4
+SafariZone_Center,43,17,0	warp	w11	1,1,SafariZone_East,8,28 // elev=0 src=MAP_SAFARI_ZONE_EAST:5
+SafariZone_Center,29,25,0	warp	w12	1,1,SafariZone_Center_RestHouse,4,9 // elev=0 src=MAP_SAFARI_ZONE_CENTER_REST_HOUSE:1

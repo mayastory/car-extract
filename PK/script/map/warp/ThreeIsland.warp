@@ -1,0 +1,7 @@
+ThreeIsland,3,31,0	warp	w0	1,1,ThreeIsland_House1,4,7 // elev=0 src=MAP_THREE_ISLAND_HOUSE1:0
+ThreeIsland,14,27,0	warp	w1	1,1,ThreeIsland_PokemonCenter_1F,7,8 // elev=0 src=MAP_THREE_ISLAND_POKEMON_CENTER_1F:0
+ThreeIsland,18,12,0	warp	w2	1,1,ThreeIsland_Mart,4,7 // elev=0 src=MAP_THREE_ISLAND_MART:0
+ThreeIsland,4,6,0	warp	w3	1,1,ThreeIsland_House2,4,7 // elev=0 src=MAP_THREE_ISLAND_HOUSE2:0
+ThreeIsland,12,6,0	warp	w4	1,1,ThreeIsland_House3,4,7 // elev=0 src=MAP_THREE_ISLAND_HOUSE3:0
+ThreeIsland,12,12,0	warp	w5	1,1,ThreeIsland_House4,4,7 // elev=0 src=MAP_THREE_ISLAND_HOUSE4:0
+ThreeIsland,13,19,0	warp	w6	1,1,ThreeIsland_House5,4,7 // elev=0 src=MAP_THREE_ISLAND_HOUSE5:0

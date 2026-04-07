@@ -1,0 +1,2 @@
+Route3	connect	up	Route4	60 // src=MAP_ROUTE4
+Route3	connect	left	PewterCity	-10 // src=MAP_PEWTER_CITY

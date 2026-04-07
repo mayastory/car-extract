@@ -1,0 +1,6 @@
+MtEmber_Exterior,28,48,0	warp	w0	1,1,OneIsland_KindleRoad,11,6 // elev=3 src=MAP_ONE_ISLAND_KINDLE_ROAD:0
+MtEmber_Exterior,29,48,0	warp	w1	1,1,OneIsland_KindleRoad,12,6 // elev=3 src=MAP_ONE_ISLAND_KINDLE_ROAD:1
+MtEmber_Exterior,14,24,0	warp	w2	1,1,MtEmber_SummitPath_1F,2,15 // elev=3 src=MAP_MT_EMBER_SUMMIT_PATH_1F:0
+MtEmber_Exterior,39,19,0	warp	w3	1,1,MtEmber_SummitPath_3F,11,8 // elev=3 src=MAP_MT_EMBER_SUMMIT_PATH_3F:1
+MtEmber_Exterior,29,7,0	warp	w4	1,1,MtEmber_Summit,9,15 // elev=3 src=MAP_MT_EMBER_SUMMIT:0
+MtEmber_Exterior,42,39,0	warp	w5	1,1,MtEmber_RubyPath_1F,22,17 // elev=0 src=MAP_MT_EMBER_RUBY_PATH_1F:0

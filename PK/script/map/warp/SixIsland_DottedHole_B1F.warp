@@ -1,0 +1,5 @@
+SixIsland_DottedHole_B1F,6,7,0	warp	w0	1,1,SixIsland_DottedHole_1F,6,5 // elev=3 src=MAP_SIX_ISLAND_DOTTED_HOLE_1F:1
+SixIsland_DottedHole_B1F,6,1,0	warp	w1	1,1,SixIsland_DottedHole_B2F,6,7 // elev=3 src=MAP_SIX_ISLAND_DOTTED_HOLE_B2F:0
+SixIsland_DottedHole_B1F,11,5,0	warp	w2	1,1,SixIsland_DottedHole_1F,6,7 // elev=3 src=MAP_SIX_ISLAND_DOTTED_HOLE_1F:3
+SixIsland_DottedHole_B1F,6,9,0	warp	w3	1,1,SixIsland_DottedHole_1F,6,7 // elev=3 src=MAP_SIX_ISLAND_DOTTED_HOLE_1F:3
+SixIsland_DottedHole_B1F,1,5,0	warp	w4	1,1,SixIsland_DottedHole_1F,6,7 // elev=3 src=MAP_SIX_ISLAND_DOTTED_HOLE_1F:3

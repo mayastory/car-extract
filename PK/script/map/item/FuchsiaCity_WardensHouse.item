@@ -1,0 +1,1 @@
+FuchsiaCity_WardensHouse,11,5,3	item_ball	ITEM_RARE_CANDY,1,flag=FLAG_HIDE_FUCHSIA_CITY_WARDENS_HOUSE_RARE_CANDY,script=FuchsiaCity_WardensHouse_EventScript_ItemRareCandy

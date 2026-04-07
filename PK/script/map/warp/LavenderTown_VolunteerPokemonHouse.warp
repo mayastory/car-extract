@@ -1,0 +1,3 @@
+LavenderTown_VolunteerPokemonHouse,3,7,0	warp	w0	1,1,LavenderTown,10,11 // elev=3 src=MAP_LAVENDER_TOWN:2
+LavenderTown_VolunteerPokemonHouse,4,7,0	warp	w1	1,1,LavenderTown,10,11 // elev=3 src=MAP_LAVENDER_TOWN:2
+LavenderTown_VolunteerPokemonHouse,5,7,0	warp	w2	1,1,LavenderTown,10,11 // elev=3 src=MAP_LAVENDER_TOWN:2

@@ -1,0 +1,6 @@
+SixIsland_PatternBush,54,26,0	warp	w0	1,1,SixIsland_GreenPath,63,10 // elev=3 src=MAP_SIX_ISLAND_GREEN_PATH:0
+SixIsland_PatternBush,55,26,0	warp	w1	1,1,SixIsland_GreenPath,63,10 // elev=3 src=MAP_SIX_ISLAND_GREEN_PATH:0
+SixIsland_PatternBush,56,26,0	warp	w2	1,1,SixIsland_GreenPath,64,10 // elev=3 src=MAP_SIX_ISLAND_GREEN_PATH:1
+SixIsland_PatternBush,3,26,0	warp	w3	1,1,SixIsland_GreenPath,45,10 // elev=3 src=MAP_SIX_ISLAND_GREEN_PATH:2
+SixIsland_PatternBush,4,26,0	warp	w4	1,1,SixIsland_GreenPath,45,10 // elev=3 src=MAP_SIX_ISLAND_GREEN_PATH:2
+SixIsland_PatternBush,5,26,0	warp	w5	1,1,SixIsland_GreenPath,46,10 // elev=3 src=MAP_SIX_ISLAND_GREEN_PATH:3

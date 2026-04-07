@@ -1,0 +1,7 @@
+# auto-generated from Packege/src/data/wild_encounters.json
+# map=PowerPlant id=MAP_POWER_PLANT size=49x40
+PowerPlant,0,0,0	monster	land_voltorb	49,40,SPECIES_VOLTORB,22,22,4,30,land
+PowerPlant,0,0,0	monster	land_magnemite	49,40,SPECIES_MAGNEMITE,22,22,4,30,land
+PowerPlant,0,0,0	monster	land_pikachu	49,40,SPECIES_PIKACHU,22,22,4,30,land
+PowerPlant,0,0,0	monster	land_magneton	49,40,SPECIES_MAGNETON,31,31,4,30,land
+PowerPlant,0,0,0	monster	land_electabuzz	49,40,SPECIES_ELECTABUZZ,32,32,4,30,land

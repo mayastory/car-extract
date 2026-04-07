@@ -1,0 +1,2 @@
+MtEmber_SummitPath_3F,2,4,0	warp	w0	1,1,MtEmber_SummitPath_2F,39,6 // elev=0 src=MAP_MT_EMBER_SUMMIT_PATH_2F:1
+MtEmber_SummitPath_3F,11,8,0	warp	w1	1,1,MtEmber_Exterior,39,19 // elev=0 src=MAP_MT_EMBER_EXTERIOR:3

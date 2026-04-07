@@ -1,0 +1,3 @@
+SilphCo_7F,22,11,0	hidden_item	ITEM_ZINC,1,flag=FLAG_HIDDEN_ITEM_SILPH_CO_7F_ZINC,underfoot=0
+SilphCo_7F,0,12,3	item_ball	ITEM_CALCIUM,1,flag=FLAG_HIDE_SILPH_CO_7F_CALCIUM,script=SilphCo_7F_EventScript_ItemCalcium
+SilphCo_7F,30,11,3	item_ball	ITEM_TM08,1,flag=FLAG_HIDE_SILPH_CO_7F_TM08,script=SilphCo_7F_EventScript_ItemTM08

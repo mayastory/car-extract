@@ -1,0 +1,2 @@
+MtEmber_RubyPath_B2F_Stairs,6,1,0	warp	w0	1,1,MtEmber_RubyPath_B1F_Stairs,1,5 // elev=0 src=MAP_MT_EMBER_RUBY_PATH_B1F_STAIRS:1
+MtEmber_RubyPath_B2F_Stairs,1,4,0	warp	w1	1,1,MtEmber_RubyPath_1F,24,5 // elev=0 src=MAP_MT_EMBER_RUBY_PATH_1F:2

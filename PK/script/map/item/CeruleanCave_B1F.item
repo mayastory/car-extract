@@ -1,0 +1,2 @@
+CeruleanCave_B1F,31,9,4	item_ball	ITEM_ULTRA_BALL,1,flag=FLAG_HIDE_CERULEAN_CAVE_B1F_ULTRA_BALL,script=CeruleanCave_B1F_EventScript_ItemUltraBall
+CeruleanCave_B1F,32,2,3	item_ball	ITEM_MAX_REVIVE,1,flag=FLAG_HIDE_CERULEAN_CAVE_B1F_MAX_REVIVE,script=CeruleanCave_B1F_EventScript_ItemMaxRevive

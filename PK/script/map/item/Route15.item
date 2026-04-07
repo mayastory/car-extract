@@ -1,0 +1,1 @@
+Route15,20,6,3	item_ball	ITEM_TM18,1,flag=FLAG_HIDE_ROUTE15_TM18,script=Route15_EventScript_ItemTM18

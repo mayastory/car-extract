@@ -1,0 +1,7 @@
+RocketHideout_B4F,22,6,3	hidden_item	ITEM_NEST_BALL,1,flag=FLAG_HIDDEN_ITEM_ROCKET_HIDEOUT_B4F_NEST_BALL,underfoot=0
+RocketHideout_B4F,16,6,3	hidden_item	ITEM_NET_BALL,1,flag=FLAG_HIDDEN_ITEM_ROCKET_HIDEOUT_B4F_NET_BALL,underfoot=0
+RocketHideout_B4F,20,5,3	item_ball	ITEM_SILPH_SCOPE,1,flag=FLAG_HIDE_SILPH_SCOPE,script=RocketHideout_B4F_EventScript_SilphScope
+RocketHideout_B4F,3,2,3	item_ball	ITEM_LIFT_KEY,1,flag=FLAG_HIDE_LIFT_KEY,script=RocketHideout_B4F_EventScript_LiftKey
+RocketHideout_B4F,1,6,3	item_ball	ITEM_TM49,1,flag=FLAG_HIDE_ROCKET_HIDEOUT_B4F_TM49,script=RocketHideout_B4F_EventScript_ItemTM49
+RocketHideout_B4F,4,14,0	item_ball	ITEM_MAX_ETHER,1,flag=FLAG_HIDE_ROCKET_HIDEOUT_B4F_MAX_ETHER,script=RocketHideout_B4F_EventScript_ItemMaxEther
+RocketHideout_B4F,6,23,0	item_ball	ITEM_CALCIUM,1,flag=FLAG_HIDE_ROCKET_HIDEOUT_B4F_CALCIUM,script=RocketHideout_B4F_EventScript_ItemCalcium

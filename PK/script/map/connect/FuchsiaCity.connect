@@ -1,0 +1,3 @@
+FuchsiaCity	connect	down	Route19	12 // src=MAP_ROUTE19
+FuchsiaCity	connect	left	Route18	10 // src=MAP_ROUTE18
+FuchsiaCity	connect	right	Route15	10 // src=MAP_ROUTE15

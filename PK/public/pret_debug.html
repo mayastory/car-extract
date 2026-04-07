@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko"><head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>PRET Debug</title>
+<style>
+body{font-family:system-ui,Segoe UI,Apple SD Gothic Neo,malgun gothic,sans-serif;background:#0b0f14;color:#e6eef7;padding:18px;}
+a{color:#9fd3ff}
+pre{background:#111a24;border:1px solid rgba(255,255,255,.12);padding:12px;border-radius:10px;overflow:auto;}
+.ok{color:#9ef7a6}.err{color:#ffb0b0}
+</style>
+</head><body>
+<h2>PRET 로드 디버그</h2>
+<p>이 페이지는 <code>public/pret/*</code> 파일들이 브라우저에서 실제로 열리는지(404/403) 즉시 확인합니다.</p>
+<ol>
+<li><a id="idxLink" href="./pret/index.json" target="_blank">pret/index.json 열기</a></li>
+<li><a id="mapLink" href="#" target="_blank">첫 맵 JSON 열기</a></li>
+<li><a id="tileLink" href="#" target="_blank">tileset PNG 열기</a></li>
+</ol>
+
+<div id="log"></div>
+
+<script type="module">
+const log = (cls, title, obj) => {
+  const d=document.createElement('div');
+  d.innerHTML = `<h3 class="${cls}">${title}</h3><pre>${typeof obj==='string'?obj:JSON.stringify(obj,null,2)}</pre>`;
+  document.getElementById('log').appendChild(d);
+};
+
+try{
+  const idxUrl = "./pret/index.json";
+  const r = await fetch(idxUrl, {cache:"no-store"});
+  if(!r.ok) throw new Error(`HTTP ${r.status} ${idxUrl}`);
+  const idx = await r.json();
+  log('ok', 'index.json OK', idx);
+
+  const first = idx.maps?.[0];
+  if(!first) throw new Error("index.json maps[0] 없음");
+  const mapUrl = `./pret/maps/${first}.json`;
+  document.getElementById('mapLink').href = mapUrl;
+
+  const mr = await fetch(mapUrl, {cache:"no-store"});
+  if(!mr.ok) throw new Error(`HTTP ${mr.status} ${mapUrl}`);
+  const map = await mr.json();
+  log('ok', `map OK (${first})`, map);
+
+  const tileUrl = `./${String(map.tileset).replace(/^\//,'')}`;
+  document.getElementById('tileLink').href = tileUrl;
+  const ir = await fetch(tileUrl, {cache:"no-store"});
+  if(!ir.ok) throw new Error(`HTTP ${ir.status} ${tileUrl}`);
+  log('ok', 'tileset PNG OK', `OK (bytes: ${ir.headers.get('content-length')||'?'})`);
+
+}catch(e){
+  log('err','ERROR', String(e?.stack||e));
+}
+</script>
+</body></html>

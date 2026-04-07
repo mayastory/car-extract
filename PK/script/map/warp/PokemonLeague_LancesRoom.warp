@@ -1,0 +1,2 @@
+PokemonLeague_LancesRoom,23,13,0	warp	w0	1,1,PokemonLeague_AgathasRoom,6,2 // elev=3 src=MAP_POKEMON_LEAGUE_AGATHAS_ROOM:1
+PokemonLeague_LancesRoom,6,5,0	warp	w1	1,1,PokemonLeague_ChampionsRoom,6,19 // elev=0 src=MAP_POKEMON_LEAGUE_CHAMPIONS_ROOM:0

@@ -1,0 +1,3 @@
+FuchsiaCity_SafariZone_Office,5,9,0	warp	w0	1,1,FuchsiaCity,28,16 // elev=0 src=MAP_FUCHSIA_CITY:3
+FuchsiaCity_SafariZone_Office,6,9,0	warp	w1	1,1,FuchsiaCity,28,16 // elev=0 src=MAP_FUCHSIA_CITY:3
+FuchsiaCity_SafariZone_Office,7,9,0	warp	w2	1,1,FuchsiaCity,28,16 // elev=3 src=MAP_FUCHSIA_CITY:3

@@ -1,0 +1,5 @@
+Route11_EastEntrance_1F,1,6,0	warp	w0	1,1,Route11,58,10 // elev=3 src=MAP_ROUTE11:1
+Route11_EastEntrance_1F,1,7,0	warp	w1	1,1,Route11,58,10 // elev=3 src=MAP_ROUTE11:1
+Route11_EastEntrance_1F,11,6,0	warp	w2	1,1,Route11,65,10 // elev=3 src=MAP_ROUTE11:2
+Route11_EastEntrance_1F,11,7,0	warp	w3	1,1,Route11,65,10 // elev=3 src=MAP_ROUTE11:2
+Route11_EastEntrance_1F,9,10,0	warp	w4	1,1,Route11_EastEntrance_2F,10,9 // elev=3 src=MAP_ROUTE11_EAST_ENTRANCE_2F:0

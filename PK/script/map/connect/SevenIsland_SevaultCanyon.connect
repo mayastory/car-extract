@@ -1,0 +1,2 @@
+SevenIsland_SevaultCanyon	connect	down	SevenIsland_TanobyRuins	-48 // src=MAP_SEVEN_ISLAND_TANOBY_RUINS
+SevenIsland_SevaultCanyon	connect	left	SevenIsland_SevaultCanyon_Entrance	-20 // src=MAP_SEVEN_ISLAND_SEVAULT_CANYON_ENTRANCE

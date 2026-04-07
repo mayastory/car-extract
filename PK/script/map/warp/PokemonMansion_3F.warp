@@ -1,0 +1,8 @@
+PokemonMansion_3F,8,3,0	warp	w0	1,1,PokemonMansion_2F,9,3 // elev=3 src=MAP_POKEMON_MANSION_2F:0
+PokemonMansion_3F,34,18,0	warp	w1	1,1,PokemonMansion_2F,34,22 // elev=3 src=MAP_POKEMON_MANSION_2F:1
+PokemonMansion_3F,11,11,0	warp	w2	1,1,PokemonMansion_2F,9,14 // elev=3 src=MAP_POKEMON_MANSION_2F:3
+PokemonMansion_3F,18,18,0	warp	w3	1,1,PokemonMansion_1F,19,22 // elev=3 src=MAP_POKEMON_MANSION_1F:7
+PokemonMansion_3F,19,18,0	warp	w4	1,1,PokemonMansion_1F,20,22 // elev=3 src=MAP_POKEMON_MANSION_1F:8
+PokemonMansion_3F,23,18,0	warp	w5	1,1,PokemonMansion_2F,27,17 // elev=3 src=MAP_POKEMON_MANSION_2F:4
+PokemonMansion_3F,20,18,0	warp	w6	1,1,PokemonMansion_1F,20,22 // elev=3 src=MAP_POKEMON_MANSION_1F:8
+PokemonMansion_3F,24,18,0	warp	w7	1,1,PokemonMansion_2F,27,17 // elev=3 src=MAP_POKEMON_MANSION_2F:4

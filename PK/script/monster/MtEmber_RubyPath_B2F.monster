@@ -1,0 +1,6 @@
+# auto-generated from Packege/src/data/wild_encounters.json
+# map=MtEmber_RubyPath_B2F id=MAP_MT_EMBER_RUBY_PATH_B2F size=16x11
+MtEmber_RubyPath_B2F,0,0,0	monster	land_geodude	16,11,SPECIES_GEODUDE,40,40,4,30,land
+MtEmber_RubyPath_B2F,0,0,0	monster	land_slugma	16,11,SPECIES_SLUGMA,26,26,4,30,land
+MtEmber_RubyPath_B2F,0,0,0	monster	rock_geodude	16,11,SPECIES_GEODUDE,25,35,2,45,rock
+MtEmber_RubyPath_B2F,0,0,0	monster	rock_graveler	16,11,SPECIES_GRAVELER,30,45,2,45,rock

@@ -1,0 +1,11 @@
+FuchsiaCity,24,5,0	warp	w0	1,1,FuchsiaCity_SafariZone_Entrance,4,7 // elev=0 src=MAP_FUCHSIA_CITY_SAFARI_ZONE_ENTRANCE:2
+FuchsiaCity,33,31,0	warp	w1	1,1,FuchsiaCity_WardensHouse,6,9 // elev=0 src=MAP_FUCHSIA_CITY_WARDENS_HOUSE:1
+FuchsiaCity,11,15,0	warp	w2	1,1,FuchsiaCity_Mart,4,7 // elev=0 src=MAP_FUCHSIA_CITY_MART:1
+FuchsiaCity,28,16,0	warp	w3	1,1,FuchsiaCity_SafariZone_Office,6,9 // elev=0 src=MAP_FUCHSIA_CITY_SAFARI_ZONE_OFFICE:1
+FuchsiaCity,9,32,0	warp	w4	1,1,FuchsiaCity_Gym,7,21 // elev=0 src=MAP_FUCHSIA_CITY_GYM:1
+FuchsiaCity,14,31,0	warp	w5	1,1,FuchsiaCity_House1,4,7 // elev=0 src=MAP_FUCHSIA_CITY_HOUSE1:1
+FuchsiaCity,25,31,0	warp	w6	1,1,FuchsiaCity_PokemonCenter_1F,7,8 // elev=3 src=MAP_FUCHSIA_CITY_POKEMON_CENTER_1F:1
+FuchsiaCity,38,31,0	warp	w7	1,1,FuchsiaCity_House2,3,8 // elev=0 src=MAP_FUCHSIA_CITY_HOUSE2:1
+FuchsiaCity,39,28,0	warp	w8	1,1,FuchsiaCity_House2,3,1 // elev=3 src=MAP_FUCHSIA_CITY_HOUSE2:3
+FuchsiaCity,39,29,0	warp	w9	1,1,FuchsiaCity_House2,3,1 // elev=3 src=MAP_FUCHSIA_CITY_HOUSE2:3
+FuchsiaCity,19,31,0	warp	w10	1,1,FuchsiaCity_House3,4,7 // elev=0 src=MAP_FUCHSIA_CITY_HOUSE3:0

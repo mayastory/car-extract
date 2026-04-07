@@ -1,0 +1,7 @@
+SilphCo_4F,28,2,0	warp	w0	1,1,SilphCo_5F,28,2 // elev=3 src=MAP_SILPH_CO_5F:0
+SilphCo_4F,18,6,0	warp	w1	1,1,SilphCo_6F,2,6 // elev=3 src=MAP_SILPH_CO_6F:3
+SilphCo_4F,30,2,0	warp	w2	1,1,SilphCo_3F,30,2 // elev=3 src=MAP_SILPH_CO_3F:3
+SilphCo_4F,12,9,0	warp	w3	1,1,SilphCo_10F,10,14 // elev=3 src=MAP_SILPH_CO_10F:1
+SilphCo_4F,2,20,0	warp	w4	1,1,SilphCo_10F,14,17 // elev=3 src=MAP_SILPH_CO_10F:4
+SilphCo_4F,18,14,0	warp	w5	1,1,SilphCo_10F,14,9 // elev=3 src=MAP_SILPH_CO_10F:2
+SilphCo_4F,22,3,0	warp	w6	1,1,SilphCo_Elevator,2,5 // elev=0 src=MAP_SILPH_CO_ELEVATOR:0

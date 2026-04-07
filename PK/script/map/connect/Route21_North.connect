@@ -1,0 +1,2 @@
+Route21_North	connect	up	PalletTown	0 // src=MAP_PALLET_TOWN
+Route21_North	connect	down	Route21_South	0 // src=MAP_ROUTE21_SOUTH

@@ -1,0 +1,2 @@
+Route8,13,4,0	warp	w0	1,1,UndergroundPath_EastEntrance,6,8 // elev=0 src=MAP_UNDERGROUND_PATH_EAST_ENTRANCE:1
+Route8,7,10,0	warp	w1	1,1,Route8_WestEntrance,11,5 // elev=3 src=MAP_ROUTE8_WEST_ENTRANCE:2

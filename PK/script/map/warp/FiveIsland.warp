@@ -1,0 +1,4 @@
+FiveIsland,12,14,0	warp	w0	1,1,FiveIsland_Harbor,8,2 // elev=3 src=MAP_FIVE_ISLAND_HARBOR:0
+FiveIsland,18,6,0	warp	w1	1,1,FiveIsland_PokemonCenter_1F,7,8 // elev=0 src=MAP_FIVE_ISLAND_POKEMON_CENTER_1F:0
+FiveIsland,12,6,0	warp	w2	1,1,FiveIsland_House1,4,7 // elev=0 src=MAP_FIVE_ISLAND_HOUSE1:0
+FiveIsland,22,9,0	warp	w3	1,1,FiveIsland_House2,4,7 // elev=0 src=MAP_FIVE_ISLAND_HOUSE2:0

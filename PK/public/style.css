@@ -1,0 +1,507 @@
+:root{--bg:#0b0f14;--text:#e9f0ff;--muted:#9bb1d6;--accent:#69ffb6;--line:rgba(255,255,255,.12);}
+*{box-sizing:border-box;}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR,sans-serif;}
+#topbar{height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 10px;border-bottom:1px solid var(--line);background:rgba(16,24,37,.85);backdrop-filter:blur(8px);position:sticky;top:0;z-index:10;}
+#topbar .left{display:flex;align-items:center;gap:10px;}
+.badge{font-weight:800;font-size:12px;letter-spacing:.08em;color:#001b0d;background:var(--accent);padding:4px 8px;border-radius:999px;}
+.title{font-weight:700;font-size:14px;opacity:.95}
+#topbar .right{display:flex;align-items:center;gap:6px;}
+#status{font-size:12px;color:var(--muted);margin-right:8px;}
+button{background:transparent;border:1px solid var(--line);color:var(--text);padding:6px 10px;border-radius:10px;cursor:pointer;font-weight:700;font-size:12px;}
+button:hover{border-color:rgba(255,255,255,.25);}
+#stage{height:calc(100% - 44px);position:relative;}
+.pane{height:100%;position:relative;}
+.hidden{display:none;}
+#game{width:100%;height:100%;display:block;image-rendering:pixelated;image-rendering:crisp-edges;}
+#help{position:absolute;left:10px;bottom:10px;background:rgba(16,24,37,.8);border:1px solid var(--line);padding:10px 12px;border-radius:14px;font-size:12px;line-height:1.5;max-width:min(560px,calc(100% - 20px));}
+#help .muted{color:var(--muted);margin-top:6px;}
+#battlePane iframe{width:100%;height:100%;border:0;background:black;}
+#battlePane .note{position:absolute;left:10px;bottom:10px;background:rgba(16,24,37,.8);border:1px solid var(--line);padding:10px 12px;border-radius:14px;font-size:12px;line-height:1.5;max-width:min(640px,calc(100% - 20px));}
+code{background:rgba(255,255,255,.08);padding:2px 6px;border-radius:8px;}
+
+.pretstatus{margin-left:12px;font-size:12px;opacity:.85;padding:4px 8px;border:1px solid rgba(255,255,255,.15);border-radius:10px;}
+.pretstatus.ok{color:#9ef7a6;border-color:rgba(158,247,166,.25);}
+.pretstatus.err{color:#ffb0b0;border-color:rgba(255,176,176,.25);}
+
+
+
+/* PRET map selector */
+#topbar .right { gap: 8px; }
+.mapselect {
+  height: 28px;
+  max-width: 260px;
+  min-width: 180px;
+  background: rgba(0,0,0,0.35);
+  color: #eaeaea;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 10px;
+  padding: 0 10px;
+  outline: none;
+}
+.mapselect option { background: #141414; color: #eaeaea; }
+#btnMapReload {
+  width: 32px;
+  height: 28px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(0,0,0,0.35);
+  color: #eaeaea;
+  cursor: pointer;
+}
+#btnMapReload:hover { background: rgba(255,255,255,0.10); }
+
+
+#zoomOutBtn,#zoomInBtn,#zoomText{ display:none !important; }
+
+
+/* Stage: fill viewport (HUD/디버그가 잘리지 않게) */
+/* (removed fixed 1920x1080 layout) */
+
+/* Debug panel (overlay) */
+.debugtoggle{
+  position:absolute; right:10px; bottom:10px;
+  width:46px; height:32px; border-radius:12px;
+  background:rgba(0,0,0,0.35);
+}
+.debugpanel{
+  position:absolute; right:10px; bottom:52px;
+  width:min(520px, calc(100% - 20px));
+  height:240px;
+  background:rgba(16,24,37,.88);
+  border:1px solid var(--line);
+  border-radius:14px;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
+.debugpanel .head{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 10px;
+  border-bottom:1px solid rgba(255,255,255,.10);
+  font-size:12px;
+}
+.debugpanel .head .spacer{flex:1;}
+#debugLog{
+  margin:0;
+  padding:10px;
+  font-size:11px;
+  line-height:1.35;
+  white-space:pre-wrap;
+  overflow:auto;
+  color:var(--text);
+}
+
+
+
+/* =========================
+   PokéMMO-style bottom HUD
+   - bottom-right docked like PokéMMO
+   - icons live under /public/assets/ui/menu/
+   ========================= */
+/* PokéMMO-style bottom quick HUD (compact, crisp) */
+/* PokéMMO-style bottom quick HUD (compact, crisp) */
+.pokehud{
+  position:fixed;
+  right:14px;
+  bottom:14px;
+  display:flex;
+  align-items:center;
+  gap:4px;
+  padding:4px 6px;
+  background:rgba(255,255,255,.85);
+  border:1px solid rgba(0,0,0,.25);
+  border-radius:6px;
+  box-shadow:0 10px 26px rgba(0,0,0,.20);
+  backdrop-filter: blur(6px);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+.pokehud .pokebtn{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  height:32px;
+  padding:0 10px;
+  border-radius:6px;
+  border:1px solid rgba(0,0,0,.20);
+  background:rgba(255,255,255,.92);
+  font:600 12px/1 system-ui,-apple-system,"Segoe UI",Roboto,Arial,"Apple Color Emoji","Segoe UI Emoji";
+  color:#111;
+  cursor:pointer;
+  user-select:none;
+}
+
+.pokehud .ico{
+  width:24px;
+  height:24px;
+  image-rendering:pixelated;
+  object-fit:contain;
+  filter:none;
+}
+
+.pokehud .ico img{
+  width:24px;
+  height:24px;
+  display:block;
+  image-rendering:pixelated;
+  filter:none;
+  opacity:1;
+}
+
+.pokehud .pokebtn:hover{
+  background:#fff;
+  border-color: rgba(0,0,0,.30);
+}
+
+.pokehud .pokebtn:active{
+  transform: translateY(1px);
+}
+
+.pokehud .pokebtn:focus-visible{
+  outline:2px solid rgba(0,120,255,.55);
+  outline-offset:2px;
+}
+
+/* Simple panel */
+.pokepanel{
+  position:fixed;
+  right:14px;
+  bottom:50px; /* sits just above HUD */
+  width:260px;
+  max-width: calc(100vw - 28px);
+  background:rgba(10,15,20,.88);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:12px;
+  box-shadow:0 18px 40px rgba(0,0,0,.35);
+  backdrop-filter: blur(8px);
+  color:#e9eef6;
+  font:600 12px/1.3 system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+  overflow:hidden;
+  z-index: 9999;
+}
+.pokepanel-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.08);
+  font-weight:700; letter-spacing:.2px;
+}
+.pokepanel-body{
+  padding:10px 12px;
+  max-height: 240px;
+  overflow:auto;
+}
+.pokepanel-close{
+  border:none;
+  background:rgba(255,255,255,.08);
+  color:#e9eef6;
+  border-radius:999px;
+  padding:2px 8px;
+  cursor:pointer;
+}
+.pokepanel-close:hover{ background:rgba(255,255,255,.15); }
+/* keep HUD visible above debug/help but below topbar */
+#topbar{ z-index:60; }
+
+
+/* ===== GBA-style Map Name Popup ===== */
+#overworldPane { position: relative; }
+
+.gba-mapname-popup {
+  position: absolute;
+  left: 8px;   /* base GBA pixels */
+  top: 8px;    /* base GBA pixels */
+  z-index: 40;
+  display: inline-block;
+
+  border: 8px solid transparent; /* 8px = 1 tile */
+  border-image-source: url("./ui/gba_mapname_frame.png");
+  border-image-slice: 8 fill;
+  border-image-width: 8px;
+  border-image-repeat: stretch;
+
+  padding: 3px 12px;
+  line-height: 16px;
+  font-size: 11px;
+
+  image-rendering: pixelated;
+  -ms-interpolation-mode: nearest-neighbor;
+  transform-origin: top left;
+
+  opacity: 0;
+  pointer-events: none;
+}
+
+.gba-mapname-popup.is-show {
+  animation: gbaMapNameInOut 2.2s ease-in-out 0s 1 both;
+}
+
+@keyframes gbaMapNameInOut {
+  0%   { opacity: 0; transform: translateY(-6px) scale(var(--uiScale, 1)); }
+  12%  { opacity: 1; transform: translateY(0px) scale(var(--uiScale, 1)); }
+  80%  { opacity: 1; transform: translateY(0px) scale(var(--uiScale, 1)); }
+  100% { opacity: 0; transform: translateY(-6px) scale(var(--uiScale, 1)); }
+}
+
+
+/* =========================
+   Party HUD (right sidebar)
+   - Layout only (no gameplay authority)
+   - Future: bind to server-side party state
+   ========================= */
+.partyhud{
+  position:fixed;
+  right:14px;
+  top:58px;            /* below topbar */
+  bottom:74px;         /* above bottom HUD */
+  width:160px;
+  max-width: calc(100vw - 28px);
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  z-index:55;
+  pointer-events:auto;
+}
+
+.partyhud-head{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 10px;
+  border-radius:12px;
+  background:rgba(10,15,20,.75);
+  border:1px solid rgba(255,255,255,.12);
+  backdrop-filter: blur(8px);
+  font:800 11px/1 system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+  color:#e9eef6;
+  letter-spacing:.10em;
+}
+.partyhud-head .spacer{flex:1;}
+.partyhud-btn{
+  padding:2px 8px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.18);
+  background:rgba(255,255,255,.08);
+  color:#e9eef6;
+  cursor:pointer;
+  font-weight:900;
+}
+.partyhud-btn:hover{ background:rgba(255,255,255,.14); }
+
+.partyhud-slots{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  overflow:auto;
+  padding-right:2px;
+}
+
+.party-slot{
+  display:grid;
+  grid-template-columns:44px 1fr;
+  align-items:center;
+  gap:8px;
+  padding:6px 8px;
+  border-radius:12px;
+  background:rgba(255,255,255,.86);
+  border:1px solid rgba(0,0,0,.20);
+  box-shadow:0 10px 26px rgba(0,0,0,.16);
+}
+
+.party-slot .pico{
+  width:44px;
+  height:44px;
+  border-radius:12px;
+  background:rgba(0,0,0,.06);
+  border:1px solid rgba(0,0,0,.10);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+}
+
+/* Party Pokémon icon: match overworld visible-spawn icon rules (32x64 sheet, 2 frames). */
+.party-slot .pico .picon{
+  width:32px;
+  height:32px;
+  display:block;
+  background-repeat:no-repeat;
+  background-size:32px 64px;
+  background-position:0 0;
+  image-rendering:pixelated;
+  animation: partyPiconFrame 700ms steps(1,end) infinite, partyPiconWiggle 900ms ease-in-out infinite;
+}
+/* Backward compatibility if any <img> remains */
+.party-slot .pico img{
+  width:32px;
+  height:32px;
+  display:block;
+  image-rendering:pixelated;
+}
+
+@keyframes partyPiconFrame{
+  0%,49.999%{ background-position:0 0; }
+  50%,100%{ background-position:0 -32px; }
+}
+@keyframes partyPiconWiggle{
+  0%,100%{ transform:translateX(0); }
+  25%{ transform:translateX(-1px); }
+  75%{ transform:translateX(1px); }
+}
+
+.party-slot .pmeta{
+  min-width:0;
+}
+.party-slot .pname{
+  display:flex;
+  align-items:baseline;
+  gap:6px;
+  font:800 12px/1 system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+  color:#111;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.party-slot .plv{
+  font:800 10px/1 system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+  color:#444;
+}
+
+.party-slot .php{
+  margin-top:4px;
+  height:8px;
+  border-radius:999px;
+  background:rgba(0,0,0,.12);
+  border:1px solid rgba(0,0,0,.10);
+  overflow:hidden;
+}
+.party-slot .php > i{
+  display:block;
+  height:100%;
+  width:50%;
+  background:linear-gradient(90deg,#4ad66d,#2fb344);
+}
+.party-slot .phptext{
+  margin-top:3px;
+  font:700 10px/1 system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+  color:#333;
+}
+
+/* collapsed */
+.partyhud.is-collapsed{ width:56px; }
+.partyhud.is-collapsed .partyhud-head b{ display:none; }
+.partyhud.is-collapsed .party-slot{ grid-template-columns:44px; }
+.partyhud.is-collapsed .party-slot .pmeta{ display:none; }
+
+/* =========================
+   GBA Start Menu (packege/src style flow)
+   - Enter: START (open/close)
+   - Z/Space: A (confirm)
+   - X/Esc: B (cancel)
+   - Backspace: SELECT (registered item)
+   ========================= */
+.gba-startmenu{
+  position:fixed;
+  right:18px;
+  bottom:88px;
+  width:190px;
+  max-width: calc(100vw - 36px);
+  border-radius:14px;
+  background:rgba(10,15,20,.85);
+  border:1px solid rgba(255,255,255,.14);
+  box-shadow:0 18px 44px rgba(0,0,0,.45);
+  backdrop-filter: blur(10px);
+  z-index:120;
+  color:#e9eef6;
+  font:800 12px/1.1 system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+  display:none;
+}
+.gba-startmenu.open{ display:block; }
+.gba-startmenu .hdr{
+  padding:10px 12px 6px;
+  font:900 11px/1 system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+  letter-spacing:.12em;
+  opacity:.9;
+}
+.gba-startmenu .lst{
+  padding:6px 8px 10px;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.gba-startmenu .row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:8px 10px;
+  border-radius:12px;
+  cursor:default;
+  user-select:none;
+}
+.gba-startmenu .row .ico{
+  width:24px;height:24px;display:flex;align-items:center;justify-content:center;
+  border-radius:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.10);
+}
+.gba-startmenu .row .ico img{ width:24px;height:24px; image-rendering:pixelated; display:block; }
+.gba-startmenu .row .lbl{ flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.gba-startmenu .row.sel{
+  background:rgba(105,255,182,.18);
+  border:1px solid rgba(105,255,182,.35);
+}
+.gba-startmenu .foot{
+  padding:8px 12px 12px;
+  font:700 10px/1.2 system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+  color:rgba(233,238,246,.72);
+}
+.gba-bag{
+  position:fixed;
+  left:18px;
+  bottom:88px;
+  width:340px;
+  max-width: calc(100vw - 36px);
+  max-height: 52vh;
+  border-radius:14px;
+  background:rgba(10,15,20,.88);
+  border:1px solid rgba(255,255,255,.14);
+  box-shadow:0 18px 44px rgba(0,0,0,.45);
+  backdrop-filter: blur(10px);
+  z-index:121;
+  color:#e9eef6;
+  font:800 12px/1.1 system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+  display:none;
+}
+.gba-bag.open{ display:block; }
+.gba-bag .hdr{
+  padding:10px 12px 6px;
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+.gba-bag .hdr .title{ flex:1; font-weight:900; letter-spacing:.10em; }
+.gba-bag .hdr .reg{
+  font:900 10px/1 system-ui;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.18);
+  background:rgba(255,255,255,.08);
+}
+.gba-bag .lst{
+  padding:6px 8px 10px;
+  overflow:auto;
+  max-height: calc(52vh - 54px);
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.gba-bag .row{
+  display:flex; align-items:center; gap:10px;
+  padding:8px 10px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(255,255,255,.06);
+}
+.gba-bag .row.sel{ border-color: rgba(105,255,182,.35); background:rgba(105,255,182,.14); }
+.gba-bag .row .lbl{ flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.gba-bag .row .qty{ font:900 11px/1 system-ui; opacity:.85; }
+.gba-bag .row .tag{ font:900 10px/1 system-ui; opacity:.9; padding:4px 8px; border-radius:999px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.08); }

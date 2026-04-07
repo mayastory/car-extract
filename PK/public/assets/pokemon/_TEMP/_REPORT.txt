@@ -1,0 +1,90 @@
+TEMP files moved here because they do NOT match strict naming scheme:
+Allowed: ###.png, ###_0.png, ###_1.png..., ###s.png, ###s_0.png, ###s_1.png...
+
+017-019.png	name_not_match
+080+103.png	name_not_match
+143s copy.png	name_not_match
+143s_0 copy.png	name_not_match
+144f150.png	name_not_match
+145f151.png	name_not_match
+146f150.png	name_not_match
+19_1.png	name_not_match
+19s_1.png	name_not_match
+20_1.png	name_not_match
+20s_1.png	name_not_match
+26s_1.png	name_not_match
+27_1.png	name_not_match
+27s_1.png	name_not_match
+28_1.png	name_not_match
+28s_1.png	name_not_match
+37_1.png	name_not_match
+37s_1.png	name_not_match
+38_1.png	name_not_match
+38s_1.png	name_not_match
+50_1.png	name_not_match
+50s_1.png	name_not_match
+51_1.png	name_not_match
+51s_1.png	name_not_match
+52_1.png	name_not_match
+52s_1.png	name_not_match
+53_1.png	name_not_match
+53s_1.png	name_not_match
+54.png	name_not_match
+54D.png	name_not_match
+550b.png	name_not_match
+550bs.png	name_not_match
+550r.png	name_not_match
+550rs.png	name_not_match
+585-at.png	name_not_match
+585-sm.png	name_not_match
+585-sp.png	name_not_match
+585-wt.png	name_not_match
+585s-at.png	name_not_match
+585s-sm.png	name_not_match
+585s-sp.png	name_not_match
+585s-wt.png	name_not_match
+586(at).png	name_not_match
+586(sm).png	name_not_match
+586-sp.png	name_not_match
+586-wt.png	name_not_match
+586s(at).png	name_not_match
+586s(sm).png	name_not_match
+586s-sp.png	name_not_match
+586s-wt.png	name_not_match
+592(female).png	name_not_match
+592(female)s.png	name_not_match
+592(male).png	name_not_match
+592(male)s.png	name_not_match
+593 (M).png	name_not_match
+593 (M)s.png	name_not_match
+593(F).png	name_not_match
+593(F)s.png	name_not_match
+600_REAL.png	name_not_match
+647s2.png	name_not_match
+648_a.png	name_not_match
+648_p.png	name_not_match
+648s_p.png	name_not_match
+649s_4png.png	name_not_match
+668f.png	name_not_match
+668fs.png	name_not_match
+678f.png	name_not_match
+678fs.png	name_not_match
+74_1.png	name_not_match
+74s_1.png	name_not_match
+75_1.png	name_not_match
+75s_1.png	name_not_match
+76s_1.png	name_not_match
+810.png	unmapped dex
+810s.png	unmapped dex
+811.png	unmapped dex
+811s.png	unmapped dex
+812.png	unmapped dex
+812s.png	unmapped dex
+813.png	unmapped dex
+813s.png	unmapped dex
+815.png	unmapped dex
+815s.png	unmapped dex
+88_1.png	name_not_match
+88s_1.png	name_not_match
+89_1.png	name_not_match
+89s_1.png	name_not_match

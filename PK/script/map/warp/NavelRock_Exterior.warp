@@ -1,0 +1,2 @@
+NavelRock_Exterior,9,8,0	warp	w0	1,1,NavelRock_1F,8,23 // elev=3 src=MAP_NAVEL_ROCK_1F:1
+NavelRock_Exterior,9,16,0	warp	w1	1,1,NavelRock_Harbor,8,2 // elev=3 src=MAP_NAVEL_ROCK_HARBOR:0

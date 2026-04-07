@@ -1,0 +1,2 @@
+FiveIsland_Meadow,12,11,3	item_ball	ITEM_MAX_POTION,1,flag=FLAG_HIDE_FIVE_ISLAND_MEADOW_MAX_POTION,script=FiveIsland_Meadow_EventScript_ItemMaxPotion
+FiveIsland_Meadow,3,22,3	item_ball	ITEM_PP_UP,1,flag=FLAG_HIDE_FIVE_ISLAND_MEADOW_PP_UP,script=FiveIsland_Meadow_EventScript_ItemPPUp

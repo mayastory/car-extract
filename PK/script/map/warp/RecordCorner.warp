@@ -1,0 +1,4 @@
+RecordCorner,8,9,0	warp	w0	1,1,(NONE),@WARP_ID_DYNAMIC // elev=3 src=MAP_DYNAMIC:WARP_ID_DYNAMIC
+RecordCorner,9,9,0	warp	w1	1,1,(NONE),@WARP_ID_DYNAMIC // elev=3 src=MAP_DYNAMIC:WARP_ID_DYNAMIC
+RecordCorner,11,9,0	warp	w2	1,1,(NONE),@WARP_ID_DYNAMIC // elev=3 src=MAP_DYNAMIC:WARP_ID_DYNAMIC
+RecordCorner,10,9,0	warp	w3	1,1,(NONE),@WARP_ID_DYNAMIC // elev=3 src=MAP_DYNAMIC:WARP_ID_DYNAMIC

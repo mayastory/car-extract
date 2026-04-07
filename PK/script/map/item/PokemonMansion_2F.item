@@ -1,0 +1,3 @@
+PokemonMansion_2F,36,8,3	item_ball	ITEM_CALCIUM,1,flag=FLAG_HIDE_POKEMON_MANSION_2F_CALCIUM,script=PokemonMansion_2F_EventScript_ItemCalcium
+PokemonMansion_2F,18,23,3	item_ball	ITEM_ZINC,1,flag=FLAG_HIDE_POKEMON_MANSION_2F_ZINC,script=PokemonMansion_2F_EventScript_ItemZinc
+PokemonMansion_2F,35,17,3	item_ball	ITEM_HP_UP,1,flag=FLAG_HIDE_POKEMON_MANSION_2F_HP_UP,script=PokemonMansion_2F_EventScript_ItemHPUp

@@ -1,0 +1,2 @@
+TrainerTower_1F,15,6,0	warp	w0	1,1,TrainerTower_2F,4,6 // elev=3 src=MAP_TRAINER_TOWER_2F:1
+TrainerTower_1F,4,6,0	warp	w1	1,1,TrainerTower_Lobby,9,2 // elev=3 src=MAP_TRAINER_TOWER_LOBBY:0

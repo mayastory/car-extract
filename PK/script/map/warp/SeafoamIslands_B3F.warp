@@ -1,0 +1,9 @@
+SeafoamIslands_B3F,8,14,0	warp	w0	1,1,SeafoamIslands_B2F,7,17 // elev=4 src=MAP_SEAFOAM_ISLANDS_B2F:0
+SeafoamIslands_B3F,31,4,0	warp	w1	1,1,SeafoamIslands_B2F,32,4 // elev=3 src=MAP_SEAFOAM_ISLANDS_B2F:1
+SeafoamIslands_B3F,31,16,0	warp	w2	1,1,SeafoamIslands_B2F,31,17 // elev=4 src=MAP_SEAFOAM_ISLANDS_B2F:2
+SeafoamIslands_B3F,12,9,0	warp	w3	1,1,SeafoamIslands_B4F,15,9 // elev=3 src=MAP_SEAFOAM_ISLANDS_B4F:0
+SeafoamIslands_B3F,29,5,0	warp	w4	1,1,SeafoamIslands_B4F,32,5 // elev=3 src=MAP_SEAFOAM_ISLANDS_B4F:1
+SeafoamIslands_B3F,23,9,0	warp	w5	1,1,SeafoamIslands_B2F,22,7 // elev=1 src=MAP_SEAFOAM_ISLANDS_B2F:7
+SeafoamIslands_B3F,24,9,0	warp	w6	1,1,SeafoamIslands_B2F,29,8 // elev=1 src=MAP_SEAFOAM_ISLANDS_B2F:8
+SeafoamIslands_B3F,6,18,0	warp	w7	1,1,SeafoamIslands_B4F,8,17 // elev=3 src=MAP_SEAFOAM_ISLANDS_B4F:2
+SeafoamIslands_B3F,9,18,0	warp	w8	1,1,SeafoamIslands_B4F,9,17 // elev=3 src=MAP_SEAFOAM_ISLANDS_B4F:3

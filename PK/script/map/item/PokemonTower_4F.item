@@ -1,0 +1,3 @@
+PokemonTower_4F,12,11,3	item_ball	ITEM_ELIXIR,1,flag=FLAG_HIDE_POKEMON_TOWER_4F_ELIXIR,script=PokemonTower_4F_EventScript_ItemElixir
+PokemonTower_4F,8,11,3	item_ball	ITEM_AWAKENING,1,flag=FLAG_HIDE_POKEMON_TOWER_4F_AWAKENING,script=PokemonTower_4F_EventScript_ItemAwakening
+PokemonTower_4F,11,16,3	item_ball	ITEM_GREAT_BALL,1,flag=FLAG_HIDE_POKEMON_TOWER_4F_GREAT_BALL,script=PokemonTower_4F_EventScript_ItemGreatBall

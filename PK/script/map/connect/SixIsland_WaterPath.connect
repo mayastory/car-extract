@@ -1,0 +1,3 @@
+SixIsland_WaterPath	connect	left	SixIsland_GreenPath	0 // src=MAP_SIX_ISLAND_GREEN_PATH
+SixIsland_WaterPath	connect	left	SixIsland	40 // src=MAP_SIX_ISLAND
+SixIsland_WaterPath	connect	left	SixIsland_RuinValley	80 // src=MAP_SIX_ISLAND_RUIN_VALLEY

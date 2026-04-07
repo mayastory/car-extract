@@ -1,0 +1,4 @@
+RockTunnel_B1F,38,28,0	warp	w0	1,1,RockTunnel_1F,45,2 // elev=3 src=MAP_ROCK_TUNNEL_1F:1
+RockTunnel_B1F,33,3,0	warp	w1	1,1,RockTunnel_1F,4,2 // elev=3 src=MAP_ROCK_TUNNEL_1F:2
+RockTunnel_B1F,27,12,0	warp	w2	1,1,RockTunnel_1F,20,13 // elev=3 src=MAP_ROCK_TUNNEL_1F:3
+RockTunnel_B1F,2,3,0	warp	w3	1,1,RockTunnel_1F,45,21 // elev=3 src=MAP_ROCK_TUNNEL_1F:4

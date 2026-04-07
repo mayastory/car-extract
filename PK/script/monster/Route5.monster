@@ -1,0 +1,6 @@
+# auto-generated from Packege/src/data/wild_encounters.json
+# map=Route5 id=MAP_ROUTE5 size=48x40
+Route5,0,0,0	monster	land_meowth	48,40,SPECIES_MEOWTH,10,10,4,30,land
+Route5,0,0,0	monster	land_pidgey	48,40,SPECIES_PIDGEY,13,13,4,30,land
+Route5,0,0,0	monster	land_oddish	48,40,SPECIES_ODDISH,13,13,4,30,land
+Route5,0,0,0	monster	land_bellsprout	48,40,SPECIES_BELLSPROUT,13,13,4,30,land

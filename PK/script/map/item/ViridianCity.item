@@ -1,0 +1,1 @@
+ViridianCity,17,5,3	item_ball	ITEM_POTION,1,flag=FLAG_HIDE_VIRIDIAN_CITY_POTION,script=ViridianCity_EventScript_ItemPotion

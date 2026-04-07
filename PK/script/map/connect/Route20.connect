@@ -1,0 +1,2 @@
+Route20	connect	left	CinnabarIsland	0 // src=MAP_CINNABAR_ISLAND
+Route20	connect	right	Route19	-40 // src=MAP_ROUTE19

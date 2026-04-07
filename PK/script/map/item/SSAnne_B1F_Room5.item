@@ -1,0 +1,1 @@
+SSAnne_B1F_Room5,2,2,0	item_ball	ITEM_SUPER_POTION,1,flag=FLAG_HIDE_SSANNE_B1F_ROOM5_SUPER_POTION,script=SSAnne_B1F_Room5_EventScript_ItemSuperPotion

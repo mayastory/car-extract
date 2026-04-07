@@ -1,0 +1,3 @@
+LavenderTown_House1,3,7,0	warp	w0	1,1,LavenderTown,5,16 // elev=3 src=MAP_LAVENDER_TOWN:3
+LavenderTown_House1,4,7,0	warp	w1	1,1,LavenderTown,5,16 // elev=3 src=MAP_LAVENDER_TOWN:3
+LavenderTown_House1,5,7,0	warp	w2	1,1,LavenderTown,5,16 // elev=3 src=MAP_LAVENDER_TOWN:3

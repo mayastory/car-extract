@@ -1,0 +1,3 @@
+FourIsland_IcefallCave_Entrance,17,30,0	warp	w0	1,1,FourIsland,38,12 // elev=3 src=MAP_FOUR_ISLAND:3
+FourIsland_IcefallCave_Entrance,10,21,0	warp	w1	1,1,FourIsland_IcefallCave_1F,3,17 // elev=3 src=MAP_FOUR_ISLAND_ICEFALL_CAVE_1F:0
+FourIsland_IcefallCave_Entrance,9,7,0	warp	w2	1,1,FourIsland_IcefallCave_1F,2,8 // elev=3 src=MAP_FOUR_ISLAND_ICEFALL_CAVE_1F:1

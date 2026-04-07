@@ -1,0 +1,2 @@
+SilphCo_8F,29,10,0	hidden_item	ITEM_NUGGET,1,flag=FLAG_HIDDEN_ITEM_SILPH_CO_8F_NUGGET,underfoot=0
+SilphCo_8F,24,8,3	item_ball	ITEM_IRON,1,flag=FLAG_HIDE_SILPH_CO_8F_IRON,script=SilphCo_8F_EventScript_ItemIron

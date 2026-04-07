@@ -1,0 +1,3 @@
+ThreeIsland_BerryForest,43,41,0	warp	w0	1,1,ThreeIsland_BondBridge,12,6 // elev=3 src=MAP_THREE_ISLAND_BOND_BRIDGE:0
+ThreeIsland_BerryForest,42,41,0	warp	w1	1,1,ThreeIsland_BondBridge,12,6 // elev=3 src=MAP_THREE_ISLAND_BOND_BRIDGE:0
+ThreeIsland_BerryForest,44,41,0	warp	w2	1,1,ThreeIsland_BondBridge,13,6 // elev=3 src=MAP_THREE_ISLAND_BOND_BRIDGE:1

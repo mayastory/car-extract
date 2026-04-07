@@ -1,0 +1,7 @@
+SevenIsland_TanobyRuins,120,10,0	warp	w0	1,1,SevenIsland_TanobyRuins_MoneanChamber,11,15 // elev=3 src=MAP_SEVEN_ISLAND_TANOBY_RUINS_MONEAN_CHAMBER:0
+SevenIsland_TanobyRuins,103,10,0	warp	w1	1,1,SevenIsland_TanobyRuins_LiptooChamber,11,15 // elev=3 src=MAP_SEVEN_ISLAND_TANOBY_RUINS_LIPTOO_CHAMBER:0
+SevenIsland_TanobyRuins,88,8,0	warp	w2	1,1,SevenIsland_TanobyRuins_WeepthChamber,11,15 // elev=3 src=MAP_SEVEN_ISLAND_TANOBY_RUINS_WEEPTH_CHAMBER:0
+SevenIsland_TanobyRuins,44,11,0	warp	w3	1,1,SevenIsland_TanobyRuins_DilfordChamber,11,15 // elev=3 src=MAP_SEVEN_ISLAND_TANOBY_RUINS_DILFORD_CHAMBER:0
+SevenIsland_TanobyRuins,32,9,0	warp	w4	1,1,SevenIsland_TanobyRuins_ScufibChamber,11,15 // elev=3 src=MAP_SEVEN_ISLAND_TANOBY_RUINS_SCUFIB_CHAMBER:0
+SevenIsland_TanobyRuins,12,15,0	warp	w5	1,1,SevenIsland_TanobyRuins_RixyChamber,11,15 // elev=3 src=MAP_SEVEN_ISLAND_TANOBY_RUINS_RIXY_CHAMBER:0
+SevenIsland_TanobyRuins,11,6,0	warp	w6	1,1,SevenIsland_TanobyRuins_ViapoisChamber,11,15 // elev=3 src=MAP_SEVEN_ISLAND_TANOBY_RUINS_VIAPOIS_CHAMBER:0

@@ -1,0 +1,5 @@
+SilphCo_4F,35,20,0	hidden_item	ITEM_IRON,1,flag=FLAG_HIDDEN_ITEM_SILPH_CO_4F_IRON,underfoot=0
+SilphCo_4F,3,11,3	item_ball	ITEM_MAX_REVIVE,1,flag=FLAG_HIDE_SILPH_CO_4F_MAX_REVIVE,script=SilphCo_4F_EventScript_ItemMaxRevive
+SilphCo_4F,4,12,3	item_ball	ITEM_ESCAPE_ROPE,1,flag=FLAG_HIDE_SILPH_CO_4F_ESCAPE_ROPE,script=SilphCo_4F_EventScript_ItemEscapeRope
+SilphCo_4F,2,13,3	item_ball	ITEM_FULL_HEAL,1,flag=FLAG_HIDE_SILPH_CO_4F_FULL_HEAL,script=SilphCo_4F_EventScript_ItemFullHeal
+SilphCo_4F,30,18,0	item_ball	ITEM_TM41,1,flag=FLAG_HIDE_SILPH_CO_4F_TM41,script=SilphCo_4F_EventScript_ItemTM41

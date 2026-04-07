@@ -1,0 +1,4 @@
+CeladonCity_GameCorner,9,13,0	warp	w0	1,1,CeladonCity,34,21 // elev=0 src=MAP_CELADON_CITY:0
+CeladonCity_GameCorner,10,13,0	warp	w1	1,1,CeladonCity,34,21 // elev=0 src=MAP_CELADON_CITY:0
+CeladonCity_GameCorner,11,13,0	warp	w2	1,1,CeladonCity,34,21 // elev=0 src=MAP_CELADON_CITY:0
+CeladonCity_GameCorner,15,2,0	warp	w3	1,1,RocketHideout_B1F,12,2 // elev=3 src=MAP_ROCKET_HIDEOUT_B1F:0

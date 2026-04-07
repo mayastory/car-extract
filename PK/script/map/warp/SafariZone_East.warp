@@ -1,0 +1,7 @@
+SafariZone_East,8,9,0	warp	w0	1,1,SafariZone_North,48,31 // elev=3 src=MAP_SAFARI_ZONE_NORTH:6
+SafariZone_East,8,10,0	warp	w1	1,1,SafariZone_North,48,32 // elev=3 src=MAP_SAFARI_ZONE_NORTH:7
+SafariZone_East,8,11,0	warp	w2	1,1,SafariZone_North,48,33 // elev=0 src=MAP_SAFARI_ZONE_NORTH:8
+SafariZone_East,8,26,0	warp	w3	1,1,SafariZone_Center,43,15 // elev=3 src=MAP_SAFARI_ZONE_CENTER:9
+SafariZone_East,8,27,0	warp	w4	1,1,SafariZone_Center,43,16 // elev=3 src=MAP_SAFARI_ZONE_CENTER:10
+SafariZone_East,8,28,0	warp	w5	1,1,SafariZone_Center,43,17 // elev=0 src=MAP_SAFARI_ZONE_CENTER:11
+SafariZone_East,40,14,0	warp	w6	1,1,SafariZone_East_RestHouse,4,9 // elev=0 src=MAP_SAFARI_ZONE_EAST_REST_HOUSE:1

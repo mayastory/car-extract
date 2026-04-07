@@ -1,0 +1,4 @@
+CeruleanCity	connect	up	Route24	12 // src=MAP_ROUTE24
+CeruleanCity	connect	down	Route5	0 // src=MAP_ROUTE5
+CeruleanCity	connect	left	Route4	10 // src=MAP_ROUTE4
+CeruleanCity	connect	right	Route9	10 // src=MAP_ROUTE9

@@ -1,0 +1,4 @@
+PalletTown_PlayersHouse_1F,5,8,0	warp	w0	1,1,PalletTown,6,7 // elev=3 src=MAP_PALLET_TOWN:0
+PalletTown_PlayersHouse_1F,4,8,0	warp	w1	1,1,PalletTown,6,7 // elev=3 src=MAP_PALLET_TOWN:0
+PalletTown_PlayersHouse_1F,10,2,0	warp	w2	1,1,PalletTown_PlayersHouse_2F,10,2 // elev=3 src=MAP_PALLET_TOWN_PLAYERS_HOUSE_2F:0
+PalletTown_PlayersHouse_1F,3,9,0	warp	w3	1,1,PalletTown,6,7 // elev=0 src=MAP_PALLET_TOWN:0

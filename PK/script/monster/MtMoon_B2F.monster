@@ -1,0 +1,6 @@
+# auto-generated from Packege/src/data/wild_encounters.json
+# map=MtMoon_B2F id=MAP_MT_MOON_B2F size=48x40
+MtMoon_B2F,0,0,0	monster	land_zubat	48,40,SPECIES_ZUBAT,8,8,4,30,land
+MtMoon_B2F,0,0,0	monster	land_geodude	48,40,SPECIES_GEODUDE,9,9,4,30,land
+MtMoon_B2F,0,0,0	monster	land_paras	48,40,SPECIES_PARAS,10,10,4,30,land
+MtMoon_B2F,0,0,0	monster	land_clefairy	48,40,SPECIES_CLEFAIRY,10,10,4,30,land

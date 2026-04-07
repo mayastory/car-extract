@@ -1,0 +1,1 @@
+SSAnne_B1F_Room3,1,5,3	item_ball	ITEM_ETHER,1,flag=FLAG_HIDE_SSANNE_B1F_ROOM3_ETHER,script=SSAnne_B1F_Room3_EventScript_ItemEther

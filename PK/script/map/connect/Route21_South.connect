@@ -1,0 +1,2 @@
+Route21_South	connect	up	Route21_North	0 // src=MAP_ROUTE21_NORTH
+Route21_South	connect	down	CinnabarIsland	0 // src=MAP_CINNABAR_ISLAND

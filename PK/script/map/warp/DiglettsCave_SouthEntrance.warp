@@ -1,0 +1,2 @@
+DiglettsCave_SouthEntrance,4,6,0	warp	w0	1,1,Route11,6,7 // elev=3 src=MAP_ROUTE11:0
+DiglettsCave_SouthEntrance,6,4,0	warp	w1	1,1,DiglettsCave_B1F,82,71 // elev=3 src=MAP_DIGLETTS_CAVE_B1F:1

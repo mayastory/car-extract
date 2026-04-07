@@ -1,0 +1,6 @@
+# auto-generated from Packege/src/data/wild_encounters.json
+# map=Route2 id=MAP_ROUTE2 size=24x80
+Route2,0,0,0	monster	land_rattata	24,80,SPECIES_RATTATA,3,3,4,30,land
+Route2,0,0,0	monster	land_pidgey	24,80,SPECIES_PIDGEY,3,3,4,30,land
+Route2,0,0,0	monster	land_caterpie	24,80,SPECIES_CATERPIE,4,4,4,30,land
+Route2,0,0,0	monster	land_weedle	24,80,SPECIES_WEEDLE,4,4,4,30,land

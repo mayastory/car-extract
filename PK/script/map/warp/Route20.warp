@@ -1,0 +1,2 @@
+Route20,60,8,0	warp	w0	1,1,SeafoamIslands_1F,6,21 // elev=3 src=MAP_SEAFOAM_ISLANDS_1F:3
+Route20,72,14,0	warp	w1	1,1,SeafoamIslands_1F,32,21 // elev=3 src=MAP_SEAFOAM_ISLANDS_1F:4

@@ -1,0 +1,2 @@
+CeladonCity,55,20,3	hidden_item	ITEM_PP_UP,1,flag=FLAG_HIDDEN_ITEM_CELADON_CITY_PP_UP,underfoot=0
+CeladonCity,5,3,3	item_ball	ITEM_ETHER,1,flag=FLAG_HIDE_CELADON_CITY_ETHER,script=CeladonCity_EventScript_ItemEther

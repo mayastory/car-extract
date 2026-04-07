@@ -1,0 +1,8 @@
+MtMoon_B1F,3,3,0	warp	w0	1,1,MtMoon_1F,5,6 // elev=3 src=MAP_MT_MOON_1F:0
+MtMoon_B1F,25,4,0	warp	w1	1,1,MtMoon_1F,19,14 // elev=3 src=MAP_MT_MOON_1F:1
+MtMoon_B1F,43,21,0	warp	w2	1,1,MtMoon_1F,31,16 // elev=3 src=MAP_MT_MOON_1F:2
+MtMoon_B1F,22,18,0	warp	w3	1,1,MtMoon_B2F,25,21 // elev=3 src=MAP_MT_MOON_B2F:0
+MtMoon_B1F,17,5,0	warp	w4	1,1,MtMoon_B2F,31,11 // elev=3 src=MAP_MT_MOON_B2F:1
+MtMoon_B1F,26,36,0	warp	w5	1,1,MtMoon_B2F,17,31 // elev=3 src=MAP_MT_MOON_B2F:2
+MtMoon_B1F,39,4,0	warp	w6	1,1,MtMoon_B2F,5,10 // elev=3 src=MAP_MT_MOON_B2F:3
+MtMoon_B1F,45,4,0	warp	w7	1,1,Route4,32,5 // elev=3 src=MAP_ROUTE4:1

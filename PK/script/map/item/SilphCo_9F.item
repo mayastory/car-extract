@@ -1,0 +1,2 @@
+SilphCo_9F,11,14,3	hidden_item	ITEM_MAX_POTION,1,flag=FLAG_HIDDEN_ITEM_SILPH_CO_9F_MAX_POTION,underfoot=0
+SilphCo_9F,5,8,0	hidden_item	ITEM_CALCIUM,1,flag=FLAG_HIDDEN_ITEM_SILPH_CO_9F_CALCIUM,underfoot=0

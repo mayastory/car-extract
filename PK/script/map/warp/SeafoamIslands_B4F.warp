@@ -1,0 +1,4 @@
+SeafoamIslands_B4F,15,9,0	warp	w0	1,1,SeafoamIslands_B3F,12,9 // elev=4 src=MAP_SEAFOAM_ISLANDS_B3F:3
+SeafoamIslands_B4F,32,5,0	warp	w1	1,1,SeafoamIslands_B3F,29,5 // elev=4 src=MAP_SEAFOAM_ISLANDS_B3F:4
+SeafoamIslands_B4F,8,17,0	warp	w2	1,1,SeafoamIslands_B3F,6,18 // elev=1 src=MAP_SEAFOAM_ISLANDS_B3F:7
+SeafoamIslands_B4F,9,17,0	warp	w3	1,1,SeafoamIslands_B3F,9,18 // elev=1 src=MAP_SEAFOAM_ISLANDS_B3F:8

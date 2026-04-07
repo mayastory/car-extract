@@ -1,0 +1,4 @@
+SevenIsland,11,9,0	warp	w0	1,1,SevenIsland_House_Room1,4,7 // elev=0 src=MAP_SEVEN_ISLAND_HOUSE_ROOM1:0
+SevenIsland,5,9,0	warp	w1	1,1,SevenIsland_Mart,4,7 // elev=0 src=MAP_SEVEN_ISLAND_MART:0
+SevenIsland,12,3,0	warp	w2	1,1,SevenIsland_PokemonCenter_1F,7,8 // elev=0 src=MAP_SEVEN_ISLAND_POKEMON_CENTER_1F:0
+SevenIsland,16,13,0	warp	w3	1,1,SevenIsland_Harbor,8,2 // elev=3 src=MAP_SEVEN_ISLAND_HARBOR:0

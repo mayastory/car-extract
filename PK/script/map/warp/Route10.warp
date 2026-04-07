@@ -1,0 +1,5 @@
+Route10,8,19,0	warp	w0	1,1,RockTunnel_1F,17,2 // elev=3 src=MAP_ROCK_TUNNEL_1F:0
+Route10,8,57,0	warp	w1	1,1,RockTunnel_1F,18,37 // elev=3 src=MAP_ROCK_TUNNEL_1F:5
+Route10,7,40,0	warp	w2	1,1,PowerPlant,5,38 // elev=3 src=MAP_POWER_PLANT:1
+Route10,13,20,0	warp	w3	1,1,Route10_PokemonCenter_1F,7,8 // elev=0 src=MAP_ROUTE10_POKEMON_CENTER_1F:1
+Route10,2,37,0	warp	w4	1,1,PowerPlant,1,11 // elev=3 src=MAP_POWER_PLANT:3

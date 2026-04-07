@@ -1,0 +1,5 @@
+Route25,14,2,3	hidden_item	ITEM_ELIXIR,1,flag=FLAG_HIDDEN_ITEM_ROUTE25_ELIXIR,underfoot=0
+Route25,58,6,3	hidden_item	ITEM_ETHER,1,flag=FLAG_HIDDEN_ITEM_ROUTE25_ETHER,underfoot=0
+Route25,33,8,3	hidden_item	ITEM_ORAN_BERRY,1,flag=FLAG_HIDDEN_ITEM_ROUTE25_ORAN_BERRY,underfoot=0
+Route25,40,3,3	hidden_item	ITEM_BLUK_BERRY,1,flag=FLAG_HIDDEN_ITEM_ROUTE25_BLUK_BERRY,underfoot=0
+Route25,26,2,3	item_ball	ITEM_TM43,1,flag=FLAG_HIDE_ROUTE25_TM43,script=Route25_EventScript_ItemTM43

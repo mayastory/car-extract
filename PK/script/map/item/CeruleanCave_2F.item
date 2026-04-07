@@ -1,0 +1,3 @@
+CeruleanCave_2F,9,18,3	item_ball	ITEM_PP_UP,1,flag=FLAG_HIDE_CERULEAN_CAVE_2F_PP_UP,script=CeruleanCave_2F_EventScript_ItemPPUp
+CeruleanCave_2F,29,16,3	item_ball	ITEM_ULTRA_BALL,1,flag=FLAG_HIDE_CERULEAN_CAVE_2F_ULTRA_BALL,script=CeruleanCave_2F_EventScript_ItemUltraBall
+CeruleanCave_2F,33,12,3	item_ball	ITEM_FULL_RESTORE,1,flag=FLAG_HIDE_CERULEAN_CAVE_2F_FULL_RESTORE,script=CeruleanCave_2F_EventScript_ItemFullRestore

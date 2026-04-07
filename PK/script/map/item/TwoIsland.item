@@ -1,0 +1,1 @@
+TwoIsland,39,16,3	item_ball	ITEM_REVIVE,1,flag=FLAG_HIDE_TWO_ISLAND_REVIVE,script=TwoIsland_EventScript_ItemRevive

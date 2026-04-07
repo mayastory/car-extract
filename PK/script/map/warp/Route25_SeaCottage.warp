@@ -1,0 +1,3 @@
+Route25_SeaCottage,6,9,0	warp	w0	1,1,Route25,51,4 // elev=3 src=MAP_ROUTE25:0
+Route25_SeaCottage,7,9,0	warp	w1	1,1,Route25,51,4 // elev=3 src=MAP_ROUTE25:0
+Route25_SeaCottage,8,9,0	warp	w2	1,1,Route25,51,4 // elev=3 src=MAP_ROUTE25:0

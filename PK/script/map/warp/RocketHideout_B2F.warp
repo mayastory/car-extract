@@ -1,0 +1,5 @@
+RocketHideout_B2F,21,2,0	warp	w0	1,1,RocketHideout_B3F,18,2 // elev=3 src=MAP_ROCKET_HIDEOUT_B3F:0
+RocketHideout_B2F,28,2,0	warp	w1	1,1,RocketHideout_B1F,17,2 // elev=3 src=MAP_ROCKET_HIDEOUT_B1F:1
+RocketHideout_B2F,23,12,0	warp	w2	1,1,RocketHideout_B1F,15,30 // elev=3 src=MAP_ROCKET_HIDEOUT_B1F:2
+RocketHideout_B2F,28,16,0	warp	w3	1,1,RocketHideout_Elevator,2,5 // elev=0 src=MAP_ROCKET_HIDEOUT_ELEVATOR:1
+RocketHideout_B2F,29,16,0	warp	w4	1,1,RocketHideout_Elevator,2,5 // elev=0 src=MAP_ROCKET_HIDEOUT_ELEVATOR:1

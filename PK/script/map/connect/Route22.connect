@@ -1,0 +1,2 @@
+Route22	connect	up	Route23	0 // src=MAP_ROUTE23
+Route22	connect	right	ViridianCity	-10 // src=MAP_VIRIDIAN_CITY

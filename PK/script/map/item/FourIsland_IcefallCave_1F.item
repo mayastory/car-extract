@@ -1,0 +1,2 @@
+FourIsland_IcefallCave_1F,11,7,3	item_ball	ITEM_ULTRA_BALL,1,flag=FLAG_HIDE_FOUR_ISLAND_ICEFALL_CAVE_1F_ULTRA_BALL,script=FourIsland_IcefallCave_1F_EventScript_ItemUltraBall
+FourIsland_IcefallCave_1F,12,16,3	item_ball	ITEM_HM07,1,flag=FLAG_HIDE_FOUR_ISLAND_ICEFALL_CAVE_1F_HM07,script=FourIsland_IcefallCave_1F_EventScript_ItemHM07

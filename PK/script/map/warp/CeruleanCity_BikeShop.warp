@@ -1,0 +1,3 @@
+CeruleanCity_BikeShop,4,9,0	warp	w0	1,1,CeruleanCity,13,28 // elev=0 src=MAP_CERULEAN_CITY:5
+CeruleanCity_BikeShop,5,8,0	warp	w1	1,1,CeruleanCity,13,28 // elev=3 src=MAP_CERULEAN_CITY:5
+CeruleanCity_BikeShop,6,9,0	warp	w2	1,1,CeruleanCity,13,28 // elev=0 src=MAP_CERULEAN_CITY:5

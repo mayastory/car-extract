@@ -1,0 +1,5 @@
+SilphCo_5F,13,16,0	hidden_item	ITEM_ELIXIR,1,flag=FLAG_HIDDEN_ITEM_SILPH_CO_5F_ELIXIR,underfoot=0
+SilphCo_5F,32,9,0	hidden_item	ITEM_PP_UP,1,flag=FLAG_HIDDEN_ITEM_SILPH_CO_5F_PP_UP,underfoot=0
+SilphCo_5F,4,9,3	item_ball	ITEM_PROTEIN,1,flag=FLAG_HIDE_SILPH_CO_5F_PROTEIN,script=SilphCo_5F_EventScript_ItemProtein
+SilphCo_5F,1,18,3	item_ball	ITEM_TM01,1,flag=FLAG_HIDE_SILPH_CO_5F_TM01,script=SilphCo_5F_EventScript_ItemTM01
+SilphCo_5F,22,21,3	item_ball	ITEM_CARD_KEY,1,flag=FLAG_HIDE_SILPH_CO_5F_CARD_KEY,script=SilphCo_5F_EventScript_ItemCardKey

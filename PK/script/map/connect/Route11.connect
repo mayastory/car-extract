@@ -1,0 +1,2 @@
+Route11	connect	left	VermilionCity	-10 // src=MAP_VERMILION_CITY
+Route11	connect	right	Route12	-60 // src=MAP_ROUTE12

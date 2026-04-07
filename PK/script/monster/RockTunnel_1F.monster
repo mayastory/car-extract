@@ -1,0 +1,7 @@
+# auto-generated from Packege/src/data/wild_encounters.json
+# map=RockTunnel_1F id=MAP_ROCK_TUNNEL_1F size=48x40
+RockTunnel_1F,0,0,0	monster	land_zubat	48,40,SPECIES_ZUBAT,15,15,4,30,land
+RockTunnel_1F,0,0,0	monster	land_geodude	48,40,SPECIES_GEODUDE,16,16,4,30,land
+RockTunnel_1F,0,0,0	monster	land_mankey	48,40,SPECIES_MANKEY,16,16,4,30,land
+RockTunnel_1F,0,0,0	monster	land_machop	48,40,SPECIES_MACHOP,16,16,4,30,land
+RockTunnel_1F,0,0,0	monster	land_onix	48,40,SPECIES_ONIX,13,13,4,30,land

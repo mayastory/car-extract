@@ -1,0 +1,6 @@
+ViridianForest,29,62,0	warp	w0	1,1,Route2_ViridianForest_SouthEntrance,7,1 // elev=3 src=MAP_ROUTE2_VIRIDIAN_FOREST_SOUTH_ENTRANCE:3
+ViridianForest,28,62,0	warp	w1	1,1,Route2_ViridianForest_SouthEntrance,7,1 // elev=3 src=MAP_ROUTE2_VIRIDIAN_FOREST_SOUTH_ENTRANCE:3
+ViridianForest,5,9,0	warp	w2	1,1,Route2_ViridianForest_NorthEntrance,7,10 // elev=3 src=MAP_ROUTE2_VIRIDIAN_FOREST_NORTH_ENTRANCE:1
+ViridianForest,6,9,0	warp	w3	1,1,Route2_ViridianForest_NorthEntrance,7,10 // elev=3 src=MAP_ROUTE2_VIRIDIAN_FOREST_NORTH_ENTRANCE:1
+ViridianForest,30,62,0	warp	w4	1,1,Route2_ViridianForest_SouthEntrance,7,1 // elev=3 src=MAP_ROUTE2_VIRIDIAN_FOREST_SOUTH_ENTRANCE:3
+ViridianForest,4,9,0	warp	w5	1,1,Route2_ViridianForest_NorthEntrance,7,10 // elev=3 src=MAP_ROUTE2_VIRIDIAN_FOREST_NORTH_ENTRANCE:1

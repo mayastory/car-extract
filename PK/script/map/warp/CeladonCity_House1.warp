@@ -1,0 +1,3 @@
+CeladonCity_House1,3,7,0	warp	w0	1,1,CeladonCity,41,29 // elev=3 src=MAP_CELADON_CITY:8
+CeladonCity_House1,4,7,0	warp	w1	1,1,CeladonCity,41,29 // elev=3 src=MAP_CELADON_CITY:8
+CeladonCity_House1,5,7,0	warp	w2	1,1,CeladonCity,41,29 // elev=3 src=MAP_CELADON_CITY:8

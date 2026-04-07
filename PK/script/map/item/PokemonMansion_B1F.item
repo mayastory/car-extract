@@ -1,0 +1,5 @@
+PokemonMansion_B1F,35,5,3	hidden_item	ITEM_ELIXIR,1,flag=FLAG_HIDDEN_ITEM_POKEMON_MANSION_B1F_ELIXIR,underfoot=0
+PokemonMansion_B1F,6,21,3	item_ball	ITEM_TM22,1,flag=FLAG_HIDE_POKEMON_MANSION_B1F_TM22,script=PokemonMansion_B1F_EventScript_ItemTM22
+PokemonMansion_B1F,23,4,3	item_ball	ITEM_TM14,1,flag=FLAG_HIDE_POKEMON_MANSION_B1F_TM14,script=PokemonMansion_B1F_EventScript_ItemTM14
+PokemonMansion_B1F,2,29,3	item_ball	ITEM_FULL_RESTORE,1,flag=FLAG_HIDE_POKEMON_MANSION_B1F_FULL_RESTORE,script=PokemonMansion_B1F_EventScript_ItemFullRestore
+PokemonMansion_B1F,5,7,3	item_ball	ITEM_SECRET_KEY,1,flag=FLAG_HIDE_POKEMON_MANSION_B1F_SECRET_KEY,script=PokemonMansion_B1F_EventScript_ItemSecretKey

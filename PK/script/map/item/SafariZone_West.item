@@ -1,0 +1,5 @@
+SafariZone_West,13,11,3	hidden_item	ITEM_REVIVE,1,flag=FLAG_HIDDEN_ITEM_SAFARI_ZONE_WEST_REVIVE,underfoot=0
+SafariZone_West,28,14,3	item_ball	ITEM_GOLD_TEETH,1,flag=FLAG_HIDE_SAFARI_ZONE_WEST_GOLD_TEETH,script=SafariZone_West_EventScript_ItemGoldTeeth
+SafariZone_West,17,13,3	item_ball	ITEM_TM32,1,flag=FLAG_HIDE_SAFARI_ZONE_WEST_TM32,script=SafariZone_West_EventScript_ItemTM32
+SafariZone_West,16,27,3	item_ball	ITEM_MAX_POTION,1,flag=FLAG_HIDE_SAFARI_ZONE_WEST_MAX_POTION,script=SafariZone_West_EventScript_ItemMaxPotion
+SafariZone_West,27,24,3	item_ball	ITEM_MAX_REVIVE,1,flag=FLAG_HIDE_SAFARI_ZONE_WEST_MAX_REVIVE,script=SafariZone_West_EventScript_ItemMaxRevive

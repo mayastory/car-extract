@@ -1,0 +1,6 @@
+ViridianForest,3,22,3	hidden_item	ITEM_POTION,1,flag=FLAG_HIDDEN_ITEM_VIRIDIAN_FOREST_POTION,underfoot=0
+ViridianForest,28,57,0	hidden_item	ITEM_ANTIDOTE,1,flag=FLAG_HIDDEN_ITEM_VIRIDIAN_FOREST_ANTIDOTE,underfoot=0
+ViridianForest,5,41,3	item_ball	ITEM_POKE_BALL,1,flag=FLAG_HIDE_VIRIDIAN_FOREST_POKE_BALL,script=ViridianForest_EventScript_ItemPokeBall
+ViridianForest,40,21,3	item_ball	ITEM_ANTIDOTE,1,flag=FLAG_HIDE_VIRIDIAN_FOREST_ANTIDOTE,script=ViridianForest_EventScript_ItemAntidote
+ViridianForest,21,34,3	item_ball	ITEM_POTION,1,flag=FLAG_HIDE_VIRIDIAN_FOREST_POTION,script=ViridianForest_EventScript_ItemPotion
+ViridianForest,49,60,3	item_ball	ITEM_POTION,1,flag=FLAG_HIDE_VIRIDIAN_FOREST_POTION_2,script=ViridianForest_EventScript_ItemPotion2

@@ -1,0 +1,1 @@
+SSAnne_2F_Room2,3,3,0	item_ball	ITEM_STARDUST,1,flag=FLAG_HIDE_SSANNE_2F_ROOM2_STARDUST,script=SSAnne_2F_Room2_EventScript_ItemStardust

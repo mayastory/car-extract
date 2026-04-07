@@ -1,0 +1,2 @@
+OneIsland_PokemonCenter_1F,9,9,0	warp	w0	1,1,OneIsland,14,5 // elev=3 src=MAP_ONE_ISLAND:0
+OneIsland_PokemonCenter_1F,1,5,0	warp	w1	1,1,OneIsland_PokemonCenter_2F,1,6 // elev=4 src=MAP_ONE_ISLAND_POKEMON_CENTER_2F:0

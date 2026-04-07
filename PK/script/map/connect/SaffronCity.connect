@@ -1,0 +1,4 @@
+SaffronCity	connect	up	Route5	0 // src=MAP_ROUTE5
+SaffronCity	connect	down	Route6	12 // src=MAP_ROUTE6
+SaffronCity	connect	left	Route7	10 // src=MAP_ROUTE7
+SaffronCity	connect	right	Route8	10 // src=MAP_ROUTE8

@@ -1,0 +1,3 @@
+# auto-generated from Packege/src/data/wild_encounters.json
+# map=SevenIsland_TanobyRuins_WeepthChamber id=MAP_SEVEN_ISLAND_TANOBY_RUINS_WEEPTH_CHAMBER size=23x17
+SevenIsland_TanobyRuins_WeepthChamber,0,0,0	monster	land_unown	23,17,SPECIES_UNOWN,25,25,4,30,land

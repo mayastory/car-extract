@@ -1,0 +1,6 @@
+FourIsland_IcefallCave_1F,3,17,0	warp	w0	1,1,FourIsland_IcefallCave_Entrance,10,21 // elev=0 src=MAP_FOUR_ISLAND_ICEFALL_CAVE_ENTRANCE:1
+FourIsland_IcefallCave_1F,2,8,0	warp	w1	1,1,FourIsland_IcefallCave_Entrance,9,7 // elev=3 src=MAP_FOUR_ISLAND_ICEFALL_CAVE_ENTRANCE:2
+FourIsland_IcefallCave_1F,12,12,0	warp	w2	1,1,FourIsland_IcefallCave_B1F,12,12 // elev=3 src=MAP_FOUR_ISLAND_ICEFALL_CAVE_B1F:0
+FourIsland_IcefallCave_1F,12,3,0	warp	w3	1,1,FourIsland_IcefallCave_B1F,12,3 // elev=3 src=MAP_FOUR_ISLAND_ICEFALL_CAVE_B1F:1
+FourIsland_IcefallCave_1F,15,16,0	warp	w4	1,1,FourIsland_IcefallCave_B1F,15,16 // elev=3 src=MAP_FOUR_ISLAND_ICEFALL_CAVE_B1F:2
+FourIsland_IcefallCave_1F,3,6,0	warp	w5	1,1,FourIsland_IcefallCave_Back,12,23 // elev=3 src=MAP_FOUR_ISLAND_ICEFALL_CAVE_BACK:0

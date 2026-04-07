@@ -1,0 +1,7 @@
+# auto-generated from Packege/src/data/wild_encounters.json
+# map=ViridianForest id=MAP_VIRIDIAN_FOREST size=54x69
+ViridianForest,0,0,0	monster	land_caterpie	54,69,SPECIES_CATERPIE,4,4,4,30,land
+ViridianForest,0,0,0	monster	land_weedle	54,69,SPECIES_WEEDLE,4,4,4,30,land
+ViridianForest,0,0,0	monster	land_metapod	54,69,SPECIES_METAPOD,5,5,4,30,land
+ViridianForest,0,0,0	monster	land_kakuna	54,69,SPECIES_KAKUNA,5,5,4,30,land
+ViridianForest,0,0,0	monster	land_pikachu	54,69,SPECIES_PIKACHU,3,3,4,30,land

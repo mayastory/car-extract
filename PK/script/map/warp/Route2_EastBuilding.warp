@@ -1,0 +1,4 @@
+Route2_EastBuilding,6,10,0	warp	w0	1,1,Route2,18,46 // elev=0 src=MAP_ROUTE2:5
+Route2_EastBuilding,7,10,0	warp	w1	1,1,Route2,18,46 // elev=3 src=MAP_ROUTE2:5
+Route2_EastBuilding,8,10,0	warp	w2	1,1,Route2,18,46 // elev=3 src=MAP_ROUTE2:5
+Route2_EastBuilding,7,1,0	warp	w3	1,1,Route2,18,41 // elev=3 src=MAP_ROUTE2:6

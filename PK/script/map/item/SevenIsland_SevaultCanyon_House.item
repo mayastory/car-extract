@@ -1,0 +1,1 @@
+SevenIsland_SevaultCanyon_House,6,4,0	item_ball	ITEM_LUCKY_PUNCH,1,flag=FLAG_HIDE_SEVEN_ISLAND_SEVAULT_CANYON_HOUSE_LUCKY_PUNCH,script=SevenIsland_SevaultCanyon_House_EventScript_ItemLuckyPunch

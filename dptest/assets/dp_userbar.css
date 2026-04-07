@@ -20,7 +20,12 @@
 .dp-ub-title{font-size:16px; font-weight:700; color:#e8eaed; text-shadow:0 2px 6px rgba(0,0,0,.70);}
 
 .dp-ub-right{display:flex; align-items:center; gap:10px;}
-.dp-ub-user{font-size:13px; color:#cfd3d7; text-shadow:0 2px 6px rgba(0,0,0,.70);}
+.dp-ub-user{display:inline-flex; align-items:center; gap:4px; font-size:13px; line-height:1; color:#cfd3d7; text-shadow:0 2px 6px rgba(0,0,0,.70); white-space:nowrap;}
+.dp-ub-user-label,.dp-ub-user-suffix{display:inline-flex; align-items:center; line-height:1;}
+.dp-ub-user-name{display:inline-flex; align-items:center; line-height:1;}
+.dp-ub-user-name .dp-level-identity{display:inline-flex; align-items:center; line-height:1;}
+.dp-level-identity{display:inline-flex; align-items:center; gap:5px; line-height:1;}
+.dp-level-identity img{display:block; width:24px; height:16px; image-rendering:pixelated;}
 
 .dp-ub-badge{
   display:inline-flex; align-items:center; justify-content:center;

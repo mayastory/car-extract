@@ -1,0 +1,3 @@
+ThreeIsland_BondBridge,61,5,0	hidden_item	ITEM_MAX_REPEL,1,flag=FLAG_HIDDEN_ITEM_THREE_ISLAND_BOND_BRIDGE_MAX_REPEL,underfoot=0
+ThreeIsland_BondBridge,44,12,3	hidden_item	ITEM_PEARL,1,flag=FLAG_HIDDEN_ITEM_THREE_ISLAND_BOND_BRIDGE_PEARL,underfoot=0
+ThreeIsland_BondBridge,33,7,3	hidden_item	ITEM_STARDUST,1,flag=FLAG_HIDDEN_ITEM_THREE_ISLAND_BOND_BRIDGE_STARDUST,underfoot=0

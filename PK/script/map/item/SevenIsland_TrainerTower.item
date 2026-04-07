@@ -1,0 +1,3 @@
+SevenIsland_TrainerTower,49,27,3	hidden_item	ITEM_BIG_PEARL,1,flag=FLAG_HIDDEN_ITEM_SEVEN_ISLAND_TRAINER_TOWER_BIG_PEARL,underfoot=0
+SevenIsland_TrainerTower,47,30,3	hidden_item	ITEM_PEARL,1,flag=FLAG_HIDDEN_ITEM_SEVEN_ISLAND_TRAINER_TOWER_PEARL,underfoot=0
+SevenIsland_TrainerTower,59,32,3	hidden_item	ITEM_NANAB_BERRY,1,flag=FLAG_HIDDEN_ITEM_SEVEN_ISLAND_TRAINER_TOWER_NANAB_BERRY,underfoot=0

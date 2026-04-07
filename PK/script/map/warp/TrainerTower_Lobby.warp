@@ -1,0 +1,3 @@
+TrainerTower_Lobby,9,2,0	warp	w0	1,1,TrainerTower_1F,4,6 // elev=3 src=MAP_TRAINER_TOWER_1F:1
+TrainerTower_Lobby,9,15,0	warp	w1	1,1,SevenIsland_TrainerTower,58,7 // elev=3 src=MAP_SEVEN_ISLAND_TRAINER_TOWER:0
+TrainerTower_Lobby,17,8,0	warp	w2	1,1,TrainerTower_Elevator,2,5 // elev=0 src=MAP_TRAINER_TOWER_ELEVATOR:0

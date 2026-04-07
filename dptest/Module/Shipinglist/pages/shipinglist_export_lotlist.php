@@ -3023,9 +3023,9 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
                 $cancelHandledBy = ship_report_actor_humanize_label($pdo, (string)($r['cancel_request_handled_by'] ?? ''));
                 $canceledAtDisplay = trim((string)($r['canceled_at'] ?? ''));
                 $canceledByDisplay = ship_report_actor_humanize_label($pdo, (string)($r['canceled_by'] ?? ''));
-                $cancelRequestedByHtml = dp_render_account_label_html($pdo, (string)($r['cancel_requested_by'] ?? ''), ['size' => 14, 'gap' => 4, 'class' => 'dp-level-identity']);
-                $cancelHandledByHtml   = dp_render_account_label_html($pdo, (string)($r['cancel_request_handled_by'] ?? ''), ['size' => 14, 'gap' => 4, 'class' => 'dp-level-identity']);
-                $canceledByHtml        = dp_render_account_label_html($pdo, (string)($r['canceled_by'] ?? ''), ['size' => 14, 'gap' => 4, 'class' => 'dp-level-identity']);
+                $cancelRequestedByHtml = dp_render_account_label_html($pdo, (string)($r['cancel_requested_by'] ?? ''), ['width' => 24, 'height' => 16, 'gap' => 4, 'class' => 'dp-level-identity']);
+                $cancelHandledByHtml   = dp_render_account_label_html($pdo, (string)($r['cancel_request_handled_by'] ?? ''), ['width' => 24, 'height' => 16, 'gap' => 4, 'class' => 'dp-level-identity']);
+                $canceledByHtml        = dp_render_account_label_html($pdo, (string)($r['canceled_by'] ?? ''), ['width' => 24, 'height' => 16, 'gap' => 4, 'class' => 'dp-level-identity']);
                 $approvedAtDisplay = ($cancelHandledAt !== '') ? $cancelHandledAt : $canceledAtDisplay;
                 $approvedByDisplay = ($cancelHandledBy !== '') ? $cancelHandledBy : $canceledByDisplay;
                 $showRequestAndApproval = ($cancelReqStatus === 'approved') && (

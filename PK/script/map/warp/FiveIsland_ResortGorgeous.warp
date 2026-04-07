@@ -1,0 +1,2 @@
+FiveIsland_ResortGorgeous,64,13,0	warp	w0	1,1,FiveIsland_LostCave_Entrance,5,8 // elev=3 src=MAP_FIVE_ISLAND_LOST_CAVE_ENTRANCE:0
+FiveIsland_ResortGorgeous,39,8,0	warp	w1	1,1,FiveIsland_ResortGorgeous_House,4,7 // elev=0 src=MAP_FIVE_ISLAND_RESORT_GORGEOUS_HOUSE:0

@@ -32,7 +32,9 @@ function dp_render_userbar(array $opt = []): string
 
     $userLv = isset($_SESSION['ship_user_lv']) && $_SESSION['ship_user_lv'] !== '' ? (int)$_SESSION['ship_user_lv'] : null;
     $userName = trim((string)($_SESSION['ship_user_name'] ?? ''));
-    if ($userName === '') {
+
+    // 이름이 이미 세션에 있어도 lv가 없으면 다시 조회해야 아이콘이 뜬다.
+    if ($userName === '' || $userLv === null) {
         try {
             $pdo = dp_get_pdo();
             if (!empty($_SESSION['ship_user_no'])) {
@@ -57,11 +59,7 @@ function dp_render_userbar(array $opt = []): string
         }
     }
 
-    $userIdentityHtml = dp_render_level_identity_html(
-        $userName !== '' ? $userName : $userId,
-        $userLv,
-        ['width' => 24, 'height' => 16, 'gap' => 5, 'class' => 'dp-level-identity']
-    );
+    $userIdentityHtml = dp_render_level_identity_html($userName !== '' ? $userName : $userId, $userLv, ['width' => 24, 'height' => 16, 'gap' => 4, 'class' => 'dp-level-identity']);
 
     $adminLink = dp_url($adminHref);
     $logoutAct = dp_url($logoutAction);
@@ -77,11 +75,7 @@ function dp_render_userbar(array $opt = []): string
   </div>
 
   <div class="dp-ub-right">
-    <div class="dp-ub-user">
-      <span class="dp-ub-user-label">로그인 :</span>
-      <span class="dp-ub-user-name"><?php echo $userIdentityHtml; ?></span>
-      <span class="dp-ub-user-suffix">님</span>
-    </div>
+    <div class="dp-ub-user">로그인 : <?php echo $userIdentityHtml; ?> 님</div>
 
     <?php if ($isAdmin && $adminMode !== 'none'): ?>
       <?php if ($adminMode === 'link'): ?>

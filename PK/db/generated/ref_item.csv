@@ -1,0 +1,376 @@
+item_id,const_name,name,name_ko,price,pocket,hold_effect,hold_effect_param,description,description_ko,item_type,field_use_func,battle_usage,battle_use_func,secondary_id,importance,registrability
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+1,ITEM_MASTER_BALL,MASTER BALL,,0,3,0,0,The best BALL with the ultimate\nperformance. It will catch any wild\nPOKéMON without fail.,,0,,2,,0,0,0
+2,ITEM_ULTRA_BALL,ULTRA BALL,,1200,3,0,0,A very high-grade BALL that offers\na higher POKéMON catch rate than\na GREAT BALL.,,1,,2,,1,0,0
+3,ITEM_GREAT_BALL,GREAT BALL,,600,3,0,0,"A good, quality BALL that offers\na higher POKéMON catch rate than\na standard POKé BALL.",,2,,2,,2,0,0
+4,ITEM_POKE_BALL,POKé BALL,,200,3,0,0,A BALL thrown to catch a wild\nPOKéMON. It is designed in a\ncapsule style.,,3,,2,,3,0,0
+5,ITEM_SAFARI_BALL,SAFARI BALL,,0,3,0,0,A special BALL that is used only in\nthe SAFARI ZONE. It is finished in\na camouflage pattern.,,4,,2,,4,0,0
+6,ITEM_NET_BALL,NET BALL,,1000,3,0,0,A somewhat different BALL that\nworks especially well on WATER- and\nBUG-type POKéMON.,,5,,2,,5,0,0
+7,ITEM_DIVE_BALL,DIVE BALL,,1000,3,0,0,A somewhat different BALL that\nworks especially well on POKéMON\ndeep in the sea.,,6,,2,,6,0,0
+8,ITEM_NEST_BALL,NEST BALL,,1000,3,0,0,A somewhat different BALL that\nworks especially well on weaker\nPOKéMON.,,7,,2,,7,0,0
+9,ITEM_REPEAT_BALL,REPEAT BALL,,1000,3,0,0,A somewhat different BALL that\nworks especially well on POKéMON\ncaught before.,,8,,2,,8,0,0
+10,ITEM_TIMER_BALL,TIMER BALL,,1000,3,0,0,A somewhat different BALL that\nbecomes progressively better the\nmore turns there are in a battle.,,9,,2,,9,0,0
+11,ITEM_LUXURY_BALL,LUXURY BALL,,1000,3,0,0,A comfortable BALL that makes a\ncaptured wild POKéMON quickly grow\nfriendly.,,10,,2,,10,0,0
+12,ITEM_PREMIER_BALL,PREMIER BALL,,200,3,0,0,A rare BALL that has been\nspecially made to commemorate an\nevent of some sort.,,11,,2,,11,0,0
+13,ITEM_POTION,POTION,,300,1,0,20,A spray-type wound medicine.\nIt restores the HP of one POKéMON\nby 20 points.,,1,,1,,0,0,0
+14,ITEM_ANTIDOTE,ANTIDOTE,,100,1,0,0,A spray-type medicine.\nIt heals one POKéMON from a\npoisoning.,,1,,1,,0,0,0
+15,ITEM_BURN_HEAL,BURN HEAL,,250,1,0,0,A spray-type medicine.\nIt heals one POKéMON of a burn.,,1,,1,,0,0,0
+16,ITEM_ICE_HEAL,ICE HEAL,,250,1,0,0,A spray-type medicine.\nIt defrosts a frozen POKéMON.,,1,,1,,0,0,0
+17,ITEM_AWAKENING,AWAKENING,,250,1,0,0,A spray-type medicine.\nIt awakens a sleeping POKéMON.,,1,,1,,0,0,0
+18,ITEM_PARALYZE_HEAL,PARLYZ HEAL,,200,1,0,0,A spray-type medicine.\nIt heals one POKéMON from\nparalysis.,,1,,1,,0,0,0
+19,ITEM_FULL_RESTORE,FULL RESTORE,,3000,1,0,255,A medicine that fully restores the\nHP and heals any status problems\nof one POKéMON.,,1,,1,,0,0,0
+20,ITEM_MAX_POTION,MAX POTION,,2500,1,0,255,A spray-type wound medicine.\nIt fully restores the HP of one\nPOKéMON.,,1,,1,,0,0,0
+21,ITEM_HYPER_POTION,HYPER POTION,,1200,1,0,200,A spray-type wound medicine.\nIt restores the HP of one POKéMON\nby 200 points.,,1,,1,,0,0,0
+22,ITEM_SUPER_POTION,SUPER POTION,,700,1,0,50,A spray-type wound medicine.\nIt restores the HP of one POKéMON\nby 50 points.,,1,,1,,0,0,0
+23,ITEM_FULL_HEAL,FULL HEAL,,600,1,0,0,A spray-type medicine.\nIt heals all the status problems of\none POKéMON.,,1,,1,,0,0,0
+24,ITEM_REVIVE,REVIVE,,1500,1,0,0,"A medicine that revives a fainted\nPOKéMON, restoring HP by half the\nmaximum amount.",,1,,1,,0,0,0
+25,ITEM_MAX_REVIVE,MAX REVIVE,,4000,1,0,0,"A medicine that revives a fainted\nPOKéMON, restoring HP fully.",,1,,1,,0,0,0
+26,ITEM_FRESH_WATER,FRESH WATER,,200,1,0,50,Water with a high mineral content.\nIt restores the HP of one POKéMON\nby 50 points.,,1,,1,,0,0,0
+27,ITEM_SODA_POP,SODA POP,,300,1,0,60,A fizzy soda drink.\nIt restores the HP of one POKéMON\nby 60 points.,,1,,1,,0,0,0
+28,ITEM_LEMONADE,LEMONADE,,350,1,0,80,A very sweet drink.\nIt restores the HP of one POKéMON\nby 80 points.,,1,,1,,0,0,0
+29,ITEM_MOOMOO_MILK,MOOMOO MILK,,500,1,0,100,Highly nutritious milk.\nIt restores the HP of one POKéMON\nby 100 points.,,1,,1,,0,0,0
+30,ITEM_ENERGY_POWDER,ENERGYPOWDER,,500,1,0,0,A very bitter medicine powder.\nIt restores the HP of one POKéMON\nby 50 points.,,1,,1,,0,0,0
+31,ITEM_ENERGY_ROOT,ENERGY ROOT,,800,1,0,0,A very bitter root.\nIt restores the HP of one POKéMON\nby 200 points.,,1,,1,,0,0,0
+32,ITEM_HEAL_POWDER,HEAL POWDER,,450,1,0,0,A very bitter medicine powder.\nIt heals all the status problems of\none POKéMON.,,1,,1,,0,0,0
+33,ITEM_REVIVAL_HERB,REVIVAL HERB,,2800,1,0,0,"A very bitter medicinal herb.\nIt revives a fainted POKéMON,\nrestoring HP fully.",,1,,1,,0,0,0
+34,ITEM_ETHER,ETHER,,1200,1,0,10,Restores a selected move's PP by\n10 points for one POKéMON.,,1,,1,,0,0,0
+35,ITEM_MAX_ETHER,MAX ETHER,,2000,1,0,255,Fully restores a selected move's PP\nfor one POKéMON.,,1,,1,,0,0,0
+36,ITEM_ELIXIR,ELIXIR,,3000,1,0,10,Restores the PP of all moves for\none POKéMON by 10 points each.,,1,,1,,0,0,0
+37,ITEM_MAX_ELIXIR,MAX ELIXIR,,4500,1,0,255,Fully restores the PP of all moves\nfor one POKéMON.,,1,,1,,0,0,0
+38,ITEM_LAVA_COOKIE,LAVA COOKIE,,200,1,0,0,LAVARIDGE TOWN's local specialty.\nIt heals all the status problems of\none POKéMON.,,1,,1,,0,0,0
+39,ITEM_BLUE_FLUTE,BLUE FLUTE,,100,1,0,0,A blue glass flute that awakens\na sleeping POKéMON.,,1,,1,,0,0,0
+40,ITEM_YELLOW_FLUTE,YELLOW FLUTE,,200,1,0,0,A yellow glass flute that snaps one\nPOKéMON out of confusion.,,1,,1,,0,0,0
+41,ITEM_RED_FLUTE,RED FLUTE,,300,1,0,0,A red glass flute that snaps one\nPOKéMON out of infatuation.,,1,,1,,0,0,0
+42,ITEM_BLACK_FLUTE,BLACK FLUTE,,400,1,0,50,"A black glass flute.\nWhen blown, it makes wild POKéMON\nless likely to appear.",,1,,0,,0,0,0
+43,ITEM_WHITE_FLUTE,WHITE FLUTE,,500,1,0,150,"A white glass flute.\nWhen blown, it makes wild POKéMON\nmore likely to appear.",,1,,0,,0,0,0
+44,ITEM_BERRY_JUICE,BERRY JUICE,,100,1,1,20,A 100% pure juice.\nIt restores the HP of one POKéMON\nby 20 points.,,1,,1,,0,0,0
+45,ITEM_SACRED_ASH,SACRED ASH,,200,1,0,0,"Revives all fainted POKéMON,\nrestoring HP fully.",,1,,0,,0,0,0
+46,ITEM_SHOAL_SALT,SHOAL SALT,,20,1,0,0,Pure salt obtained from deep inside\nthe SHOAL CAVE. It is extremely\nsalty.,,4,,0,,0,0,0
+47,ITEM_SHOAL_SHELL,SHOAL SHELL,,20,1,0,0,A pretty seashell found deep inside\nthe SHOAL CAVE. It is striped in\nblue and white.,,4,,0,,0,0,0
+48,ITEM_RED_SHARD,RED SHARD,,200,1,0,0,A small red shard.\nIt appears to be from some sort of\na tool made long ago.,,4,,0,,0,0,0
+49,ITEM_BLUE_SHARD,BLUE SHARD,,200,1,0,0,A small blue shard.\nIt appears to be from some sort of\na tool made long ago.,,4,,0,,0,0,0
+50,ITEM_YELLOW_SHARD,YELLOW SHARD,,200,1,0,0,A small yellow shard.\nIt appears to be from some sort of\na tool made long ago.,,4,,0,,0,0,0
+51,ITEM_GREEN_SHARD,GREEN SHARD,,200,1,0,0,A small green shard.\nIt appears to be from some sort of\na tool made long ago.,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+63,ITEM_HP_UP,HP UP,,9800,1,0,0,A nutritious drink for POKéMON.\nIt raises the base HP of one\nPOKéMON.,,1,,0,,0,0,0
+64,ITEM_PROTEIN,PROTEIN,,9800,1,0,0,A nutritious drink for POKéMON.\nIt raises the base ATTACK stat of\none POKéMON.,,1,,0,,0,0,0
+65,ITEM_IRON,IRON,,9800,1,0,0,A nutritious drink for POKéMON.\nIt raises the base DEFENSE stat of\none POKéMON.,,1,,0,,0,0,0
+66,ITEM_CARBOS,CARBOS,,9800,1,0,0,A nutritious drink for POKéMON.\nIt raises the base SPEED stat of\none POKéMON.,,1,,0,,0,0,0
+67,ITEM_CALCIUM,CALCIUM,,9800,1,0,0,A nutritious drink for POKéMON.\nIt raises the base SP. ATK stat\nof one POKéMON.,,1,,0,,0,0,0
+68,ITEM_RARE_CANDY,RARE CANDY,,4800,1,0,0,A candy that is packed with energy.\nIt raises the level of a POKéMON\nby one.,,1,,0,,0,0,0
+69,ITEM_PP_UP,PP UP,,9800,1,0,0,Slightly raises the maximum PP of\na selected move for one POKéMON.,,1,,0,,0,0,0
+70,ITEM_ZINC,ZINC,,9800,1,0,0,A nutritious drink for POKéMON.\nIt raises the base SP. DEF stat\nof one POKéMON.,,1,,0,,0,0,0
+71,ITEM_PP_MAX,PP MAX,,9800,1,0,0,Raises the PP of a selected move\nto its maximum level for one\nPOKéMON.,,1,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+73,ITEM_GUARD_SPEC,GUARD SPEC.,,700,1,0,0,An item that prevents stat reduction\namong party POKéMON for five turns\nafter use.,,4,,2,,0,0,0
+74,ITEM_DIRE_HIT,DIRE HIT,,650,1,0,0,Raises the critical-hit ratio of\nPOKéMON in battle. Wears off if the\nPOKéMON is withdrawn.,,4,,2,,0,0,0
+75,ITEM_X_ATTACK,X ATTACK,,500,1,0,0,Raises the ATTACK stat of POKéMON\nin battle. Wears off if the POKéMON\nis withdrawn.,,4,,2,,0,0,0
+76,ITEM_X_DEFEND,X DEFEND,,550,1,0,0,Raises the DEFENSE stat of POKéMON\nin battle. Wears off if the POKéMON\nis withdrawn.,,4,,2,,0,0,0
+77,ITEM_X_SPEED,X SPEED,,350,1,0,0,Raises the SPEED stat of POKéMON\nin battle. Wears off if the POKéMON\nis withdrawn.,,4,,2,,0,0,0
+78,ITEM_X_ACCURACY,X ACCURACY,,950,1,0,0,Raises the accuracy stat of\nPOKéMON in battle. Wears off if the\nPOKéMON is withdrawn.,,4,,2,,0,0,0
+79,ITEM_X_SPECIAL,X SPECIAL,,350,1,0,0,Raises the SP. ATK stat of\nPOKéMON in battle. Wears off if the\nPOKéMON is withdrawn.,,4,,2,,0,0,0
+80,ITEM_POKE_DOLL,POKé DOLL,,1000,1,0,0,An attractive doll.\nUse it to flee from any battle with\na wild POKéMON.,,4,,2,,0,0,0
+81,ITEM_FLUFFY_TAIL,FLUFFY TAIL,,1000,1,0,0,An attractive item.\nUse it to flee from any battle with\na wild POKéMON.,,4,,2,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+83,ITEM_SUPER_REPEL,SUPER REPEL,,500,1,0,200,Prevents weak wild POKéMON from\nappearing for 200 steps.,,4,,0,,0,0,0
+84,ITEM_MAX_REPEL,MAX REPEL,,700,1,0,250,Prevents weak wild POKéMON from\nappearing for 250 steps.,,4,,0,,0,0,0
+85,ITEM_ESCAPE_ROPE,ESCAPE ROPE,,550,1,0,0,"A long, durable rope.\nUse it to escape instantly from a\ncave or a dungeon.",,2,,0,,0,0,0
+86,ITEM_REPEL,REPEL,,350,1,0,100,Prevents weak wild POKéMON from\nappearing for 100 steps.,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+93,ITEM_SUN_STONE,SUN STONE,,2100,1,0,0,A peculiar stone that makes certain\nspecies of POKéMON evolve.\nIt is as red as the sun.,,1,,0,,0,0,0
+94,ITEM_MOON_STONE,MOON STONE,,0,1,0,0,A peculiar stone that makes certain\nspecies of POKéMON evolve.\nIt is as black as the night sky.,,1,,0,,0,0,0
+95,ITEM_FIRE_STONE,FIRE STONE,,2100,1,0,0,A peculiar stone that makes certain\nspecies of POKéMON evolve.\nIt is colored orange.,,1,,0,,0,0,0
+96,ITEM_THUNDER_STONE,THUNDERSTONE,,2100,1,0,0,A peculiar stone that makes certain\nspecies of POKéMON evolve.\nIt has a thunderbolt pattern.,,1,,0,,0,0,0
+97,ITEM_WATER_STONE,WATER STONE,,2100,1,0,0,A peculiar stone that makes certain\nspecies of POKéMON evolve.\nIt is a clear light blue.,,1,,0,,0,0,0
+98,ITEM_LEAF_STONE,LEAF STONE,,2100,1,0,0,A peculiar stone that makes certain\nspecies of POKéMON evolve.\nIt has a leaf pattern.,,1,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+103,ITEM_TINY_MUSHROOM,TINYMUSHROOM,,500,1,0,0,A small and rare mushroom.\nIt is quite popular among certain\npeople.,,4,,0,,0,0,0
+104,ITEM_BIG_MUSHROOM,BIG MUSHROOM,,5000,1,0,0,A large and rare mushroom.\nIt is very popular among certain\npeople.,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+106,ITEM_PEARL,PEARL,,1400,1,0,0,A relatively small pearl that\nsparkles in a pretty silver color.\nIt can be sold cheaply.,,4,,0,,0,0,0
+107,ITEM_BIG_PEARL,BIG PEARL,,7500,1,0,0,A quite-large pearl that sparkles\nin a pretty silver color.\nIt can be sold at a high price.,,4,,0,,0,0,0
+108,ITEM_STARDUST,STARDUST,,2000,1,0,0,"A pretty red sand with a loose,\nsilky feel.\nIt can be sold at a high price.",,4,,0,,0,0,0
+109,ITEM_STAR_PIECE,STAR PIECE,,9800,1,0,0,A shard of a pretty gem that\nsparkles in a red color.\nIt can be sold at a high price.,,4,,0,,0,0,0
+110,ITEM_NUGGET,NUGGET,,10000,1,0,0,A nugget of pure gold that gives\noff a lustrous gleam.\nIt can be sold at a high price.,,4,,0,,0,0,0
+111,ITEM_HEART_SCALE,HEART SCALE,,100,1,0,0,"A pretty, heart-shaped scale that\nis extremely rare. It glows faintly\nin the colors of a rainbow.",,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+121,ITEM_ORANGE_MAIL,ORANGE MAIL,,50,1,0,0,A piece of MAIL featuring a cute\nZIGZAGOON print.\nIt is to be held by a POKéMON.,,0,,0,,0,0,0
+122,ITEM_HARBOR_MAIL,HARBOR MAIL,,50,1,0,0,A piece of MAIL featuring a cute\nWINGULL print.\nIt is to be held by a POKéMON.,,0,,0,,1,0,0
+123,ITEM_GLITTER_MAIL,GLITTER MAIL,,50,1,0,0,A piece of MAIL featuring a cute\nPIKACHU print.\nIt is to be held by a POKéMON.,,0,,0,,2,0,0
+124,ITEM_MECH_MAIL,MECH MAIL,,50,1,0,0,A piece of MAIL featuring a cute\nMAGNEMITE print.\nIt is to be held by a POKéMON.,,0,,0,,3,0,0
+125,ITEM_WOOD_MAIL,WOOD MAIL,,50,1,0,0,A piece of MAIL featuring a cute\nSLAKOTH print.\nIt is to be held by a POKéMON.,,0,,0,,4,0,0
+126,ITEM_WAVE_MAIL,WAVE MAIL,,50,1,0,0,A piece of MAIL featuring a cute\nWAILMER print.\nIt is to be held by a POKéMON.,,0,,0,,5,0,0
+127,ITEM_BEAD_MAIL,BEAD MAIL,,50,1,0,0,A piece of MAIL to be held by a\nPOKéMON. It will bear the print of\nthe POKéMON holding it.,,0,,0,,6,0,0
+128,ITEM_SHADOW_MAIL,SHADOW MAIL,,50,1,0,0,A piece of MAIL featuring a cute\nDUSKULL print.\nIt is to be held by a POKéMON.,,0,,0,,7,0,0
+129,ITEM_TROPIC_MAIL,TROPIC MAIL,,50,1,0,0,A piece of MAIL featuring a cute\nBELLOSSOM print.\nIt is to be held by a POKéMON.,,0,,0,,8,0,0
+130,ITEM_DREAM_MAIL,DREAM MAIL,,50,1,0,0,A piece of MAIL to be held by a\nPOKéMON. It will bear the print of\nthe POKéMON holding it.,,0,,0,,9,0,0
+131,ITEM_FAB_MAIL,FAB MAIL,,50,1,0,0,"A piece of MAIL featuring a\ngorgeous, extravagant print.\nIt is to be held by a POKéMON.",,0,,0,,10,0,0
+132,ITEM_RETRO_MAIL,RETRO MAIL,,50,1,0,0,A piece of MAIL featuring a print\nof three cute POKéMON.\nIt is to be held by a POKéMON.,,0,,0,,11,0,0
+133,ITEM_CHERI_BERRY,CHERI BERRY,,20,5,2,0,"When held by a POKéMON, it will be\nused in battle to heal paralysis.",,1,,1,,0,0,0
+134,ITEM_CHESTO_BERRY,CHESTO BERRY,,20,5,3,0,"When held by a POKéMON, it will be\nused in battle to wake up.",,1,,1,,0,0,0
+135,ITEM_PECHA_BERRY,PECHA BERRY,,20,5,4,0,"When held by a POKéMON, it will be\nused in battle to cure poison.",,1,,1,,0,0,0
+136,ITEM_RAWST_BERRY,RAWST BERRY,,20,5,5,0,"When held by a POKéMON, it will be\nused in battle to heal a burn.",,1,,1,,0,0,0
+137,ITEM_ASPEAR_BERRY,ASPEAR BERRY,,20,5,6,0,"When held by a POKéMON, it will be\nused in battle for defrosting.",,1,,1,,0,0,0
+138,ITEM_LEPPA_BERRY,LEPPA BERRY,,20,5,7,10,"When held by a POKéMON, it will be\nused in battle to restore 10 PP.",,1,,1,,0,0,0
+139,ITEM_ORAN_BERRY,ORAN BERRY,,20,5,1,10,"When held by a POKéMON, it will be\nused in battle to restore 10 HP.",,1,,1,,0,0,0
+140,ITEM_PERSIM_BERRY,PERSIM BERRY,,20,5,8,0,"When held by a POKéMON, it will be\nused in battle to lift confusion.",,4,,1,,0,0,0
+141,ITEM_LUM_BERRY,LUM BERRY,,20,5,9,0,"When held by a POKéMON, it will be\nused in battle to heal any problem.",,1,,1,,0,0,0
+142,ITEM_SITRUS_BERRY,SITRUS BERRY,,20,5,1,30,"When held by a POKéMON, it will be\nused in battle to restore 30 HP.",,1,,1,,0,0,0
+143,ITEM_FIGY_BERRY,FIGY BERRY,,20,5,10,8,A hold item that restores HP but\nmay cause confusion when used.,,4,,0,,0,0,0
+144,ITEM_WIKI_BERRY,WIKI BERRY,,20,5,11,8,A hold item that restores HP but\nmay cause confusion when used.,,4,,0,,0,0,0
+145,ITEM_MAGO_BERRY,MAGO BERRY,,20,5,12,8,A hold item that restores HP but\nmay cause confusion when used.,,4,,0,,0,0,0
+146,ITEM_AGUAV_BERRY,AGUAV BERRY,,20,5,13,8,A hold item that restores HP but\nmay cause confusion when used.,,4,,0,,0,0,0
+147,ITEM_IAPAPA_BERRY,IAPAPA BERRY,,20,5,14,8,A hold item that restores HP but\nmay cause confusion when used.,,4,,0,,0,0,0
+148,ITEM_RAZZ_BERRY,RAZZ BERRY,,20,5,0,0,Can be ground up into a powder as\nan ingredient for medicine.,,4,,0,,0,0,0
+149,ITEM_BLUK_BERRY,BLUK BERRY,,20,5,0,0,Can be ground up into a powder as\nan ingredient for medicine.,,4,,0,,0,0,0
+150,ITEM_NANAB_BERRY,NANAB BERRY,,20,5,0,0,Can be ground up into a powder as\nan ingredient for medicine.,,4,,0,,0,0,0
+151,ITEM_WEPEAR_BERRY,WEPEAR BERRY,,20,5,0,0,Can be ground up into a powder as\nan ingredient for medicine.,,4,,0,,0,0,0
+152,ITEM_PINAP_BERRY,PINAP BERRY,,20,5,0,0,Can be ground up into a powder as\nan ingredient for medicine.,,4,,0,,0,0,0
+153,ITEM_POMEG_BERRY,POMEG BERRY,,20,5,0,0,Can be ground up into a powder as\nan ingredient for medicine.,,4,,0,,0,0,0
+154,ITEM_KELPSY_BERRY,KELPSY BERRY,,20,5,0,0,Can be ground up into a powder as\nan ingredient for medicine.,,4,,0,,0,0,0
+155,ITEM_QUALOT_BERRY,QUALOT BERRY,,20,5,0,0,Can be ground up into a powder as\nan ingredient for medicine.,,4,,0,,0,0,0
+156,ITEM_HONDEW_BERRY,HONDEW BERRY,,20,5,0,0,Can be ground up into a powder as\nan ingredient for medicine.,,4,,0,,0,0,0
+157,ITEM_GREPA_BERRY,GREPA BERRY,,20,5,0,0,Can be ground up into a powder as\nan ingredient for medicine.,,4,,0,,0,0,0
+158,ITEM_TAMATO_BERRY,TAMATO BERRY,,20,5,0,0,Can be ground up into a powder as\nan ingredient for medicine.,,4,,0,,0,0,0
+159,ITEM_CORNN_BERRY,CORNN BERRY,,20,5,0,0,Can be ground up into a powder as\nan ingredient for medicine.,,4,,0,,0,0,0
+160,ITEM_MAGOST_BERRY,MAGOST BERRY,,20,5,0,0,Can be ground up into a powder as\nan ingredient for medicine.,,4,,0,,0,0,0
+161,ITEM_RABUTA_BERRY,RABUTA BERRY,,20,5,0,0,Can be ground up into a powder as\nan ingredient for medicine.,,4,,0,,0,0,0
+162,ITEM_NOMEL_BERRY,NOMEL BERRY,,20,5,0,0,Can be ground up into a powder as\nan ingredient for medicine.,,4,,0,,0,0,0
+163,ITEM_SPELON_BERRY,SPELON BERRY,,20,5,0,0,Can be ground up into a powder as\nan ingredient for medicine.,,4,,0,,0,0,0
+164,ITEM_PAMTRE_BERRY,PAMTRE BERRY,,20,5,0,0,Can be ground up into a powder as\nan ingredient for medicine.,,4,,0,,0,0,0
+165,ITEM_WATMEL_BERRY,WATMEL BERRY,,20,5,0,0,Can be ground up into a powder as\nan ingredient for medicine.,,4,,0,,0,0,0
+166,ITEM_DURIN_BERRY,DURIN BERRY,,20,5,0,0,Can be ground up into a powder as\nan ingredient for medicine.,,4,,0,,0,0,0
+167,ITEM_BELUE_BERRY,BELUE BERRY,,20,5,0,0,Can be ground up into a powder as\nan ingredient for medicine.,,4,,0,,0,0,0
+168,ITEM_LIECHI_BERRY,LIECHI BERRY,,20,5,15,4,"When held by a POKéMON, it raises\nthe ATTACK stat in a pinch.",,4,,0,,0,0,0
+169,ITEM_GANLON_BERRY,GANLON BERRY,,20,5,16,4,"When held by a POKéMON, it raises\nthe DEFENSE stat in a pinch.",,4,,0,,0,0,0
+170,ITEM_SALAC_BERRY,SALAC BERRY,,20,5,17,4,"When held by a POKéMON, it raises\nthe SPEED stat in a pinch.",,4,,0,,0,0,0
+171,ITEM_PETAYA_BERRY,PETAYA BERRY,,20,5,18,4,"When held by a POKéMON, it raises\nthe SP. ATK stat in a pinch.",,4,,0,,0,0,0
+172,ITEM_APICOT_BERRY,APICOT BERRY,,20,5,19,4,"When held by a POKéMON, it raises\nthe SP. DEF stat in a pinch.",,4,,0,,0,0,0
+173,ITEM_LANSAT_BERRY,LANSAT BERRY,,20,5,20,4,"When held by a POKéMON, it raises\nthe critical-hit ratio in a pinch.",,4,,0,,0,0,0
+174,ITEM_STARF_BERRY,STARF BERRY,,20,5,21,4,"When held by a POKéMON, it sharply\nraises one stat in a pinch.",,4,,0,,0,0,0
+175,ITEM_ENIGMA_BERRY,ENIGMA BERRY,,20,5,0,0,Can be ground up into a powder as\nan ingredient for medicine.,,4,,1,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+179,ITEM_BRIGHT_POWDER,BRIGHTPOWDER,,10,1,22,10,An item to be held by a POKéMON.\nIt casts a tricky glare that lowers\nthe opponent's accuracy.,,4,,0,,0,0,0
+180,ITEM_WHITE_HERB,WHITE HERB,,100,1,23,0,An item to be held by a POKéMON.\nIt restores any lowered stat in\nbattle. It can be used only once.,,4,,0,,0,0,0
+181,ITEM_MACHO_BRACE,MACHO BRACE,,3000,1,24,0,An item to be held by a POKéMON.\nIt promotes strong growth but\nlowers SPEED while it is held.,,4,,0,,0,0,0
+182,ITEM_EXP_SHARE,EXP. SHARE,,3000,1,25,0,An item to be held by a POKéMON.\nThe holder gets a share of EXP.\npoints without having to battle.,,4,,0,,0,0,0
+183,ITEM_QUICK_CLAW,QUICK CLAW,,100,1,26,20,An item to be held by a POKéMON.\nA light and sharp claw. The holder\nmay be able to strike first.,,4,,0,,0,0,0
+184,ITEM_SOOTHE_BELL,SOOTHE BELL,,100,1,27,0,An item to be held by a POKéMON.\nA bell with a comforting chime that\nmakes the holder calm and friendly.,,4,,0,,0,0,0
+185,ITEM_MENTAL_HERB,MENTAL HERB,,100,1,28,0,An item to be held by a POKéMON.\nIt snaps the holder out of\ninfatuation. It can be used once.,,4,,0,,0,0,0
+186,ITEM_CHOICE_BAND,CHOICE BAND,,100,1,29,0,"An item to be held by a POKéMON.\nIt powers up one move, which\nbecomes the only usable one.",,4,,0,,0,0,0
+187,ITEM_KINGS_ROCK,KING'S ROCK,,100,1,30,10,An item to be held by a POKéMON.\nIt may cause the foe to flinch\nupon taking damage.,,4,,0,,0,0,0
+188,ITEM_SILVER_POWDER,SILVERPOWDER,,100,1,31,10,An item to be held by a POKéMON.\nA shiny silver powder that boosts\nthe power of BUG-type moves.,,4,,0,,0,0,0
+189,ITEM_AMULET_COIN,AMULET COIN,,100,1,32,10,An item to be held by a POKéMON.\nIt doubles the battle money if the\nholding POKéMON takes part.,,4,,0,,0,0,0
+190,ITEM_CLEANSE_TAG,CLEANSE TAG,,200,1,33,0,An item to be held by a POKéMON.\nIt repels wild POKéMON if the\nholder is first in the party.,,4,,0,,0,0,0
+191,ITEM_SOUL_DEW,SOUL DEW,,200,1,34,0,An orb to be held by a LATIOS or\nLATIAS. It raises the SP. ATK\nand SP. DEF stats.,,4,,0,,0,0,0
+192,ITEM_DEEP_SEA_TOOTH,DEEPSEATOOTH,,200,1,35,0,An item to be held by a POKéMON.\nA fang that gleams a sharp silver.\nIt raises the SP. ATK stat.,,4,,0,,0,0,0
+193,ITEM_DEEP_SEA_SCALE,DEEPSEASCALE,,200,1,36,0,An item to be held by a POKéMON.\nA scale that shines a faint pink.\nIt raises the SP. DEF stat.,,4,,0,,0,0,0
+194,ITEM_SMOKE_BALL,SMOKE BALL,,200,1,37,0,An item to be held by a POKéMON.\nThe holding POKéMON can flee from\nany wild POKéMON for sure.,,4,,0,,0,0,0
+195,ITEM_EVERSTONE,EVERSTONE,,200,1,38,0,An item to be held by a POKéMON.\nThe holding POKéMON is prevented\nfrom evolving.,,4,,0,,0,0,0
+196,ITEM_FOCUS_BAND,FOCUS BAND,,200,1,39,10,"An item to be held by a POKéMON.\nThe holding POKéMON may endure an\nattack, leaving just 1 HP.",,4,,0,,0,0,0
+197,ITEM_LUCKY_EGG,LUCKY EGG,,200,1,40,0,An item to be held by a POKéMON.\nAn egg filled with happiness that\nearns extra EXP. points in battle.,,4,,0,,0,0,0
+198,ITEM_SCOPE_LENS,SCOPE LENS,,200,1,41,0,An item to be held by a POKéMON.\nA lens that boosts the critical-hit\nratio of the holding POKéMON.,,4,,0,,0,0,0
+199,ITEM_METAL_COAT,METAL COAT,,100,1,42,10,An item to be held by a POKéMON.\nA special metallic film that boosts\nthe power of STEEL-type moves.,,4,,0,,0,0,0
+200,ITEM_LEFTOVERS,LEFTOVERS,,200,1,43,10,An item to be held by a POKéMON.\nThe holding POKéMON gradually\nregains HP during battle.,,4,,0,,0,0,0
+201,ITEM_DRAGON_SCALE,DRAGON SCALE,,2100,1,44,10,A thick and tough scale.\nA DRAGON-type POKéMON may be\nholding it.,,4,,0,,0,0,0
+202,ITEM_LIGHT_BALL,LIGHT BALL,,100,1,45,0,An orb to be held by a PIKACHU\nthat raises the SP. ATK stat.\nTouching it may cause a shock.,,4,,0,,0,0,0
+203,ITEM_SOFT_SAND,SOFT SAND,,100,1,46,10,"An item to be held by a POKéMON.\nA loose, silky sand that boosts the\npower of GROUND-type moves.",,4,,0,,0,0,0
+204,ITEM_HARD_STONE,HARD STONE,,100,1,47,10,An item to be held by a POKéMON.\nAn unbreakable stone that boosts\nthe power of ROCK-type moves.,,4,,0,,0,0,0
+205,ITEM_MIRACLE_SEED,MIRACLE SEED,,100,1,48,10,An item to be held by a POKéMON.\nA seed imbued with life that boosts\nthe power of GRASS-type moves.,,4,,0,,0,0,0
+206,ITEM_BLACK_GLASSES,BLACKGLASSES,,100,1,49,10,An item to be held by a POKéMON.\nA shady-looking pair of glasses\nthat boosts DARK-type moves.,,4,,0,,0,0,0
+207,ITEM_BLACK_BELT,BLACK BELT,,100,1,50,10,An item to be held by a POKéMON.\nA belt that boosts determination\nand FIGHTING-type moves.,,4,,0,,0,0,0
+208,ITEM_MAGNET,MAGNET,,100,1,51,10,An item to be held by a POKéMON.\nA powerful magnet that boosts the\npower of ELECTRIC-type moves.,,4,,0,,0,0,0
+209,ITEM_MYSTIC_WATER,MYSTIC WATER,,100,1,52,10,An item to be held by a POKéMON.\nA teardrop-shaped gem that boosts\nthe power of WATER-type moves.,,4,,0,,0,0,0
+210,ITEM_SHARP_BEAK,SHARP BEAK,,100,1,53,10,"An item to be held by a POKéMON.\nA long, sharp beak that boosts the\npower of FLYING-type moves.",,4,,0,,0,0,0
+211,ITEM_POISON_BARB,POISON BARB,,100,1,54,10,"An item to be held by a POKéMON.\nA small, poisonous barb that boosts\nthe power of POISON-type moves.",,4,,0,,0,0,0
+212,ITEM_NEVER_MELT_ICE,NEVERMELTICE,,100,1,55,10,An item to be held by a POKéMON.\nA piece of ice that repels heat\nand boosts ICE-type moves.,,4,,0,,0,0,0
+213,ITEM_SPELL_TAG,SPELL TAG,,100,1,56,10,"An item to be held by a POKéMON.\nA sinister, eerie tag that boosts\nGHOST-type moves.",,4,,0,,0,0,0
+214,ITEM_TWISTED_SPOON,TWISTEDSPOON,,100,1,57,10,An item to be held by a POKéMON.\nA spoon imbued with telekinetic\npower boosts PSYCHIC-type moves.,,4,,0,,0,0,0
+215,ITEM_CHARCOAL,CHARCOAL,,9800,1,58,10,An item to be held by a POKéMON.\nA combustible fuel that boosts the\npower of FIRE-type moves.,,4,,0,,0,0,0
+216,ITEM_DRAGON_FANG,DRAGON FANG,,100,1,59,10,An item to be held by a POKéMON.\nA hard and sharp fang that boosts\nthe power of DRAGON-type moves.,,4,,0,,0,0,0
+217,ITEM_SILK_SCARF,SILK SCARF,,100,1,60,10,An item to be held by a POKéMON.\nA sumptuous scarf that boosts the\npower of NORMAL-type moves.,,4,,0,,0,0,0
+218,ITEM_UP_GRADE,UP-GRADE,,2100,1,61,0,A transparent device filled with all\nsorts of data.\nIt is made by SILPH CO.,,4,,0,,0,0,0
+219,ITEM_SHELL_BELL,SHELL BELL,,200,1,62,8,An item to be held by a POKéMON.\nThe holding POKéMON regains some\nHP upon striking the foe.,,4,,0,,0,0,0
+220,ITEM_SEA_INCENSE,SEA INCENSE,,9600,1,52,5,An item to be held by a POKéMON.\nIt slightly boosts the power of\nWATER-type moves.,,4,,0,,0,0,0
+221,ITEM_LAX_INCENSE,LAX INCENSE,,9600,1,22,5,An item to be held by a POKéMON.\nIts tricky aroma slightly reduces\nthe foe's accuracy.,,4,,0,,0,0,0
+222,ITEM_LUCKY_PUNCH,LUCKY PUNCH,,10,1,63,0,A glove to be held by a CHANSEY.\nIt raises CHANSEY's critical-hit\nratio.,,4,,0,,0,0,0
+223,ITEM_METAL_POWDER,METAL POWDER,,10,1,64,0,"A fine, hard powder to be held by\na DITTO.\nIt raises DITTO's DEFENSE stat.",,4,,0,,0,0,0
+224,ITEM_THICK_CLUB,THICK CLUB,,500,1,65,0,A hard bone of some sort to be\nheld by a CUBONE or MAROWAK.\nIt raises the ATTACK stat.,,4,,0,,0,0,0
+225,ITEM_STICK,STICK,,200,1,66,0,A stick of leek to be held by a\nFARFETCH'D. It raises FARFETCH'D's\ncritical-hit ratio.,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+254,ITEM_RED_SCARF,RED SCARF,,100,1,0,0,An item to be held by a POKéMON.\nIt boosts the holding POKéMON's\nCOOL condition in CONTESTS.,,4,,0,,0,0,0
+255,ITEM_BLUE_SCARF,BLUE SCARF,,100,1,0,0,An item to be held by a POKéMON.\nIt boosts the holding POKéMON's\nBEAUTY condition in CONTESTS.,,4,,0,,0,0,0
+256,ITEM_PINK_SCARF,PINK SCARF,,100,1,0,0,An item to be held by a POKéMON.\nIt boosts the holding POKéMON's\nCUTE condition in CONTESTS.,,4,,0,,0,0,0
+257,ITEM_GREEN_SCARF,GREEN SCARF,,100,1,0,0,An item to be held by a POKéMON.\nIt boosts the holding POKéMON's\nSMART condition in CONTESTS.,,4,,0,,0,0,0
+258,ITEM_YELLOW_SCARF,YELLOW SCARF,,100,1,0,0,An item to be held by a POKéMON.\nIt boosts the holding POKéMON's\nTOUGH condition in CONTESTS.,,4,,0,,0,0,0
+259,ITEM_MACH_BIKE,MACH BIKE,,0,2,0,0,A folding bicycle that is at least\ntwice as fast as walking.,,2,,0,,0,1,1
+260,ITEM_COIN_CASE,COIN CASE,,0,2,0,0,"A case for holding COINS obtained\nat the GAME CORNER.\nIt holds up to 9,999 COINS.",,4,,0,,0,1,0
+261,ITEM_ITEMFINDER,ITEMFINDER,,0,2,0,0,"A device used for finding items.\nIf there is a hidden item nearby\nwhen it is used, it emits a signal.",,2,,0,,0,1,1
+262,ITEM_OLD_ROD,OLD ROD,,0,2,0,0,An old and beat-up fishing rod.\nUse it by any body of water to \nfish for wild POKéMON.,,2,,0,,OLD_ROD,1,1
+263,ITEM_GOOD_ROD,GOOD ROD,,0,2,0,0,"A new, good-quality fishing rod.\nUse it by any body of water to \nfish for wild POKéMON.",,2,,0,,GOOD_ROD,1,1
+264,ITEM_SUPER_ROD,SUPER ROD,,0,2,0,0,"An awesome, high-tech fishing rod.\nUse it by any body of water to fish\nfor wild POKéMON.",,2,,0,,SUPER_ROD,1,1
+265,ITEM_SS_TICKET,S.S. TICKET,,0,2,0,0,The ticket required for sailing on\nthe ferry S.S. ANNE.\nIt has a drawing of a ship on it.,,4,,0,,0,1,0
+266,ITEM_CONTEST_PASS,CONTEST PASS,,0,2,0,0,The pass required for entering\nPOKéMON CONTESTS. It has a\ndrawing of an award ribbon on it.,,4,,0,,0,1,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+268,ITEM_WAILMER_PAIL,WAILMER PAIL,,0,2,0,0,A nifty watering pail.\nUse it to promote strong growth in\nBERRIES planted in soft soil.,,4,,0,,0,1,0
+269,ITEM_DEVON_GOODS,DEVON GOODS,,0,2,0,0,A package that contains mechanical\nparts of some sort made by the\nDEVON CORPORATION.,,4,,0,,0,2,0
+270,ITEM_SOOT_SACK,SOOT SACK,,0,2,0,0,A sack used to collect volcanic\nash automatically during walks\nover deep ash.,,4,,0,,0,1,0
+271,ITEM_BASEMENT_KEY,BASEMENT KEY,,0,2,0,0,"The key to NEW MAUVILLE, which\nwas constructed beneath MAUVILLE\nCITY.",,4,,0,,0,1,0
+272,ITEM_ACRO_BIKE,ACRO BIKE,,0,2,0,0,A folding bicycle that is capable\nof stunts like jumps and wheelies.,,2,,0,,1,1,1
+273,ITEM_POKEBLOCK_CASE,{POKEBLOCK} CASE,,0,2,0,0,A case for holding {POKEBLOCK}S made\nwith a BERRY BLENDER. It releases\none {POKEBLOCK} when shaken.,,4,,0,,0,1,1
+274,ITEM_LETTER,LETTER,,0,2,0,0,An extremely important letter to\nSTEVEN from the PRESIDENT of the\nDEVON CORPORATION.,,4,,0,,0,2,0
+275,ITEM_EON_TICKET,EON TICKET,,0,2,0,0,The ticket required for sailing on a\nferry to a distant southern island.\nIt features a drawing of an island.,,4,,0,,1,1,0
+276,ITEM_RED_ORB,RED ORB,,0,2,0,0,An orb that glows red.\nIt is said to contain an incredible\npower from ancient times.,,4,,0,,0,2,0
+277,ITEM_BLUE_ORB,BLUE ORB,,0,2,0,0,An orb that glows blue.\nIt is said to contain an incredible\npower from ancient times.,,4,,0,,0,2,0
+278,ITEM_SCANNER,SCANNER,,0,2,0,0,A device used to search for\nlife-forms in water.\nIt looks too difficult to use.,,4,,0,,0,1,0
+279,ITEM_GO_GOGGLES,GO-GOGGLES,,0,2,0,0,A pair of protective goggles.\nThey enable a TRAINER to travel\nthrough even desert sandstorms.,,4,,0,,0,1,0
+280,ITEM_METEORITE,METEORITE,,0,2,0,0,A meteorite that fell from space\nonto MT. MOON long ago.\nIt is very lumpy and hard.,,4,,0,,0,1,0
+281,ITEM_ROOM_1_KEY,RM. 1 KEY,,0,2,0,0,A key that opens the door to Room\n1 inside the ABANDONED SHIP.\nIt is old and looks easily broken.,,4,,0,,0,1,0
+282,ITEM_ROOM_2_KEY,RM. 2 KEY,,0,2,0,0,A key that opens the door to Room\n2 inside the ABANDONED SHIP.\nIt is old and looks easily broken.,,4,,0,,0,1,0
+283,ITEM_ROOM_4_KEY,RM. 4 KEY,,0,2,0,0,A key that opens the door to Room\n4 inside the ABANDONED SHIP.\nIt is old and looks easily broken.,,4,,0,,0,1,0
+284,ITEM_ROOM_6_KEY,RM. 6 KEY,,0,2,0,0,A key that opens the door to Room\n6 inside the ABANDONED SHIP.\nIt is old and looks easily broken.,,4,,0,,0,1,0
+285,ITEM_STORAGE_KEY,STORAGE KEY,,0,2,0,0,A key that opens the storage hold\ninside the ABANDONED SHIP.\nIt is old and looks easily broken.,,4,,0,,0,1,0
+286,ITEM_ROOT_FOSSIL,ROOT FOSSIL,,0,2,0,0,"A fossil of an ancient, seafloor-\ndwelling POKéMON. It appears to be\npart of a plant root.",,4,,0,,0,1,0
+287,ITEM_CLAW_FOSSIL,CLAW FOSSIL,,0,2,0,0,"A fossil of an ancient, seafloor-\ndwelling POKéMON. It appears to be\npart of a claw.",,4,,0,,0,1,0
+288,ITEM_DEVON_SCOPE,DEVON SCOPE,,0,2,0,0,A scope that signals the presence\nof any unseeable POKéMON.\nIt is made by the DEVON CORP.,,4,,0,,0,1,0
+289,ITEM_TM01,TM01,,3000,4,0,0,"An extremely powerful attack.\nHowever, if the user is hit before\nusing the move, they will flinch.",,1,,0,,0,0,0
+290,ITEM_TM02,TM02,,3000,4,0,0,"Sharp, huge claws hook and slash\nthe foe quickly and with great\npower.",,1,,0,,0,0,0
+291,ITEM_TM03,TM03,,3000,4,0,0,The foe is hit with a pulsing blast\nof water. It may also confuse the\ntarget.,,1,,0,,0,0,0
+292,ITEM_TM04,TM04,,3000,4,0,0,The user calms its spirit and\nfocuses its mind to raise its\nSP. ATK and SP. DEF stats.,,1,,0,,0,0,0
+293,ITEM_TM05,TM05,,1000,4,0,0,"A savage roar that causes the foe\nto switch out of battle. In the\nwild, ROAR ends the battle.",,1,,0,,0,0,0
+294,ITEM_TM06,TM06,,3000,4,0,0,A move that leaves the foe badly\npoisoned. Its poison damage worsens\nevery turn.,,1,,0,,0,0,0
+295,ITEM_TM07,TM07,,3000,4,0,0,Summons a hailstorm that lasts for\nfive turns. The hailstorm damages\nall types except the ICE type.,,1,,0,,0,0,0
+296,ITEM_TM08,TM08,,3000,4,0,0,"The user tightens all its muscles\nand bulks up, boosting both its\nATTACK and DEFENSE stats.",,1,,0,,0,0,0
+297,ITEM_TM09,TM09,,3000,4,0,0,The user shoots seeds at the foe\nin rapid succession. Two to five\nseeds are shot at once.,,1,,0,,0,0,0
+298,ITEM_TM10,TM10,,3000,4,0,0,A variable move that changes type\nand power depending on the POKéMON\nusing it.,,1,,0,,0,0,0
+299,ITEM_TM11,TM11,,2000,4,0,0,"The weather is turned sunny for\nfive turns. Over that time, FIRE-\ntype moves are powered up.",,1,,0,,0,0,0
+300,ITEM_TM12,TM12,,3000,4,0,0,A taunted foe may become enraged.\nIt will then only be able to use\nattack moves.,,1,,0,,0,0,0
+301,ITEM_TM13,TM13,,3000,4,0,0,An icy-cold beam is shot at the\nfoe. It may leave the target\nfrozen.,,1,,0,,0,0,0
+302,ITEM_TM14,TM14,,5500,4,0,0,A vicious snow-and-wind attack that\nstrikes all foes in battle. It may\ncause freezing.,,1,,0,,0,0,0
+303,ITEM_TM15,TM15,,7500,4,0,0,"A harsh attack that inflicts severe\ndamage on the foe. However, the\nuser must rest the next turn.",,1,,0,,0,0,0
+304,ITEM_TM16,TM16,,3000,4,0,0,A wall of light is created over\nfive turns. It reduces damage from\nSP. ATK attacks.,,1,,0,,0,0,0
+305,ITEM_TM17,TM17,,3000,4,0,0,The user is completely protected\nfrom attack in the turn it is used.\nIt may fail if used in succession.,,1,,0,,0,0,0
+306,ITEM_TM18,TM18,,2000,4,0,0,"A heavy rain is summoned for five\nturns. Over that time, WATER-type\nmoves are powered up.",,1,,0,,0,0,0
+307,ITEM_TM19,TM19,,3000,4,0,0,"The user strikes the foe with\ntentacles or roots, stealing the\ntarget's HP and healing itself.",,1,,0,,0,0,0
+308,ITEM_TM20,TM20,,3000,4,0,0,Protects the party with a shield\nagainst all status problems over\nfive turns.,,1,,0,,0,0,0
+309,ITEM_TM21,TM21,,1000,4,0,0,This attack move grows more\npowerful the more the POKéMON\ndislikes its TRAINER.,,1,,0,,0,0,0
+310,ITEM_TM22,TM22,,3000,4,0,0,"A 2-turn attack that uses the first\nturn for absorbing sunlight, then\nblasting the foe in the next turn.",,1,,0,,0,0,0
+311,ITEM_TM23,TM23,,3000,4,0,0,The foe is slammed with a sturdy\ntail of steel. It may lower the\ntarget's DEFENSE stat.,,1,,0,,0,0,0
+312,ITEM_TM24,TM24,,3000,4,0,0,A massive jolt of electricity is\nlaunched at the foe. It may cause\nparalysis.,,1,,0,,0,0,0
+313,ITEM_TM25,TM25,,5500,4,0,0,Strikes the foe with a huge\nthunderbolt. It may cause\nparalysis.,,1,,0,,0,0,0
+314,ITEM_TM26,TM26,,3000,4,0,0,"Causes an earthquake that strikes\nall POKéMON in battle, excluding\nthe user.",,1,,0,,0,0,0
+315,ITEM_TM27,TM27,,1000,4,0,0,This attack move grows more\npowerful the more the POKéMON\nlikes its TRAINER.,,1,,0,,0,0,0
+316,ITEM_TM28,TM28,,2000,4,0,0,"A 2-turn attack in which the user\ndigs underground, then strikes.\nIt can be used to exit dungeons.",,1,,0,,0,0,0
+317,ITEM_TM29,TM29,,2000,4,0,0,A powerful blast of telekinetic\nenergy strikes the foe. It may\nlower the target's SP. DEF stat.,,1,,0,,0,0,0
+318,ITEM_TM30,TM30,,3000,4,0,0,The foe is attacked with a shadowy\nlump. It may lower the target's\nSP. DEF stat.,,1,,0,,0,0,0
+319,ITEM_TM31,TM31,,3000,4,0,0,"Strikes the foe with a rock-hard\nfist, etc. It shatters barriers such\nas REFLECT and LIGHT SCREEN.",,1,,0,,0,0,0
+320,ITEM_TM32,TM32,,2000,4,0,0,The user begins moving so quickly\nthat it creates illusory copies to\nraise its evasiveness.,,1,,0,,0,0,0
+321,ITEM_TM33,TM33,,3000,4,0,0,A tough barrier is put up over five\nturns. It reduces damage from\nphysical attacks over that time.,,1,,0,,0,0,0
+322,ITEM_TM34,TM34,,3000,4,0,0,A rapid jolt of electricity strikes\nthe foe. This attack is impossible\nto evade.,,1,,0,,0,0,0
+323,ITEM_TM35,TM35,,3000,4,0,0,The foe is roasted with a heavy\nblast of fire. It may leave the\ntarget with a burn.,,1,,0,,0,0,0
+324,ITEM_TM36,TM36,,1000,4,0,0,Toxic sludge is hurled at the foe\nwith great force. It may also\npoison the target.,,1,,0,,0,0,0
+325,ITEM_TM37,TM37,,2000,4,0,0,"Summons a sandstorm that lasts for\nfive turns. It damages all types\nexcept ROCK, GROUND, and STEEL.",,1,,0,,0,0,0
+326,ITEM_TM38,TM38,,5500,4,0,0,The foe is incinerated with an\nintense flame. It may leave the\ntarget with a burn.,,1,,0,,0,0,0
+327,ITEM_TM39,TM39,,3000,4,0,0,Boulders are hurled at the foe.\nIt also lowers the target's SPEED\nstat if it hits.,,1,,0,,0,0,0
+328,ITEM_TM40,TM40,,3000,4,0,0,An extremely fast attack against\none target. It is impossible to\nevade.,,1,,0,,0,0,0
+329,ITEM_TM41,TM41,,3000,4,0,0,"If enraged by this move, the target\nbecomes incapable of using the same\nmove twice in a row.",,1,,0,,0,0,0
+330,ITEM_TM42,TM42,,3000,4,0,0,"An attack move that becomes very\npowerful if the user is poisoned,\nburned, or paralyzed.",,1,,0,,0,0,0
+331,ITEM_TM43,TM43,,3000,4,0,0,An attack move that may have an\nadditional effect depending on the\nbattle terrain.,,1,,0,,0,0,0
+332,ITEM_TM44,TM44,,3000,4,0,0,A move that makes the user fall\nasleep over two turns to restore HP\nand heal any status problems.,,1,,0,,0,0,0
+333,ITEM_TM45,TM45,,3000,4,0,0,"The foe, if it is the opposite\ngender as the user, becomes\ninfatuated and may not attack.",,1,,0,,0,0,0
+334,ITEM_TM46,TM46,,3000,4,0,0,An attack that gives the user an\nopportunity to steal the foe's hold\nitem.,,1,,0,,0,0,0
+335,ITEM_TM47,TM47,,3000,4,0,0,The foe is struck with steel-hard\nwings. It may also raise the user's\nDEFENSE stat.,,1,,0,,0,0,0
+336,ITEM_TM48,TM48,,3000,4,0,0,"A special power is transmitted to\nthe foe, causing it to switch\nabilities with the user.",,1,,0,,0,0,0
+337,ITEM_TM49,TM49,,3000,4,0,0,A move that steals the effects of\nany status-changing or healing move\nthat the foe tries to use.,,1,,0,,0,0,0
+338,ITEM_TM50,TM50,,3000,4,0,0,"A maximum-power attack of great\nferocity, but one that also sharply\nreduces the user's SP. ATK stat.",,1,,0,,0,0,0
+339,ITEM_HM01,HM01,,0,4,0,0,Attacks the foe with sharp blades\nor claws. It can also cut down thin\ntrees and grass outside of battle.,,1,,0,,0,1,0
+340,ITEM_HM02,HM02,,0,4,0,0,"The user flies up on the first turn,\nthen attacks next turn. It can be\nused to fly to any known town.",,1,,0,,0,1,0
+341,ITEM_HM03,HM03,,0,4,0,0,"Creates a huge wave, then crashes\nit down on the foe. It can be used\nfor traveling on water.",,1,,0,,0,1,0
+342,ITEM_HM04,HM04,,0,4,0,0,"The user builds enormous power,\nthen slams the foe. It can be used\nfor moving large, round boulders.",,1,,0,,0,1,0
+343,ITEM_HM05,HM05,,0,4,0,0,Looses a powerful blast of light\nthat reduces the foe's accuracy.\nIt also lights up dark caves.,,1,,0,,0,1,0
+344,ITEM_HM06,HM06,,0,4,0,0,Hits the foe with a rock-crushingly\ntough attack. It can smash cracked\nboulders.,,1,,0,,0,1,0
+345,ITEM_HM07,HM07,,0,4,0,0,A powerful charge attack. It can\nbe used for climbing a torrential\nwaterfall.,,1,,0,,0,1,0
+346,ITEM_HM08,HM08,,0,4,0,0,"A 2-turn attack in which the user\ndives underwater on the first turn,\nthen strikes in the next turn.",,1,,0,,0,1,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+0,ITEM_NONE,????????,,0,1,0,0,?????,,4,,0,,0,0,0
+349,ITEM_OAKS_PARCEL,OAK'S PARCEL,,0,2,0,0,A parcel to be delivered to PROF.\nOAK from VIRIDIAN CITY's POKéMON\nMART.,,4,,0,,0,2,0
+350,ITEM_POKE_FLUTE,POKé FLUTE,,0,2,0,0,A flute that is said to instantly\nawaken any POKéMON. It has a\nlovely tone.,,4,,2,,0,1,0
+351,ITEM_SECRET_KEY,SECRET KEY,,0,2,0,0,The key to CINNABAR ISLAND GYM's\nfront door. It is colored red and\ndecorated.,,4,,0,,0,1,0
+352,ITEM_BIKE_VOUCHER,BIKE VOUCHER,,0,2,0,0,Take this voucher to the BIKE SHOP\nin CERULEAN CITY and exchange it\nfor a bicycle.,,4,,0,,0,1,0
+353,ITEM_GOLD_TEETH,GOLD TEETH,,0,2,0,0,A set of false teeth lost by the\nSAFARI ZONE'S WARDEN. It makes his\nsmile sparkle.,,4,,0,,0,1,0
+354,ITEM_OLD_AMBER,OLD AMBER,,0,2,0,0,A piece of amber that contains\nthe genes of an ancient POKéMON.\nIt is clear with a reddish tint.,,4,,0,,0,1,0
+355,ITEM_CARD_KEY,CARD KEY,,0,2,0,0,A card-type key that unlocks doors\nin SILPH CO.'s HEAD OFFICE in\nSAFFRON CITY.,,4,,0,,0,1,0
+356,ITEM_LIFT_KEY,LIFT KEY,,0,2,0,0,A key that operates the elevator\nin TEAM ROCKET's HIDEOUT.\nIt bears the TEAM ROCKET logo.,,4,,0,,0,1,0
+357,ITEM_HELIX_FOSSIL,HELIX FOSSIL,,0,2,0,0,"A fossil of an ancient, seafloor-\ndwelling POKéMON. It appears to be\npart of a seashell.",,4,,0,,0,1,0
+358,ITEM_DOME_FOSSIL,DOME FOSSIL,,0,2,0,0,"A fossil of an ancient, seafloor-\ndwelling POKéMON. It appears to be\npart of a shell.",,4,,0,,0,1,0
+359,ITEM_SILPH_SCOPE,SILPH SCOPE,,0,2,0,0,A scope that makes unseeable\nPOKéMON visible.\nIt is made by SILPH CO.,,4,,0,,0,1,0
+360,ITEM_BICYCLE,BICYCLE,,0,2,0,0,A folding bicycle that allows\nfaster movement than the RUNNING\nSHOES.,,2,,0,,0,1,1
+361,ITEM_TOWN_MAP,TOWN MAP,,0,2,0,0,A very convenient map that can be\nviewed anytime. It even shows your \npresent location.,,4,,0,,0,1,1
+362,ITEM_VS_SEEKER,VS SEEKER,,0,2,0,0,A device that indicates TRAINERS\nwho want to battle. The battery\ncharges while traveling.,,2,,0,,0,1,1
+363,ITEM_FAME_CHECKER,FAME CHECKER,,0,2,0,0,A device that enables you to\nrecall what you've heard and seen\nabout famous people.,,4,,0,,0,1,1
+364,ITEM_TM_CASE,TM CASE,,0,2,0,0,A case that holds TMs and HMs.\nIt is attached to the BAG's\ncompartment for important items.,,4,,0,,0,1,1
+365,ITEM_BERRY_POUCH,BERRY POUCH,,0,2,0,0,A pouch for carrying BERRIES.\nIt is attached to the BAG's\ncompartment for important items.,,4,,3,,0,1,1
+366,ITEM_TEACHY_TV,TEACHY TV,,0,2,0,0,A television set that is tuned to\na program with useful tips for\nnovice TRAINERS.,,2,,0,,0,1,1
+367,ITEM_TRI_PASS,TRI-PASS,,0,2,0,0,"A pass for ferries between ONE,\nTWO, and THREE ISLAND.\nIt has a drawing of three islands.",,4,,0,,0,1,1
+368,ITEM_RAINBOW_PASS,RAINBOW PASS,,0,2,0,0,A pass for ferries between\nVERMILION and the SEVII ISLANDS.\nIt features a drawing of a rainbow.,,4,,0,,0,1,1
+369,ITEM_TEA,TEA,,0,2,0,0,An aromatic tea prepared by an old\nlady. It will slake even the worst\nthirst.,,4,,0,,0,1,1
+370,ITEM_MYSTIC_TICKET,MYSTICTICKET,,0,2,0,0,A ticket required to board the ship\nto NAVEL ROCK.\nIt glows with a mystic light.,,4,,0,,0,1,1
+371,ITEM_AURORA_TICKET,AURORATICKET,,0,2,0,0,A ticket required to board the ship\nto BIRTH ISLAND.\nIt glows beautifully.,,4,,0,,0,1,1
+372,ITEM_POWDER_JAR,POWDER JAR,,0,2,0,0,A jar for storing BERRY POWDER\nmade using a BERRY CRUSHER.,,4,,0,,0,1,1
+373,ITEM_RUBY,RUBY,,0,2,0,0,An exquisitely beautiful gem that\nhas a red glow.\nIt symbolizes passion.,,4,,0,,0,1,1
+374,ITEM_SAPPHIRE,SAPPHIRE,,0,2,0,0,An exquisitely beautiful gem that\nhas a blue glow.\nIt symbolizes honesty.,,4,,0,,0,1,1

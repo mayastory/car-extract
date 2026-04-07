@@ -1,0 +1,4 @@
+TwoIsland,39,9,0	warp	w0	1,1,TwoIsland_JoyfulGameCorner,5,8 // elev=0 src=MAP_TWO_ISLAND_JOYFUL_GAME_CORNER:0
+TwoIsland,33,9,0	warp	w1	1,1,TwoIsland_House,4,7 // elev=0 src=MAP_TWO_ISLAND_HOUSE:0
+TwoIsland,21,7,0	warp	w2	1,1,TwoIsland_PokemonCenter_1F,7,8 // elev=0 src=MAP_TWO_ISLAND_POKEMON_CENTER_1F:0
+TwoIsland,10,8,0	warp	w3	1,1,TwoIsland_Harbor,8,2 // elev=3 src=MAP_TWO_ISLAND_HARBOR:0

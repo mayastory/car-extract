@@ -1,0 +1,2 @@
+SilphCo_11F,10,18,0	hidden_item	ITEM_REVIVE,1,flag=FLAG_HIDDEN_ITEM_SILPH_CO_11F_REVIVE,underfoot=0
+SilphCo_11F,16,18,3	item_ball	ITEM_ZINC,1,flag=FLAG_HIDE_SILPH_CO_11F_ZINC,script=SilphCo_11F_EventScript_ItemZinc

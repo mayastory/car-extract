@@ -1,0 +1,12 @@
+CeladonCity_GameCorner,2,4,3	hidden_item	ITEM_NONE,1,flag=FLAG_HIDDEN_ITEM_CELADON_CITY_GAME_CORNER_COINS,underfoot=0
+CeladonCity_GameCorner,3,8,3	hidden_item	ITEM_NONE,1,flag=FLAG_HIDDEN_ITEM_CELADON_CITY_GAME_CORNER_COINS_2,underfoot=0
+CeladonCity_GameCorner,2,11,3	hidden_item	ITEM_NONE,1,flag=FLAG_HIDDEN_ITEM_CELADON_CITY_GAME_CORNER_COINS_3,underfoot=0
+CeladonCity_GameCorner,6,12,3	hidden_item	ITEM_NONE,1,flag=FLAG_HIDDEN_ITEM_CELADON_CITY_GAME_CORNER_COINS_4,underfoot=0
+CeladonCity_GameCorner,9,9,3	hidden_item	ITEM_NONE,1,flag=FLAG_HIDDEN_ITEM_CELADON_CITY_GAME_CORNER_COINS_5,underfoot=0
+CeladonCity_GameCorner,8,5,3	hidden_item	ITEM_NONE,1,flag=FLAG_HIDDEN_ITEM_CELADON_CITY_GAME_CORNER_COINS_6,underfoot=0
+CeladonCity_GameCorner,10,4,3	hidden_item	ITEM_NONE,1,flag=FLAG_HIDDEN_ITEM_CELADON_CITY_GAME_CORNER_COINS_7,underfoot=0
+CeladonCity_GameCorner,13,3,3	hidden_item	ITEM_NONE,1,flag=FLAG_HIDDEN_ITEM_CELADON_CITY_GAME_CORNER_COINS_8,underfoot=0
+CeladonCity_GameCorner,15,5,3	hidden_item	ITEM_NONE,1,flag=FLAG_HIDDEN_ITEM_CELADON_CITY_GAME_CORNER_COINS_9,underfoot=0
+CeladonCity_GameCorner,17,5,3	hidden_item	ITEM_NONE,1,flag=FLAG_HIDDEN_ITEM_CELADON_CITY_GAME_CORNER_COINS_10,underfoot=0
+CeladonCity_GameCorner,15,13,3	hidden_item	ITEM_NONE,1,flag=FLAG_HIDDEN_ITEM_CELADON_CITY_GAME_CORNER_COINS_11,underfoot=0
+CeladonCity_GameCorner,12,12,3	hidden_item	ITEM_NONE,1,flag=FLAG_HIDDEN_ITEM_CELADON_CITY_GAME_CORNER_COINS_12,underfoot=0

@@ -1,0 +1,9 @@
+PowerPlant,29,16,3	hidden_item	ITEM_MAX_ELIXIR,1,flag=FLAG_HIDDEN_ITEM_POWER_PLANT_MAX_ELIXIR,underfoot=0
+PowerPlant,8,12,3	hidden_item	ITEM_THUNDER_STONE,1,flag=FLAG_HIDDEN_ITEM_POWER_PLANT_THUNDER_STONE,underfoot=0
+PowerPlant,7,27,3	item_ball	ITEM_MAX_POTION,1,flag=FLAG_HIDE_POWER_PLANT_MAX_POTION,script=PowerPlant_EventScript_ItemMaxPotion
+PowerPlant,40,22,3	item_ball	ITEM_TM17,1,flag=FLAG_HIDE_POWER_PLANT_TM17,script=PowerPlant_EventScript_ItemTM17
+PowerPlant,46,37,3	item_ball	ITEM_TM25,1,flag=FLAG_HIDE_POWER_PLANT_TM25,script=PowerPlant_EventScript_ItemTM25
+PowerPlant,45,4,3	item_ball	ITEM_THUNDER_STONE,1,flag=FLAG_HIDE_POWER_PLANT_THUNDER_STONE,script=PowerPlant_EventScript_ItemThunderStone
+PowerPlant,26,22,3	item_ball	ITEM_ELIXIR,1,flag=FLAG_HIDE_POWER_PLANT_ELIXIR,script=PowerPlant_EventScript_ItemElixir
+PowerPlant,36,5,3	battle_ball	BATTLE,PowerPlant_EventScript_Electrode2,flag=FLAG_HIDE_POWER_PLANT_ELECTRODE_2,script=PowerPlant_EventScript_Electrode2
+PowerPlant,30,38,3	battle_ball	BATTLE,PowerPlant_EventScript_Electrode1,flag=FLAG_HIDE_POWER_PLANT_ELECTRODE_1,script=PowerPlant_EventScript_Electrode1

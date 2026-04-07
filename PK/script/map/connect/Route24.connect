@@ -1,0 +1,2 @@
+Route24	connect	down	CeruleanCity	-12 // src=MAP_CERULEAN_CITY
+Route24	connect	right	Route25	0 // src=MAP_ROUTE25

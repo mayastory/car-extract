@@ -1,0 +1,6 @@
+MtMoon_B2F,20,16,3	hidden_item	ITEM_MOON_STONE,1,flag=FLAG_HIDDEN_ITEM_MT_MOON_B2F_MOON_STONE,underfoot=0
+MtMoon_B2F,39,11,3	hidden_item	ITEM_ETHER,1,flag=FLAG_HIDDEN_ITEM_MT_MOON_B2F_ETHER,underfoot=0
+MtMoon_B2F,30,26,3	item_ball	ITEM_STAR_PIECE,1,flag=FLAG_HIDE_MT_MOON_B2F_STAR_PIECE,script=MtMoon_B2F_EventScript_ItemStarPiece
+MtMoon_B2F,35,5,3	item_ball	ITEM_TM46,1,flag=FLAG_HIDE_MT_MOON_B2F_TM46,script=MtMoon_B2F_EventScript_ItemTM46
+MtMoon_B2F,24,6,3	item_ball	ITEM_REVIVE,1,flag=FLAG_HIDE_MT_MOON_B2F_REVIVE,script=MtMoon_B2F_EventScript_ItemRevive
+MtMoon_B2F,3,11,3	item_ball	ITEM_ANTIDOTE,1,flag=FLAG_HIDE_MT_MOON_B2F_ANTIDOTE,script=MtMoon_B2F_EventScript_ItemAntidote

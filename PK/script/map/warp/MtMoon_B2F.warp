@@ -1,0 +1,4 @@
+MtMoon_B2F,25,21,0	warp	w0	1,1,MtMoon_B1F,22,18 // elev=3 src=MAP_MT_MOON_B1F:3
+MtMoon_B2F,31,11,0	warp	w1	1,1,MtMoon_B1F,17,5 // elev=3 src=MAP_MT_MOON_B1F:4
+MtMoon_B2F,17,31,0	warp	w2	1,1,MtMoon_B1F,26,36 // elev=3 src=MAP_MT_MOON_B1F:5
+MtMoon_B2F,5,10,0	warp	w3	1,1,MtMoon_B1F,39,4 // elev=3 src=MAP_MT_MOON_B1F:6

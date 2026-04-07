@@ -1,0 +1,1 @@
+FiveIsland_LostCave_Room13,5,5,3	item_ball	ITEM_MAX_REVIVE,1,flag=FLAG_HIDE_FIVE_ISLAND_LOST_CAVE_ROOM13_MAX_REVIVE,script=FiveIsland_LostCave_Room13_EventScript_ItemMaxRevive

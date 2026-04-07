@@ -1,0 +1,1 @@
+PokemonTower_3F,13,2,3	item_ball	ITEM_ESCAPE_ROPE,1,flag=FLAG_HIDE_POKEMON_TOWER_3F_ESCAPE_ROPE,script=PokemonTower_3F_EventScript_ItemEscapeRope

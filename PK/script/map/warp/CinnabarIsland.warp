@@ -1,0 +1,5 @@
+CinnabarIsland,8,3,0	warp	w0	1,1,PokemonMansion_1F,8,33 // elev=0 src=MAP_POKEMON_MANSION_1F:1
+CinnabarIsland,20,4,0	warp	w1	1,1,CinnabarIsland_Gym,25,23 // elev=0 src=MAP_CINNABAR_ISLAND_GYM:1
+CinnabarIsland,8,9,0	warp	w2	1,1,CinnabarIsland_PokemonLab_Entrance,4,9 // elev=0 src=MAP_CINNABAR_ISLAND_POKEMON_LAB_ENTRANCE:1
+CinnabarIsland,14,11,0	warp	w3	1,1,CinnabarIsland_PokemonCenter_1F,7,8 // elev=0 src=MAP_CINNABAR_ISLAND_POKEMON_CENTER_1F:0
+CinnabarIsland,19,11,0	warp	w4	1,1,CinnabarIsland_Mart,4,7 // elev=0 src=MAP_CINNABAR_ISLAND_MART:1

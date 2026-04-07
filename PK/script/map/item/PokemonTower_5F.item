@@ -1,0 +1,3 @@
+PokemonTower_5F,7,3,3	hidden_item	ITEM_BIG_MUSHROOM,1,flag=FLAG_HIDDEN_ITEM_POKEMON_TOWER_5F_BIG_MUSHROOM,underfoot=0
+PokemonTower_5F,6,16,3	item_ball	ITEM_NUGGET,1,flag=FLAG_HIDE_POKEMON_TOWER_5F_NUGGET,script=PokemonTower_5F_EventScript_ItemNugget
+PokemonTower_5F,11,9,3	item_ball	ITEM_CLEANSE_TAG,1,flag=FLAG_HIDE_POKEMON_TOWER_5F_CLEANSE_TAG,script=PokemonTower_5F_EventScript_ItemCleanseTag

@@ -1,0 +1,2 @@
+SixIsland_PokemonCenter_1F,7,8,0	warp	w0	1,1,SixIsland,11,11 // elev=3 src=MAP_SIX_ISLAND:1
+SixIsland_PokemonCenter_1F,1,6,0	warp	w1	1,1,SixIsland_PokemonCenter_2F,1,6 // elev=4 src=MAP_SIX_ISLAND_POKEMON_CENTER_2F:0

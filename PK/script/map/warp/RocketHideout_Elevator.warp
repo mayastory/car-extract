@@ -1,0 +1,2 @@
+RocketHideout_Elevator,1,5,0	warp	w0	1,1,(NONE),@WARP_ID_DYNAMIC // elev=3 src=MAP_DYNAMIC:WARP_ID_DYNAMIC
+RocketHideout_Elevator,2,5,0	warp	w1	1,1,(NONE),@WARP_ID_DYNAMIC // elev=3 src=MAP_DYNAMIC:WARP_ID_DYNAMIC

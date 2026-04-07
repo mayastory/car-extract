@@ -1,0 +1,89 @@
+KEEP_TEMP (pattern mismatch) 017-019.png
+KEEP_TEMP (pattern mismatch) 080+103.png
+KEEP_TEMP (pattern mismatch) 143s copy.png
+KEEP_TEMP (pattern mismatch) 143s_0 copy.png
+KEEP_TEMP (pattern mismatch) 144f150.png
+KEEP_TEMP (pattern mismatch) 145f151.png
+KEEP_TEMP (pattern mismatch) 146f150.png
+MOVED 19_1.png -> rattata/overworld/alola/019_1.png
+MOVED 19s_1.png -> rattata/overworld/alola/shiny/019s_1.png
+MOVED 20_1.png -> raticate/overworld/alola/020_1.png
+MOVED 20s_1.png -> raticate/overworld/alola/shiny/020s_1.png
+MOVED 26s_1.png -> raichu/overworld/alola/shiny/026s_1.png
+MOVED 27_1.png -> sandshrew/overworld/alola/027_1.png
+MOVED 27s_1.png -> sandshrew/overworld/alola/shiny/027s_1.png
+MOVED 28_1.png -> sandslash/overworld/alola/028_1.png
+MOVED 28s_1.png -> sandslash/overworld/alola/shiny/028s_1.png
+MOVED 37_1.png -> vulpix/overworld/alola/037_1.png
+MOVED 37s_1.png -> vulpix/overworld/alola/shiny/037s_1.png
+MOVED 38_1.png -> ninetales/overworld/alola/038_1.png
+MOVED 38s_1.png -> ninetales/overworld/alola/shiny/038s_1.png
+MOVED 50_1.png -> diglett/overworld/alola/050_1.png
+MOVED 50s_1.png -> diglett/overworld/alola/shiny/050s_1.png
+MOVED 51_1.png -> dugtrio/overworld/alola/051_1.png
+MOVED 51s_1.png -> dugtrio/overworld/alola/shiny/051s_1.png
+MOVED 52_1.png -> meowth/overworld/alola/052_1.png
+MOVED 52s_1.png -> meowth/overworld/alola/shiny/052s_1.png
+MOVED 53_1.png -> persian/overworld/alola/053_1.png
+MOVED 53s_1.png -> persian/overworld/alola/shiny/053s_1.png
+MOVED 54.png -> psyduck/overworld/054.png
+KEEP_TEMP (pattern mismatch) 54D.png
+KEEP_TEMP (pattern mismatch) 550b.png
+KEEP_TEMP (pattern mismatch) 550bs.png
+KEEP_TEMP (pattern mismatch) 550r.png
+KEEP_TEMP (pattern mismatch) 550rs.png
+KEEP_TEMP (pattern mismatch) 585-at.png
+KEEP_TEMP (pattern mismatch) 585-sm.png
+KEEP_TEMP (pattern mismatch) 585-sp.png
+KEEP_TEMP (pattern mismatch) 585-wt.png
+KEEP_TEMP (pattern mismatch) 585s-at.png
+KEEP_TEMP (pattern mismatch) 585s-sm.png
+KEEP_TEMP (pattern mismatch) 585s-sp.png
+KEEP_TEMP (pattern mismatch) 585s-wt.png
+KEEP_TEMP (pattern mismatch) 586(at).png
+KEEP_TEMP (pattern mismatch) 586(sm).png
+KEEP_TEMP (pattern mismatch) 586-sp.png
+KEEP_TEMP (pattern mismatch) 586-wt.png
+KEEP_TEMP (pattern mismatch) 586s(at).png
+KEEP_TEMP (pattern mismatch) 586s(sm).png
+KEEP_TEMP (pattern mismatch) 586s-sp.png
+KEEP_TEMP (pattern mismatch) 586s-wt.png
+KEEP_TEMP (pattern mismatch) 592(female).png
+KEEP_TEMP (pattern mismatch) 592(female)s.png
+KEEP_TEMP (pattern mismatch) 592(male).png
+KEEP_TEMP (pattern mismatch) 592(male)s.png
+KEEP_TEMP (pattern mismatch) 593 (M).png
+KEEP_TEMP (pattern mismatch) 593 (M)s.png
+KEEP_TEMP (pattern mismatch) 593(F).png
+KEEP_TEMP (pattern mismatch) 593(F)s.png
+KEEP_TEMP (pattern mismatch) 600_REAL.png
+KEEP_TEMP (pattern mismatch) 647s2.png
+KEEP_TEMP (pattern mismatch) 648_a.png
+KEEP_TEMP (pattern mismatch) 648_p.png
+KEEP_TEMP (pattern mismatch) 648s_p.png
+KEEP_TEMP (pattern mismatch) 649s_4png.png
+KEEP_TEMP (pattern mismatch) 668f.png
+KEEP_TEMP (pattern mismatch) 668fs.png
+KEEP_TEMP (pattern mismatch) 678f.png
+KEEP_TEMP (pattern mismatch) 678fs.png
+MOVED 74_1.png -> geodude/overworld/alola/074_1.png
+MOVED 74s_1.png -> geodude/overworld/alola/shiny/074s_1.png
+MOVED 75_1.png -> graveler/overworld/alola/075_1.png
+MOVED 75s_1.png -> graveler/overworld/alola/shiny/075s_1.png
+MOVED 76s_1.png -> golem/overworld/alola/shiny/076s_1.png
+MOVED 88_1.png -> grimer/overworld/alola/088_1.png
+MOVED 88s_1.png -> grimer/overworld/alola/shiny/088s_1.png
+MOVED 89_1.png -> muk/overworld/alola/089_1.png
+MOVED 89s_1.png -> muk/overworld/alola/shiny/089s_1.png
+UNMAPPED 810.png
+UNMAPPED 810s.png
+UNMAPPED 811.png
+UNMAPPED 811s.png
+UNMAPPED 812.png
+UNMAPPED 812s.png
+UNMAPPED 813.png
+UNMAPPED 813s.png
+UNMAPPED 815.png
+UNMAPPED 815s.png
+
+TOTAL_MOVED=31

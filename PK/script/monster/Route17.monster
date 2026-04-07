@@ -1,0 +1,7 @@
+# auto-generated from Packege/src/data/wild_encounters.json
+# map=Route17 id=MAP_ROUTE17 size=24x160
+Route17,0,0,0	monster	land_spearow	24,160,SPECIES_SPEAROW,20,20,4,30,land
+Route17,0,0,0	monster	land_doduo	24,160,SPECIES_DODUO,24,24,4,30,land
+Route17,0,0,0	monster	land_raticate	24,160,SPECIES_RATICATE,25,25,4,30,land
+Route17,0,0,0	monster	land_rattata	24,160,SPECIES_RATTATA,22,22,4,30,land
+Route17,0,0,0	monster	land_fearow	24,160,SPECIES_FEAROW,25,25,4,30,land

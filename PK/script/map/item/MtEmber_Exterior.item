@@ -1,0 +1,5 @@
+MtEmber_Exterior,18,17,0	hidden_item	ITEM_FIRE_STONE,1,flag=FLAG_HIDDEN_ITEM_MT_EMBER_EXTERIOR_FIRE_STONE,underfoot=0
+MtEmber_Exterior,8,30,3	hidden_item	ITEM_ULTRA_BALL,1,flag=FLAG_HIDDEN_ITEM_MT_EMBER_EXTERIOR_ULTRA_BALL,underfoot=0
+MtEmber_Exterior,13,6,3	item_ball	ITEM_ULTRA_BALL,1,flag=FLAG_HIDE_MT_EMBER_EXTERIOR_ULTRA_BALL,script=MtEmber_Exterior_EventScript_ItemUltraBall
+MtEmber_Exterior,38,10,3	item_ball	ITEM_FIRE_STONE,1,flag=FLAG_HIDE_MT_EMBER_EXTERIOR_FIRE_STONE,script=MtEmber_Exterior_EventScript_ItemFireStone
+MtEmber_Exterior,48,20,3	item_ball	ITEM_DIRE_HIT,1,flag=FLAG_HIDE_MT_EMBER_EXTERIOR_DIRE_HIT,script=MtEmber_Exterior_EventScript_ItemDireHit

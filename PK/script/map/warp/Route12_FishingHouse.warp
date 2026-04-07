@@ -1,0 +1,3 @@
+Route12_FishingHouse,2,8,0	warp	w0	1,1,Route12,12,86 // elev=0 src=MAP_ROUTE12:0
+Route12_FishingHouse,3,7,0	warp	w1	1,1,Route12,12,86 // elev=3 src=MAP_ROUTE12:0
+Route12_FishingHouse,4,8,0	warp	w2	1,1,Route12,12,86 // elev=0 src=MAP_ROUTE12:0

@@ -1,0 +1,10 @@
+VermilionCity,22,34,0	warp	w0	1,1,SSAnne_Exterior,32,5 // elev=3 src=MAP_SSANNE_EXTERIOR:1
+VermilionCity,23,34,0	warp	w1	1,1,SSAnne_Exterior,32,5 // elev=3 src=MAP_SSANNE_EXTERIOR:1
+VermilionCity,24,34,0	warp	w2	1,1,SSAnne_Exterior,32,5 // elev=3 src=MAP_SSANNE_EXTERIOR:1
+VermilionCity,9,6,0	warp	w3	1,1,VermilionCity_House1,4,7 // elev=0 src=MAP_VERMILION_CITY_HOUSE1:1
+VermilionCity,15,6,0	warp	w4	1,1,VermilionCity_PokemonCenter_1F,7,8 // elev=3 src=MAP_VERMILION_CITY_POKEMON_CENTER_1F:1
+VermilionCity,12,17,0	warp	w5	1,1,VermilionCity_PokemonFanClub,5,10 // elev=0 src=MAP_VERMILION_CITY_POKEMON_FAN_CLUB:1
+VermilionCity,19,17,0	warp	w6	1,1,VermilionCity_House2,4,7 // elev=0 src=MAP_VERMILION_CITY_HOUSE2:1
+VermilionCity,29,17,0	warp	w7	1,1,VermilionCity_Mart,4,7 // elev=0 src=MAP_VERMILION_CITY_MART:1
+VermilionCity,28,24,0	warp	w8	1,1,VermilionCity_House3,4,7 // elev=0 src=MAP_VERMILION_CITY_HOUSE3:1
+VermilionCity,14,25,0	warp	w9	1,1,VermilionCity_Gym,5,19 // elev=0 src=MAP_VERMILION_CITY_GYM:1

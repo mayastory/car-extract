@@ -1,0 +1,4 @@
+Route4,43,2,3	hidden_item	ITEM_GREAT_BALL,1,flag=FLAG_HIDDEN_ITEM_ROUTE4_GREAT_BALL,underfoot=0
+Route4,5,4,3	hidden_item	ITEM_PERSIM_BERRY,1,flag=FLAG_HIDDEN_ITEM_ROUTE4_PERSIM_BERRY,underfoot=0
+Route4,67,17,3	hidden_item	ITEM_RAZZ_BERRY,1,flag=FLAG_HIDDEN_ITEM_ROUTE4_RAZZ_BERRY,underfoot=0
+Route4,67,5,3	item_ball	ITEM_TM05,1,flag=FLAG_HIDE_ROUTE4_TM05,script=Route4_EventScript_ItemTM05

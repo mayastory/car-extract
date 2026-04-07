@@ -1,0 +1,3 @@
+SixIsland_OutcastIsland,16,23,3	hidden_item	ITEM_STAR_PIECE,1,flag=FLAG_HIDDEN_ITEM_SIX_ISLAND_OUTCAST_ISLAND_STAR_PIECE,underfoot=0
+SixIsland_OutcastIsland,6,24,3	hidden_item	ITEM_NET_BALL,1,flag=FLAG_HIDDEN_ITEM_SIX_ISLAND_OUTCAST_ISLAND_NET_BALL,underfoot=0
+SixIsland_OutcastIsland,11,16,3	item_ball	ITEM_PP_UP,1,flag=FLAG_HIDE_SIX_ISLAND_OUTCAST_ISLAND_PP_UP,script=SixIsland_OutcastIsland_EventScript_ItemPPUp

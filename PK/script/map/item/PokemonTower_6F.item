@@ -1,0 +1,2 @@
+PokemonTower_6F,5,15,3	item_ball	ITEM_RARE_CANDY,1,flag=FLAG_HIDE_POKEMON_TOWER_6F_RARE_CANDY,script=PokemonTower_6F_EventScript_ItemRareCandy
+PokemonTower_6F,15,15,3	item_ball	ITEM_X_ACCURACY,1,flag=FLAG_HIDE_POKEMON_TOWER_6F_X_ACCURACY,script=PokemonTower_6F_EventScript_ItemXAccuracy

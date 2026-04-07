@@ -1,0 +1,4 @@
+VictoryRoad_2F,17,6,3	item_ball	ITEM_GUARD_SPEC,1,flag=FLAG_HIDE_VICTORY_ROAD_2F_GUARD_SPEC,script=VictoryRoad_2F_EventScript_ItemGuardSpec
+VictoryRoad_2F,40,7,3	item_ball	ITEM_TM07,1,flag=FLAG_HIDE_VICTORY_ROAD_2F_TM07,script=VictoryRoad_2F_EventScript_ItemTM07
+VictoryRoad_2F,25,13,3	item_ball	ITEM_FULL_HEAL,1,flag=FLAG_HIDE_VICTORY_ROAD_2F_FULL_HEAL,script=VictoryRoad_2F_EventScript_ItemFullHeal
+VictoryRoad_2F,14,13,3	item_ball	ITEM_TM37,1,flag=FLAG_HIDE_VICTORY_ROAD_2F_TM37,script=VictoryRoad_2F_EventScript_ItemTM37

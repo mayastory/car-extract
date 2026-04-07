@@ -1,0 +1,5 @@
+# auto-generated from Packege/src/data/wild_encounters.json
+# map=MtEmber_RubyPath_B3F id=MAP_MT_EMBER_RUBY_PATH_B3F size=31x23
+MtEmber_RubyPath_B3F,0,0,0	monster	land_slugma	31,23,SPECIES_SLUGMA,26,26,4,30,land
+MtEmber_RubyPath_B3F,0,0,0	monster	rock_slugma	31,23,SPECIES_SLUGMA,15,25,2,45,rock
+MtEmber_RubyPath_B3F,0,0,0	monster	rock_magcargo	31,23,SPECIES_MAGCARGO,40,45,2,45,rock

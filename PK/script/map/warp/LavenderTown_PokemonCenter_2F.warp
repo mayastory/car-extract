@@ -1,0 +1,3 @@
+LavenderTown_PokemonCenter_2F,1,6,0	warp	w0	1,1,LavenderTown_PokemonCenter_1F,1,6 // elev=4 src=MAP_LAVENDER_TOWN_POKEMON_CENTER_1F:3
+LavenderTown_PokemonCenter_2F,5,1,0	warp	w1	1,1,UnionRoom,7,11 // elev=0 src=MAP_UNION_ROOM:0
+LavenderTown_PokemonCenter_2F,9,1,0	warp	w2	1,1,TradeCenter,5,8 // elev=0 src=MAP_TRADE_CENTER:0

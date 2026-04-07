@@ -1,0 +1,8 @@
+FourIsland,18,20,0	warp	w0	1,1,FourIsland_PokemonCenter_1F,7,8 // elev=0 src=MAP_FOUR_ISLAND_POKEMON_CENTER_1F:0
+FourIsland,12,13,0	warp	w1	1,1,FourIsland_PokemonDayCare,4,7 // elev=0 src=MAP_FOUR_ISLAND_POKEMON_DAY_CARE:0
+FourIsland,25,14,0	warp	w2	1,1,FourIsland_House1,4,7 // elev=0 src=MAP_FOUR_ISLAND_HOUSE1:0
+FourIsland,38,12,0	warp	w3	1,1,FourIsland_IcefallCave_Entrance,17,30 // elev=0 src=MAP_FOUR_ISLAND_ICEFALL_CAVE_ENTRANCE:0
+FourIsland,33,23,0	warp	w4	1,1,FourIsland_LoreleisHouse,4,7 // elev=0 src=MAP_FOUR_ISLAND_LORELEIS_HOUSE:0
+FourIsland,25,26,0	warp	w5	1,1,FourIsland_House2,4,7 // elev=0 src=MAP_FOUR_ISLAND_HOUSE2:0
+FourIsland,10,28,0	warp	w6	1,1,FourIsland_Harbor,8,2 // elev=3 src=MAP_FOUR_ISLAND_HARBOR:0
+FourIsland,22,26,0	warp	w7	1,1,FourIsland_Mart,4,7 // elev=0 src=MAP_FOUR_ISLAND_MART:0

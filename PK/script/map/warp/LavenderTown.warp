@@ -1,0 +1,6 @@
+LavenderTown,18,6,0	warp	w0	1,1,PokemonTower_1F,11,18 // elev=0 src=MAP_POKEMON_TOWER_1F:1
+LavenderTown,6,5,0	warp	w1	1,1,LavenderTown_PokemonCenter_1F,7,8 // elev=0 src=MAP_LAVENDER_TOWN_POKEMON_CENTER_1F:1
+LavenderTown,10,11,0	warp	w2	1,1,LavenderTown_VolunteerPokemonHouse,4,7 // elev=0 src=MAP_LAVENDER_TOWN_VOLUNTEER_POKEMON_HOUSE:1
+LavenderTown,5,16,0	warp	w3	1,1,LavenderTown_House1,4,7 // elev=0 src=MAP_LAVENDER_TOWN_HOUSE1:1
+LavenderTown,10,16,0	warp	w4	1,1,LavenderTown_House2,4,7 // elev=0 src=MAP_LAVENDER_TOWN_HOUSE2:1
+LavenderTown,20,15,0	warp	w5	1,1,LavenderTown_Mart,4,7 // elev=0 src=MAP_LAVENDER_TOWN_MART:1

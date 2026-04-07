@@ -1,0 +1,2 @@
+Route2,17,54,3	item_ball	ITEM_ETHER,1,flag=FLAG_HIDE_ROUTE2_ETHER,script=Route2_EventScript_ItemEther
+Route2,17,64,3	item_ball	ITEM_PARALYZE_HEAL,1,flag=FLAG_HIDE_ROUTE2_PARALYZE_HEAL,script=Route2_EventScript_ItemParalyzeHeal

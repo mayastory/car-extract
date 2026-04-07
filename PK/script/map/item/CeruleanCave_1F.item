@@ -1,0 +1,4 @@
+CeruleanCave_1F,12,2,3	hidden_item	ITEM_ULTRA_BALL,1,flag=FLAG_HIDDEN_ITEM_CERULEAN_CAVE_1F_ULTRA_BALL,underfoot=0
+CeruleanCave_1F,7,3,3	item_ball	ITEM_NUGGET,1,flag=FLAG_HIDE_CERULEAN_CAVE_1F_NUGGET,script=CeruleanCave_1F_EventScript_ItemNugget
+CeruleanCave_1F,11,16,3	item_ball	ITEM_FULL_RESTORE,1,flag=FLAG_HIDE_CERULEAN_CAVE_1F_FULL_RESTORE,script=CeruleanCave_1F_EventScript_ItemFullRestore
+CeruleanCave_1F,25,5,4	item_ball	ITEM_MAX_ELIXIR,1,flag=FLAG_HIDE_CERULEAN_CAVE_1F_MAX_ELIXIR,script=CeruleanCave_1F_EventScript_ItemMaxElixir

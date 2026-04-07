@@ -1,0 +1,7 @@
+# auto-generated from Packege/src/data/wild_encounters.json
+# map=CeladonCity id=MAP_CELADON_CITY size=60x40
+CeladonCity,0,0,0	monster	water_psyduck	60,40,SPECIES_PSYDUCK,5,10,3,35,water
+CeladonCity,0,0,0	monster	water_koffing	60,40,SPECIES_KOFFING,30,40,3,35,water
+CeladonCity,0,0,0	monster	water_slowpoke	60,40,SPECIES_SLOWPOKE,5,10,3,35,water
+CeladonCity,0,0,0	monster	fish_magikarp	60,40,SPECIES_MAGIKARP,5,5,2,50,fish
+CeladonCity,0,0,0	monster	fish_grimer	60,40,SPECIES_GRIMER,30,40,2,50,fish

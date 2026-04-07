@@ -1,0 +1,4 @@
+Route7_EastEntrance,1,5,0	warp	w0	1,1,Route7,15,10 // elev=3 src=MAP_ROUTE7:1
+Route7_EastEntrance,1,6,0	warp	w1	1,1,Route7,15,10 // elev=3 src=MAP_ROUTE7:1
+Route7_EastEntrance,11,5,0	warp	w2	1,1,SaffronCity,8,27 // elev=3 src=MAP_SAFFRON_CITY:8
+Route7_EastEntrance,11,6,0	warp	w3	1,1,SaffronCity,8,27 // elev=3 src=MAP_SAFFRON_CITY:8

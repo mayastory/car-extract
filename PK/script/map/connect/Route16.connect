@@ -1,0 +1,2 @@
+Route16	connect	down	Route17	0 // src=MAP_ROUTE17
+Route16	connect	right	CeladonCity	-10 // src=MAP_CELADON_CITY

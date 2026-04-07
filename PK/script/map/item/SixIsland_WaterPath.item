@@ -1,0 +1,5 @@
+SixIsland_WaterPath,15,76,3	hidden_item	ITEM_ASPEAR_BERRY,1,flag=FLAG_HIDDEN_ITEM_SIX_ISLAND_WATER_PATH_ASPEAR_BERRY,underfoot=0
+SixIsland_WaterPath,3,8,3	hidden_item	ITEM_ORAN_BERRY,1,flag=FLAG_HIDDEN_ITEM_SIX_ISLAND_WATER_PATH_ORAN_BERRY,underfoot=0
+SixIsland_WaterPath,13,63,3	hidden_item	ITEM_PINAP_BERRY,1,flag=FLAG_HIDDEN_ITEM_SIX_ISLAND_WATER_PATH_PINAP_BERRY,underfoot=0
+SixIsland_WaterPath,17,19,0	item_ball	ITEM_ELIXIR,1,flag=FLAG_HIDE_SIX_ISLAND_WATER_PATH_ELIXIR,script=SixIsland_WaterPath_EventScript_ItemElixir
+SixIsland_WaterPath,17,87,3	item_ball	ITEM_DRAGON_SCALE,1,flag=FLAG_HIDE_SIX_ISLAND_WATER_PATH_DRAGON_SCALE,script=SixIsland_WaterPath_EventScript_ItemDragonScale

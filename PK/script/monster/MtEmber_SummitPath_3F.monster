@@ -1,0 +1,4 @@
+# auto-generated from Packege/src/data/wild_encounters.json
+# map=MtEmber_SummitPath_3F id=MAP_MT_EMBER_SUMMIT_PATH_3F size=15x11
+MtEmber_SummitPath_3F,0,0,0	monster	land_geodude	15,11,SPECIES_GEODUDE,33,33,4,30,land
+MtEmber_SummitPath_3F,0,0,0	monster	land_machop	15,11,SPECIES_MACHOP,35,35,4,30,land

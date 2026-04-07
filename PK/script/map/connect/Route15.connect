@@ -1,0 +1,2 @@
+Route15	connect	left	FuchsiaCity	-10 // src=MAP_FUCHSIA_CITY
+Route15	connect	right	Route14	-40 // src=MAP_ROUTE14

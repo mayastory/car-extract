@@ -1,0 +1,7 @@
+PewterCity,17,6,0	warp	w0	1,1,PewterCity_Museum_1F,14,9 // elev=0 src=MAP_PEWTER_CITY_MUSEUM_1F:1
+PewterCity,25,4,0	warp	w1	1,1,PewterCity_Museum_1F,21,9 // elev=0 src=MAP_PEWTER_CITY_MUSEUM_1F:3
+PewterCity,15,16,0	warp	w2	1,1,PewterCity_Gym,6,14 // elev=0 src=MAP_PEWTER_CITY_GYM:1
+PewterCity,28,18,0	warp	w3	1,1,PewterCity_Mart,4,7 // elev=0 src=MAP_PEWTER_CITY_MART:1
+PewterCity,33,11,0	warp	w4	1,1,PewterCity_House1,4,7 // elev=0 src=MAP_PEWTER_CITY_HOUSE1:1
+PewterCity,17,25,0	warp	w5	1,1,PewterCity_PokemonCenter_1F,7,8 // elev=0 src=MAP_PEWTER_CITY_POKEMON_CENTER_1F:1
+PewterCity,9,30,0	warp	w6	1,1,PewterCity_House2,4,7 // elev=0 src=MAP_PEWTER_CITY_HOUSE2:1

@@ -1,0 +1,4 @@
+Route5,31,31,0	warp	w0	1,1,UndergroundPath_NorthEntrance,6,8 // elev=0 src=MAP_UNDERGROUND_PATH_NORTH_ENTRANCE:1
+Route5,23,25,0	warp	w1	1,1,Route5_PokemonDayCare,4,7 // elev=0 src=MAP_ROUTE5_POKEMON_DAY_CARE:1
+Route5,24,32,0	warp	w2	1,1,Route5_SouthEntrance,4,1 // elev=3 src=MAP_ROUTE5_SOUTH_ENTRANCE:1
+Route5,25,32,0	warp	w3	1,1,Route5_SouthEntrance,4,1 // elev=3 src=MAP_ROUTE5_SOUTH_ENTRANCE:1

@@ -1,0 +1,5 @@
+SSAnne_Exterior,31,5,0	warp	w0	1,1,VermilionCity,22,34 // elev=0 src=MAP_VERMILION_CITY:0
+SSAnne_Exterior,32,5,0	warp	w1	1,1,VermilionCity,23,34 // elev=3 src=MAP_VERMILION_CITY:1
+SSAnne_Exterior,32,14,0	warp	w2	1,1,SSAnne_1F_Corridor,19,1 // elev=3 src=MAP_SSANNE_1F_CORRIDOR:2
+SSAnne_Exterior,33,15,0	warp	w3	1,1,SSAnne_1F_Corridor,20,0 // elev=0 src=MAP_SSANNE_1F_CORRIDOR:3
+SSAnne_Exterior,33,5,0	warp	w4	1,1,VermilionCity,24,34 // elev=0 src=MAP_VERMILION_CITY:2

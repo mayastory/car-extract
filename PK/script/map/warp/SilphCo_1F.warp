@@ -1,0 +1,5 @@
+SilphCo_1F,7,21,0	warp	w0	1,1,SaffronCity,33,30 // elev=0 src=MAP_SAFFRON_CITY:0
+SilphCo_1F,8,20,0	warp	w1	1,1,SaffronCity,33,30 // elev=3 src=MAP_SAFFRON_CITY:0
+SilphCo_1F,9,20,0	warp	w2	1,1,SaffronCity,33,30 // elev=3 src=MAP_SAFFRON_CITY:0
+SilphCo_1F,31,2,0	warp	w3	1,1,SilphCo_2F,30,2 // elev=3 src=MAP_SILPH_CO_2F:3
+SilphCo_1F,22,3,0	warp	w4	1,1,SilphCo_Elevator,2,5 // elev=0 src=MAP_SILPH_CO_ELEVATOR:0

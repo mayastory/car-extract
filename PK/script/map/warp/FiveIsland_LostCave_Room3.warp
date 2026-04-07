@@ -1,0 +1,4 @@
+FiveIsland_LostCave_Room3,5,1,0	warp	w0	1,1,FiveIsland_LostCave_Room1,5,8 // elev=3 src=MAP_FIVE_ISLAND_LOST_CAVE_ROOM1:3
+FiveIsland_LostCave_Room3,8,5,0	warp	w1	1,1,FiveIsland_LostCave_Room1,2,5 // elev=3 src=MAP_FIVE_ISLAND_LOST_CAVE_ROOM1:4
+FiveIsland_LostCave_Room3,5,8,0	warp	w2	1,1,FiveIsland_LostCave_Room4,5,1 // elev=3 src=MAP_FIVE_ISLAND_LOST_CAVE_ROOM4:0
+FiveIsland_LostCave_Room3,2,5,0	warp	w3	1,1,FiveIsland_LostCave_Room1,8,5 // elev=3 src=MAP_FIVE_ISLAND_LOST_CAVE_ROOM1:2

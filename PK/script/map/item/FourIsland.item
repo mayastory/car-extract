@@ -1,0 +1,4 @@
+FourIsland,22,34,3	hidden_item	ITEM_PEARL,1,flag=FLAG_HIDDEN_ITEM_FOUR_ISLAND_PEARL,underfoot=0
+FourIsland,6,21,3	hidden_item	ITEM_ULTRA_BALL,1,flag=FLAG_HIDDEN_ITEM_FOUR_ISLAND_ULTRA_BALL,underfoot=0
+FourIsland,5,6,3	item_ball	ITEM_STAR_PIECE,1,flag=FLAG_HIDE_FOUR_ISLAND_STAR_PIECE,script=FourIsland_EventScript_ItemStarPiece
+FourIsland,32,19,3	item_ball	ITEM_STARDUST,1,flag=FLAG_HIDE_FOUR_ISLAND_STARDUST,script=FourIsland_EventScript_ItemStardust

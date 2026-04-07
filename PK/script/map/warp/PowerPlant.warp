@@ -1,0 +1,5 @@
+PowerPlant,4,39,0	warp	w0	1,1,Route10,7,40 // elev=3 src=MAP_ROUTE10:2
+PowerPlant,5,38,0	warp	w1	1,1,Route10,7,40 // elev=3 src=MAP_ROUTE10:2
+PowerPlant,6,39,0	warp	w2	1,1,Route10,7,40 // elev=3 src=MAP_ROUTE10:2
+PowerPlant,1,11,0	warp	w3	1,1,Route10,2,37 // elev=3 src=MAP_ROUTE10:4
+PowerPlant,0,13,0	warp	w4	1,1,Route10,7,40 // elev=3 src=MAP_ROUTE10:2

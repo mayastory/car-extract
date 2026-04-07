@@ -1,0 +1,15 @@
+SaffronCity,33,30,0	warp	w0	1,1,SilphCo_1F,8,20 // elev=0 src=MAP_SILPH_CO_1F:1
+SaffronCity,22,14,0	warp	w1	1,1,SaffronCity_CopycatsHouse_1F,4,8 // elev=0 src=MAP_SAFFRON_CITY_COPYCATS_HOUSE_1F:1
+SaffronCity,40,12,0	warp	w2	1,1,SaffronCity_Dojo,6,14 // elev=0 src=MAP_SAFFRON_CITY_DOJO:1
+SaffronCity,46,12,0	warp	w3	1,1,SaffronCity_Gym,14,23 // elev=0 src=MAP_SAFFRON_CITY_GYM:1
+SaffronCity,27,21,0	warp	w4	1,1,SaffronCity_House,4,7 // elev=0 src=MAP_SAFFRON_CITY_HOUSE:1
+SaffronCity,40,21,0	warp	w5	1,1,SaffronCity_Mart,4,7 // elev=0 src=MAP_SAFFRON_CITY_MART:1
+SaffronCity,24,38,0	warp	w6	1,1,SaffronCity_PokemonCenter_1F,7,8 // elev=0 src=MAP_SAFFRON_CITY_POKEMON_CENTER_1F:1
+SaffronCity,43,38,0	warp	w7	1,1,SaffronCity_MrPsychicsHouse,4,7 // elev=0 src=MAP_SAFFRON_CITY_MR_PSYCHICS_HOUSE:1
+SaffronCity,8,27,0	warp	w8	1,1,Route7_EastEntrance,11,5 // elev=3 src=MAP_ROUTE7_EAST_ENTRANCE:2
+SaffronCity,34,5,0	warp	w9	1,1,Route5_SouthEntrance,4,9 // elev=3 src=MAP_ROUTE5_SOUTH_ENTRANCE:2
+SaffronCity,58,27,0	warp	w10	1,1,Route8_WestEntrance,1,5 // elev=3 src=MAP_ROUTE8_WEST_ENTRANCE:1
+SaffronCity,34,46,0	warp	w11	1,1,Route6_NorthEntrance,4,1 // elev=3 src=MAP_ROUTE6_NORTH_ENTRANCE:0
+SaffronCity,35,46,0	warp	w12	1,1,Route6_NorthEntrance,4,1 // elev=3 src=MAP_ROUTE6_NORTH_ENTRANCE:0
+SaffronCity,35,5,0	warp	w13	1,1,Route5_SouthEntrance,4,9 // elev=3 src=MAP_ROUTE5_SOUTH_ENTRANCE:2
+SaffronCity,47,21,0	warp	w14	1,1,SaffronCity_PokemonTrainerFanClub,5,15 // elev=0 src=MAP_SAFFRON_CITY_POKEMON_TRAINER_FAN_CLUB:0

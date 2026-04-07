@@ -1,0 +1,2 @@
+Route6	connect	up	SaffronCity_Connection	0 // src=MAP_SAFFRON_CITY_CONNECTION
+Route6	connect	down	VermilionCity	-12 // src=MAP_VERMILION_CITY

@@ -1,0 +1,2 @@
+FiveIsland_Meadow	connect	left	FiveIsland	0 // src=MAP_FIVE_ISLAND
+FiveIsland_Meadow	connect	right	FiveIsland_MemorialPillar	20 // src=MAP_FIVE_ISLAND_MEMORIAL_PILLAR

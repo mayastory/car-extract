@@ -1,0 +1,4 @@
+OneIsland,14,5,0	warp	w0	1,1,OneIsland_PokemonCenter_1F,9,9 // elev=0 src=MAP_ONE_ISLAND_POKEMON_CENTER_1F:0
+OneIsland,19,9,0	warp	w1	1,1,OneIsland_House1,4,7 // elev=0 src=MAP_ONE_ISLAND_HOUSE1:0
+OneIsland,8,11,0	warp	w2	1,1,OneIsland_House2,4,7 // elev=0 src=MAP_ONE_ISLAND_HOUSE2:0
+OneIsland,12,18,0	warp	w3	1,1,OneIsland_Harbor,8,2 // elev=3 src=MAP_ONE_ISLAND_HARBOR:0

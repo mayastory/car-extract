@@ -1,0 +1,2 @@
+VictoryRoad_3F,38,7,3	item_ball	ITEM_MAX_REVIVE,1,flag=FLAG_HIDE_VICTORY_ROAD_3F_MAX_REVIVE,script=VictoryRoad_3F_EventScript_ItemMaxRevive
+VictoryRoad_3F,12,9,3	item_ball	ITEM_TM50,1,flag=FLAG_HIDE_VICTORY_ROAD_3F_TM50,script=VictoryRoad_3F_EventScript_ItemTM50

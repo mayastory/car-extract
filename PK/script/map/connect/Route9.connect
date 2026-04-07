@@ -1,0 +1,2 @@
+Route9	connect	left	CeruleanCity	-10 // src=MAP_CERULEAN_CITY
+Route9	connect	right	Route10	0 // src=MAP_ROUTE10

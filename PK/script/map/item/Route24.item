@@ -1,0 +1,2 @@
+Route24,19,4,3	hidden_item	ITEM_PECHA_BERRY,1,flag=FLAG_HIDDEN_ITEM_ROUTE24_PECHA_BERRY,underfoot=0
+Route24,11,4,3	item_ball	ITEM_TM45,1,flag=FLAG_HIDE_ROUTE24_TM45,script=Route24_EventScript_ItemTM45

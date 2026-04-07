@@ -1,0 +1,4 @@
+RocketHideout_B2F,15,3,3	item_ball	ITEM_X_SPEED,1,flag=FLAG_HIDE_ROCKET_HIDEOUT_B2F_X_SPEED,script=RocketHideout_B2F_EventScript_ItemXSpeed
+RocketHideout_B2F,2,5,3	item_ball	ITEM_MOON_STONE,1,flag=FLAG_HIDE_ROCKET_HIDEOUT_B2F_MOON_STONE,script=RocketHideout_B2F_EventScript_ItemMoonStone
+RocketHideout_B2F,5,7,3	item_ball	ITEM_TM12,1,flag=FLAG_HIDE_ROCKET_HIDEOUT_B2F_TM12,script=RocketHideout_B2F_EventScript_ItemTM12
+RocketHideout_B2F,0,14,3	item_ball	ITEM_SUPER_POTION,1,flag=FLAG_HIDE_ROCKET_HIDEOUT_B2F_SUPER_POTION,script=RocketHideout_B2F_EventScript_ItemSuperPotion

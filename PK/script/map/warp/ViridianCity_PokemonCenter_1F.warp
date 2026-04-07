@@ -1,0 +1,4 @@
+ViridianCity_PokemonCenter_1F,6,8,0	warp	w0	1,1,ViridianCity,26,26 // elev=3 src=MAP_VIRIDIAN_CITY:0
+ViridianCity_PokemonCenter_1F,7,8,0	warp	w1	1,1,ViridianCity,26,26 // elev=3 src=MAP_VIRIDIAN_CITY:0
+ViridianCity_PokemonCenter_1F,8,8,0	warp	w2	1,1,ViridianCity,26,26 // elev=3 src=MAP_VIRIDIAN_CITY:0
+ViridianCity_PokemonCenter_1F,1,6,0	warp	w3	1,1,ViridianCity_PokemonCenter_2F,1,6 // elev=4 src=MAP_VIRIDIAN_CITY_POKEMON_CENTER_2F:0

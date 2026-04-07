@@ -1,0 +1,1 @@
+SeafoamIslands_1F,11,8,3	item_ball	ITEM_ICE_HEAL,1,flag=FLAG_HIDE_SEAFOAM_ISLANDS_1F_ICE_HEAL,script=SeafoamIslands_1F_EventScript_ItemIceHeal

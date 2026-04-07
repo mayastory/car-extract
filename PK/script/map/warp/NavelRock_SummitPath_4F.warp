@@ -1,0 +1,2 @@
+NavelRock_SummitPath_4F,4,4,0	warp	w0	1,1,NavelRock_SummitPath_3F,4,4 // elev=3 src=MAP_NAVEL_ROCK_SUMMIT_PATH_3F:1
+NavelRock_SummitPath_4F,2,2,0	warp	w1	1,1,NavelRock_SummitPath_5F,2,2 // elev=3 src=MAP_NAVEL_ROCK_SUMMIT_PATH_5F:0

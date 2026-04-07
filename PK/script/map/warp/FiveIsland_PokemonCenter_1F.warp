@@ -1,0 +1,2 @@
+FiveIsland_PokemonCenter_1F,7,8,0	warp	w0	1,1,FiveIsland,18,6 // elev=3 src=MAP_FIVE_ISLAND:1
+FiveIsland_PokemonCenter_1F,1,6,0	warp	w1	1,1,FiveIsland_PokemonCenter_2F,1,6 // elev=4 src=MAP_FIVE_ISLAND_POKEMON_CENTER_2F:0

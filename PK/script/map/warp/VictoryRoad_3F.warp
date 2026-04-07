@@ -1,0 +1,5 @@
+VictoryRoad_3F,5,2,0	warp	w0	1,1,VictoryRoad_2F,3,3 // elev=3 src=MAP_VICTORY_ROAD_2F:1
+VictoryRoad_3F,34,9,0	warp	w1	1,1,VictoryRoad_2F,34,9 // elev=3 src=MAP_VICTORY_ROAD_2F:2
+VictoryRoad_3F,37,10,0	warp	w2	1,1,VictoryRoad_2F,38,9 // elev=3 src=MAP_VICTORY_ROAD_2F:3
+VictoryRoad_3F,39,17,0	warp	w3	1,1,VictoryRoad_2F,36,17 // elev=3 src=MAP_VICTORY_ROAD_2F:4
+VictoryRoad_3F,34,18,0	warp	w4	1,1,VictoryRoad_2F,34,19 // elev=3 src=MAP_VICTORY_ROAD_2F:8

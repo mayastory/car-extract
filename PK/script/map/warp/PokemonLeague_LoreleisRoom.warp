@@ -1,0 +1,2 @@
+PokemonLeague_LoreleisRoom,6,12,0	warp	w0	1,1,IndigoPlateau_PokemonCenter_1F,4,1 // elev=0 src=MAP_INDIGO_PLATEAU_POKEMON_CENTER_1F:1
+PokemonLeague_LoreleisRoom,6,2,0	warp	w1	1,1,PokemonLeague_BrunosRoom,6,12 // elev=0 src=MAP_POKEMON_LEAGUE_BRUNOS_ROOM:0

@@ -1,0 +1,4 @@
+SaffronCity_CopycatsHouse_1F,3,8,0	warp	w0	1,1,SaffronCity,22,14 // elev=3 src=MAP_SAFFRON_CITY:1
+SaffronCity_CopycatsHouse_1F,4,8,0	warp	w1	1,1,SaffronCity,22,14 // elev=3 src=MAP_SAFFRON_CITY:1
+SaffronCity_CopycatsHouse_1F,5,8,0	warp	w2	1,1,SaffronCity,22,14 // elev=3 src=MAP_SAFFRON_CITY:1
+SaffronCity_CopycatsHouse_1F,10,2,0	warp	w3	1,1,SaffronCity_CopycatsHouse_2F,10,2 // elev=3 src=MAP_SAFFRON_CITY_COPYCATS_HOUSE_2F:0

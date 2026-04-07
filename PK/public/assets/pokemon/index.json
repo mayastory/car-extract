@@ -1,0 +1,5451 @@
+{
+  "generated_at": "2026-02-11T15:51:04",
+  "src": "C:\\xampp\\htdocs\\poke\\Packege\\graphics\\pokemon",
+  "dst": "C:\\xampp\\htdocs\\poke\\public\\assets\\pokemon",
+  "folders": [
+    {
+      "name": "abra",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "absol",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "aerodactyl",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "aggron",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "aipom",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "alakazam",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "altaria",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "ampharos",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "anorith",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "arbok",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "arcanine",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "ariados",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "armaldo",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "aron",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "articuno",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "azumarill",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "azurill",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "bagon",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "baltoy",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "banette",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "barboach",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "bayleef",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "beautifly",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "beedrill",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "beldum",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "bellossom",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "bellsprout",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "blastoise",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "blaziken",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "blissey",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "breloom",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "bulbasaur",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "butterfree",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "cacnea",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "cacturne",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "camerupt",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "carvanha",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "cascoon",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "castform",
+      "files": [
+        "footprint.png",
+        "icon.png"
+      ],
+      "has_icon": true,
+      "has_front": false,
+      "has_back": false
+    },
+    {
+      "name": "caterpie",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "celebi",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "chansey",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "charizard",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "charmander",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "charmeleon",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "chikorita",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "chimecho",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "chinchou",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "clamperl",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "claydol",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "clefable",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "clefairy",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "cleffa",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "cloyster",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "combusken",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "corphish",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "corsola",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "cradily",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "crawdaunt",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "crobat",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "croconaw",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "cubone",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "cyndaquil",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "delcatty",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "delibird",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "deoxys",
+      "files": [
+        "back.png",
+        "back_def.png",
+        "footprint.png",
+        "front.png",
+        "front_def.png",
+        "icon.png",
+        "icon_attack.png",
+        "icon_defense.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "dewgong",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "diglett",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "ditto",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "dodrio",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "doduo",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "donphan",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "dragonair",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "dragonite",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "dratini",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "drowzee",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "dugtrio",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "dunsparce",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "dusclops",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "duskull",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "dustox",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "eevee",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "egg",
+      "files": [
+        "front.png",
+        "icon.png",
+        "normal.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": false
+    },
+    {
+      "name": "ekans",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "electabuzz",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "electrike",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "electrode",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "elekid",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "entei",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "espeon",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "exeggcute",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "exeggutor",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "exploud",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "farfetchd",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "fearow",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "feebas",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "feraligatr",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "flaaffy",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "flareon",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "flygon",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "forretress",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "furret",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "gardevoir",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "gastly",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "gengar",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "geodude",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "ghost",
+      "files": [
+        "front.png"
+      ],
+      "has_icon": false,
+      "has_front": true,
+      "has_back": false
+    },
+    {
+      "name": "girafarig",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "glalie",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "gligar",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "gloom",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "golbat",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "goldeen",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "golduck",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "golem",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "gorebyss",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "granbull",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "graveler",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "grimer",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "groudon",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "grovyle",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "growlithe",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "grumpig",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "gulpin",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "gyarados",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "hariyama",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "haunter",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "heracross",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal",
+        "unk_icon.png"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "hitmonchan",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "hitmonlee",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "hitmontop",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal",
+        "unused_garbage.bin"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "ho_oh",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "hoothoot",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "hoppip",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "horsea",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "houndoom",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "houndour",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "huntail",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "hypno",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "icon_palettes",
+      "files": [
+        "icon_palette_0.pal",
+        "icon_palette_1.pal",
+        "icon_palette_2.pal"
+      ],
+      "has_icon": false,
+      "has_front": false,
+      "has_back": false
+    },
+    {
+      "name": "igglybuff",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "illumise",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "ivysaur",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "jigglypuff",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "jirachi",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "jolteon",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "jumpluff",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "jynx",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "kabuto",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "kabutops",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "kadabra",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "kakuna",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "kangaskhan",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "kecleon",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "kingdra",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "kingler",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "kirlia",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "koffing",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "krabby",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "kyogre",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "lairon",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "lanturn",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "lapras",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "larvitar",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "latias",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "latios",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "ledian",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "ledyba",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "lickitung",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "lileep",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "linoone",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "lombre",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "lotad",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "loudred",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "ludicolo",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "lugia",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "lunatone",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "luvdisc",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "machamp",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "machoke",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "machop",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "magby",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "magcargo",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "magikarp",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "magmar",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "magnemite",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "magneton",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "makuhita",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "manectric",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "mankey",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "mantine",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "mareep",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "marill",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "marowak",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "marshtomp",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "masquerain",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "mawile",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "medicham",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "meditite",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "meganium",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "meowth",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "metagross",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "metang",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "metapod",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "mew",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "mewtwo",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "mightyena",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "milotic",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "miltank",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "minun",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "misdreavus",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "moltres",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "mr_mime",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "mudkip",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "muk",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "murkrow",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "natu",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "nidoking",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "nidoqueen",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "nidoran_f",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "nidoran_m",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "nidorina",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "nidorino",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "nincada",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "ninetales",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "ninjask",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "noctowl",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "nosepass",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "numel",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "nuzleaf",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "octillery",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "oddish",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "omanyte",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "omastar",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "onix",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "paras",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "parasect",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "pelipper",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "persian",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "phanpy",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "pichu",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "pidgeot",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "pidgeotto",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "pidgey",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "pikachu",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "piloswine",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "pineco",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "pinsir",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "plusle",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "politoed",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "poliwag",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "poliwhirl",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "poliwrath",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "ponyta",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "poochyena",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "porygon",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "porygon2",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "primeape",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "psyduck",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "pupitar",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "quagsire",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "question_mark",
+      "files": [
+        "footprint.png",
+        "icon.png"
+      ],
+      "has_icon": true,
+      "has_front": false,
+      "has_back": false
+    },
+    {
+      "name": "quilava",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "qwilfish",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "raichu",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "raikou",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "ralts",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "rapidash",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "raticate",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "rattata",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "rayquaza",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "regice",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "regirock",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "registeel",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "relicanth",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "remoraid",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "rhydon",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "rhyhorn",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "roselia",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "sableye",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "salamence",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "sandshrew",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "sandslash",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "sceptile",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "scizor",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "scyther",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "seadra",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "seaking",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "sealeo",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "seedot",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "seel",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "sentret",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "seviper",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "sharpedo",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "shedinja",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "shelgon",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "shellder",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "shiftry",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "shroomish",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "shuckle",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "shuppet",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "silcoon",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "skarmory",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "skiploom",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "skitty",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "slaking",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "slakoth",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "slowbro",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "slowking",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "slowpoke",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "slugma",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "smeargle",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "smoochum",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "sneasel",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "snorlax",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "snorunt",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "snubbull",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "solrock",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "spearow",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "spheal",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "spinarak",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "spinda",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "spoink",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "squirtle",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "stantler",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "starmie",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "staryu",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "steelix",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "sudowoodo",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "suicune",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "sunflora",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "sunkern",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "surskit",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "swablu",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "swalot",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "swampert",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "swellow",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "swinub",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "taillow",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "tangela",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "tauros",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "teddiursa",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "tentacool",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "tentacruel",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "togepi",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "togetic",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "torchic",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "torkoal",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "totodile",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "trapinch",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "treecko",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "tropius",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "typhlosion",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "tyranitar",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "tyrogue",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "umbreon",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "unown",
+      "files": [
+        "footprint.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": false,
+      "has_front": false,
+      "has_back": false
+    },
+    {
+      "name": "ursaring",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "vaporeon",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "venomoth",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "venonat",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "venusaur",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "vibrava",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "victreebel",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "vigoroth",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "vileplume",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "volbeat",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "voltorb",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "vulpix",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "wailmer",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "wailord",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "walrein",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "wartortle",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "weedle",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "weepinbell",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "weezing",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "whiscash",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "whismur",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "wigglytuff",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "wingull",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "wobbuffet",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "wooper",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "wurmple",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "wynaut",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "xatu",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "yanma",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "zangoose",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "zapdos",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "zigzagoon",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    },
+    {
+      "name": "zubat",
+      "files": [
+        "back.png",
+        "footprint.png",
+        "front.png",
+        "icon.png",
+        "normal.pal",
+        "shiny.pal"
+      ],
+      "has_icon": true,
+      "has_front": true,
+      "has_back": true
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+SaffronCity_Dojo,5,3,3	event_ball	EVENT,SaffronCity_Dojo_EventScript_HitmonleeBall,flag=FLAG_HIDE_DOJO_HITMONLEE_BALL,script=SaffronCity_Dojo_EventScript_HitmonleeBall
+SaffronCity_Dojo,7,3,3	event_ball	EVENT,SaffronCity_Dojo_EventScript_HitmonchanBall,flag=FLAG_HIDE_DOJO_HITMONCHAN_BALL,script=SaffronCity_Dojo_EventScript_HitmonchanBall

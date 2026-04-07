@@ -1,0 +1,2 @@
+ThreeIsland,5,13,3	hidden_item	ITEM_PP_UP,1,flag=FLAG_HIDDEN_ITEM_THREE_ISLAND_PP_UP,underfoot=0
+ThreeIsland,18,17,3	item_ball	ITEM_ZINC,1,flag=FLAG_HIDE_THREE_ISLAND_ZINC,script=ThreeIsland_EventScript_ItemZinc

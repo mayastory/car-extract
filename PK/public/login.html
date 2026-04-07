@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PokéMMO Web - 로그인</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    body{display:flex;min-height:100vh;align-items:center;justify-content:center}
+    .card{width:min(920px,95vw);background:#11151f;border:1px solid #2a3346;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.45);overflow:hidden}
+    .head{padding:18px 20px;border-bottom:1px solid #222b3b;display:flex;align-items:center;gap:12px}
+    .head h1{font-size:18px;margin:0}
+    .sub{opacity:.75;font-size:13px}
+    .row{display:flex;gap:18px;padding:18px 20px}
+    .col{flex:1}
+    .field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+    input{background:#0b0f17;border:1px solid #2a3346;color:#e8edf6;border-radius:10px;padding:10px 12px;font-size:14px;outline:none}
+    button{cursor:pointer;border:0;border-radius:10px;padding:10px 12px;background:#3b82f6;color:white;font-weight:600}
+    button.secondary{background:#334155}
+    button.ghost{background:transparent;border:1px solid #2a3346}
+    button.small{padding:8px 10px;font-size:13px;border-radius:9px}
+    .slots{display:grid;grid-template-columns:repeat(2, minmax(0,1fr));gap:12px}
+    .slot{border:1px solid #2a3346;border-radius:14px;padding:14px;background:#0b0f17}
+    .slot .name{font-size:16px;font-weight:800;margin-bottom:6px}
+    .slot .meta{font-size:12px;opacity:.8;margin-bottom:10px}
+    .slot .actions{display:flex;gap:8px;flex-wrap:wrap}
+    .footer{padding:12px 20px;border-top:1px solid #222b3b;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .msg{font-size:12px;opacity:.85;white-space:pre-wrap}
+    .hide{display:none !important}
+
+    /* Modal */
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:14px}
+    .modal-card{width:min(520px,95vw);background:#11151f;border:1px solid #2a3346;border-radius:14px;box-shadow:0 18px 60px rgba(0,0,0,.55);padding:16px}
+    .modal-card h2{margin:0 0 12px 0;font-size:16px}
+    .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+    .hint{font-size:12px;opacity:.75;margin-top:8px;line-height:1.4}
+    .pill{display:inline-block;border:1px solid #2a3346;border-radius:999px;padding:2px 8px;font-size:12px;opacity:.85}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="head">
+      <h1>로그인</h1>
+      <div class="sub">계정 ID / 비밀번호</div>
+    </div>
+
+    <div class="row">
+      <!-- Step 1: Login -->
+      <div class="col" id="panelLogin">
+        <div class="field">
+          <label>계정 ID</label>
+          <input id="username" placeholder="예: maya" autocomplete="username" />
+        </div>
+
+        <div class="field">
+          <label>비밀번호</label>
+          <input id="password" type="password" placeholder="비밀번호" autocomplete="current-password" />
+        </div>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button id="btnLogin" type="button">로그인</button>
+          <button id="btnOpenRegister" class="secondary" type="button">회원가입</button>
+        </div>
+
+        <div class="hint">
+          <span class="pill">필수</span> 이 프로젝트는 MySQL(DB: <b>pokemon</b>)이 필요합니다. (sql/pokemon_full_reset.sql 임포트)<br>
+          <span class="pill">설정</span> DB 접속이 안 되면 <code>api/config.local.php</code>로 계정/비밀번호를 맞춰주세요.
+        </div>
+      </div>
+
+      <!-- Step 2: Slots -->
+      <div class="col hide" id="panelSlots">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div style="font-weight:800">캐릭터 선택 (4 슬롯)</div>
+          <div style="display:flex;gap:8px">
+            <button id="btnRefresh" class="secondary small" type="button">새로고침</button>
+            <button id="btnChangeAccount" class="ghost small" type="button">로그아웃</button>
+          </div>
+        </div>
+        <div id="slots" class="slots"></div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div id="msg" class="msg">로그인 후 캐릭터(슬롯)를 선택하세요.</div>
+      <div></div>
+    </div>
+  </div>
+
+  <!-- Register Modal -->
+  <div id="modalRegister" class="modal hide" aria-hidden="true">
+    <div class="modal-card">
+      <h2>회원가입</h2>
+      <div class="field">
+        <label>계정 ID (영문/숫자/언더스코어)</label>
+        <input id="regUser" placeholder="예: maya_01" autocomplete="username" />
+      </div>
+      <div class="field">
+        <label>비밀번호</label>
+        <input id="regPass" type="password" autocomplete="new-password" />
+      </div>
+      <div class="field">
+        <label>비밀번호 확인</label>
+        <input id="regPass2" type="password" autocomplete="new-password" />
+      </div>
+      <div class="modal-actions">
+        <button id="btnRegCancel" class="ghost" type="button">취소</button>
+        <button id="btnRegSubmit" type="button">가입</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Character Create Modal -->
+  <div id="modalCharCreate" class="modal hide" aria-hidden="true">
+    <div class="modal-card">
+      <h2>캐릭터 생성 <span id="charSlotLabel" class="pill" style="margin-left:6px">슬롯</span></h2>
+
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <div style="flex:1">
+          <div class="field">
+            <label>캐릭터 이름</label>
+            <input id="charName" placeholder="2~16자 (영문/숫자/공백/_-/(한글))" autocomplete="off" />
+          </div>
+
+          <div class="field" style="margin-bottom:0">
+            <label>성별</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button id="btnGenderM" class="secondary small" type="button">남 (RED)</button>
+              <button id="btnGenderF" class="secondary small" type="button">여 (GREEN)</button>
+            </div>
+          </div>
+
+          <div id="charCreateErr" class="hint" style="color:#fca5a5;display:none"></div>
+          <div class="hint">※ 이름은 전역 중복 불가 / 슬롯 4개</div>
+        </div>
+
+        <div style="width:160px;flex:0 0 160px">
+          <div style="border:1px solid #2a3346;border-radius:14px;background:#0b0f17;padding:10px;text-align:center">
+            <div style="font-size:12px;opacity:.8;margin-bottom:6px">미리보기</div>
+            <div style="display:flex;justify-content:center">
+              <img id="charSprite" src="./pret/sprites/player/red_normal.png" alt="sprite" style="image-rendering:pixelated; width:64px; height:128px; object-fit:none; object-position:0px 0px; transform:scale(1);"/>
+            </div>
+            <div style="font-size:12px;opacity:.7;margin-top:6px">기본 스폰: PalletTown</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button id="btnCharCancel" class="ghost" type="button">취소</button>
+        <button id="btnCharCreate" type="button">생성</button>
+      </div>
+    </div>
+  </div>
+
+
+  <script type="module" src="./login.js?v=20260213_charcreate_v1"></script>
+</body>
+</html>

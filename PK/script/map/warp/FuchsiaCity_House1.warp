@@ -1,0 +1,3 @@
+FuchsiaCity_House1,3,7,0	warp	w0	1,1,FuchsiaCity,14,31 // elev=3 src=MAP_FUCHSIA_CITY:5
+FuchsiaCity_House1,4,7,0	warp	w1	1,1,FuchsiaCity,14,31 // elev=3 src=MAP_FUCHSIA_CITY:5
+FuchsiaCity_House1,5,7,0	warp	w2	1,1,FuchsiaCity,14,31 // elev=3 src=MAP_FUCHSIA_CITY:5

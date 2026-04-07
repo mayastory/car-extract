@@ -1,0 +1,3 @@
+PalletTown,6,7,0	warp	w0	1,1,PalletTown_PlayersHouse_1F,4,8 // elev=0 src=MAP_PALLET_TOWN_PLAYERS_HOUSE_1F:1
+PalletTown,15,7,0	warp	w1	1,1,PalletTown_RivalsHouse,4,8 // elev=0 src=MAP_PALLET_TOWN_RIVALS_HOUSE:0
+PalletTown,16,13,0	warp	w2	1,1,PalletTown_ProfessorOaksLab,6,12 // elev=0 src=MAP_PALLET_TOWN_PROFESSOR_OAKS_LAB:0

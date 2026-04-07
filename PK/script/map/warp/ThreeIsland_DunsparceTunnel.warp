@@ -1,0 +1,2 @@
+ThreeIsland_DunsparceTunnel,3,4,0	warp	w0	1,1,ThreeIsland_Port,16,4 // elev=3 src=MAP_THREE_ISLAND_PORT:0
+ThreeIsland_DunsparceTunnel,25,5,0	warp	w1	1,1,ThreeIsland_Port,38,5 // elev=3 src=MAP_THREE_ISLAND_PORT:1

@@ -1,0 +1,2 @@
+SilphCo_3F,34,18,0	hidden_item	ITEM_PROTEIN,1,flag=FLAG_HIDDEN_ITEM_SILPH_CO_3F_PROTEIN,underfoot=0
+SilphCo_3F,8,10,3	item_ball	ITEM_HYPER_POTION,1,flag=FLAG_HIDE_SILPH_CO_3F_HYPER_POTION,script=SilphCo_3F_EventScript_ItemHyperPotion

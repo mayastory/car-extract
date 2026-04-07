@@ -1,0 +1,2 @@
+Route22,8,5,0	warp	w0	1,1,Route22_NorthEntrance,7,10 // elev=0 src=MAP_ROUTE22_NORTH_ENTRANCE:2
+Route22,9,5,0	warp	w1	1,1,Route22_NorthEntrance,7,10 // elev=0 src=MAP_ROUTE22_NORTH_ENTRANCE:2

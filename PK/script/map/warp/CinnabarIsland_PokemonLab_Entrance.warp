@@ -1,0 +1,6 @@
+CinnabarIsland_PokemonLab_Entrance,3,9,0	warp	w0	1,1,CinnabarIsland,8,9 // elev=3 src=MAP_CINNABAR_ISLAND:2
+CinnabarIsland_PokemonLab_Entrance,4,9,0	warp	w1	1,1,CinnabarIsland,8,9 // elev=3 src=MAP_CINNABAR_ISLAND:2
+CinnabarIsland_PokemonLab_Entrance,5,9,0	warp	w2	1,1,CinnabarIsland,8,9 // elev=3 src=MAP_CINNABAR_ISLAND:2
+CinnabarIsland_PokemonLab_Entrance,13,5,0	warp	w3	1,1,CinnabarIsland_PokemonLab_Lounge,7,9 // elev=0 src=MAP_CINNABAR_ISLAND_POKEMON_LAB_LOUNGE:0
+CinnabarIsland_PokemonLab_Entrance,19,5,0	warp	w4	1,1,CinnabarIsland_PokemonLab_ResearchRoom,7,9 // elev=0 src=MAP_CINNABAR_ISLAND_POKEMON_LAB_RESEARCH_ROOM:0
+CinnabarIsland_PokemonLab_Entrance,25,5,0	warp	w5	1,1,CinnabarIsland_PokemonLab_ExperimentRoom,7,9 // elev=0 src=MAP_CINNABAR_ISLAND_POKEMON_LAB_EXPERIMENT_ROOM:0

@@ -1,0 +1,2 @@
+Route14,9,20,3	hidden_item	ITEM_ZINC,1,flag=FLAG_HIDDEN_ITEM_ROUTE14_ZINC,underfoot=0
+Route14,19,53,3	hidden_item	ITEM_PINAP_BERRY,1,flag=FLAG_HIDDEN_ITEM_ROUTE14_PINAP_BERRY,underfoot=0

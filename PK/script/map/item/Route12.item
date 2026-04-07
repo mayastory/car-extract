@@ -1,0 +1,5 @@
+Route12,18,57,3	hidden_item	ITEM_HYPER_POTION,1,flag=FLAG_HIDDEN_ITEM_ROUTE12_HYPER_POTION,underfoot=0
+Route12,14,70,3	hidden_item	ITEM_LEFTOVERS,1,flag=FLAG_HIDDEN_ITEM_ROUTE12_LEFTOVERS,underfoot=0
+Route12,9,116,3	hidden_item	ITEM_RARE_CANDY,1,flag=FLAG_HIDDEN_ITEM_ROUTE12_RARE_CANDY,underfoot=0
+Route12,18,36,3	item_ball	ITEM_TM48,1,flag=FLAG_HIDE_ROUTE12_TM48,script=Route12_EventScript_ItemTM48
+Route12,9,101,3	item_ball	ITEM_IRON,1,flag=FLAG_HIDE_ROUTE12_IRON,script=Route12_EventScript_ItemIron

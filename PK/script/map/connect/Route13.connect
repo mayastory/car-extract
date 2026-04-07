@@ -1,0 +1,2 @@
+Route13	connect	up	Route12	48 // src=MAP_ROUTE12
+Route13	connect	left	Route14	0 // src=MAP_ROUTE14

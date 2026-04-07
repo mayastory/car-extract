@@ -1,0 +1,13 @@
+CeladonCity,34,21,0	warp	w0	1,1,CeladonCity_GameCorner,9,13 // elev=0 src=MAP_CELADON_CITY_GAME_CORNER:0
+CeladonCity,11,14,0	warp	w1	1,1,CeladonCity_DepartmentStore_1F,2,14 // elev=0 src=MAP_CELADON_CITY_DEPARTMENT_STORE_1F:1
+CeladonCity,15,14,0	warp	w2	1,1,CeladonCity_DepartmentStore_1F,10,14 // elev=0 src=MAP_CELADON_CITY_DEPARTMENT_STORE_1F:4
+CeladonCity,30,11,0	warp	w3	1,1,CeladonCity_Condominiums_1F,12,18 // elev=0 src=MAP_CELADON_CITY_CONDOMINIUMS_1F:1
+CeladonCity,48,11,0	warp	w4	1,1,CeladonCity_PokemonCenter_1F,7,8 // elev=0 src=MAP_CELADON_CITY_POKEMON_CENTER_1F:1
+CeladonCity,39,20,0	warp	w5	1,1,CeladonCity_GameCorner_PrizeRoom,4,8 // elev=0 src=MAP_CELADON_CITY_GAME_CORNER_PRIZE_ROOM:1
+CeladonCity,11,30,0	warp	w6	1,1,CeladonCity_Gym,6,18 // elev=0 src=MAP_CELADON_CITY_GYM:1
+CeladonCity,37,29,0	warp	w7	1,1,CeladonCity_Restaurant,6,9 // elev=0 src=MAP_CELADON_CITY_RESTAURANT:1
+CeladonCity,41,29,0	warp	w8	1,1,CeladonCity_House1,4,7 // elev=0 src=MAP_CELADON_CITY_HOUSE1:1
+CeladonCity,49,29,0	warp	w9	1,1,CeladonCity_Hotel,4,9 // elev=0 src=MAP_CELADON_CITY_HOTEL:1
+CeladonCity,29,5,0	warp	w10	1,1,CeladonCity_Condominiums_1F,2,1 // elev=0 src=MAP_CELADON_CITY_CONDOMINIUMS_1F:5
+CeladonCity,30,4,0	warp	w11	1,1,CeladonCity_Condominiums_1F,2,1 // elev=3 src=MAP_CELADON_CITY_CONDOMINIUMS_1F:5
+CeladonCity,31,5,0	warp	w12	1,1,CeladonCity_Condominiums_1F,2,1 // elev=0 src=MAP_CELADON_CITY_CONDOMINIUMS_1F:5

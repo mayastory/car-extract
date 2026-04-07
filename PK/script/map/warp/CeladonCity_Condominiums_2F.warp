@@ -1,0 +1,4 @@
+CeladonCity_Condominiums_2F,4,2,0	warp	w0	1,1,CeladonCity_Condominiums_1F,4,2 // elev=3 src=MAP_CELADON_CITY_CONDOMINIUMS_1F:3
+CeladonCity_Condominiums_2F,2,2,0	warp	w1	1,1,CeladonCity_Condominiums_3F,2,2 // elev=3 src=MAP_CELADON_CITY_CONDOMINIUMS_3F:0
+CeladonCity_Condominiums_2F,11,2,0	warp	w2	1,1,CeladonCity_Condominiums_3F,11,2 // elev=3 src=MAP_CELADON_CITY_CONDOMINIUMS_3F:3
+CeladonCity_Condominiums_2F,12,2,0	warp	w3	1,1,CeladonCity_Condominiums_1F,12,2 // elev=3 src=MAP_CELADON_CITY_CONDOMINIUMS_1F:4

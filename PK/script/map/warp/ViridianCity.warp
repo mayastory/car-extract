@@ -1,0 +1,5 @@
+ViridianCity,26,26,0	warp	w0	1,1,ViridianCity_PokemonCenter_1F,7,8 // elev=0 src=MAP_VIRIDIAN_CITY_POKEMON_CENTER_1F:1
+ViridianCity,25,11,0	warp	w1	1,1,ViridianCity_House,4,7 // elev=3 src=MAP_VIRIDIAN_CITY_HOUSE:1
+ViridianCity,36,10,0	warp	w2	1,1,ViridianCity_Gym,17,22 // elev=0 src=MAP_VIRIDIAN_CITY_GYM:1
+ViridianCity,25,18,0	warp	w3	1,1,ViridianCity_School,4,7 // elev=0 src=MAP_VIRIDIAN_CITY_SCHOOL:1
+ViridianCity,36,19,0	warp	w4	1,1,ViridianCity_Mart,4,7 // elev=0 src=MAP_VIRIDIAN_CITY_MART:1

@@ -1,0 +1,1 @@
+FiveIsland_LostCave_Room11,5,5,3	item_ball	ITEM_LAX_INCENSE,1,flag=FLAG_HIDE_FIVE_ISLAND_LOST_CAVE_ROOM11_LAX_INCENSE,script=FiveIsland_LostCave_Room11_EventScript_ItemLaxIncense

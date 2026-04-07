@@ -1,0 +1,2 @@
+Route23	connect	up	IndigoPlateau_Exterior	0 // src=MAP_INDIGO_PLATEAU_EXTERIOR
+Route23	connect	down	Route22	0 // src=MAP_ROUTE22

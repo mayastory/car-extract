@@ -1,0 +1,4 @@
+CeruleanCity_House1,2,9,0	warp	w0	1,1,CeruleanCity,10,11 // elev=0 src=MAP_CERULEAN_CITY:0
+CeruleanCity_House1,3,8,0	warp	w1	1,1,CeruleanCity,10,11 // elev=3 src=MAP_CERULEAN_CITY:0
+CeruleanCity_House1,4,9,0	warp	w2	1,1,CeruleanCity,10,11 // elev=0 src=MAP_CERULEAN_CITY:0
+CeruleanCity_House1,3,1,0	warp	w3	1,1,CeruleanCity,10,8 // elev=3 src=MAP_CERULEAN_CITY:8

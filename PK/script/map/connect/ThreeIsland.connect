@@ -1,0 +1,2 @@
+ThreeIsland	connect	down	ThreeIsland_Port	0 // src=MAP_THREE_ISLAND_PORT
+ThreeIsland	connect	left	ThreeIsland_BondBridge	0 // src=MAP_THREE_ISLAND_BOND_BRIDGE

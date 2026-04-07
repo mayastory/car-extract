@@ -1,0 +1,103 @@
+맞아. **다른 채팅으로 옮길 때는 “파일 + 한 문단 요약(규칙/금지사항/다음 목표)”**만 제대로 넘기면 끊김 없이 이어갈 수 있어. 아래 그대로 복붙해서 쓰면 됨.
+
+1) 새 채팅에 붙여넣을 “요약 문장” (복붙용)
+
+아래를 새 채팅 첫 메시지로 그대로 붙여넣고, zip 업로드만 같이 하면 돼.
+
+poket 프로젝트 이어서 진행.
+기준은 무조건 Packege/src 정본(추측/임의 구현 금지, Packege에 있는 리소스만 사용).
+패치는 “변경된 파일만” 포함한 단일 zip 1개로만 제공.
+키맵: A키=A버튼, S키=B버튼, Z키=START, X키=SELECT.
+이동/충돌은 서버 권위(치팅 방지), 몬스터 스폰은 “보이는 상태”로만.
+낚시는 Packege/src 흐름대로: START 메뉴 → 가방/등록 → SELECT(등록 아이템 사용), 낚싯대 없으면 낚시 불가.
+NPC/script는 rAthena 스타일로 만들고, FR/LG(=GAME_VER) 분리해서 DB/NPC 나눌 예정.
+임시 스프라이트/임의 아이콘/한글 문구 같은 추측 요소 넣지 말 것.
+
+다음 목표:
+1) START 메뉴(포켓몬/가방/포켓덱스/레포트 등) 뼈대부터 Packege/src 방식으로 구현
+2) GAME_VER(1=FR,2=LG) 캐릭터별 랜덤 고정 + DB 저장
+3) FR/LG 분리된 NPC/script 구조 설계 및 최소 NPC 1개 동작(대화/트리거)
+4) 스폰: grass/water/cave/indoor만(보이는 스폰), MB_SAND는 Packege/src 기준대로 처리
+5) 낚시 연출: 스폰 아이콘(32x64 2프레임)을 물에서 올라오게(프레임 토글+좌우 흔들림) 후 전투 연결
+
+2) 새 채팅에 “어떤 파일을 업로드해야 하냐” (가장 안전 / 최소셋)
+A) 가장 안전(추천) — 프로젝트 통째로 1개 zip
+
+지금 XAMPP에서 실제로 돌리는 폴더 그대로 압축해서 올리면 끝.
+
+✅ 포함돼야 할 폴더(이름 그대로):
+
+public/ (HUD/overworld/pret/assets 전부)
+
+api/ (rt 포함 서버 로직)
+
+conf/ (rAthena식 설정)
+
+script/ 와 npc/ (현재 비어있어도 구조 포함)
+
+Packege/ (최소 Packege/src는 반드시, 가능하면 Packege 전체)
+
+📦 파일명 예시:
+
+poke_latest.zip (권장)
+
+B) 프로젝트가 너무 크면 — “최소셋 zip 2개”
+
+이건 “전체 업로드 부담” 있을 때만. 그래도 각 zip은 역할이 겹치지 않게.
+
+런타임(웹 실행) 최소셋
+
+public/
+
+api/
+
+conf/
+
+script/, npc/
+
+📦 예: poket_runtime_min.zip
+
+정본 소스(추측 금지 근거)
+
+Packege/src/
+
+(가능하면) Packege/include/ 까지도 같이
+
+📦 예: packege_src.zip
+
+새 채팅에서는 이 2개를 같이 올리면 “Packege/src 기준” 검증하면서 구현 가능.
+
+3) DB도 넘기려면(강추: 구조만이라도)
+
+NPC/FRLG 분리, GAME_VER 저장, 치팅 방지 같은 건 DB가 있어야 정확히 붙어.
+
+(1) 스키마만 내보내기(추천)
+
+phpMyAdmin → 내보내기 → 구조만
+
+또는 콘솔:
+
+mysqldump -u root -p --no-data DB이름 > schema.sql
+
+
+📦 업로드 파일: schema.sql
+
+(2) 최소 데이터(선택)
+
+테스트용으로 캐릭터/위치 1~2개 정도만 있으면 더 빠름.
+
+players
+
+player_position
+
+(추가될) player_settings 또는 player_profile (GAME_VER 저장용)
+
+(추가될) npc, npc_state, script_state 등 (rAthena식으로 나눌 테이블)
+
+4) 새 채팅에서 “파일 업로드 후” 바로 같이 써주면 좋은 한 줄
+
+업로드하고 나서 다음 메시지에 이거 한 줄만 추가하면 시작이 빨라져:
+
+첨부 zip이 “현재 서버에서 실제로 돌아가는 최신 상태”이며, 여기에 단일 패치 zip 방식으로만 계속 수정해줘.
+
+설명은 무조건 4줄이하로만 하고 쓸모없는 질문은 하지마

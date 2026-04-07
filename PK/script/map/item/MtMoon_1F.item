@@ -1,0 +1,6 @@
+MtMoon_1F,2,22,3	item_ball	ITEM_PARALYZE_HEAL,1,flag=FLAG_HIDE_MT_MOON_1F_PARALYZE_HEAL,script=MtMoon_1F_EventScript_ItemParalyzeHeal
+MtMoon_1F,11,35,3	item_ball	ITEM_TM09,1,flag=FLAG_HIDE_MT_MOON_1F_TM09,script=MtMoon_1F_EventScript_ItemTM09
+MtMoon_1F,26,32,3	item_ball	ITEM_POTION,1,flag=FLAG_HIDE_MT_MOON_1F_POTION,script=MtMoon_1F_EventScript_ItemPotion
+MtMoon_1F,42,35,3	item_ball	ITEM_RARE_CANDY,1,flag=FLAG_HIDE_MT_MOON_1F_RARE_CANDY,script=MtMoon_1F_EventScript_ItemRareCandy
+MtMoon_1F,44,21,3	item_ball	ITEM_ESCAPE_ROPE,1,flag=FLAG_HIDE_MT_MOON_1F_ESCAPE_ROPE,script=MtMoon_1F_EventScript_ItemEscapeRope
+MtMoon_1F,3,2,3	item_ball	ITEM_MOON_STONE,1,flag=FLAG_HIDE_MT_MOON_1F_MOON_STONE,script=MtMoon_1F_EventScript_ItemMoonStone

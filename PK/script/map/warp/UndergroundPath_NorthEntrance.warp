@@ -1,0 +1,4 @@
+UndergroundPath_NorthEntrance,5,8,0	warp	w0	1,1,Route5,31,31 // elev=3 src=MAP_ROUTE5:0
+UndergroundPath_NorthEntrance,6,8,0	warp	w1	1,1,Route5,31,31 // elev=3 src=MAP_ROUTE5:0
+UndergroundPath_NorthEntrance,7,8,0	warp	w2	1,1,Route5,31,31 // elev=3 src=MAP_ROUTE5:0
+UndergroundPath_NorthEntrance,7,4,0	warp	w3	1,1,UndergroundPath_NorthSouthTunnel,4,3 // elev=3 src=MAP_UNDERGROUND_PATH_NORTH_SOUTH_TUNNEL:0

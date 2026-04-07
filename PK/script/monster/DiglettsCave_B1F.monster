@@ -1,0 +1,4 @@
+# auto-generated from Packege/src/data/wild_encounters.json
+# map=DiglettsCave_B1F id=MAP_DIGLETTS_CAVE_B1F size=85x80
+DiglettsCave_B1F,0,0,0	monster	land_diglett	85,80,SPECIES_DIGLETT,18,18,4,30,land
+DiglettsCave_B1F,0,0,0	monster	land_dugtrio	85,80,SPECIES_DUGTRIO,29,29,4,30,land

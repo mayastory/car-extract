@@ -1,0 +1,8 @@
+CeladonCity_DepartmentStore_1F,1,15,0	warp	w0	1,1,CeladonCity,11,14 // elev=0 src=MAP_CELADON_CITY:1
+CeladonCity_DepartmentStore_1F,2,14,0	warp	w1	1,1,CeladonCity,11,14 // elev=3 src=MAP_CELADON_CITY:1
+CeladonCity_DepartmentStore_1F,3,15,0	warp	w2	1,1,CeladonCity,11,14 // elev=0 src=MAP_CELADON_CITY:1
+CeladonCity_DepartmentStore_1F,9,15,0	warp	w3	1,1,CeladonCity,15,14 // elev=0 src=MAP_CELADON_CITY:2
+CeladonCity_DepartmentStore_1F,10,14,0	warp	w4	1,1,CeladonCity,15,14 // elev=3 src=MAP_CELADON_CITY:2
+CeladonCity_DepartmentStore_1F,11,15,0	warp	w5	1,1,CeladonCity,15,14 // elev=0 src=MAP_CELADON_CITY:2
+CeladonCity_DepartmentStore_1F,6,1,0	warp	w6	1,1,CeladonCity_DepartmentStore_Elevator,2,5 // elev=0 src=MAP_CELADON_CITY_DEPARTMENT_STORE_ELEVATOR:0
+CeladonCity_DepartmentStore_1F,4,2,0	warp	w7	1,1,CeladonCity_DepartmentStore_2F,3,2 // elev=3 src=MAP_CELADON_CITY_DEPARTMENT_STORE_2F:1

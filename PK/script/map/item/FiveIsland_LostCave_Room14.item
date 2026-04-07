@@ -1,0 +1,1 @@
+FiveIsland_LostCave_Room14,5,5,3	item_ball	ITEM_RARE_CANDY,1,flag=FLAG_HIDE_FIVE_ISLAND_LOST_CAVE_ROOM14_RARE_CANDY,script=FiveIsland_LostCave_Room14_EventScript_ItemRareCandy

@@ -1,0 +1,4 @@
+PokemonTower_1F,10,19,0	warp	w0	1,1,LavenderTown,18,6 // elev=3 src=MAP_LAVENDER_TOWN:0
+PokemonTower_1F,11,18,0	warp	w1	1,1,LavenderTown,18,6 // elev=3 src=MAP_LAVENDER_TOWN:0
+PokemonTower_1F,12,19,0	warp	w2	1,1,LavenderTown,18,6 // elev=3 src=MAP_LAVENDER_TOWN:0
+PokemonTower_1F,18,9,0	warp	w3	1,1,PokemonTower_2F,18,10 // elev=3 src=MAP_POKEMON_TOWER_2F:1

@@ -1,0 +1,2 @@
+SeafoamIslands_B4F,13,8,0	hidden_item	ITEM_WATER_STONE,1,flag=FLAG_HIDDEN_ITEM_SEAFOAM_ISLANDS_B4F_WATER_STONE,underfoot=0
+SeafoamIslands_B4F,22,19,4	item_ball	ITEM_ULTRA_BALL,1,flag=FLAG_HIDE_SEAFOAM_ISLANDS_B4F_ULTRA_BALL,script=SeafoamIslands_B4F_EventScript_ItemUltraBall

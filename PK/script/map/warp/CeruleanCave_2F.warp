@@ -1,0 +1,6 @@
+CeruleanCave_2F,33,4,0	warp	w0	1,1,CeruleanCave_1F,34,2 // elev=3 src=MAP_CERULEAN_CAVE_1F:1
+CeruleanCave_2F,13,4,0	warp	w1	1,1,CeruleanCave_1F,10,2 // elev=3 src=MAP_CERULEAN_CAVE_1F:3
+CeruleanCave_2F,7,14,0	warp	w2	1,1,CeruleanCave_1F,5,15 // elev=3 src=MAP_CERULEAN_CAVE_1F:4
+CeruleanCave_2F,26,9,0	warp	w3	1,1,CeruleanCave_1F,30,10 // elev=3 src=MAP_CERULEAN_CAVE_1F:5
+CeruleanCave_2F,23,10,0	warp	w4	1,1,CeruleanCave_1F,24,11 // elev=3 src=MAP_CERULEAN_CAVE_1F:6
+CeruleanCave_2F,5,6,0	warp	w5	1,1,CeruleanCave_1F,2,4 // elev=3 src=MAP_CERULEAN_CAVE_1F:7

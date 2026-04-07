@@ -1,0 +1,3 @@
+OneIsland_KindleRoad,15,70,3	item_ball	ITEM_ETHER,1,flag=FLAG_HIDE_ONE_ISLAND_KINDLE_ROAD_ETHER,script=OneIsland_KindleRoad_EventScript_ItemEther
+OneIsland_KindleRoad,17,103,3	item_ball	ITEM_MAX_REPEL,1,flag=FLAG_HIDE_ONE_ISLAND_KINDLE_ROAD_MAX_REPEL,script=OneIsland_KindleRoad_EventScript_ItemMaxRepel
+OneIsland_KindleRoad,18,114,4	item_ball	ITEM_CARBOS,1,flag=FLAG_HIDE_ONE_ISLAND_KINDLE_ROAD_CARBOS,script=OneIsland_KindleRoad_EventScript_ItemCarbos

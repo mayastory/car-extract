@@ -1,0 +1,4 @@
+PokemonMansion_1F,2,21,0	hidden_item	ITEM_MOON_STONE,1,flag=FLAG_HIDDEN_ITEM_POKEMON_MANSION_1F_MOON_STONE,underfoot=0
+PokemonMansion_1F,29,32,3	item_ball	ITEM_CARBOS,1,flag=FLAG_HIDE_POKEMON_MANSION_1F_CARBOS,script=PokemonMansion_1F_EventScript_ItemCarbos
+PokemonMansion_1F,22,6,3	item_ball	ITEM_ESCAPE_ROPE,1,flag=FLAG_HIDE_POKEMON_MANSION_1F_ESCAPE_ROPE,script=PokemonMansion_1F_EventScript_ItemEscapeRope
+PokemonMansion_1F,27,15,3	item_ball	ITEM_PROTEIN,1,flag=FLAG_HIDE_POKEMON_MANSION_1F_PROTEIN,script=PokemonMansion_1F_EventScript_ItemProtein

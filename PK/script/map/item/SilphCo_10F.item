@@ -1,0 +1,4 @@
+SilphCo_10F,9,9,0	hidden_item	ITEM_HP_UP,1,flag=FLAG_HIDDEN_ITEM_SILPH_CO_10F_HP_UP,underfoot=0
+SilphCo_10F,5,15,3	item_ball	ITEM_CARBOS,1,flag=FLAG_HIDE_SILPH_CO_10F_CARBOS,script=SilphCo_10F_EventScript_ItemCarbos
+SilphCo_10F,2,15,3	item_ball	ITEM_ULTRA_BALL,1,flag=FLAG_HIDE_SILPH_CO_10F_ULTRA_BALL,script=SilphCo_10F_EventScript_ItemUltraBall
+SilphCo_10F,3,17,3	item_ball	ITEM_RARE_CANDY,1,flag=FLAG_HIDE_SILPH_CO_10F_RARE_CANDY,script=SilphCo_10F_EventScript_ItemRareCandy

@@ -1,0 +1,4 @@
+SSAnne_Kitchen,14,8,0	hidden_item	ITEM_CHESTO_BERRY,1,flag=FLAG_HIDDEN_ITEM_SSANNE_KITCHEN_CHESTO_BERRY,underfoot=0
+SSAnne_Kitchen,14,4,0	hidden_item	ITEM_PECHA_BERRY,1,flag=FLAG_HIDDEN_ITEM_SSANNE_KITCHEN_PECHA_BERRY,underfoot=0
+SSAnne_Kitchen,14,6,0	hidden_item	ITEM_CHERI_BERRY,1,flag=FLAG_HIDDEN_ITEM_SSANNE_KITCHEN_CHERI_BERRY,underfoot=0
+SSAnne_Kitchen,1,10,3	item_ball	ITEM_GREAT_BALL,1,flag=FLAG_HIDE_SSANNE_KITCHEN_GREAT_BALL,script=SSAnne_Kitchen_EventScript_ItemGreatBall

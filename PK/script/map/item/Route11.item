@@ -1,0 +1,4 @@
+Route11,58,5,0	hidden_item	ITEM_ESCAPE_ROPE,1,flag=FLAG_HIDDEN_ITEM_ROUTE11_ESCAPE_ROPE,underfoot=0
+Route11,42,12,3	item_ball	ITEM_X_DEFEND,1,flag=FLAG_HIDE_ROUTE11_X_DEFEND,script=Route11_EventScript_ItemXDefend
+Route11,63,13,3	item_ball	ITEM_GREAT_BALL,1,flag=FLAG_HIDE_ROUTE11_GREAT_BALL,script=Route11_EventScript_ItemGreatBall
+Route11,13,3,3	item_ball	ITEM_AWAKENING,1,flag=FLAG_HIDE_ROUTE11_AWAKENING,script=Route11_EventScript_ItemAwakening

@@ -1,0 +1,2 @@
+Route10	connect	down	LavenderTown	0 // src=MAP_LAVENDER_TOWN
+Route10	connect	left	Route9	0 // src=MAP_ROUTE9

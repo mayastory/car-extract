@@ -1,0 +1,3 @@
+Route16_House,3,7,0	warp	w0	1,1,Route16,10,5 // elev=3 src=MAP_ROUTE16:0
+Route16_House,4,7,0	warp	w1	1,1,Route16,10,5 // elev=3 src=MAP_ROUTE16:0
+Route16_House,5,7,0	warp	w2	1,1,Route16,10,5 // elev=3 src=MAP_ROUTE16:0

@@ -1,0 +1,6 @@
+SSAnne_B1F_Corridor,19,3,0	warp	w0	1,1,SSAnne_1F_Corridor,28,17 // elev=3 src=MAP_SSANNE_1F_CORRIDOR:5
+SSAnne_B1F_Corridor,2,2,0	warp	w1	1,1,SSAnne_B1F_Room1,4,7 // elev=0 src=MAP_SSANNE_B1F_ROOM1:0
+SSAnne_B1F_Corridor,6,2,0	warp	w2	1,1,SSAnne_B1F_Room2,4,7 // elev=0 src=MAP_SSANNE_B1F_ROOM2:0
+SSAnne_B1F_Corridor,10,2,0	warp	w3	1,1,SSAnne_B1F_Room3,4,7 // elev=0 src=MAP_SSANNE_B1F_ROOM3:0
+SSAnne_B1F_Corridor,14,2,0	warp	w4	1,1,SSAnne_B1F_Room4,4,7 // elev=0 src=MAP_SSANNE_B1F_ROOM4:0
+SSAnne_B1F_Corridor,18,2,0	warp	w5	1,1,SSAnne_B1F_Room5,4,7 // elev=0 src=MAP_SSANNE_B1F_ROOM5:0

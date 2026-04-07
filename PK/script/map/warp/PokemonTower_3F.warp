@@ -1,0 +1,2 @@
+PokemonTower_3F,4,10,0	warp	w0	1,1,PokemonTower_2F,4,10 // elev=3 src=MAP_POKEMON_TOWER_2F:0
+PokemonTower_3F,18,10,0	warp	w1	1,1,PokemonTower_4F,18,10 // elev=3 src=MAP_POKEMON_TOWER_4F:1

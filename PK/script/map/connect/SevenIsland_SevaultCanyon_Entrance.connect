@@ -1,0 +1,2 @@
+SevenIsland_SevaultCanyon_Entrance	connect	up	SevenIsland	0 // src=MAP_SEVEN_ISLAND
+SevenIsland_SevaultCanyon_Entrance	connect	right	SevenIsland_SevaultCanyon	20 // src=MAP_SEVEN_ISLAND_SEVAULT_CANYON

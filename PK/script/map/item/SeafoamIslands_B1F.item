@@ -1,0 +1,2 @@
+SeafoamIslands_B1F,19,18,3	item_ball	ITEM_WATER_STONE,1,flag=FLAG_HIDE_SEAFOAM_ISLANDS_B1F_WATER_STONE,script=SeafoamIslands_B1F_EventScript_ItemWaterStone
+SeafoamIslands_B1F,24,14,4	item_ball	ITEM_REVIVE,1,flag=FLAG_HIDE_SEAFOAM_ISLANDS_B1F_REVIVE,script=SeafoamIslands_B1F_EventScript_ItemRevive

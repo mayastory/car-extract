@@ -1,0 +1,7 @@
+# auto-generated from Packege/src/data/wild_encounters.json
+# map=MtEmber_RubyPath_1F id=MAP_MT_EMBER_RUBY_PATH_1F size=27x19
+MtEmber_RubyPath_1F,0,0,0	monster	land_geodude	27,19,SPECIES_GEODUDE,36,36,4,30,land
+MtEmber_RubyPath_1F,0,0,0	monster	land_machop	27,19,SPECIES_MACHOP,38,38,4,30,land
+MtEmber_RubyPath_1F,0,0,0	monster	land_machoke	27,19,SPECIES_MACHOKE,40,40,4,30,land
+MtEmber_RubyPath_1F,0,0,0	monster	rock_geodude	27,19,SPECIES_GEODUDE,25,35,2,45,rock
+MtEmber_RubyPath_1F,0,0,0	monster	rock_graveler	27,19,SPECIES_GRAVELER,30,45,2,45,rock

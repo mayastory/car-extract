@@ -84,11 +84,13 @@ if (!function_exists('dp_render_level_identity_html')) {
         $wrapClass = trim((string)($opt['class'] ?? 'dp-level-identity'));
         $labelClass = trim((string)($opt['label_class'] ?? 'dp-level-identity-label'));
         $size = max(12, (int)($opt['size'] ?? 16));
+        $width = max(12, (int)($opt['width'] ?? $size));
+        $height = max(12, (int)($opt['height'] ?? $size));
         $gap = max(2, (int)($opt['gap'] ?? 4));
         $img = '';
         if ($iconUrl !== '') {
             $img = '<img src="' . h($iconUrl) . '" alt="lv' . h(str_pad((string)((int)$lv), 2, '0', STR_PAD_LEFT)) . '" '
-                 . 'style="width:' . $size . 'px;height:' . $size . 'px;display:block;flex:0 0 auto;object-fit:contain;image-rendering:pixelated;">';
+                 . 'style="width:' . $width . 'px;height:' . $height . 'px;display:block;flex:0 0 auto;object-fit:contain;image-rendering:pixelated;">';
         }
         return '<span class="' . h($wrapClass) . '" style="display:inline-flex;align-items:center;gap:' . $gap . 'px;vertical-align:middle;min-width:0;">'
              . $img

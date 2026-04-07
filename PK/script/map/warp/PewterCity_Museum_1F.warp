@@ -1,0 +1,6 @@
+PewterCity_Museum_1F,13,9,0	warp	w0	1,1,PewterCity,17,6 // elev=3 src=MAP_PEWTER_CITY:0
+PewterCity_Museum_1F,14,9,0	warp	w1	1,1,PewterCity,17,6 // elev=3 src=MAP_PEWTER_CITY:0
+PewterCity_Museum_1F,15,9,0	warp	w2	1,1,PewterCity,17,6 // elev=3 src=MAP_PEWTER_CITY:0
+PewterCity_Museum_1F,21,9,0	warp	w3	1,1,PewterCity,25,4 // elev=3 src=MAP_PEWTER_CITY:1
+PewterCity_Museum_1F,22,9,0	warp	w4	1,1,PewterCity,25,4 // elev=3 src=MAP_PEWTER_CITY:1
+PewterCity_Museum_1F,8,8,0	warp	w5	1,1,PewterCity_Museum_2F,11,8 // elev=3 src=MAP_PEWTER_CITY_MUSEUM_2F:0

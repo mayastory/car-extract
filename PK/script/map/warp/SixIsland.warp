@@ -1,0 +1,4 @@
+SixIsland,11,23,0	warp	w0	1,1,SixIsland_Harbor,8,2 // elev=3 src=MAP_SIX_ISLAND_HARBOR:0
+SixIsland,11,11,0	warp	w1	1,1,SixIsland_PokemonCenter_1F,7,8 // elev=0 src=MAP_SIX_ISLAND_POKEMON_CENTER_1F:0
+SixIsland,16,17,0	warp	w2	1,1,SixIsland_House,4,7 // elev=0 src=MAP_SIX_ISLAND_HOUSE:0
+SixIsland,20,11,0	warp	w3	1,1,SixIsland_Mart,4,7 // elev=0 src=MAP_SIX_ISLAND_MART:0

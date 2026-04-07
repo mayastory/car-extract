@@ -1,0 +1,2 @@
+SixIsland_GreenPath	connect	up	SixIsland_OutcastIsland	0 // src=MAP_SIX_ISLAND_OUTCAST_ISLAND
+SixIsland_GreenPath	connect	right	SixIsland_WaterPath	0 // src=MAP_SIX_ISLAND_WATER_PATH
