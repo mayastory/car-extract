@@ -47,7 +47,7 @@ try {
   
   // bump to force tileset regen when generator changes
   // Cache-buster for generated PNG/JSON. Bump when renderer logic changes.
-  $GEN_VER = 'r16_split_upper';
+  $GEN_VER = 'r17_metatile_overlay_fix';
 $mapId = safe_id($_GET['map'] ?? '');
   if ($mapId==='') jexit(['ok'=>0,'err'=>'NO_MAP'], 400);
 
@@ -356,9 +356,12 @@ $getMetatile = function(int $mtId) use (&$metaCache, $blitTile, $pMeta, $sMeta, 
           $transparentZero = ($q >= 4); // upper layer: treat index 0 as transparent
           $tile = $getTile($srcImg2, $tileLocal, $palRGBA, $h, $v, $setKey, $transparentZero);
 
-          $dx = ($q % 2) * 8;
-          $dy = intdiv($q, 2) * 8;
-          // r16: upper layer drawn without y-shift
+          $qq = ($q >= 4) ? ($q - 4) : $q;
+          $dx = ($qq % 2) * 8;
+          $dy = intdiv($qq, 2) * 8;
+          // Upper 4 entries must overlay the same 16x16 metatile area.
+          // r16 used q directly here, which pushed q=4..7 to y=16/24 and clipped
+          // building tops, roofs, fences and other overlay graphics out of bounds.
           $blitTile($mtImg, $tile, $dx, $dy, $transparentZero);
           }
 
