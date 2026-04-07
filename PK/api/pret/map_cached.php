@@ -44,12 +44,11 @@ try {
   $map = json_decode($raw, true);
   if (!is_array($map)) throw new Exception('cache json parse fail: ' . $mapFile);
 
-  // stale cache guard: require split tilesets + current generator version
-  $needVer = 'r15_overlay_fix';
+  // stale cache guard: accept the current generator version and current key names
+  $needVer = 'r16_split_upper';
   $haveVer = isset($map['meta']['gen_ver']) ? (string)$map['meta']['gen_ver'] : '';
-  $hasUpper = isset($map['tileset_upper']) || (!empty($map['tilesetFramesUpper']));
-  $hasLower = isset($map['tileset_lower']) || (!empty($map['tilesetFramesLower'])) || isset($map['tileset']);
-  if (!$hasUpper || !$hasLower || ($needVer !== '' && $haveVer !== $needVer)) {
+  $hasMain = isset($map['tileset']) || (!empty($map['tilesetFrames'])) || isset($map['tileset_lower']) || (!empty($map['tilesetFramesLower']));
+  if (!$hasMain || ($needVer !== '' && $haveVer !== $needVer)) {
     jexit(['ok'=>0,'err'=>'CACHE_STALE','need_ver'=>$needVer,'have_ver'=>$haveVer], 409);
   }
 

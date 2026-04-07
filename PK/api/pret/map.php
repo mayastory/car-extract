@@ -147,17 +147,14 @@ $mapId = safe_id($_GET['map'] ?? '');
 
   
 $tilesetUpperFile0 = $pubPret . '/tilesets/' . $tilesetKeyBase . '__upper.png';
-// tileset animation (FRLG fieldmap tile animations) - only for primary 'general'
+  // tileset animation (FRLG fieldmap tile animations) - only for primary 'general'
   $animEnabled = ($pFolder === 'general');
   $animFrameCount = $animEnabled ? 8 : 0;
 
   // build list of tileset frame files (frame0 uses legacy name without suffix)
   $tilesetFrameFiles = [];
-  
-
-$tilesetUpperFrameFiles = [];
-$tilesetUpperFrameFiles = [];
-if ($animFrameCount > 0) {
+  $tilesetUpperFrameFiles = [];
+  if ($animFrameCount > 0) {
     for ($f=0; $f<$animFrameCount; $f++){
       $tilesetFrameFiles[] = ($f===0)
         ? $tilesetFile0
@@ -165,11 +162,7 @@ if ($animFrameCount > 0) {
     }
   } else {
     $tilesetFrameFiles[] = $tilesetFile0;
-  
-
-$tilesetUpperFrameFiles[] = $tilesetUpperFile0;
-$tilesetUpperFrameFiles[] = $tilesetUpperFile0;
-}
+  }
 
   // generate tileset sheet(s) (cached on disk)
   $needGen = false;
@@ -393,8 +386,6 @@ $getMetatile = function(int $mtId) use (&$metaCache, $blitTile, $pMeta, $sMeta, 
       imagedestroy($sheet);
 
         
-    imagedestroy($sheetUpper);
-imagedestroy($sheetUpper);
 if ($waterPacked) imagedestroy($waterPacked);
       if ($sandPacked) imagedestroy($sandPacked);
       if ($flowerPacked) imagedestroy($flowerPacked);
@@ -408,18 +399,16 @@ if ($waterPacked) imagedestroy($waterPacked);
   $tilesetKey = $tilesetKeyBase;
   $tilesetFile = $tilesetFrameFiles[0];
   $tilesetFramesRel = [];
-  
   $tilesetUpperFramesRel = [];
-if ($animFrameCount > 0){
+  if ($animFrameCount > 0){
     foreach($tilesetFrameFiles as $fp){
       $tilesetFramesRel[] = 'pret/tilesets/' . basename($fp);
     }
-  
-      $tilesetUpperFramesRel = [];
-      foreach($tilesetUpperFrameFiles as $fp){
-        $tilesetUpperFramesRel[] = 'pret/tilesets/' . basename($fp);
-      }
-}
+    foreach($tilesetUpperFrameFiles as $fp){
+      if (file_exists($fp)) $tilesetUpperFramesRel[] = 'pret/tilesets/' . basename($fp);
+    }
+  }
+  $tilesetUpperRel = file_exists($tilesetUpperFile0) ? ('pret/tilesets/' . basename($tilesetUpperFile0)) : null;
   // write map json (always rewrite; cheap)
   $layer = [];
   foreach($tiles as $mtId){
@@ -586,13 +575,7 @@ $out = [
   'tilesetCols' => 16,
   'tileset' => 'pret/tilesets/' . basename($tilesetFile),
   'tilesetFrames' => $tilesetFramesRel,
-    
-    
-    'tilesetUpperFrames' => $tilesetUpperFramesRel,
-'tilesetUpper' => 'pret/tilesets/' . basename($tilesetUpperFile0),
-    'tilesetUpperFrames' => $tilesetUpperFramesRel,
-'tilesetUpperFrames' => $tilesetUpperFramesRel,
-  'tilesetUpper' => "pret/tilesets/" . basename($tilesetUpperFile0),
+  'tilesetUpper' => $tilesetUpperRel,
   'tilesetUpperFrames' => $tilesetUpperFramesRel,
   'tileAnimFps' => (count($tilesetFramesRel) ? 7.5 : null),
   'spawn' => ['x'=>10,'y'=>10,'dir'=>0],

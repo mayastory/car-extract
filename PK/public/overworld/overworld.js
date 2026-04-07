@@ -2267,13 +2267,13 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
           const sy = Math.floor(t / cols) * ts;
           const dx = (tx * ts) - offX;
           const dy = (ty * ts) - offY;
-          offCtx.drawImage(this.tilesetUpperImg, sx, sy, ts, ts, dx, dy, ts, ts);
+          oc.drawImage(this.tilesetUpperImg, sx, sy, ts, ts, dx, dy, ts, ts);
         }
       }
     }
 
     // Tall grass FX (rustle)
-    this._drawTallGrassFx(offCtx, x0, y0, x1, y1, offX, offY);
+    this._drawTallGrassFx(oc, x0, y0, x1, y1, offX, offY);
 
     // Name label (above the player)
     const _nm = String(this.playerName||"").trim();
