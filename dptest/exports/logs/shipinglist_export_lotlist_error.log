@@ -1,1 +1,11 @@
 [29-Mar-2026 10:43:26 Asia/Seoul] [PHP] Undefined variable $APP_BASE @ C:\xampp\htdocs\dptest\Module\Shipinglist\pages\shipinglist_export_lotlist.php:2881
+[07-Apr-2026 11:51:29 Asia/Seoul] PHP Fatal error:  Uncaught Error: Call to undefined function dp_render_account_label_html() in C:\xampp\htdocs\dptest\Module\Shipinglist\pages\shipinglist_export_lotlist.php:3025
+Stack trace:
+#0 C:\xampp\htdocs\dptest\public\legacy\shipinglist_export_lotlist.php(5): require()
+#1 {main}
+  thrown in C:\xampp\htdocs\dptest\Module\Shipinglist\pages\shipinglist_export_lotlist.php on line 3025
+[07-Apr-2026 11:51:29 Asia/Seoul] [FATAL] Uncaught Error: Call to undefined function dp_render_account_label_html() in C:\xampp\htdocs\dptest\Module\Shipinglist\pages\shipinglist_export_lotlist.php:3025
+Stack trace:
+#0 C:\xampp\htdocs\dptest\public\legacy\shipinglist_export_lotlist.php(5): require()
+#1 {main}
+  thrown @ C:\xampp\htdocs\dptest\Module\Shipinglist\pages\shipinglist_export_lotlist.php:3025

@@ -97,6 +97,7 @@ session_start();
 
 require_once JTMES_ROOT . '/config/dp_config.php';
 require_once JTMES_ROOT . '/lib/auth_guard.php';
+require_once JTMES_ROOT . '/inc/dp_level_icon.php';
 dp_auth_guard();
 // ─────────────────────────────
 // 보안/UX: 일반 사용자에게 PHP 경고/스택트레이스가 그대로 노출되지 않도록 차단
@@ -3022,6 +3023,9 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
                 $cancelHandledBy = ship_report_actor_humanize_label($pdo, (string)($r['cancel_request_handled_by'] ?? ''));
                 $canceledAtDisplay = trim((string)($r['canceled_at'] ?? ''));
                 $canceledByDisplay = ship_report_actor_humanize_label($pdo, (string)($r['canceled_by'] ?? ''));
+                $cancelRequestedByHtml = dp_render_account_label_html($pdo, (string)($r['cancel_requested_by'] ?? ''), ['size' => 14, 'gap' => 4, 'class' => 'dp-level-identity']);
+                $cancelHandledByHtml   = dp_render_account_label_html($pdo, (string)($r['cancel_request_handled_by'] ?? ''), ['size' => 14, 'gap' => 4, 'class' => 'dp-level-identity']);
+                $canceledByHtml        = dp_render_account_label_html($pdo, (string)($r['canceled_by'] ?? ''), ['size' => 14, 'gap' => 4, 'class' => 'dp-level-identity']);
                 $approvedAtDisplay = ($cancelHandledAt !== '') ? $cancelHandledAt : $canceledAtDisplay;
                 $approvedByDisplay = ($cancelHandledBy !== '') ? $cancelHandledBy : $canceledByDisplay;
                 $showRequestAndApproval = ($cancelReqStatus === 'approved') && (
@@ -3142,20 +3146,20 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
                         <div class="mini">신청: <?=h($cancelRequestedAt)?></div>
                       <?php endif; ?>
                       <?php if ($cancelRequestedBy !== ''): ?>
-                        <div class="mini"><?=h($cancelRequestedBy)?></div>
+                        <div class="mini"><?=(($cancelRequestedByHtml !== '') ? $cancelRequestedByHtml : h($cancelRequestedBy))?></div>
                       <?php endif; ?>
                       <?php if ($approvedAtDisplay !== ''): ?>
                         <div class="mini">승인: <?=h($approvedAtDisplay)?></div>
                       <?php endif; ?>
                       <?php if ($approvedByDisplay !== ''): ?>
-                        <div class="mini"><?=h($approvedByDisplay)?></div>
+                        <div class="mini"><?=(($cancelHandledByHtml !== '') ? $cancelHandledByHtml : h($approvedByDisplay))?></div>
                       <?php endif; ?>
                     <?php else: ?>
                       <?php if ($canceledAtDisplay !== ''): ?>
                         <div class="mini">취소: <?=h($canceledAtDisplay)?></div>
                       <?php endif; ?>
                       <?php if ($canceledByDisplay !== ''): ?>
-                        <div class="mini"><?=h($canceledByDisplay)?></div>
+                        <div class="mini"><?=(($canceledByHtml !== '') ? $canceledByHtml : h($canceledByDisplay))?></div>
                       <?php endif; ?>
                     <?php endif; ?>
                   <?php elseif ($cancelReqPending): ?>
@@ -3164,7 +3168,7 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
                       <div class="mini">신청: <?=h($cancelRequestedAt)?></div>
                     <?php endif; ?>
                     <?php if ($cancelRequestedBy !== ''): ?>
-                      <div class="mini"><?=h($cancelRequestedBy)?></div>
+                      <div class="mini"><?=(($cancelRequestedByHtml !== '') ? $cancelRequestedByHtml : h($cancelRequestedBy))?></div>
                     <?php endif; ?>
                     <div class="status-actions">
                       <?php if ($viewOk): ?>

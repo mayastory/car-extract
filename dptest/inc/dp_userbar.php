@@ -77,7 +77,11 @@ function dp_render_userbar(array $opt = []): string
   </div>
 
   <div class="dp-ub-right">
-    <div class="dp-ub-user">로그인 : <?php echo $userIdentityHtml; ?> 님</div>
+    <div class="dp-ub-user">
+      <span class="dp-ub-user-label">로그인 :</span>
+      <span class="dp-ub-user-name"><?php echo $userIdentityHtml; ?></span>
+      <span class="dp-ub-user-suffix">님</span>
+    </div>
 
     <?php if ($isAdmin && $adminMode !== 'none'): ?>
       <?php if ($adminMode === 'link'): ?>
