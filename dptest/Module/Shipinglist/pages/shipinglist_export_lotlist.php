@@ -2648,6 +2648,7 @@ if ($toDate   === '') $toDate   = $today;
 
     $histRows  = report_finish_list_month($pdo, $histMonth);
     $cancelActor = ship_report_actor_meta($pdo);
+    $canBuildReportButtons = (!empty($cancelActor['is_admin']) || ((int)($cancelActor['lv'] ?? 0) >= 2));
     ensure_report_finish_cancel_request_columns($pdo);
     if (!empty($histRows)) {
         $rfStateMap = report_finish_cancel_request_state_map($pdo, array_map(static function($r){ return (int)($r['id'] ?? 0); }, $histRows));
@@ -2854,10 +2855,12 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
         </div>
         <div class="col">
           <label>&nbsp;</label>
+          <?php if ($canBuildReportButtons): ?>
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
             <button type="submit" class="btn btn-primary">성적서 생성</button>
             <button type="button" class="btn btn-secondary" onclick="openManualReportBuild();">수동성적서 생성</button>
           </div>
+          <?php endif; ?>
         </div>
       </div>
 
