@@ -2450,8 +2450,13 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
     // Name label (above the player)
     const _nm = String(this.playerName||"").trim();
     if(_nm){
-      const tx = px + ts/2;
-      const ty = py - 2;
+      const _labelPx = Math.round(this._playerRenderX()*ts);
+      const _labelPyBase = Math.round(this._playerRenderY()*ts);
+      const _labelJumpT = Math.max(0, Math.min(1, this._moveT||0));
+      const _labelJumpRaise = (this._jumping && this.player.moving) ? (Math.sin(Math.PI*_labelJumpT) * 8) : 0;
+      const _labelPy = Math.round(_labelPyBase - _labelJumpRaise);
+      const tx = _labelPx + ts/2;
+      const ty = _labelPy - 2;
       const shown = (_nm.length>12) ? (_nm.slice(0,12)+"…") : _nm;
       oc.save();
       oc.font = "bold 8px system-ui";
