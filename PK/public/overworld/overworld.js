@@ -710,7 +710,7 @@ export class Overworld{
           const needUpper = !(this.map && (this.map.tilesetUpper || (this.map.tilesetUpperFrames && this.map.tilesetUpperFrames.length)));
           const needVer = !(this.map && this.map.meta && this.map.meta.gen_ver === 'r16_split_upper');
           if(needUpper || needVer){
-            const r2 = await fetch(`api/pret/map.php?map=${encodeURIComponent(mapId)}&force=1`);
+            const r2 = await fetch(`${this.apiBase}/pret/map.php?map=${encodeURIComponent(mapId)}&force=1`);
             const j2 = await r2.json().catch(()=>null);
             if(r2.ok && j2 && j2.ok && j2.mapUrl){
               await this.load(j2.mapUrl, opts);
@@ -719,6 +719,16 @@ export class Overworld{
         }catch(e){}
 
         return;
+      }
+
+      // Cache exists but server marked it stale/conflicting.
+      // Load the static cache directly first so the screen does not stay black,
+      // then let the normal generator path below handle stricter refresh cases.
+      if(r1.status===409){
+        try{
+          await this.load(`./pret/maps/${encodeURIComponent(mapId)}.json`, opts);
+          return;
+        }catch(e){}
       }
       // If cache is missing, fall through to generator.
     }catch(e){}
@@ -956,7 +966,7 @@ export class Overworld{
     return this._fxTallGrassPromise;
   }
 
-  _drawTallGrassFx(oc, x0, y0, x1, y1, offX, offY) {
+  _drawTallGrassFx(oc, x0, y0, x1, y1) {
     if (!this._fxTallGrassReady || !this._fxTallGrassImg || !this._grassFx) return;
     const ts = this.tileSize || 16;
     const now = performance.now();
@@ -970,8 +980,8 @@ export class Overworld{
       const frame = Math.min(this._grassFxFrames - 1, Math.floor(age / this._grassFxStepMs));
       const sx = 0;
       const sy = frame * ts;
-      const dx = (tx * ts) - offX;
-      const dy = (ty * ts) - offY;
+      const dx = tx * ts;
+      const dy = ty * ts;
       oc.drawImage(this._fxTallGrassImg, sx, sy, ts, ts, dx, dy, ts, ts);
     }
   }
@@ -2265,15 +2275,15 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
           const t = this.map.layers[0].data[idx] || 0;
           const sx = (t % cols) * ts;
           const sy = Math.floor(t / cols) * ts;
-          const dx = (tx * ts) - offX;
-          const dy = (ty * ts) - offY;
+          const dx = tx * ts;
+          const dy = ty * ts;
           oc.drawImage(this.tilesetUpperImg, sx, sy, ts, ts, dx, dy, ts, ts);
         }
       }
     }
 
     // Tall grass FX (rustle)
-    this._drawTallGrassFx(oc, x0, y0, x1, y1, offX, offY);
+    this._drawTallGrassFx(oc, x0, y0, x1, y1);
 
     // Name label (above the player)
     const _nm = String(this.playerName||"").trim();

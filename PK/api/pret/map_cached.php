@@ -44,12 +44,21 @@ try {
   $map = json_decode($raw, true);
   if (!is_array($map)) throw new Exception('cache json parse fail: ' . $mapFile);
 
-  // stale cache guard: accept the current generator version and current key names
+  // Cache compatibility guard:
+  // - Do NOT hard-stop on older gen_ver values if the cache is still renderable.
+  // - Only fail when the cached json does not contain any usable tileset reference.
   $needVer = 'r16_split_upper';
   $haveVer = isset($map['meta']['gen_ver']) ? (string)$map['meta']['gen_ver'] : '';
   $hasMain = isset($map['tileset']) || (!empty($map['tilesetFrames'])) || isset($map['tileset_lower']) || (!empty($map['tilesetFramesLower']));
-  if (!$hasMain || ($needVer !== '' && $haveVer !== $needVer)) {
-    jexit(['ok'=>0,'err'=>'CACHE_STALE','need_ver'=>$needVer,'have_ver'=>$haveVer], 409);
+  if (!$hasMain) {
+    jexit(['ok'=>0,'err'=>'CACHE_INVALID','need_ver'=>$needVer,'have_ver'=>$haveVer], 409);
+  }
+
+  if (!isset($map['meta']) || !is_array($map['meta'])) $map['meta'] = [];
+  if ($needVer !== '' && $haveVer !== $needVer) {
+    $map['meta']['cache_stale'] = 1;
+    $map['meta']['need_ver'] = $needVer;
+    $map['meta']['have_ver'] = $haveVer;
   }
 
 
@@ -88,8 +97,8 @@ try {
     'map'=>$mapId,
     'mapUrl'=>'./pret/maps/' . $mapId . '.json',
     'label' => $label,
-    'tilesetUrl'=> isset($map['tileset']) ? ('./' . ltrim((string)$map['tileset'], './')) : null,
-    'tilesetFrames'=> $map['tilesetFrames'] ?? null,
+    'tilesetUrl'=> isset($map['tileset']) ? ('./' . ltrim((string)$map['tileset'], './')) : (isset($map['tileset_lower']) ? ('./' . ltrim((string)$map['tileset_lower'], './')) : null),
+    'tilesetFrames'=> $map['tilesetFrames'] ?? ($map['tilesetFramesLower'] ?? null),
   ]);
 } catch (Throwable $e) {
   jexit(['ok'=>0,'err'=>'EX','detail'=>$e->getMessage()], 500);
