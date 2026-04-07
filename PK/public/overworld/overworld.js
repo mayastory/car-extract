@@ -136,6 +136,7 @@ export class Overworld{
 
     // Warp + map connection preview
     this._warpCooldown=0;
+    this._warpPending=false;
     this._neighborCache=new Map();        // mapId -> { map, tilesetImgs, tilesetImg, tilesetCols }
     this._neighborPromises=new Map();     // mapId -> Promise
 
@@ -740,18 +741,10 @@ export class Overworld{
       if(!this._pretMapNeedsRefresh(this.map)) return;
     }catch(e){}
 
-    // 2) Try the cached API wrapper next. It may point at a usable merged cache.
-    try{
-      const url1=`${this.apiBase}/pret/map_cached.php?map=${encodeURIComponent(mapId)}`;
-      const r1=await fetch(url1,{cache:"no-store"});
-      const j1=await r1.json().catch(()=>null);
-      if(r1.ok && j1 && j1.ok && j1.mapUrl){
-        await this.load(j1.mapUrl, opts);
-        if(!this._pretMapNeedsRefresh(this.map)) return;
-      }
-    }catch(e){}
-
-    // 3) Final fallback: regenerate with the current renderer (requires Packege)
+    // 2) Final fallback: regenerate with the current renderer (requires Packege)
+    // Skip map_cached.php entirely here. It is only a wrapper around the same static
+    // cache, and when that wrapper fails it pollutes movement/connection flow with
+    // noisy 500s while the local static cache is already good enough.
     await this._generatePretMap(mapId, opts);
   }
 
@@ -1383,22 +1376,6 @@ export class Overworld{
           }
         }catch(e){}
 
-        // If static cache is unavailable or stale, try the cached API wrapper.
-        if(!mj){
-          try{
-            const rc = await fetch(`${this.apiBase}/pret/map_cached.php?map=${encodeURIComponent(mapId)}`, {cache:"no-store"});
-            const jc = await rc.json().catch(()=>null);
-            if(rc.ok && jc && jc.ok && jc.mapUrl){
-              const rr = await fetch(jc.mapUrl, {cache:"no-store"});
-              if(rr.ok){
-                mj = await rr.json();
-                meta = jc;
-                if(this._pretMapNeedsRefresh(mj)) mj = null;
-              }
-            }
-          }catch(e){}
-        }
-
         if(!mj){
           const rg = await fetch(`${this.apiBase}/pret/map.php?map=${encodeURIComponent(mapId)}`, {cache:"no-store"});
           meta = await rg.json().catch(()=>null);
@@ -1868,8 +1845,25 @@ export class Overworld{
     if(this._warpCooldown>0) return;
     const w=this._findWarpAt(this.player.x|0, this.player.y|0);
     if(w && w.dest_map_id){
+      if(this._warpPending) return;
       this._warpCooldown=0.35;
-      this._warpTo(w);
+      this._warpPending = true;
+      this._syncLockUntil = Math.max(this._syncLockUntil||0, performance.now() + 500);
+      (async()=>{
+        try{
+          // Sync the source warp tile first. Without this, the server still thinks the
+          // player is one step before the doorway, so the next cross-map upsert looks
+          // like an illegal teleport and MAP_WARP_RATE_LIMIT snaps the player back out.
+          if(this._serverStateLoaded){
+            await this._upsert();
+          }
+          await this._warpTo(w);
+        }catch(e){
+          console.error(e);
+        }finally{
+          this._warpPending = false;
+        }
+      })();
       return;
     }
   
