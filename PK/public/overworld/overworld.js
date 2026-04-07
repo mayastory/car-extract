@@ -997,13 +997,16 @@ export class Overworld{
   }
 
   _playerFootTile() {
-    // player.x / player.y are tile coordinates, not world pixels.
-    // The previous implementation mixed sprite pixel size into tile coords,
-    // which collapsed most player positions toward (0,0) and broke row-based
-    // occlusion ordering for the player.
+    // Keep the foot tile anchored to the tile the player is currently standing on.
+    // Using Math.round() flips to the next tile too early while moving vertically,
+    // which makes grass cover jump up into the head area and causes row-priority
+    // jitter near roofs/trees.
     const rx = this._playerRenderX();
     const ry = this._playerRenderY();
-    return { x: Math.round(rx), y: Math.round(ry) };
+    return {
+      x: Math.floor(rx + 0.0001),
+      y: Math.floor(ry + 0.0001),
+    };
   }
 
   _ensureFxTallGrass() {
@@ -2251,20 +2254,20 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
       const sx = (tileId % cols) * ts;
       const sy = Math.floor(tileId / cols) * ts;
       const dx = tx * ts;
-      const dy = ty * ts;
       const half = Math.ceil(ts/2);
+      const dstY = (ty - 1) * ts + Math.floor(ts/2);
 
-      // For south/front occluders we need the *upper* half of the southern tile,
-      // not the lower half. Using the lower half leaves the player fully visible
-      // above roofs/trees because the cover is drawn too low.
-      oc.drawImage(base.img, sx, sy, ts, half, dx, dy, ts, half);
+      // FR/LG front-occluder style: use the lower/front band of the southern tile,
+      // but project it one tile north so it overlaps the entity standing "behind"
+      // that object row (roof eaves, tree canopy front, fence front, etc.).
+      oc.drawImage(base.img, sx, sy + Math.floor(ts/2), ts, half, dx, dstY, ts, half);
 
       if(hasUpper){
         const ut = upper.tile|0;
         const ucols = Math.max(1, (upper.cols||16)|0);
         const usx = (ut % ucols) * ts;
         const usy = Math.floor(ut / ucols) * ts;
-        oc.drawImage(upper.img, usx, usy, ts, half, dx, dy, ts, half);
+        oc.drawImage(upper.img, usx, usy + Math.floor(ts/2), ts, half, dx, dstY, ts, half);
       }
     };
 
