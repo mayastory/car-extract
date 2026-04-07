@@ -2239,9 +2239,13 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
       const base = this._tileInfoAt(tx, ty);
       if(!base || !base.img) return;
       const tileId = base.tile|0;
+      const upper = this._tileUpperInfoAt(tx, ty);
       const blocked = this._isBlockedTile(tileId, tx, ty);
-      const behavior = this._behaviorAt(tx, ty);
-      if(!blocked && !this._isTallGrassBehavior(behavior)) return;
+      const hasUpper = !!(upper && upper.img);
+      // South/front cover is for roofs / trees / fences etc. Tall grass uses its own
+      // current-tile lower-body cover and must not come through this path, otherwise
+      // the cover climbs into the head/label area when walking downward.
+      if(!blocked && !hasUpper) return;
 
       const cols = Math.max(1, (base.cols||16)|0);
       const sx = (tileId % cols) * ts;
@@ -2250,16 +2254,17 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
       const dy = ty * ts;
       const half = Math.ceil(ts/2);
 
-      // Draw only the lower half as a cheap FRLG-style front-cover pass.
-      oc.drawImage(base.img, sx, sy + Math.floor(ts/2), ts, half, dx, dy + Math.floor(ts/2), ts, half);
+      // For south/front occluders we need the *upper* half of the southern tile,
+      // not the lower half. Using the lower half leaves the player fully visible
+      // above roofs/trees because the cover is drawn too low.
+      oc.drawImage(base.img, sx, sy, ts, half, dx, dy, ts, half);
 
-      const upper = this._tileUpperInfoAt(tx, ty);
-      if(upper && upper.img){
+      if(hasUpper){
         const ut = upper.tile|0;
         const ucols = Math.max(1, (upper.cols||16)|0);
         const usx = (ut % ucols) * ts;
         const usy = Math.floor(ut / ucols) * ts;
-        oc.drawImage(upper.img, usx, usy + Math.floor(ts/2), ts, half, dx, dy + Math.floor(ts/2), ts, half);
+        oc.drawImage(upper.img, usx, usy, ts, half, dx, dy, ts, half);
       }
     };
 
@@ -2434,7 +2439,8 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
         const my = +p.y;
         const tx = Math.floor(mx);
         const ty = Math.floor(my);
-        queueRowDraw(ty, mx, ()=>drawMob(m), this._isTallGrassBehavior(this._behaviorAt(tx, ty)) ? {x:tx, y:ty} : null, {x:tx, y:ty+1});
+        const mobTallGrass = this._isTallGrassBehavior(this._behaviorAt(tx, ty));
+        queueRowDraw(ty, mx, ()=>drawMob(m), mobTallGrass ? {x:tx, y:ty} : null, mobTallGrass ? null : {x:tx, y:ty+1});
       }
     }
 
@@ -2442,11 +2448,13 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
     for(const n of npcs){
       if(!n) continue;
       const nx=n.x|0, ny=n.y|0;
-      queueRowDraw(ny, nx, ()=>drawNpc(n), this._isTallGrassBehavior(this._behaviorAt(nx, ny)) ? {x:nx, y:ny} : null, {x:nx, y:ny+1});
+      const npcTallGrass = this._isTallGrassBehavior(this._behaviorAt(nx, ny));
+      queueRowDraw(ny, nx, ()=>drawNpc(n), npcTallGrass ? {x:nx, y:ny} : null, npcTallGrass ? null : {x:nx, y:ny+1});
     }
 
     const pFoot = this._playerFootTile();
-    queueRowDraw(pFoot.y, this.player.x|0, ()=>drawPlayer(), this._isTallGrassBehavior(this._behaviorAt(pFoot.x, pFoot.y)) ? {x:pFoot.x, y:pFoot.y} : null, {x:pFoot.x, y:pFoot.y+1});
+    const playerTallGrass = this._isTallGrassBehavior(this._behaviorAt(pFoot.x, pFoot.y));
+    queueRowDraw(pFoot.y, this._playerRenderX(), ()=>drawPlayer(), playerTallGrass ? {x:pFoot.x, y:pFoot.y} : null, playerTallGrass ? null : {x:pFoot.x, y:pFoot.y+1});
 
     for(let ty=y0; ty<=y1; ty++){
       const bucket = rowBuckets.get(ty);
