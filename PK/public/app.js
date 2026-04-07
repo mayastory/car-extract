@@ -10,6 +10,8 @@ const statusEl = document.getElementById("status");
 const pretStatusEl = document.getElementById("pretStatus");
 const overworldPane = document.getElementById("overworldPane");
 const battlePane = document.getElementById("battlePane");
+const battleFrame = document.getElementById("battleFrame");
+let _battleLoaded = false;
 const btnOverworld = document.getElementById("btnOverworld");
 const btnBattle = document.getElementById("btnBattle");
 const btnZoomIn = document.getElementById("btnZoomIn");
@@ -212,6 +214,13 @@ function showOverworld(){
   partyHud?.classList.remove("hidden");
 }
 function showBattle(){
+  if(battleFrame && !_battleLoaded){
+    const want = battleFrame.getAttribute("data-src") || "./battle/battle.html";
+    if(battleFrame.getAttribute("src") !== want){
+      battleFrame.setAttribute("src", want);
+    }
+    _battleLoaded = true;
+  }
   overworldPane.classList.add("hidden");
   battlePane.classList.remove("hidden");
   closePokePanel();

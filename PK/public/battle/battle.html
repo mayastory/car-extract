@@ -1,23 +1,28 @@
 <!doctype html>
 <html>
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Battle (GBA)</title>
-  <style>html,body{margin:0;height:100%;background:#000}#game{width:100%;height:100%}</style>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width,initial-scale=1" />
+ <title>Battle (GBA)</title>
+ <style>html,body{margin:0;height:100%;background:#000}#game{width:100%;height:100%}</style>
 </head>
 <body>
-  <div id="game"></div>
-  <script>
-    // ROM 선택 UI 없음. 고정 경로에서만 로드.
-    window.EJS_player = "#game";
-    window.EJS_core = "gba";
-    window.EJS_gameUrl = "../../roms/firered.gba";
-    window.EJS_pathtodata = "https://cdn.emulatorjs.org/stable/data/";
-    window.EJS_startOnLoaded = true;
-    window.EJS_backgroundColor = "#000";
-    window.EJS_defaultControls = true;
-  </script>
-  <script src="https://cdn.emulatorjs.org/stable/data/loader.js"></script>
+ <div id="game"></div>
+ <script>
+ // ROM 선택 UI 없음. 고정 경로에서만 로드.
+ window.EJS_player = "#game";
+ window.EJS_core = "gba";
+ window.EJS_gameUrl = "../../roms/firered.gba";
+ window.EJS_pathtodata = "https://cdn.emulatorjs.org/stable/data/";
+ window.EJS_startOnLoaded = true;
+ window.EJS_backgroundColor = "#000";
+ // EmulatorJS docs: default language is en-US. Force English and disable auto language
+ // so ko.json 404 noise does not appear on hosts where the CDN language file is missing.
+ window.EJS_language = "en-US";
+ window.EJS_disableAutoLang = true;
+ // Do not pass boolean here. EmulatorJS expects EJS_defaultControls to be an object when provided.
+ // Leaving it undefined uses EmulatorJS defaults and avoids runtime errors in control setup.
+ </script>
+ <script src="https://cdn.emulatorjs.org/stable/data/loader.js"></script>
 </body>
 </html>
