@@ -47,7 +47,7 @@ try {
   
   // bump to force tileset regen when generator changes
   // Cache-buster for generated PNG/JSON. Bump when renderer logic changes.
-  $GEN_VER = 'r18_cover_meta_export';
+  $GEN_VER = 'r19_split_upper_cover_band';
 $mapId = safe_id($_GET['map'] ?? '');
   if ($mapId==='') jexit(['ok'=>0,'err'=>'NO_MAP'], 400);
 
@@ -159,14 +159,19 @@ $tilesetUpperFile0 = $pubPret . '/tilesets/' . $tilesetKeyBase . '__upper.png';
       $tilesetFrameFiles[] = ($f===0)
         ? $tilesetFile0
         : ($pubPret . '/tilesets/' . $tilesetKeyBase . '__f' . $f . '.png');
+      $tilesetUpperFrameFiles[] = ($f===0)
+        ? $tilesetUpperFile0
+        : ($pubPret . '/tilesets/' . $tilesetKeyBase . '__upper__f' . $f . '.png');
     }
   } else {
     $tilesetFrameFiles[] = $tilesetFile0;
+    $tilesetUpperFrameFiles[] = $tilesetUpperFile0;
   }
 
   // generate tileset sheet(s) (cached on disk)
   $needGen = false;
-  foreach($tilesetFrameFiles as $fp){
+  $allTilesetFiles = array_merge($tilesetFrameFiles, $tilesetUpperFrameFiles);
+  foreach($allTilesetFiles as $fp){
     if (!file_exists($fp)) { $needGen = true; break; }
   }
 
@@ -296,31 +301,33 @@ $tilesetUpperFile0 = $pubPret . '/tilesets/' . $tilesetKeyBase . '__upper.png';
         }
       };
 
-$getMetatile = function(int $mtId) use (&$metaCache, $blitTile, $pMeta, $sMeta, $pMetaCount, $pTileCount, $getTile, $pImg, $sImg, $pPalDir, $sPalDir,
+$metaCache = [];
+      $makeEmptyMetatile = function(){
+        $img = imagecreatetruecolor(16,16);
+        imagesavealpha($img,true);
+        imagealphablending($img,false);
+        $t = imagecolorallocatealpha($img,0,0,0,127);
+        imagefill($img,0,0,$t);
+        return $img;
+      };
+      $getMetatilePair = function(int $mtId) use (&$metaCache, $makeEmptyMetatile, $blitTile, $pMeta, $sMeta, $pMetaCount, $pTileCount, $getTile, $pImg, $sImg, $pPalDir, $sPalDir,
         $hasAnim, $waterPacked, $sandPacked, $flowerPacked, $WATER_START, $WATER_COUNT, $SAND_START, $SAND_COUNT, $FLOWER_START, $FLOWER_COUNT, $frame
       ){
         if(isset($metaCache[$mtId])) return $metaCache[$mtId];
 
-        // choose primary/secondary metatile data
         $isSecMeta = ($mtId >= $pMetaCount);
         $metaBin = $isSecMeta ? $sMeta : $pMeta;
         $metaLocal = $isSecMeta ? ($mtId - $pMetaCount) : $mtId;
         $off = $metaLocal * 16;
         if ($off+16 > strlen($metaBin)) {
-          $empty = imagecreatetruecolor(16,16);
-          imagesavealpha($empty,true);
-          imagealphablending($empty,false);
-          $t = imagecolorallocatealpha($empty,0,0,0,127);
-          imagefill($empty,0,0,$t);
-          return $metaCache[$mtId] = $empty;
+          $emptyA = $makeEmptyMetatile();
+          $emptyB = $makeEmptyMetatile();
+          return $metaCache[$mtId] = ['base'=>$emptyA, 'upper'=>$emptyB];
         }
 
         $metaEntries = metatile_entries($metaBin, $metaLocal);
-        $mtImg = imagecreatetruecolor(16,16);
-        imagesavealpha($mtImg,true);
-        imagealphablending($mtImg,false);
-        $transparent = imagecolorallocatealpha($mtImg,0,0,0,127);
-        imagefill($mtImg,0,0,$transparent);
+        $baseImg = $makeEmptyMetatile();
+        $upperImg = $makeEmptyMetatile();
 
         for($q=0;$q<8;$q++){
           $e = $metaEntries[$q];
@@ -329,7 +336,6 @@ $getMetatile = function(int $mtId) use (&$metaCache, $blitTile, $pMeta, $sMeta, 
           $v = (($e >> 11) & 1) ? true : false;
           $bank = (($e >> 12) & 0x0F);
 
-          // Upper layer uses tileId=0 as 'no tile' (do not draw).
           if ($q >= 4 && $tileIdRaw === 0) { continue; }
 
           $tileIsSec = ($tileIdRaw >= $pTileCount);
@@ -341,8 +347,6 @@ $getMetatile = function(int $mtId) use (&$metaCache, $blitTile, $pMeta, $sMeta, 
           $palRGBA = palette_to_rgba($pal);
 
           $setKey = $tileIsSec ? 'S' : 'P';
-
-          // apply tile animation substitutions (primary only)
           if ($hasAnim && !$tileIsSec) {
             if ($waterPacked && $tileLocal >= $WATER_START && $tileLocal < ($WATER_START+$WATER_COUNT)) {
               $srcImg2 = $waterPacked; $tileLocal = $tileLocal - $WATER_START; $setKey = 'W'.$frame;
@@ -353,40 +357,46 @@ $getMetatile = function(int $mtId) use (&$metaCache, $blitTile, $pMeta, $sMeta, 
             }
           }
 
-          $transparentZero = ($q >= 4); // upper layer: treat index 0 as transparent
+          $transparentZero = ($q >= 4);
           $tile = $getTile($srcImg2, $tileLocal, $palRGBA, $h, $v, $setKey, $transparentZero);
-
           $qq = ($q >= 4) ? ($q - 4) : $q;
           $dx = ($qq % 2) * 8;
           $dy = intdiv($qq, 2) * 8;
-          // Upper 4 entries must overlay the same 16x16 metatile area.
-          // r16 used q directly here, which pushed q=4..7 to y=16/24 and clipped
-          // building tops, roofs, fences and other overlay graphics out of bounds.
-          $blitTile($mtImg, $tile, $dx, $dy, $transparentZero);
+          if ($q >= 4) {
+            $blitTile($upperImg, $tile, $dx, $dy, true);
+          } else {
+            $blitTile($baseImg, $tile, $dx, $dy, false);
           }
+        }
 
-        $metaCache[$mtId] = $mtImg;
-        return $mtImg;
+        $metaCache[$mtId] = ['base'=>$baseImg, 'upper'=>$upperImg];
+        return $metaCache[$mtId];
       };
 
       // build tileset sheet of used metatiles
       $cols = 16;
       $rows = (int)ceil(count($used) / $cols);
       $sheet = imagecreatetruecolor($cols*16, $rows*16);
-      imagesavealpha($sheet,true);
-      imagealphablending($sheet,false);
-      $transparent = imagecolorallocatealpha($sheet,0,0,0,127);
-      imagefill($sheet,0,0,$transparent);
+      $sheetUpper = imagecreatetruecolor($cols*16, $rows*16);
+      foreach ([$sheet, $sheetUpper] as $sheetImg) {
+        imagesavealpha($sheetImg,true);
+        imagealphablending($sheetImg,false);
+        $transparent = imagecolorallocatealpha($sheetImg,0,0,0,127);
+        imagefill($sheetImg,0,0,$transparent);
+      }
 
       foreach($used as $i=>$mtId){
-        $mtImg = $getMetatile($mtId);
+        $pair = $getMetatilePair($mtId);
         $sx = ($i % $cols) * 16;
         $sy = intdiv($i, $cols) * 16;
-        imagecopy($sheet, $mtImg, $sx, $sy, 0,0, 16,16);
+        imagecopy($sheet, $pair['base'], $sx, $sy, 0,0, 16,16);
+        imagecopy($sheetUpper, $pair['upper'], $sx, $sy, 0,0, 16,16);
       }
 
       imagepng($sheet, $tilesetFile);
+      imagepng($sheetUpper, $tilesetUpperFrameFiles[$frame] ?? $tilesetUpperFile0);
       imagedestroy($sheet);
+      imagedestroy($sheetUpper);
 
         
 if ($waterPacked) imagedestroy($waterPacked);
@@ -458,11 +468,11 @@ foreach($collisions as $c){ $collisionOut[] = ($c ? 1 : 0); }
   }
 
   // exporter-backed cover metadata:
-  // - front_cover: this metatile has an upper/front overlay band that should be projected
+  // - front_cover/front_band: bottom band of the UPPER metatile layer that should project
   //   onto the tile immediately north of it (roof eaves / tree canopy front / fence front).
-  // - grass_cover: this tile should only apply the local lower-body grass cover, not the
-  //   south/front occluder path.
+  // - grass_cover: current tile lower-body cover only.
   $frontCoverOut = [];
+  $frontBandOut = [];
   $grassCoverOut = [];
   try {
     $pMetaBin3 = @file_get_contents($pDir . '/metatiles.bin');
@@ -476,23 +486,38 @@ foreach($collisions as $c){ $collisionOut[] = ($c ? 1 : 0); }
       $local = $isSecMeta ? ($mtId - $pMetaCount3) : $mtId;
       $metaBin3 = $isSecMeta ? $sMetaBin3 : $pMetaBin3;
 
-      $hasUpper = false;
+      $frontBand = 0;
       if ($metaBin3 !== false && $local >= 0) {
-        $entries3 = metatile_entries($metaBin3, $local);
-        for ($q = 4; $q < 8; $q++) {
-          if ((((int)$entries3[$q]) & 0x03FF) !== 0) {
-            $hasUpper = true;
-            break;
+        $off3 = $local * 16;
+        if (($off3 + 16) <= strlen($metaBin3)) {
+          $entries3 = metatile_entries($metaBin3, $local);
+          $opaqueRows = [];
+          for ($q = 4; $q < 8; $q++) {
+            $tileIdRaw = ((int)$entries3[$q]) & 0x03FF;
+            if ($tileIdRaw === 0) { continue; }
+            $qq = $q - 4;
+            $dy = intdiv($qq, 2) * 8;
+            for ($py = $dy; $py < ($dy + 8); $py++) {
+              $opaqueRows[$py] = true;
+            }
+          }
+          for ($py = 8; $py < 16; $py++) {
+            if (!empty($opaqueRows[$py])) {
+              $frontBand = 16 - $py;
+              break;
+            }
           }
         }
       }
-      $frontCoverOut[] = $hasUpper ? 1 : 0;
+      $frontCoverOut[] = ($frontBand > 0) ? 1 : 0;
+      $frontBandOut[] = $frontBand;
 
       $b = (int)($behaviorOut[$i] ?? 0);
       $grassCoverOut[] = (($b === 0x02) || ($b === 0xD1) || ($b === 0x49) || ($b === 0x4A) || ($b === 0x48)) ? 1 : 0;
     }
   } catch (Throwable $e) {
     $frontCoverOut = array_fill(0, count($tiles), 0);
+    $frontBandOut = array_fill(0, count($tiles), 0);
     $grassCoverOut = array_fill(0, count($tiles), 0);
   }
 
@@ -626,6 +651,7 @@ $out = [
   'collision' => $collisionOut,
   'behavior' => $behaviorOut,
   'front_cover' => $frontCoverOut,
+  'front_band' => $frontBandOut,
   'grass_cover' => $grassCoverOut,
   'border' => $borderOut,
   'connections' => $connectionsOut,

@@ -716,7 +716,7 @@ export class Overworld{
   }
 
   _pretRequiredGenVer(){
-    return "r18_cover_meta_export";
+    return "r19_split_upper_cover_band";
   }
 
   _pretMapNeedsRefresh(mapObj){
@@ -1002,6 +1002,14 @@ export class Overworld{
     if (!Array.isArray(arr) || arr.length !== W*H) return null;
     if (x<0 || y<0 || x>=W || y>=H) return 0;
     return arr[y*W+x] ? 1 : 0;
+  }
+
+  _frontBandAt(x, y) {
+    const W = this.map?.width|0, H = this.map?.height|0;
+    const arr = this.map?.front_band;
+    if (!Array.isArray(arr) || arr.length !== W*H) return null;
+    if (x<0 || y<0 || x>=W || y>=H) return 0;
+    return arr[y*W+x] | 0;
   }
 
   _grassCoverAt(x, y) {
@@ -2261,35 +2269,23 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
       const tileId = base.tile|0;
       const upper = this._tileUpperInfoAt(tx, ty);
       const frontMeta = this._frontCoverAt(tx, ty);
+      const frontBandMeta = this._frontBandAt(tx, ty);
       const blocked = this._isBlockedTile(tileId, tx, ty);
       const hasUpper = !!(upper && upper.img);
-      // Prefer exporter-backed cover metadata from Packege. If it is present, trust it.
-      // Only fall back to the old blocked/upper heuristic when legacy caches are loaded.
       const shouldCover = (frontMeta !== null) ? !!frontMeta : (!!blocked || !!hasUpper);
-      // South/front cover is for roofs / trees / fences etc. Tall grass uses its own
-      // current-tile lower-body cover and must not come through this path, otherwise
-      // the cover climbs into the head/label area when walking downward.
       if(!shouldCover) return;
 
-      const cols = Math.max(1, (base.cols||16)|0);
-      const sx = (tileId % cols) * ts;
-      const sy = Math.floor(tileId / cols) * ts;
+      const coverInfo = (upper && upper.img) ? upper : base;
+      const coverTile = coverInfo.tile|0;
+      const cols = Math.max(1, (coverInfo.cols||16)|0);
+      const sx = (coverTile % cols) * ts;
+      const sy = Math.floor(coverTile / cols) * ts;
       const dx = tx * ts;
-
-      // Current Packege export only tells us *that* a tile has a front-cover band,
-      // not the exact mask height. Drawing a full half-tile here duplicates roof/tree
-      // art and creates the visibly detached "split building" effect.
-      // Until exporter metadata becomes more specific, project only a thin front band.
-      const band = Math.max(4, Math.floor(ts * 0.25));
+      const band = Math.max(1, Math.min(ts, (frontBandMeta !== null) ? (frontBandMeta|0) : Math.max(4, Math.floor(ts * 0.25))));
+      if(band <= 0) return;
       const srcY = sy + ts - band;
       const dstY = (ty - 1) * ts + ts - band;
-      oc.drawImage(base.img, sx, srcY, ts, band, dx, dstY, ts, band);
-
-      // Do not project the upper tileset half here. That was causing roof/tree tops
-      // to appear visually split from the building body when walking behind them.
-      // A thin band from the base tile is the least-wrong fallback until cover masks
-      // are exported explicitly.
-      void hasUpper; void upper;
+      oc.drawImage(coverInfo.img, sx, srcY, ts, band, dx, dstY, ts, band);
     };
 
     const drawNpc = (n)=>{
