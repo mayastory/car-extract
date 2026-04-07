@@ -112,6 +112,32 @@ if (!function_exists('adm_acl__wildcard_hint')) {
 }
 
 
+if (!function_exists('adm_account__columns')) {
+    function adm_account__columns(PDO $pdo): array {
+        try {
+            $st = $pdo->query("SHOW COLUMNS FROM `account`");
+            $rows = $st ? $st->fetchAll(PDO::FETCH_ASSOC) : [];
+            $out = [];
+            foreach ($rows as $r) {
+                $f = (string)($r['Field'] ?? '');
+                if ($f !== '') $out[] = $f;
+            }
+            return $out;
+        } catch (Throwable $e) {
+            return [];
+        }
+    }
+}
+
+if (!function_exists('adm_account__has')) {
+    function adm_account__has(array $cols, string $name): bool {
+        return in_array($name, $cols, true);
+    }
+}
+
+$accountCols = adm_account__columns($pdo);
+
+
 // ─────────────────────────────
 // POST 처리
 // ─────────────────────────────
@@ -142,12 +168,53 @@ if ($csrfIn === '' || !hash_equals($csrfToken, $csrfIn)) {
     } elseif ($mode === 'change_password') {
         $no = (int)($_POST['no'] ?? 0);
         $newPw = trim($_POST['new_pw'] ?? '');
-        if ($no > 0 && $newPw !== '') {
+        if (!adm_account__has($accountCols, 'PW')) {
+            $msg = 'account.PW 컬럼이 없어 비밀번호를 변경할 수 없습니다.';
+        } elseif ($no > 0 && $newPw !== '') {
             $st = $pdo->prepare("UPDATE `account` SET PW=:pw WHERE No=:no");
             $st->execute([':pw' => password_hash($newPw, PASSWORD_DEFAULT), ':no' => $no]);
             $msg = ($st->rowCount() > 0) ? '비밀번호 변경 완료' : '변경 실패(대상 없음)';
         } else {
             $msg = '대상 계정/새 비밀번호를 입력하세요.';
+        }
+
+    } elseif ($mode === 'account_update') {
+        $no = (int)($_POST['no'] ?? 0);
+        $newLv = (int)($_POST['lv'] ?? 0);
+        $newRole = trim((string)($_POST['role'] ?? ''));
+        $newStatus = trim((string)($_POST['status'] ?? ''));
+        $allowedStatus = ['approved','pending','rejected'];
+        if ($no <= 0) {
+            $msg = '대상 계정을 찾을 수 없습니다.';
+        } elseif ($newRole === '' || !preg_match('/^[A-Za-z0-9_\-]{1,30}$/', $newRole)) {
+            $msg = 'role은 영문/숫자/언더바/대시만 허용합니다.';
+        } elseif (!in_array($newStatus, $allowedStatus, true)) {
+            $msg = 'status 값이 올바르지 않습니다.';
+        } elseif ($newLv < 0 || $newLv > 999) {
+            $msg = 'lv는 0~999 사이만 허용합니다.';
+        } else {
+            $sets = [];
+            $params = [':no' => $no];
+            if (adm_account__has($accountCols, 'lv')) {
+                $sets[] = '`lv`=:lv';
+                $params[':lv'] = $newLv;
+            }
+            if (adm_account__has($accountCols, 'role')) {
+                $sets[] = '`role`=:role';
+                $params[':role'] = $newRole;
+            }
+            if (adm_account__has($accountCols, 'status')) {
+                $sets[] = '`status`=:status';
+                $params[':status'] = $newStatus;
+            }
+            if (!$sets) {
+                $msg = '수정 가능한 account 컬럼(lv/role/status)을 찾지 못했습니다.';
+            } else {
+                $sql = "UPDATE `account` SET " . implode(', ', $sets) . " WHERE No=:no";
+                $st = $pdo->prepare($sql);
+                $st->execute($params);
+                $msg = '계정 정보 저장 완료';
+            }
         }
 
     } elseif ($mode === 'acl_add') {
@@ -254,13 +321,25 @@ if ($csrfIn === '' || !hash_equals($csrfToken, $csrfIn)) {
 // ─────────────────────────────
 $pending = [];
 $accounts = [];
+$pendingSelect = ['No','ID','role','status','last_login_at'];
+$pendingSelect = array_values(array_filter($pendingSelect, fn($c) => adm_account__has($accountCols, $c)));
+if (!$pendingSelect) $pendingSelect = ['No'];
 try {
-    $pending = $pdo->query("SELECT No, ID, role, status, last_login_at FROM `account` WHERE status='pending' ORDER BY No DESC")->fetchAll(PDO::FETCH_ASSOC);
+    $pendingSql = "SELECT " . implode(', ', array_map(fn($c) => "`{$c}`", $pendingSelect)) . " FROM `account`";
+    if (adm_account__has($accountCols, 'status')) {
+        $pendingSql .= " WHERE `status`='pending'";
+    }
+    $pendingSql .= " ORDER BY `No` DESC";
+    $pending = $pdo->query($pendingSql)->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     $pending = [];
 }
+$accountSelect = ['No','ID','NAME','lv','role','status','created_at','last_login_at','last_ip','last_country','login_count'];
+$accountSelect = array_values(array_filter($accountSelect, fn($c) => adm_account__has($accountCols, $c)));
+if (!$accountSelect) $accountSelect = ['No'];
 try {
-    $accounts = $pdo->query("SELECT No, ID, role, status, last_login_at FROM `account` ORDER BY No DESC LIMIT 300")->fetchAll(PDO::FETCH_ASSOC);
+    $accountSql = "SELECT " . implode(', ', array_map(fn($c) => "`{$c}`", $accountSelect)) . " FROM `account` ORDER BY `No` DESC";
+    $accounts = $pdo->query($accountSql)->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     $accounts = [];
 }
@@ -302,7 +381,7 @@ $qTab = preg_replace('/[^a-z]/', '', strtolower($qTab));
 if (in_array($qTab, ['approve','pw','acl'], true)) {
     $activeTab = $qTab;
 } else {
-    if ($mode === 'change_password') {
+    if (in_array($mode, ['change_password','account_update'], true)) {
         $activeTab = 'pw';
     } elseif (strpos($mode, 'acl_') === 0) {
         $activeTab = 'acl';
@@ -416,6 +495,17 @@ if (in_array($qAcl, $allowedAclTabs, true)) {
       padding:0 10px;
     }
     .hint{color:var(--mut); font-size:12px; margin-top:8px;}
+    .inp-sm{height:30px; border-radius:8px; font-size:12px; padding:0 8px; min-width:0;}
+    .btn-sm{padding:6px 8px; font-size:11px; border-radius:8px;}
+    .pw-table-wrap{overflow:auto; border:1px solid rgba(255,255,255,.06); border-radius:12px;}
+    .pw-table{min-width:1200px;}
+    .pw-table td{vertical-align:middle;}
+    .pw-id{font-weight:800;}
+    .pw-name{color:#cfd3d7; font-size:12px; margin-top:2px;}
+    .pw-meta{color:var(--mut); font-size:11px; white-space:nowrap;}
+    .pw-input{width:100%; min-width:110px; box-sizing:border-box;}
+    .pw-actions{display:flex; gap:6px; align-items:center; flex-wrap:wrap;}
+    .pw-sticky-head th{position:sticky; top:0; z-index:1;}
   
 /* ACL inner tabs */
 .subtabs{display:flex; gap:8px; flex-wrap:wrap; margin:12px 0 10px;}
@@ -499,7 +589,7 @@ if (in_array($qAcl, $allowedAclTabs, true)) {
       <div class="adm-nav-title">관리자 설정</div>
 
       <button class="adm-nav-btn <?php echo ($activeTab==='approve')?'active':''; ?>" data-tab="approve">가입 승인</button>
-      <button class="adm-nav-btn <?php echo ($activeTab==='pw')?'active':''; ?>" data-tab="pw">비밀번호 변경</button>
+      <button class="adm-nav-btn <?php echo ($activeTab==='pw')?'active':''; ?>" data-tab="pw">멤버 관리</button>
       <button class="adm-nav-btn <?php echo ($activeTab==='acl')?'active':''; ?>" data-tab="acl">접속 정책</button>
     </aside>
 
@@ -557,22 +647,97 @@ if (in_array($qAcl, $allowedAclTabs, true)) {
     <!-- 비밀번호 변경 -->
     <section class="panel <?php echo ($activeTab==='pw')?'active':''; ?>" id="tab-pw">
       <div class="card">
-        <div class="row" style="margin-bottom:10px">
-          <form method="post" class="row">
-                    <input type="hidden" name="csrf" value="<?php echo h($csrfToken); ?>">
-                    
-            <input type="hidden" name="mode" value="change_password">
-            <select class="inp" name="no" required>
-              <option value="">계정 선택</option>
-              <?php foreach ($accounts as $u): ?>
-                <option value="<?php echo h((string)$u['No']); ?>"><?php echo h((string)$u['ID']); ?> (No=<?php echo h((string)$u['No']); ?>)</option>
-              <?php endforeach; ?>
-            </select>
-            <input class="inp" type="text" name="new_pw" placeholder="새 비밀번호" required>
-            <button class="btn btn-blue" type="submit">변경</button>
-          </form>
+        <div class="row" style="justify-content:space-between; margin-bottom:10px">
+          <div>
+            <div style="font-weight:900; font-size:14px;">멤버 관리</div>
+            <div class="hint">제로보드처럼 계정을 한 줄씩 보고, 비밀번호/레벨/role/status를 바로 수정할 수 있습니다.</div>
+          </div>
+          <div class="mini">총 <?php echo number_format(count($accounts)); ?>명</div>
         </div>
-</div>
+
+        <div class="pw-table-wrap">
+          <table class="pw-table">
+            <thead class="pw-sticky-head">
+              <tr>
+                <th style="width:72px">No</th>
+                <th style="width:220px">멤버</th>
+                <th style="width:90px">lv</th>
+                <th style="width:120px">role</th>
+                <th style="width:120px">status</th>
+                <th style="width:170px">last_login</th>
+                <th style="width:220px">새 비밀번호</th>
+                <th style="width:210px">처리</th>
+              </tr>
+            </thead>
+            <tbody>
+            <?php if (!$accounts): ?>
+              <tr><td colspan="8" class="hint">표시할 계정이 없습니다.</td></tr>
+            <?php else: ?>
+              <?php foreach ($accounts as $u): ?>
+                <?php
+                  $rowNo = (int)($u['No'] ?? 0);
+                  $rowId = (string)($u['ID'] ?? '');
+                  $rowName = (string)($u['NAME'] ?? '');
+                  $rowLv = (int)($u['lv'] ?? 0);
+                  $rowRole = (string)($u['role'] ?? 'user');
+                  $rowStatus = (string)($u['status'] ?? 'approved');
+                  $rowLastLogin = (string)($u['last_login_at'] ?? '');
+                  $rowForm = 'acct_row_' . $rowNo;
+                  $allowedRoles = ['user','admin'];
+                  if (!in_array($rowRole, $allowedRoles, true) && $rowRole !== '') {
+                      $allowedRoles[] = $rowRole;
+                  }
+                  $allowedStatus = ['approved','pending','rejected'];
+                  if (!in_array($rowStatus, $allowedStatus, true) && $rowStatus !== '') {
+                      $allowedStatus[] = $rowStatus;
+                  }
+                ?>
+                <tr>
+                  <td>
+                    <?php echo h((string)$rowNo); ?>
+                    <form id="<?php echo h($rowForm); ?>" method="post">
+                      <input type="hidden" name="csrf" value="<?php echo h($csrfToken); ?>">
+                      <input type="hidden" name="no" value="<?php echo h((string)$rowNo); ?>">
+                    </form>
+                  </td>
+                  <td>
+                    <div class="pw-id"><?php echo h($rowId); ?></div>
+                    <div class="pw-name"><?php echo h($rowName !== '' ? $rowName : '-'); ?></div>
+                  </td>
+                  <td>
+                    <input form="<?php echo h($rowForm); ?>" class="inp inp-sm pw-input" type="number" name="lv" min="0" max="999" value="<?php echo h((string)$rowLv); ?>">
+                  </td>
+                  <td>
+                    <select form="<?php echo h($rowForm); ?>" class="inp inp-sm pw-input" name="role">
+                      <?php foreach ($allowedRoles as $rv): ?>
+                        <option value="<?php echo h($rv); ?>" <?php echo ($rowRole===$rv)?'selected':''; ?>><?php echo h($rv); ?></option>
+                      <?php endforeach; ?>
+                    </select>
+                  </td>
+                  <td>
+                    <select form="<?php echo h($rowForm); ?>" class="inp inp-sm pw-input" name="status">
+                      <?php foreach ($allowedStatus as $sv): ?>
+                        <option value="<?php echo h($sv); ?>" <?php echo ($rowStatus===$sv)?'selected':''; ?>><?php echo h($sv); ?></option>
+                      <?php endforeach; ?>
+                    </select>
+                  </td>
+                  <td><span class="pw-meta"><?php echo h($rowLastLogin !== '' ? $rowLastLogin : '-'); ?></span></td>
+                  <td>
+                    <input form="<?php echo h($rowForm); ?>" class="inp inp-sm pw-input" type="text" name="new_pw" placeholder="새 비밀번호">
+                  </td>
+                  <td>
+                    <div class="pw-actions">
+                      <button form="<?php echo h($rowForm); ?>" class="btn btn-blue btn-sm" type="submit" name="mode" value="account_update">저장</button>
+                      <button form="<?php echo h($rowForm); ?>" class="btn btn-blue btn-sm" type="submit" name="mode" value="change_password">비밀번호 변경</button>
+                    </div>
+                  </td>
+                </tr>
+              <?php endforeach; ?>
+            <?php endif; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </section>
 
 
