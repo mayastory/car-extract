@@ -2140,7 +2140,7 @@ if (!function_exists('ship_report_actor_meta')) {
             'name' => '',
             'role' => '',
             'lv' => null,
-            'is_admin' => !empty($_SESSION['dp_admin_id']),
+            'is_admin' => false,
         ];
         try {
             $sql = '';
