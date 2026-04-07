@@ -183,6 +183,7 @@ if ($csrfIn === '' || !hash_equals($csrfToken, $csrfIn)) {
         $newLv = (int)($_POST['lv'] ?? 0);
         $newRole = trim((string)($_POST['role'] ?? ''));
         $newStatus = trim((string)($_POST['status'] ?? ''));
+        $newPw = trim((string)($_POST['new_pw'] ?? ''));
         $allowedStatus = ['approved','pending','rejected'];
         if ($no <= 0) {
             $msg = '대상 계정을 찾을 수 없습니다.';
@@ -207,13 +208,21 @@ if ($csrfIn === '' || !hash_equals($csrfToken, $csrfIn)) {
                 $sets[] = '`status`=:status';
                 $params[':status'] = $newStatus;
             }
-            if (!$sets) {
-                $msg = '수정 가능한 account 컬럼(lv/role/status)을 찾지 못했습니다.';
-            } else {
+            if ($newPw !== '') {
+                if (!adm_account__has($accountCols, 'PW')) {
+                    $msg = 'account.PW 컬럼이 없어 비밀번호를 변경할 수 없습니다.';
+                } else {
+                    $sets[] = '`PW`=:pw';
+                    $params[':pw'] = password_hash($newPw, PASSWORD_DEFAULT);
+                }
+            }
+            if ($msg === '' && !$sets) {
+                $msg = '수정 가능한 항목을 찾지 못했습니다.';
+            } elseif ($msg === '') {
                 $sql = "UPDATE `account` SET " . implode(', ', $sets) . " WHERE No=:no";
                 $st = $pdo->prepare($sql);
                 $st->execute($params);
-                $msg = '계정 정보 저장 완료';
+                $msg = ($newPw !== '') ? '계정 정보/비밀번호 저장 완료' : '계정 정보 저장 완료';
             }
         }
 
@@ -381,7 +390,7 @@ $qTab = preg_replace('/[^a-z]/', '', strtolower($qTab));
 if (in_array($qTab, ['approve','pw','acl'], true)) {
     $activeTab = $qTab;
 } else {
-    if (in_array($mode, ['change_password','account_update'], true)) {
+    if (in_array($mode, ['account_update','change_password'], true)) {
         $activeTab = 'pw';
     } elseif (strpos($mode, 'acl_') === 0) {
         $activeTab = 'acl';
@@ -666,15 +675,16 @@ if (in_array($qAcl, $allowedAclTabs, true)) {
                 <th style="width:120px">status</th>
                 <th style="width:170px">last_login</th>
                 <th style="width:220px">새 비밀번호</th>
-                <th style="width:210px">처리</th>
+                <th style="width:110px">처리</th>
               </tr>
             </thead>
             <tbody>
             <?php if (!$accounts): ?>
               <tr><td colspan="8" class="hint">표시할 계정이 없습니다.</td></tr>
             <?php else: ?>
-              <?php foreach ($accounts as $u): ?>
+              <?php foreach ($accounts as $idx => $u): ?>
                 <?php
+                  $rowSeq = (int)$idx + 1;
                   $rowNo = (int)($u['No'] ?? 0);
                   $rowId = (string)($u['ID'] ?? '');
                   $rowName = (string)($u['NAME'] ?? '');
@@ -694,7 +704,7 @@ if (in_array($qAcl, $allowedAclTabs, true)) {
                 ?>
                 <tr>
                   <td>
-                    <?php echo h((string)$rowNo); ?>
+                    <?php echo h((string)$rowSeq); ?>
                     <form id="<?php echo h($rowForm); ?>" method="post">
                       <input type="hidden" name="csrf" value="<?php echo h($csrfToken); ?>">
                       <input type="hidden" name="no" value="<?php echo h((string)$rowNo); ?>">
@@ -728,7 +738,6 @@ if (in_array($qAcl, $allowedAclTabs, true)) {
                   <td>
                     <div class="pw-actions">
                       <button form="<?php echo h($rowForm); ?>" class="btn btn-blue btn-sm" type="submit" name="mode" value="account_update">저장</button>
-                      <button form="<?php echo h($rowForm); ?>" class="btn btn-blue btn-sm" type="submit" name="mode" value="change_password">비밀번호 변경</button>
                     </div>
                   </td>
                 </tr>
