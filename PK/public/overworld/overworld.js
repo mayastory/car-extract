@@ -111,6 +111,7 @@ export class Overworld{
     this._serverStateLoaded=false;
     this._serverInitPromise=null;
     this._serverResyncing=false;
+    this._syncLockUntil=0;
 
     // NPCs (script/npc)
     this.npcs=[];
@@ -704,48 +705,38 @@ export class Overworld{
     this._log(`로드: ${this.map?.map_id || 'UNKNOWN'} (${this.map?.width||0}x${this.map?.height||0})`);
   }
 
+  async _loadStaticPretMap(mapId, opts={}){
+    const url = `./pret/maps/${encodeURIComponent(mapId)}.json`;
+    const r = await fetch(url, {cache:"no-store"});
+    if(!r.ok) throw new Error(`static pret map failed (${r.status})`);
+    await this.load(url, opts);
+    return true;
+  }
+
   async loadPret(mapId, opts={}){
-    // 1) Prefer cached map (public/pret) merged with current warp/connect scripts.
-    //    This lets you run without Packege once caches are built.
+    // 1) Prefer the static public cache first. This avoids noisy server-side cache
+    // merge failures and keeps connected maps usable even when Packege/runtime merge
+    // helpers are temporarily broken.
+    try{
+      await this._loadStaticPretMap(mapId, opts);
+      return;
+    }catch(e){}
+
+    // 2) Then try the cached API wrapper. It may provide a generated/merged mapUrl.
     try{
       const url1=`${this.apiBase}/pret/map_cached.php?map=${encodeURIComponent(mapId)}`;
       const r1=await fetch(url1,{cache:"no-store"});
       const j1=await r1.json().catch(()=>null);
       if(r1.ok && j1 && j1.ok && j1.mapUrl){
         await this.load(j1.mapUrl, opts);
-
-        // Ensure split-upper tileset cache exists (r16)
-        try{
-          const needUpper = !(this.map && (this.map.tilesetUpper || (this.map.tilesetUpperFrames && this.map.tilesetUpperFrames.length)));
-          const needVer = !(this.map && this.map.meta && this.map.meta.gen_ver === 'r17_upper_overlay_fix');
-          if(needUpper || needVer){
-            const r2 = await fetch(`${this.apiBase}/pret/map.php?map=${encodeURIComponent(mapId)}&force=1`);
-            const j2 = await r2.json().catch(()=>null);
-            if(r2.ok && j2 && j2.ok && j2.mapUrl){
-              await this.load(j2.mapUrl, opts);
-            }
-          }
-        }catch(e){}
-
         return;
       }
-
-      // Cache exists but server marked it stale/conflicting.
-      // Load the static cache directly first so the screen does not stay black,
-      // then let the normal generator path below handle stricter refresh cases.
-      if(r1.status===409){
-        try{
-          await this.load(`./pret/maps/${encodeURIComponent(mapId)}.json`, opts);
-          return;
-        }catch(e){}
-      }
-      // If cache is missing, fall through to generator.
     }catch(e){}
 
-    // 2) Fallback: generator (requires Packege)
+    // 3) Final fallback: generator (requires Packege)
     const url=`${this.apiBase}/pret/map.php?map=${encodeURIComponent(mapId)}`;
     const r=await fetch(url,{cache:"no-store"});
-    const j=await r.json();
+    const j=await r.json().catch(()=>null);
     if(!r.ok || !j || !j.ok) throw new Error(j?.detail||j?.err||"pret/map.php failed");
     await this.load(j.mapUrl, opts);
   }
@@ -1366,17 +1357,29 @@ export class Overworld{
       try{
         let mj = null;
         let meta = null;
-        // Prefer the cached/public pret path first so neighbor previews use the same
-        // merged map data as the main map (connections/warps/upper frames included).
+
+        // Prefer the static public cache for seamless neighbor previews.
         try{
-          const rc = await fetch(`${this.apiBase}/pret/map_cached.php?map=${encodeURIComponent(mapId)}`, {cache:"no-store"});
-          const jc = await rc.json().catch(()=>null);
-          if(rc.ok && jc && jc.ok && jc.mapUrl){
-            const rr = await fetch(jc.mapUrl, {cache:"no-store"});
+          const rr = await fetch(`./pret/maps/${encodeURIComponent(mapId)}.json`, {cache:"no-store"});
+          if(rr.ok){
             mj = await rr.json();
-            meta = jc;
           }
         }catch(e){}
+
+        // If static cache is unavailable, try the cached API wrapper.
+        if(!mj){
+          try{
+            const rc = await fetch(`${this.apiBase}/pret/map_cached.php?map=${encodeURIComponent(mapId)}`, {cache:"no-store"});
+            const jc = await rc.json().catch(()=>null);
+            if(rc.ok && jc && jc.ok && jc.mapUrl){
+              const rr = await fetch(jc.mapUrl, {cache:"no-store"});
+              if(rr.ok){
+                mj = await rr.json();
+                meta = jc;
+              }
+            }
+          }catch(e){}
+        }
 
         if(!mj){
           const rg = await fetch(`${this.apiBase}/pret/map.php?map=${encodeURIComponent(mapId)}`, {cache:"no-store"});
@@ -1951,8 +1954,9 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
     if(!this.player.moving){
       if(wantDir!==null) this.player.dir = wantDir;
 
+      const syncLocked = (this._syncLockUntil||0) > performance.now();
       // Tile movement (only when not moving)
-      if(this.moveCooldown<=0){
+      if(!syncLocked && this.moveCooldown<=0){
         if(up) this._tryMove(0,-1,1);
         else if(down) this._tryMove(0,1,0);
         else if(left) this._tryMove(-1,0,2);
@@ -2559,7 +2563,13 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
         this.status(`DB 동기화 실패: ${err}`);
         if(r.status===400 || r.status===429){
           this._syncQueued = false;
-          await this._resyncFromServerState();
+          this._syncLockUntil = performance.now() + 340;
+          this._loading = true;
+          try{
+            await this._resyncFromServerState();
+          }finally{
+            this._loading = false;
+          }
         }
       }while(this._syncQueued);
     }finally{

@@ -44,14 +44,14 @@ try {
   $map = json_decode($raw, true);
   if (!is_array($map)) throw new Exception('cache json parse fail: ' . $mapFile);
 
-  // stale cache guard: accept the current generator version and current key names
-  $needVer = 'r16_split_upper';
+  // Accept any usable cache shape here. The client can decide whether it needs a newer
+  // generator later, but the cached loader itself should not hard-fail just because the
+  // gen_ver differs or because the cache directory is read-only.
   $haveVer = isset($map['meta']['gen_ver']) ? (string)$map['meta']['gen_ver'] : '';
   $hasMain = isset($map['tileset']) || (!empty($map['tilesetFrames'])) || isset($map['tileset_lower']) || (!empty($map['tilesetFramesLower']));
-  if (!$hasMain || ($needVer !== '' && $haveVer !== $needVer)) {
-    jexit(['ok'=>0,'err'=>'CACHE_STALE','need_ver'=>$needVer,'have_ver'=>$haveVer], 409);
+  if (!$hasMain) {
+    jexit(['ok'=>0,'err'=>'CACHE_STALE','have_ver'=>$haveVer], 409);
   }
-
 
   $projectRoot = realpath(__DIR__ . '/../..') ?: (__DIR__ . '/../..');
 
@@ -62,9 +62,15 @@ try {
   if (is_array($connects) && count($connects) > 0) $map['connections'] = $connects;
   if (is_array($warps) && count($warps) > 0) $map['warp_events'] = $warps;
 
-  // Write back (so client can load ./pret/maps/<Map>.json as-is)
-  $w = @file_put_contents($mapFile, json_encode($map, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
-  if ($w === false) throw new Exception('failed to write merged cache: ' . $mapFile);
+  // Best-effort write-back only. Some deployments keep public/pret/maps read-only.
+  // In that case we should still return the cached map instead of 500-ing.
+  $write_back = false;
+  $dirWritable = @is_dir(dirname($mapFile)) && @is_writable(dirname($mapFile));
+  $fileWritable = @is_file($mapFile) && @is_writable($mapFile);
+  if ($dirWritable || $fileWritable) {
+    $w = @file_put_contents($mapFile, json_encode($map, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
+    $write_back = ($w !== false);
+  }
 
   // Map label from DB (prefer Korean name if available)
   $label = $mapId;
@@ -88,8 +94,14 @@ try {
     'map'=>$mapId,
     'mapUrl'=>'./pret/maps/' . $mapId . '.json',
     'label' => $label,
-    'tilesetUrl'=> isset($map['tileset']) ? ('./' . ltrim((string)$map['tileset'], './')) : null,
-    'tilesetFrames'=> $map['tilesetFrames'] ?? null,
+    'tilesetUrl'=> isset($map['tileset']) ? ('./' . ltrim((string)$map['tileset'], './')) : (isset($map['tileset_lower']) ? ('./' . ltrim((string)$map['tileset_lower'], './')) : null),
+    'tilesetFrames'=> $map['tilesetFrames'] ?? ($map['tilesetFramesLower'] ?? null),
+    'tilesetUpper'=> isset($map['tilesetUpper']) ? ('./' . ltrim((string)$map['tilesetUpper'], './')) : null,
+    'tilesetUpperFrames'=> $map['tilesetUpperFrames'] ?? null,
+    'meta'=>[
+      'gen_ver'=>$haveVer,
+      'write_back'=>$write_back,
+    ],
   ]);
 } catch (Throwable $e) {
   jexit(['ok'=>0,'err'=>'EX','detail'=>$e->getMessage()], 500);
