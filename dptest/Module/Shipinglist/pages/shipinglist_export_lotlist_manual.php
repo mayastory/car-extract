@@ -2172,6 +2172,24 @@ if (!function_exists('ship_report_actor_meta')) {
         return $meta;
     }
 }
+
+if (!function_exists('ship_report_can_build')) {
+    function ship_report_can_build(PDO $pdo): bool {
+        $actorMeta = ship_report_actor_meta($pdo);
+        return (!empty($actorMeta['is_admin']) || ((int)($actorMeta['lv'] ?? 0) >= 2));
+    }
+}
+
+$__shipReportCanBuild = ship_report_can_build($pdo);
+if ((string)($action ?? '') === 'build' && !$__shipReportCanBuild) {
+    if (!headers_sent()) {
+        http_response_code(403);
+        header('Content-Type: text/plain; charset=utf-8');
+    }
+    echo '권한이 없습니다. lv 2 이상만 성적서 생성이 가능합니다.';
+    exit;
+}
+
 if (!function_exists('ensure_report_finish_cancel_request_columns')) {
     function ensure_report_finish_cancel_request_columns(PDO $pdo): void {
         $defs = [
@@ -2930,7 +2948,9 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
         </div>
         <div class="col">
           <label>&nbsp;</label>
+          <?php if (!empty($__shipReportCanBuild)): ?>
           <button type="submit" class="btn btn-primary">수동 성적서 생성</button>
+          <?php endif; ?>
         </div>
       </div>
 
