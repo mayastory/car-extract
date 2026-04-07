@@ -32,9 +32,7 @@ function dp_render_userbar(array $opt = []): string
 
     $userLv = isset($_SESSION['ship_user_lv']) && $_SESSION['ship_user_lv'] !== '' ? (int)$_SESSION['ship_user_lv'] : null;
     $userName = trim((string)($_SESSION['ship_user_name'] ?? ''));
-
-    // 이름이 이미 세션에 있어도 lv가 없으면 다시 조회해야 아이콘이 뜬다.
-    if ($userName === '' || $userLv === null) {
+    if ($userName === '') {
         try {
             $pdo = dp_get_pdo();
             if (!empty($_SESSION['ship_user_no'])) {
@@ -59,7 +57,11 @@ function dp_render_userbar(array $opt = []): string
         }
     }
 
-    $userIdentityHtml = dp_render_level_identity_html($userName !== '' ? $userName : $userId, $userLv, ['size' => 20, 'gap' => 5, 'class' => 'dp-level-identity']);
+    $userIdentityHtml = dp_render_level_identity_html(
+        $userName !== '' ? $userName : $userId,
+        $userLv,
+        ['width' => 24, 'height' => 16, 'gap' => 5, 'class' => 'dp-level-identity']
+    );
 
     $adminLink = dp_url($adminHref);
     $logoutAct = dp_url($logoutAction);
