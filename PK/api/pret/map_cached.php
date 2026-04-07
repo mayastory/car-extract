@@ -47,7 +47,7 @@ try {
   // Cache compatibility guard:
   // - Do NOT hard-stop on older gen_ver values if the cache is still renderable.
   // - Only fail when the cached json does not contain any usable tileset reference.
-  $needVer = 'r16_split_upper';
+  $needVer = 'r17_upper_overlay_fix';
   $haveVer = isset($map['meta']['gen_ver']) ? (string)$map['meta']['gen_ver'] : '';
   $hasMain = isset($map['tileset']) || (!empty($map['tilesetFrames'])) || isset($map['tileset_lower']) || (!empty($map['tilesetFramesLower']));
   if (!$hasMain) {
@@ -71,9 +71,9 @@ try {
   if (is_array($connects) && count($connects) > 0) $map['connections'] = $connects;
   if (is_array($warps) && count($warps) > 0) $map['warp_events'] = $warps;
 
-  // Write back (so client can load ./pret/maps/<Map>.json as-is)
-  $w = @file_put_contents($mapFile, json_encode($map, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
-  if ($w === false) throw new Exception('failed to write merged cache: ' . $mapFile);
+  // Write back is best-effort only. On some deployments public/pret/maps may be read-only,
+  // and that must not break cached map loading.
+  @file_put_contents($mapFile, json_encode($map, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
 
   // Map label from DB (prefer Korean name if available)
   $label = $mapId;

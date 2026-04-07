@@ -708,7 +708,7 @@ export class Overworld{
         // Ensure split-upper tileset cache exists (r16)
         try{
           const needUpper = !(this.map && (this.map.tilesetUpper || (this.map.tilesetUpperFrames && this.map.tilesetUpperFrames.length)));
-          const needVer = !(this.map && this.map.meta && this.map.meta.gen_ver === 'r16_split_upper');
+          const needVer = !(this.map && this.map.meta && this.map.meta.gen_ver === 'r17_upper_overlay_fix');
           if(needUpper || needVer){
             const r2 = await fetch(`${this.apiBase}/pret/map.php?map=${encodeURIComponent(mapId)}&force=1`);
             const j2 = await r2.json().catch(()=>null);
