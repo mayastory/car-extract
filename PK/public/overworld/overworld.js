@@ -108,6 +108,9 @@ export class Overworld{
     this.itemNetTimer=0;
     this.itemPollInterval=1.0;
     this._lastActionAt=0;
+    this._serverStateLoaded=false;
+    this._serverInitPromise=null;
+    this._serverResyncing=false;
 
     // NPCs (script/npc)
     this.npcs=[];
@@ -689,8 +692,10 @@ export class Overworld{
       this._inputBound=true;
     }
 
-    // initial upsert into player_position
-    await this._upsert();
+    // Do not force-write spawn/transition coordinates here.
+    // The saved server state is applied by _initFromServer(), and later movement/warp
+    // commits are synced explicitly. Forcing an upsert here can overwrite the saved
+    // location and desync seamless connections.
     this.status("오버월드 로드 OK");
 
     // Prefetch connected maps (for seamless connection preview)
@@ -773,7 +778,7 @@ export class Overworld{
     this._started=true;
 
     // Load server-side player info/position (token-based)
-    this._initFromServer().catch(()=>{});
+    this._serverInitPromise = this._initFromServer().catch(()=>{});
 
     let last = performance.now();
     const tick = (now)=>{
@@ -800,8 +805,49 @@ export class Overworld{
     requestAnimationFrame(tick);
   }
 
+  _applyServerState(st){
+    if(!st) return;
+    if(st.map_id && (!this.map || this.map.map_id !== st.map_id)){
+      return false;
+    }
+    if(typeof st.x === 'number') this.player.x = st.x|0;
+    if(typeof st.y === 'number') this.player.y = st.y|0;
+    if(typeof st.dir === 'number') this.player.dir = st.dir|0;
+    this.player.px = this.player.x;
+    this.player.py = this.player.y;
+    this.player.moving = false;
+    this._moveFrames=0; this._moveFramesTotal=0; this._movePx=0; this._moveDistPx=0; this._moveT=0;
+    this._jumping=false;
+    this._moveSecondsNow=null;
+    this._moveDirLocked=null;
+    const payload = this._syncPayload();
+    this._lastSyncKey = `${payload.map_id}:${payload.x}:${payload.y}:${payload.dir}`;
+    this._syncLatest = payload;
+    return true;
+  }
+
+  async _resyncFromServerState(){
+    if(!this.playToken || this._serverResyncing) return;
+    this._serverResyncing = true;
+    const hdr = { "Authorization": `Bearer ${this.playToken}` };
+    try{
+      const s = await fetch(`${this.apiBase}/rt/get.php`, {cache:"no-store", headers: hdr});
+      if(!s.ok) return;
+      const j = await s.json().catch(()=>null);
+      const st = (j && j.ok && j.state) ? j.state : null;
+      if(!st) return;
+      if(st.map_id && (!this.map || this.map.map_id !== st.map_id)){
+        try{ await this.loadPret(st.map_id); }catch(e){}
+      }
+      this._applyServerState(st);
+    }catch(e){}
+    finally{
+      this._serverResyncing = false;
+    }
+  }
+
   async _initFromServer(){
-    if(!this.playToken) return;
+    if(!this.playToken) { this._serverStateLoaded=true; return; }
     const hdr = { "Authorization": `Bearer ${this.playToken}` };
 
     try{
@@ -827,12 +873,13 @@ export class Overworld{
           if(st.map_id && (!this.map || this.map.map_id !== st.map_id)){
             try{ await this.loadPret(st.map_id); }catch(e){}
           }
-          if(typeof st.x === 'number') this.player.x = st.x;
-          if(typeof st.y === 'number') this.player.y = st.y;
-          if(typeof st.dir === 'number') this.player.dir = st.dir;
+          this._applyServerState(st);
         }
       }
     }catch(e){}
+    finally{
+      this._serverStateLoaded = true;
+    }
   }
 
 
@@ -1317,20 +1364,37 @@ export class Overworld{
 
     const p=(async()=>{
       try{
-        const metaUrl=`${this.apiBase}/pret/map.php?map=${encodeURIComponent(mapId)}`;
-        const r=await fetch(metaUrl, {cache:"no-store"});
-        const meta=await r.json().catch(()=>null);
-        if(!r.ok || !meta || !meta.ok){
-          throw new Error(meta?.detail || meta?.err || `pret/map.php failed (${r.status})`);
+        let mj = null;
+        let meta = null;
+        // Prefer the cached/public pret path first so neighbor previews use the same
+        // merged map data as the main map (connections/warps/upper frames included).
+        try{
+          const rc = await fetch(`${this.apiBase}/pret/map_cached.php?map=${encodeURIComponent(mapId)}`, {cache:"no-store"});
+          const jc = await rc.json().catch(()=>null);
+          if(rc.ok && jc && jc.ok && jc.mapUrl){
+            const rr = await fetch(jc.mapUrl, {cache:"no-store"});
+            mj = await rr.json();
+            meta = jc;
+          }
+        }catch(e){}
+
+        if(!mj){
+          const rg = await fetch(`${this.apiBase}/pret/map.php?map=${encodeURIComponent(mapId)}`, {cache:"no-store"});
+          meta = await rg.json().catch(()=>null);
+          if(!rg.ok || !meta || !meta.ok){
+            throw new Error(meta?.detail || meta?.err || `pret/map.php failed (${rg.status})`);
+          }
+          const rr = await fetch(meta.mapUrl, {cache:"no-store"});
+          mj = await rr.json();
         }
-        const rr=await fetch(meta.mapUrl, {cache:"no-store"});
-        const mj=await rr.json();
 
         const a={
           map: mj,
           tilesetCols: (mj.tilesetCols||16),
           tilesetImgs: [],
           tilesetImg: new Image(),
+          tilesetUpperImgs: [],
+          tilesetUpperImg: null,
         };
 
         if(Array.isArray(mj.tilesetFrames) && mj.tilesetFrames.length){
@@ -1346,6 +1410,22 @@ export class Overworld{
           await this._waitImage(a.tilesetImg);
         }
 
+        if(Array.isArray(mj.tilesetUpperFrames) && mj.tilesetUpperFrames.length){
+          a.tilesetUpperImgs = mj.tilesetUpperFrames.map(p=>{
+            const img=new Image();
+            img.src=this._publicUrl(p);
+            return img;
+          });
+          await Promise.all(a.tilesetUpperImgs.map(img=>this._waitImage(img)));
+          a.tilesetUpperImg = a.tilesetUpperImgs[0] || null;
+        }else if(mj.tilesetUpper){
+          const img = new Image();
+          img.src = this._publicUrl(mj.tilesetUpper);
+          await this._waitImage(img);
+          a.tilesetUpperImgs = [img];
+          a.tilesetUpperImg = img;
+        }
+
         this._neighborCache.set(mapId, a);
         return a;
       }finally{
@@ -1356,6 +1436,7 @@ export class Overworld{
     this._neighborPromises.set(mapId,p);
     return p;
   }
+
 
 
   _npcSpriteUrl(spriteKey){
@@ -1707,6 +1788,49 @@ export class Overworld{
     return { tile:t, img:this._currentTilesetImg(), cols:this.tilesetCols||16 };
   }
 
+  _tileUpperInfoAt(mx,my){
+    const W=this.map.width, H=this.map.height;
+
+    if(mx>=0 && my>=0 && mx<W && my<H){
+      const idx=my*W+mx;
+      const t=(this.map.layers?.[0]?.data?.[idx] ?? 0);
+      const img = (this.tilesetUpperImgs && this.tilesetUpperImgs.length)
+        ? this.tilesetUpperImgs[this._tileAnimFrame % this.tilesetUpperImgs.length]
+        : this.tilesetUpperImg;
+      return img ? { tile:t, img, cols:this.tilesetCols||16 } : null;
+    }
+
+    let dir=null;
+    if(my<0) dir="up";
+    else if(my>=H) dir="down";
+    else if(mx<0) dir="left";
+    else if(mx>=W) dir="right";
+
+    const c=this._getConnection(dir);
+    if(c && c.map_id && this._neighborCache.has(c.map_id)){
+      const nb=this._neighborCache.get(c.map_id);
+      const nW=nb.map.width, nH=nb.map.height;
+      let nx=mx, ny=my;
+      const off=(c.offset||0)|0;
+
+      if(dir==="up")        { ny=(nH + my); nx=(mx-off); }
+      else if(dir==="down") { ny=(my - H);  nx=(mx-off); }
+      else if(dir==="left") { nx=(nW + mx); ny=(my-off); }
+      else if(dir==="right"){ nx=(mx - W);  ny=(my-off); }
+
+      if(nx>=0 && ny>=0 && nx<nW && ny<nH){
+        const tidx=ny*nW+nx;
+        const t=(nb.map.layers?.[0]?.data?.[tidx] ?? 0);
+        const img = (nb.tilesetUpperImgs && nb.tilesetUpperImgs.length)
+          ? nb.tilesetUpperImgs[this._tileAnimFrame % nb.tilesetUpperImgs.length]
+          : nb.tilesetUpperImg;
+        return img ? { tile:t, img, cols: nb.tilesetCols || 16 } : null;
+      }
+    }
+
+    return null;
+  }
+
   _findWarpAt(x,y){
     const arr=this.map?.warp_events||[];
     for(const w of arr){
@@ -1737,7 +1861,9 @@ export class Overworld{
     }
 
     // Persist only after the local step has fully committed.
-    this._upsert();
+    if(this._serverStateLoaded){
+      this._upsert();
+    }
 
   }
 
@@ -2275,21 +2401,20 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
     for(const n of frontNpcs) drawNpc(n);
 
 
-    // Upper tiles (metatile layer1) rendered after sprites
-    if (this.tilesetUpperImg) {
-      const ts = this.tileSize;
-      const cols = this.tilesetCols;
-      for(let ty=y0; ty<=y1; ty++){
-        for(let tx=x0; tx<=x1; tx++){
-          const idx = ty * w + tx;
-          if(idx < 0 || idx >= this.map.layers[0].data.length) continue;
-          const t = this.map.layers[0].data[idx] || 0;
-          const sx = (t % cols) * ts;
-          const sy = Math.floor(t / cols) * ts;
-          const dx = tx * ts;
-          const dy = ty * ts;
-          oc.drawImage(this.tilesetUpperImg, sx, sy, ts, ts, dx, dy, ts, ts);
-        }
+    // Upper tiles (metatile layer1) rendered after sprites.
+    // Use the same neighbor-aware lookup as the base tiles so connected maps
+    // do not lose roofs/trees when they are previewed beyond the border.
+    for(let ty=y0; ty<=y1; ty++){
+      for(let tx=x0; tx<=x1; tx++){
+        const info = this._tileUpperInfoAt(tx, ty);
+        if(!info || !info.img) continue;
+        const t = info.tile|0;
+        const cols = info.cols||16;
+        const sx = (t % cols) * ts;
+        const sy = Math.floor(t / cols) * ts;
+        const dx = tx * ts;
+        const dy = ty * ts;
+        oc.drawImage(info.img, sx, sy, ts, ts, dx, dy, ts, ts);
       }
     }
 
@@ -2432,6 +2557,10 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
         const j = await r.json().catch(()=>null);
         const err = (j && (j.error || j.err)) ? (j.error || j.err) : `${r.status}`;
         this.status(`DB 동기화 실패: ${err}`);
+        if(r.status===400 || r.status===429){
+          this._syncQueued = false;
+          await this._resyncFromServerState();
+        }
       }while(this._syncQueued);
     }finally{
       this._syncInFlight = false;
