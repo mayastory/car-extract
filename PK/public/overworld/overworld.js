@@ -125,6 +125,10 @@ export class Overworld{
 
     this._loading=false;
     this._zoomUser=false;
+    this._syncInFlight=false;
+    this._syncQueued=false;
+    this._syncLatest=null;
+    this._lastSyncKey="";
 
     // Warp + map connection preview
     this._warpCooldown=0;
@@ -1075,8 +1079,7 @@ export class Overworld{
     this._movePx = 0;
     this._moveDirLocked = dir;
 
-    // write to DB (player_position)
-    this._upsert();
+    // DB sync is committed after the step finishes.
   }
 
   _startJump(toX,toY,dir){
@@ -1103,8 +1106,7 @@ export class Overworld{
     this._movePx = 0;
     this._moveDirLocked = dir;
 
-    // write landing position
-    this._upsert();
+    // DB sync is committed after the jump lands.
   }
 
   _trySeamlessEdgeMove(nx,ny,dx,dy){
@@ -1723,6 +1725,7 @@ export class Overworld{
     if(w && w.dest_map_id){
       this._warpCooldown=0.35;
       this._warpTo(w);
+      return;
     }
   
     // Tall grass rustle FX (only on step)
@@ -1732,6 +1735,9 @@ export class Overworld{
       this._ensureFxTallGrass();
       this._grassFx.set(ft.x + ',' + ft.y, performance.now());
     }
+
+    // Persist only after the local step has fully committed.
+    this._upsert();
 
   }
 
@@ -2179,12 +2185,17 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
 
       if(mode==="person"){
         // assume FR/LG object sprite layout: 0-2 down, 3-5 up, 6-8 side (right uses flip)
-        const seq = [0,1,2,1];
-        const anim = seq[(this.animFrame|0) % seq.length];
-        const base = (d===0) ? 0 : (d===1) ? 3 : 6;
+        // Idle NPCs must stay on the standing frame instead of borrowing the
+        // player's walk animation. Otherwise every NPC appears to walk/turn
+        // whenever the player moves.
+        const walkSeq = [0,1,2,1];
+        const isMovingNpc = !!(n && (n.moving || n.walking || n.animating));
+        const anim = isMovingNpc ? walkSeq[(this.animFrame|0) % walkSeq.length] : 1;
+        const nd = (d===0||d===1||d===2||d===3) ? d : 0;
+        const base = (nd===0) ? 0 : (nd===1) ? 3 : 6;
         const col  = Math.min(cols-1, base + anim);
         sx = col * frameW; sy = 0;
-        flip = (d===3);
+        flip = (nd===3);
       }else{
         const col = (cols>=2 && ((this.animFrame|0) % 2 === 1)) ? 1 : 0;
         sx = Math.min(cols-1, col) * frameW; sy = 0;
@@ -2364,25 +2375,66 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
     }
   }
 
+  _syncPayload(){
+    return {
+      map_id:(this.map && this.map.map_id) ? this.map.map_id : "overworld_demo",
+      x:(this.player && Number.isFinite(this.player.x)) ? (this.player.x|0) : 0,
+      y:(this.player && Number.isFinite(this.player.y)) ? (this.player.y|0) : 0,
+      dir:(this.player && Number.isFinite(this.player.dir)) ? (this.player.dir|0) : 0,
+      tick:(this.frame|0),
+    };
+  }
+
   async _upsert(){
+    const payload = this._syncPayload();
+    const key = `${payload.map_id}:${payload.x}:${payload.y}:${payload.dir}`;
+    this._syncLatest = payload;
+
+    if(this._syncInFlight){
+      this._syncQueued = true;
+      return;
+    }
+
+    if(key === this._lastSyncKey){
+      return;
+    }
+
+    this._syncInFlight = true;
     try{
-      const r=await fetch(`${this.apiBase}/rt/upsert.php`,{
-        method:"POST",
-        headers:{
-          "Content-Type":"application/json",
-          ...(this.playToken ? {"Authorization": `Bearer ${this.playToken}`} : {})
-        },
-        body:JSON.stringify({
-          map_id:this.map.map_id || "overworld_demo",
-          x:this.player.x,
-          y:this.player.y,
-          dir:this.player.dir,
-          tick:this.frame
-        })
-      });
-      this.status(r.ok ? "DB 동기화 OK" : "DB 동기화 실패");
-    }catch(e){
-      this.status("서버 연결 실패");
+      do{
+        this._syncQueued = false;
+        const send = this._syncLatest || this._syncPayload();
+        const sendKey = `${send.map_id}:${send.x}:${send.y}:${send.dir}`;
+
+        if(sendKey === this._lastSyncKey) continue;
+
+        let r = null;
+        try{
+          r = await fetch(`${this.apiBase}/rt/upsert.php`,{
+            method:"POST",
+            headers:{
+              "Content-Type":"application/json",
+              ...(this.playToken ? {"Authorization": `Bearer ${this.playToken}`} : {})
+            },
+            body:JSON.stringify(send)
+          });
+        }catch(e){
+          this.status("서버 연결 실패");
+          continue;
+        }
+
+        if(r.ok){
+          this._lastSyncKey = sendKey;
+          this.status("DB 동기화 OK");
+          continue;
+        }
+
+        const j = await r.json().catch(()=>null);
+        const err = (j && (j.error || j.err)) ? (j.error || j.err) : `${r.status}`;
+        this.status(`DB 동기화 실패: ${err}`);
+      }while(this._syncQueued);
+    }finally{
+      this._syncInFlight = false;
     }
   }
 

@@ -44,21 +44,12 @@ try {
   $map = json_decode($raw, true);
   if (!is_array($map)) throw new Exception('cache json parse fail: ' . $mapFile);
 
-  // Cache compatibility guard:
-  // - Do NOT hard-stop on older gen_ver values if the cache is still renderable.
-  // - Only fail when the cached json does not contain any usable tileset reference.
-  $needVer = 'r17_upper_overlay_fix';
+  // stale cache guard: accept the current generator version and current key names
+  $needVer = 'r16_split_upper';
   $haveVer = isset($map['meta']['gen_ver']) ? (string)$map['meta']['gen_ver'] : '';
   $hasMain = isset($map['tileset']) || (!empty($map['tilesetFrames'])) || isset($map['tileset_lower']) || (!empty($map['tilesetFramesLower']));
-  if (!$hasMain) {
-    jexit(['ok'=>0,'err'=>'CACHE_INVALID','need_ver'=>$needVer,'have_ver'=>$haveVer], 409);
-  }
-
-  if (!isset($map['meta']) || !is_array($map['meta'])) $map['meta'] = [];
-  if ($needVer !== '' && $haveVer !== $needVer) {
-    $map['meta']['cache_stale'] = 1;
-    $map['meta']['need_ver'] = $needVer;
-    $map['meta']['have_ver'] = $haveVer;
+  if (!$hasMain || ($needVer !== '' && $haveVer !== $needVer)) {
+    jexit(['ok'=>0,'err'=>'CACHE_STALE','need_ver'=>$needVer,'have_ver'=>$haveVer], 409);
   }
 
 
@@ -71,9 +62,9 @@ try {
   if (is_array($connects) && count($connects) > 0) $map['connections'] = $connects;
   if (is_array($warps) && count($warps) > 0) $map['warp_events'] = $warps;
 
-  // Write back is best-effort only. On some deployments public/pret/maps may be read-only,
-  // and that must not break cached map loading.
-  @file_put_contents($mapFile, json_encode($map, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
+  // Write back (so client can load ./pret/maps/<Map>.json as-is)
+  $w = @file_put_contents($mapFile, json_encode($map, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
+  if ($w === false) throw new Exception('failed to write merged cache: ' . $mapFile);
 
   // Map label from DB (prefer Korean name if available)
   $label = $mapId;
@@ -97,8 +88,8 @@ try {
     'map'=>$mapId,
     'mapUrl'=>'./pret/maps/' . $mapId . '.json',
     'label' => $label,
-    'tilesetUrl'=> isset($map['tileset']) ? ('./' . ltrim((string)$map['tileset'], './')) : (isset($map['tileset_lower']) ? ('./' . ltrim((string)$map['tileset_lower'], './')) : null),
-    'tilesetFrames'=> $map['tilesetFrames'] ?? ($map['tilesetFramesLower'] ?? null),
+    'tilesetUrl'=> isset($map['tileset']) ? ('./' . ltrim((string)$map['tileset'], './')) : null,
+    'tilesetFrames'=> $map['tilesetFrames'] ?? null,
   ]);
 } catch (Throwable $e) {
   jexit(['ok'=>0,'err'=>'EX','detail'=>$e->getMessage()], 500);

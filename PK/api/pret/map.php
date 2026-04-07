@@ -47,7 +47,7 @@ try {
   
   // bump to force tileset regen when generator changes
   // Cache-buster for generated PNG/JSON. Bump when renderer logic changes.
-  $GEN_VER = 'r17_upper_overlay_fix';
+  $GEN_VER = 'r16_split_upper';
 $mapId = safe_id($_GET['map'] ?? '');
   if ($mapId==='') jexit(['ok'=>0,'err'=>'NO_MAP'], 400);
 
@@ -329,9 +329,8 @@ $getMetatile = function(int $mtId) use (&$metaCache, $blitTile, $pMeta, $sMeta, 
           $v = (($e >> 11) & 1) ? true : false;
           $bank = (($e >> 12) & 0x0F);
 
-          // Do not treat upper-layer tileId=0 as an automatic skip.
-          // In FR/LG some valid overlay entries can still reference tile 0 with a palette,
-          // and transparency is already handled per-pixel by render_tile8()+$blitTile.
+          // Upper layer uses tileId=0 as 'no tile' (do not draw).
+          if ($q >= 4 && $tileIdRaw === 0) { continue; }
 
           $tileIsSec = ($tileIdRaw >= $pTileCount);
           $tileLocal = $tileIsSec ? ($tileIdRaw - $pTileCount) : $tileIdRaw;
@@ -354,15 +353,12 @@ $getMetatile = function(int $mtId) use (&$metaCache, $blitTile, $pMeta, $sMeta, 
             }
           }
 
-          $transparentZero = ($q >= 4); // upper layer keeps palette index 0 transparent
+          $transparentZero = ($q >= 4); // upper layer: treat index 0 as transparent
           $tile = $getTile($srcImg2, $tileLocal, $palRGBA, $h, $v, $setKey, $transparentZero);
 
-          // Each metatile has 2x2 lower entries (q 0..3) and 2x2 upper entries (q 4..7).
-          // When compositing into a single 16x16 tile, the upper quadrant must overlay the same
-          // 2x2 area as the lower quadrant. Drawing q>=4 at dy 16/24 clips the whole overlay.
-          $sub = ($q >= 4) ? ($q - 4) : $q;
-          $dx = ($sub % 2) * 8;
-          $dy = intdiv($sub, 2) * 8;
+          $dx = ($q % 2) * 8;
+          $dy = intdiv($q, 2) * 8;
+          // r16: upper layer drawn without y-shift
           $blitTile($mtImg, $tile, $dx, $dy, $transparentZero);
           }
 
