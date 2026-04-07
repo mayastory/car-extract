@@ -526,7 +526,7 @@ if (in_array($qAcl, $allowedAclTabs, true)) {
     .hint{color:var(--mut); font-size:12px; margin-top:8px;}
     .inp-sm{height:30px; border-radius:8px; font-size:12px; padding:0 8px; min-width:0;}
     .btn-sm{padding:6px 8px; font-size:11px; border-radius:8px;}
-    .pw-table-wrap{overflow:auto; border:1px solid rgba(255,255,255,.06); border-radius:12px;}
+    .pw-table-wrap{overflow-x:auto; overflow-y:visible; border:1px solid rgba(255,255,255,.06); border-radius:12px;}
     .pw-table{min-width:1200px;}
     .pw-table td{vertical-align:middle;}
     .pw-id{font-weight:800;}
@@ -1292,6 +1292,60 @@ if (in_array($qAcl, $allowedAclTabs, true)) {
     });
   });
 })();
+
+
+// LV dropdowns
+(function(){
+  const dropdowns = Array.from(document.querySelectorAll('.js-lv-dd'));
+  if (!dropdowns.length) return;
+
+  function closeAll(except){
+    dropdowns.forEach(dd => {
+      if (except && dd === except) return;
+      dd.classList.remove('open');
+      const btn = dd.querySelector('.js-lv-btn');
+      if (btn) btn.setAttribute('aria-expanded', 'false');
+    });
+  }
+
+  dropdowns.forEach(dd => {
+    const btn = dd.querySelector('.js-lv-btn');
+    const input = dd.querySelector('.js-lv-input');
+    const current = dd.querySelector('.js-lv-current');
+    const opts = Array.from(dd.querySelectorAll('.lv-dd-opt'));
+    if (!btn || !input || !current || !opts.length) return;
+
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const willOpen = !dd.classList.contains('open');
+      closeAll(dd);
+      dd.classList.toggle('open', willOpen);
+      btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    });
+
+    opts.forEach(opt => {
+      opt.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const value = String(opt.getAttribute('data-value') || '').trim();
+        if (value === '') return;
+        input.value = value;
+        current.innerHTML = opt.querySelector('.lv-dd-opt-inner') ? opt.querySelector('.lv-dd-opt-inner').innerHTML : opt.innerHTML;
+        opts.forEach(x => x.classList.remove('active'));
+        opt.classList.add('active');
+        dd.classList.remove('open');
+        btn.setAttribute('aria-expanded', 'false');
+      });
+    });
+  });
+
+  document.addEventListener('click', () => closeAll(null));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeAll(null);
+  });
+})();
+
 </script>
 </body>
 </html>
