@@ -105,3 +105,18 @@ if (!function_exists('dp_render_account_label_html')) {
         return dp_render_level_identity_html((string)($meta['display'] ?? ''), $meta['lv'] ?? null, $opt);
     }
 }
+
+
+if (!function_exists('dp_render_level_icon_img_html')) {
+    function dp_render_level_icon_img_html(?int $lv, int $w = 24, int $h = 16, string $class = 'dp-level-icon'): string {
+        $src = dp_level_icon_url_by_lv($lv);
+        if ($src === '') return '';
+        $lvInt = max(0, min(99, (int)($lv ?? 0)));
+        $cls = trim($class);
+        $clsAttr = ($cls !== '') ? ' class="' . h($cls) . '"' : '';
+        return '<img src="' . h($src) . '" alt="lv' . h(str_pad((string)$lvInt, 2, '0', STR_PAD_LEFT)) . '"'
+             . $clsAttr
+             . ' width="' . (int)$w . '" height="' . (int)$h . '"'
+             . ' style="width:' . (int)$w . 'px;height:' . (int)$h . 'px;display:inline-block;vertical-align:middle;object-fit:contain;image-rendering:pixelated;">';
+    }
+}

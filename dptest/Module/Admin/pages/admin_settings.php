@@ -4,6 +4,7 @@ if (!defined('JTMES_ROOT')) { define('JTMES_ROOT', realpath(dirname(__DIR__, 3))
 
 
 require_once JTMES_ROOT . '/inc/common.php';
+require_once JTMES_ROOT . '/inc/dp_level_icon.php';
 
 dp_require_login();
 
@@ -135,55 +136,24 @@ if (!function_exists('adm_account__has')) {
     }
 }
 
-if (!function_exists('adm_level_icon_map')) {
-    function adm_level_icon_map(): array {
-        static $map = null;
-        if (is_array($map)) return $map;
-        $map = [];
-        $root = JTMES_ROOT . '/assets';
-        if (!is_dir($root)) return $map;
-        try {
-            $it = new RecursiveIteratorIterator(
-                new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS)
-            );
-            foreach ($it as $f) {
-                if (!$f->isFile()) continue;
-                $path = str_replace('\\', '/', (string)$f->getPathname());
-                $url = '';
-                if (preg_match('~/(assets/.*)$~i', $path, $mm)) {
-                    $url = '/' . ltrim($mm[1], '/');
-                } elseif (preg_match('~/(dptest/assets/.*)$~i', $path, $mm)) {
-                    $url = '/' . ltrim($mm[1], '/');
-                } else {
-                    $rel = str_replace('\\', '/', substr($path, strlen(rtrim(JTMES_ROOT, '/\\'))));
-                    $url = '/' . ltrim($rel, '/');
-                }
-                $low = strtolower($url);
-                if (strpos($low, 'level') === false && strpos($low, '/lv') === false && strpos($low, 'lv0') === false && strpos($low, 'lv1') === false && strpos($low, 'wv') === false) continue;
-                if (!preg_match('/(\d{2})\.(gif|png|webp|jpg|jpeg)$/i', basename($path), $m)) continue;
-                $lv = (int)$m[1];
-                if (!isset($map[$lv])) {
-                    $map[$lv] = $url;
-                }
-            }
-            ksort($map, SORT_NUMERIC);
-        } catch (Throwable $e) {
-            $map = [];
-        }
-        return $map;
-    }
-}
 
 if (!function_exists('adm_level_icon_html')) {
     function adm_level_icon_html(int $lv, int $w = 24, int $h = 16): string {
-        $map = adm_level_icon_map();
-        $key = max(0, min(99, $lv));
-        $src = $map[$key] ?? '';
-        if ($src === '') return '';
-        $alt = 'Lv ' . $key;
-        return '<img src="' . h($src) . '" alt="' . h($alt) . '" class="adm-lv-icon" width="' . (int)$w . '" height="' . (int)$h . '">';
+        if (function_exists('dp_render_level_icon_img_html')) {
+            return dp_render_level_icon_img_html($lv, $w, $h, 'adm-lv-icon');
+        }
+        if (function_exists('dp_level_icon_url_by_lv')) {
+            $src = dp_level_icon_url_by_lv($lv);
+            if ($src !== '') {
+                $key = max(0, min(99, $lv));
+                $alt = 'Lv ' . $key;
+                return '<img src="' . h($src) . '" alt="' . h($alt) . '" class="adm-lv-icon" width="' . (int)$w . '" height="' . (int)$h . '">';
+            }
+        }
+        return '';
     }
 }
+
 
 $accountCols = adm_account__columns($pdo);
 
