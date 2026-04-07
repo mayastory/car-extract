@@ -135,6 +135,48 @@ if (!function_exists('adm_account__has')) {
     }
 }
 
+if (!function_exists('adm_level_icon_map')) {
+    function adm_level_icon_map(): array {
+        static $map = null;
+        if (is_array($map)) return $map;
+        $map = [];
+        $root = JTMES_ROOT . '/assets';
+        if (!is_dir($root)) return $map;
+        try {
+            $it = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS)
+            );
+            foreach ($it as $f) {
+                if (!$f->isFile()) continue;
+                $path = (string)$f->getPathname();
+                $rel = str_replace('\\', '/', substr($path, strlen(JTMES_ROOT)));
+                $low = strtolower($rel);
+                if (strpos($low, 'level') === false && strpos($low, '/lv') === false && strpos($low, 'lv0') === false && strpos($low, 'lv1') === false && strpos($low, 'wv') === false) continue;
+                if (!preg_match('/(\d{2})\.(gif|png|webp|jpg|jpeg)$/i', basename($path), $m)) continue;
+                $lv = (int)$m[1];
+                if (!isset($map[$lv])) {
+                    $map[$lv] = $rel;
+                }
+            }
+            ksort($map, SORT_NUMERIC);
+        } catch (Throwable $e) {
+            $map = [];
+        }
+        return $map;
+    }
+}
+
+if (!function_exists('adm_level_icon_html')) {
+    function adm_level_icon_html(int $lv, int $w = 24, int $h = 16): string {
+        $map = adm_level_icon_map();
+        $key = max(0, min(99, $lv));
+        $src = $map[$key] ?? '';
+        if ($src === '') return '';
+        $alt = 'Lv ' . $key;
+        return '<img src="' . h($src) . '" alt="' . h($alt) . '" class="adm-lv-icon" width="' . (int)$w . '" height="' . (int)$h . '">';
+    }
+}
+
 $accountCols = adm_account__columns($pdo);
 
 
@@ -338,7 +380,7 @@ try {
     if (adm_account__has($accountCols, 'status')) {
         $pendingSql .= " WHERE `status`='pending'";
     }
-    $pendingSql .= " ORDER BY `No` DESC";
+    $pendingSql .= " ORDER BY `No` ASC";
     $pending = $pdo->query($pendingSql)->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     $pending = [];
@@ -347,7 +389,7 @@ $accountSelect = ['No','ID','NAME','lv','role','status','created_at','last_login
 $accountSelect = array_values(array_filter($accountSelect, fn($c) => adm_account__has($accountCols, $c)));
 if (!$accountSelect) $accountSelect = ['No'];
 try {
-    $accountSql = "SELECT " . implode(', ', array_map(fn($c) => "`{$c}`", $accountSelect)) . " FROM `account` ORDER BY `No` DESC";
+    $accountSql = "SELECT " . implode(', ', array_map(fn($c) => "`{$c}`", $accountSelect)) . " FROM `account` ORDER BY `No` ASC";
     $accounts = $pdo->query($accountSql)->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     $accounts = [];
@@ -588,6 +630,59 @@ if (in_array($qAcl, $allowedAclTabs, true)) {
       padding:16px 16px 22px;
       box-sizing:border-box;
     }
+    .lv-dd{position:relative; min-width:116px;}
+    .lv-dd-btn{
+      width:100%;
+      height:32px;
+      border-radius:10px;
+      border:1px solid var(--line);
+      background:#1d1f22;
+      color:var(--txt);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      padding:0 10px;
+      cursor:pointer;
+      box-sizing:border-box;
+    }
+    .lv-dd-btn:hover{border-color:rgba(255,255,255,.22);}
+    .lv-dd.open .lv-dd-btn{border-color:#6aa3ff; box-shadow:0 0 0 2px rgba(106,163,255,.15);}
+    .lv-dd-current,
+    .lv-dd-opt-inner{display:inline-flex; align-items:center; gap:6px;}
+    .lv-dd-current{font-weight:800;}
+    .adm-lv-icon{display:inline-block; image-rendering:auto; object-fit:contain; vertical-align:middle;}
+    .lv-dd-caret{font-size:10px; opacity:.85;}
+    .lv-dd-menu{
+      position:absolute;
+      top:calc(100% + 6px);
+      left:0;
+      width:220px;
+      max-height:280px;
+      overflow:auto;
+      border:1px solid var(--line);
+      border-radius:12px;
+      background:#202329;
+      box-shadow:0 12px 28px rgba(0,0,0,.42);
+      padding:6px;
+      z-index:50;
+      display:none;
+    }
+    .lv-dd.open .lv-dd-menu{display:block;}
+    .lv-dd-opt{
+      width:100%;
+      border:0;
+      background:transparent;
+      color:var(--txt);
+      text-align:left;
+      padding:7px 8px;
+      border-radius:8px;
+      cursor:pointer;
+      display:block;
+    }
+    .lv-dd-opt:hover,
+    .lv-dd-opt.active{background:rgba(106,163,255,.16);}
+    .lv-dd-opt-num{min-width:24px; display:inline-block; font-weight:800;}
     .wrap{padding:0;} /* legacy */
 
 </style>
@@ -684,7 +779,6 @@ if (in_array($qAcl, $allowedAclTabs, true)) {
             <?php else: ?>
               <?php foreach ($accounts as $idx => $u): ?>
                 <?php
-                  $rowSeq = (int)$idx + 1;
                   $rowNo = (int)($u['No'] ?? 0);
                   $rowId = (string)($u['ID'] ?? '');
                   $rowName = (string)($u['NAME'] ?? '');
@@ -704,7 +798,7 @@ if (in_array($qAcl, $allowedAclTabs, true)) {
                 ?>
                 <tr>
                   <td>
-                    <?php echo h((string)$rowSeq); ?>
+                    <?php echo h((string)$rowNo); ?>
                     <form id="<?php echo h($rowForm); ?>" method="post">
                       <input type="hidden" name="csrf" value="<?php echo h($csrfToken); ?>">
                       <input type="hidden" name="no" value="<?php echo h((string)$rowNo); ?>">
@@ -715,7 +809,30 @@ if (in_array($qAcl, $allowedAclTabs, true)) {
                     <div class="pw-name"><?php echo h($rowName !== '' ? $rowName : '-'); ?></div>
                   </td>
                   <td>
-                    <input form="<?php echo h($rowForm); ?>" class="inp inp-sm pw-input" type="number" name="lv" min="0" max="999" value="<?php echo h((string)$rowLv); ?>">
+                    <div class="lv-dd js-lv-dd">
+                      <input form="<?php echo h($rowForm); ?>" type="hidden" name="lv" value="<?php echo h((string)$rowLv); ?>" class="js-lv-input">
+                      <button type="button" class="lv-dd-btn js-lv-btn" aria-haspopup="listbox" aria-expanded="false">
+                        <span class="lv-dd-current js-lv-current">
+                          <span class="lv-dd-opt-inner">
+                            <span class="lv-dd-opt-num"><?php echo h((string)$rowLv); ?></span>
+                            <span>:</span>
+                            <?php echo adm_level_icon_html($rowLv, 24, 16); ?>
+                          </span>
+                        </span>
+                        <span class="lv-dd-caret">▼</span>
+                      </button>
+                      <div class="lv-dd-menu" role="listbox">
+                        <?php for ($lvOpt = 0; $lvOpt <= 99; $lvOpt++): ?>
+                          <button type="button" class="lv-dd-opt<?php echo ($lvOpt === $rowLv) ? ' active' : ''; ?>" data-value="<?php echo h((string)$lvOpt); ?>">
+                            <span class="lv-dd-opt-inner">
+                              <span class="lv-dd-opt-num"><?php echo h((string)$lvOpt); ?></span>
+                              <span>:</span>
+                              <?php echo adm_level_icon_html($lvOpt, 24, 16); ?>
+                            </span>
+                          </button>
+                        <?php endfor; ?>
+                      </div>
+                    </div>
                   </td>
                   <td>
                     <select form="<?php echo h($rowForm); ?>" class="inp inp-sm pw-input" name="role">
