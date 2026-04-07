@@ -148,14 +148,22 @@ if (!function_exists('adm_level_icon_map')) {
             );
             foreach ($it as $f) {
                 if (!$f->isFile()) continue;
-                $path = (string)$f->getPathname();
-                $rel = str_replace('\\', '/', substr($path, strlen(JTMES_ROOT)));
-                $low = strtolower($rel);
+                $path = str_replace('\\', '/', (string)$f->getPathname());
+                $url = '';
+                if (preg_match('~/(assets/.*)$~i', $path, $mm)) {
+                    $url = '/' . ltrim($mm[1], '/');
+                } elseif (preg_match('~/(dptest/assets/.*)$~i', $path, $mm)) {
+                    $url = '/' . ltrim($mm[1], '/');
+                } else {
+                    $rel = str_replace('\\', '/', substr($path, strlen(rtrim(JTMES_ROOT, '/\\'))));
+                    $url = '/' . ltrim($rel, '/');
+                }
+                $low = strtolower($url);
                 if (strpos($low, 'level') === false && strpos($low, '/lv') === false && strpos($low, 'lv0') === false && strpos($low, 'lv1') === false && strpos($low, 'wv') === false) continue;
                 if (!preg_match('/(\d{2})\.(gif|png|webp|jpg|jpeg)$/i', basename($path), $m)) continue;
                 $lv = (int)$m[1];
                 if (!isset($map[$lv])) {
-                    $map[$lv] = $rel;
+                    $map[$lv] = $url;
                 }
             }
             ksort($map, SORT_NUMERIC);
