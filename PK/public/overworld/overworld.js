@@ -2251,7 +2251,11 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
       const sy = Math.floor(t / cols) * ts;
       const dx = tx * ts;
       const dy = ty * ts;
-      oc.drawImage(info.img, sx, sy + Math.floor(ts/2), ts, Math.ceil(ts/2), dx, dy + Math.floor(ts/2), ts, Math.ceil(ts/2));
+      // FR/LG-style grass cover should only hide the lower legs, not climb toward the
+      // torso/head during vertical movement. A narrow bottom band is more stable than
+      // re-drawing the whole lower half of the tile.
+      const coverH = Math.max(5, Math.min(6, ts));
+      oc.drawImage(info.img, sx, sy + (ts - coverH), ts, coverH, dx, dy + (ts - coverH), ts, coverH);
     };
 
     const drawSouthOccluderAt = (tx, ty) => {
@@ -2499,9 +2503,16 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
         oc.drawImage(info.img, sx, sy, ts, ts, tx*ts, ty*ts, ts, ts);
       }
 
+      // Front-cover / roof-tree-fence occluders should be driven by the map tiles
+      // themselves, not by the entity row bucket. Drawing them here for every visible
+      // southern tile keeps the cover stable while the player crosses the boundary,
+      // instead of looking like a late post-correction once the foot row snaps.
+      for(let tx=x0; tx<=x1; tx++){
+        drawSouthOccluderAt(tx, ty);
+      }
+
       if(bucket && bucket.length){
         for(const op of bucket){
-          if(op.southCover) drawSouthOccluderAt(op.southCover.x, op.southCover.y);
           if(op.cover) drawTallGrassCoverAt(op.cover.x, op.cover.y);
         }
       }
