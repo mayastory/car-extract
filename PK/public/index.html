@@ -1,95 +1,88 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Pokemon Hybrid Web (Overworld + Battle)</title>
-  <link rel="stylesheet" href="./style.css?v=20260408_nameplate_gb_v5" />
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width,initial-scale=1" />
+ <title>Pokemon Hybrid Web (Overworld + Battle)</title>
+ <link rel="stylesheet" href="./style.css?v=20260408_nameplate_v7" />
+ <link rel="stylesheet" href="./style.nameplate.patch.css?v=20260408_nameplate_v7" />
 </head>
 <body>
-  <div id="topbar">
-    <div class="left">
-      <span class="badge">HYBRID</span>
-      <span class="title">Overworld (Zoom-In) + Battle(ROM)</span>
-    </div>
-    <div class="right">
-      <span id="status">연결중...</span>
-      <span id="pretStatus" class="pretstatus">PRET: 확인중...</span>
-      <select id="mapSelect" class="mapselect" title="Map (Packege)"></select>
-      <button id="btnMapReload" title="맵 목록 새로고침">↻</button>
-      <button id="btnOverworld">오버월드</button>
-      <button id="btnBattle">배틀(테스트)</button>
-      <button id="btnZoomIn">+</button>
-      <button id="btnZoomOut">-</button>
-      <button id="btnZoomReset">100%</button>
-    </div>
+ <div id="topbar">
+  <div class="left">
+  <span class="badge">HYBRID</span>
+  <span class="title">Overworld (Zoom-In) + Battle(ROM)</span>
   </div>
-
-  <div id="stage">
-    <div id="overworldPane" class="pane">
-      <canvas id="game"></canvas>
-      <div id="mapNamePopup" class="mapnamepopup hidden" aria-hidden="true"><span id="mapNamePopupText"></span></div>
-
-      <div id="partyHud" class="partyhud" aria-label="Party" aria-hidden="false">
-        <div class="partyhud-head">
-          <b>PARTY</b>
-          <span class="spacer"></span>
-          <button id="partyCollapse" class="partyhud-btn" title="접기/펼치기">≡</button>
-        </div>
-        <div id="partySlots" class="partyhud-slots"></div>
-      </div>
-
-      <div id="help">
-        <div><b>이동</b>: 방향키</div>
-        <div><b>줌</b>: 300% 고정</div>
-        <div><b>배틀 전환(데모)</b>: B</div>
-        <div class="muted">※ ROM 선택 UI 없음(고정 경로). 오버월드 좌표는 DB(player)에 저장 + 서버 이동 검증. / <a href="./pret_debug.html" target="_blank">PRET 디버그</a></div>
-      </div>
-
-      <button id="btnDbgToggle" class="debugtoggle" title="디버그 패널 토글 (F2)">DBG</button>
-      <div id="debugPanel" class="debugpanel hidden">
-        <div class="head">
-          <b>DEBUG</b>
-          <span class="spacer"></span>
-          <button id="btnDbgClear">Clear</button>
-          <button id="btnDbgHide" title="닫기">×</button>
-        </div>
-        <pre id="debugLog"></pre>
-      </div>
-    </div>
-
-    <div id="battlePane" class="pane hidden">
-      <iframe id="battleFrame" src="about:blank" data-src="./battle/battle.html" allow="autoplay" referrerpolicy="no-referrer"></iframe>
-      <div class="note">
-        <b>주의</b>: 배틀은 로컬에 보유한 합법 ROM을 사용하세요.
-        <br/>ROM 위치(고정): <code>pokemon_hybrid_web/roms/firered.gba</code>
-      </div>
-    </div>
+  <div class="right">
+  <span id="status">연결중...</span>
+  <span id="pretStatus" class="pretstatus">PRET: 확인중...</span>
+  <select id="mapSelect" class="mapselect" title="Map (Packege)"></select>
+  <button id="btnMapReload" title="맵 목록 새로고침">↻</button>
+  <button id="btnOverworld">오버월드</button>
+  <button id="btnBattle">배틀(테스트)</button>
+  <button id="btnZoomIn">+</button>
+  <button id="btnZoomOut">-</button>
+  <button id="btnZoomReset">100%</button>
   </div>
-
-  <div id="pokeHud" class="pokehud" aria-label="Quick menu">
-    <button class="pokebtn" data-pane="bag" title="Bag"><span class="ico"><img src="./assets/ui/menu/bag.png" alt=""></span><span class="lbl">Bag</span></button>
-    <button class="pokebtn" data-pane="trainer" title="Trainer"><span class="ico"><img src="./assets/ui/menu/trainer.png" alt=""></span><span class="lbl">Trainer</span></button>
-    <button class="pokebtn" data-pane="community" title="Community"><span class="ico"><img src="./assets/ui/menu/community.png" alt=""></span><span class="lbl">Community</span></button>
-    <button class="pokebtn" data-pane="pvp" title="PvP"><span class="ico"><img src="./assets/ui/menu/pvp.png" alt=""></span><span class="lbl">PvP</span></button>
-    <button class="pokebtn" data-pane="pokedex" title="POKéDEX"><span class="ico"><img src="./assets/ui/menu/pokedex.png" alt=""></span><span class="lbl">POKéDEX</span></button>
-    <button class="pokebtn" data-pane="trade" title="Trade"><span class="ico"><img src="./assets/ui/menu/trade.png" alt=""></span><span class="lbl">Trade</span></button>
-    <button class="pokebtn" data-pane="gift" title="Gift Shop"><span class="ico"><img src="./assets/ui/menu/gift.png" alt=""></span><span class="lbl">Gift Shop</span></button>
-    <button class="pokebtn" data-pane="menu" title="Menu"><span class="ico"><img src="./assets/ui/menu/menu.png" alt=""></span><span class="lbl">Menu</span></button>
+ </div>
+ <div id="stage">
+  <div id="overworldPane" class="pane">
+  <canvas id="game"></canvas>
+  <div id="mapNamePopup" class="mapnamepopup hidden" aria-hidden="true"><span id="mapNamePopupText"></span></div>
+  <div id="partyHud" class="partyhud" aria-label="Party" aria-hidden="false">
+  <div class="partyhud-head">
+  <b>PARTY</b>
+  <span class="spacer"></span>
+  <button id="partyCollapse" class="partyhud-btn" title="접기/펼치기">≡</button>
   </div>
-
-  <div id="pokePanel" class="pokepanel hidden" role="dialog" aria-modal="false" aria-hidden="true">
-    <div class="pokepanel-head">
-      <b id="pokePanelTitle">Menu</b>
-      <span class="spacer"></span>
-      <button id="pokePanelClose" class="pokepanel-close" title="닫기">×</button>
-    </div>
-    <div id="pokePanelBody" class="pokepanel-body">
-      준비중... (아이콘/기능은 나중에 연결)
-    </div>
+  <div id="partySlots" class="partyhud-slots"></div>
   </div>
-
-  <script src="./fatal-debug.js?v=r47"></script>
-  <script type="module" src="./app.js?v=20260408_nameplate_gb_v5"></script>
+  <div id="help">
+  <div><b>이동</b>: 방향키</div>
+  <div><b>줌</b>: 300% 고정</div>
+  <div><b>배틀 전환(데모)</b>: B</div>
+  <div class="muted">※ ROM 선택 UI 없음(고정 경로). 오버월드 좌표는 DB(player)에 저장 + 서버 이동 검증. / <a href="./pret_debug.html" target="_blank">PRET 디버그</a></div>
+  </div>
+  <button id="btnDbgToggle" class="debugtoggle" title="디버그 패널 토글 (F2)">DBG</button>
+  <div id="debugPanel" class="debugpanel hidden">
+  <div class="head">
+  <b>DEBUG</b>
+  <span class="spacer"></span>
+  <button id="btnDbgClear">Clear</button>
+  <button id="btnDbgHide" title="닫기">×</button>
+  </div>
+  <pre id="debugLog"></pre>
+  </div>
+  </div>
+  <div id="battlePane" class="pane hidden">
+  <iframe id="battleFrame" src="about:blank" data-src="./battle/battle.html" allow="autoplay" referrerpolicy="no-referrer"></iframe>
+  <div class="note">
+  <b>주의</b>: 배틀은 로컬에 보유한 합법 ROM을 사용하세요.
+  <br/>ROM 위치(고정): <code>pokemon_hybrid_web/roms/firered.gba</code>
+  </div>
+  </div>
+ </div>
+ <div id="pokeHud" class="pokehud" aria-label="Quick menu">
+  <button class="pokebtn" data-pane="bag" title="Bag"><span class="ico"><img src="./assets/ui/menu/bag.png" alt=""></span><span class="lbl">Bag</span></button>
+  <button class="pokebtn" data-pane="trainer" title="Trainer"><span class="ico"><img src="./assets/ui/menu/trainer.png" alt=""></span><span class="lbl">Trainer</span></button>
+  <button class="pokebtn" data-pane="community" title="Community"><span class="ico"><img src="./assets/ui/menu/community.png" alt=""></span><span class="lbl">Community</span></button>
+  <button class="pokebtn" data-pane="pvp" title="PvP"><span class="ico"><img src="./assets/ui/menu/pvp.png" alt=""></span><span class="lbl">PvP</span></button>
+  <button class="pokebtn" data-pane="pokedex" title="POKéDEX"><span class="ico"><img src="./assets/ui/menu/pokedex.png" alt=""></span><span class="lbl">POKéDEX</span></button>
+  <button class="pokebtn" data-pane="trade" title="Trade"><span class="ico"><img src="./assets/ui/menu/trade.png" alt=""></span><span class="lbl">Trade</span></button>
+  <button class="pokebtn" data-pane="gift" title="Gift Shop"><span class="ico"><img src="./assets/ui/menu/gift.png" alt=""></span><span class="lbl">Gift Shop</span></button>
+  <button class="pokebtn" data-pane="menu" title="Menu"><span class="ico"><img src="./assets/ui/menu/menu.png" alt=""></span><span class="lbl">Menu</span></button>
+ </div>
+ <div id="pokePanel" class="pokepanel hidden" role="dialog" aria-modal="false" aria-hidden="true">
+  <div class="pokepanel-head">
+  <b id="pokePanelTitle">Menu</b>
+  <span class="spacer"></span>
+  <button id="pokePanelClose" class="pokepanel-close" title="닫기">×</button>
+  </div>
+  <div id="pokePanelBody" class="pokepanel-body">
+  준비중... (아이콘/기능은 나중에 연결)
+  </div>
+ </div>
+ <script src="./fatal-debug.js?v=r47"></script>
+ <script type="module" src="./app.js?v=20260213_overworld_sync_v1"></script>
 </body>
 </html>
