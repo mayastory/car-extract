@@ -26,12 +26,20 @@ $conn = db();
 $devAuthBypass = false;
 $payload = null;
 $token = auth_get_bearer_token();
-if ($token === '' && isset($_GET['token'])) $token = (string)$_GET['token'];
+$tokenProvided = ($token !== '');
+if ($token === '' && isset($_GET['token'])) {
+  $token = (string)$_GET['token'];
+  $tokenProvided = ($token !== '');
+}
 if ($token !== '') {
   $tmp = verify_token($token);
-  if ($tmp) $payload = $tmp;
+  if ($tmp && (string)($tmp['t'] ?? '') === 'play') {
+    $payload = $tmp;
+  } else {
+    json_out(['ok'=>false,'error'=>'UNAUTH'], 401);
+  }
 }
-if (!$payload) {
+if (!$payload && !$tokenProvided) {
   $fallback = dev_pick_player($conn, (int)($_GET['player_id'] ?? 0));
   if ($fallback) {
     $payload = [
@@ -46,6 +54,7 @@ if (!$payload) {
 if (!$payload) json_out(['ok'=>false,'error'=>'UNAUTH'], 401);
 
 $t = isset($payload['t']) ? (string)$payload['t'] : '';
+if ($t !== 'play') json_out(['ok'=>false,'error'=>'UNAUTH'], 401);
 $account_id = (int)($payload['account_id'] ?? 0);
 $player_id = (int)($payload['player_id'] ?? 0);
 $account = null;

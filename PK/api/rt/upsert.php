@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../util/auth.php';
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
     json_out(['ok' => true]);
@@ -30,7 +31,37 @@ if ($map_id === '') $map_id = 'PalletTown';
 if ($dir < 0 || $dir > 3) $dir = 0;
 
 $conn = db();
-$cur = dev_pick_player($conn);
+$payload = null;
+$token = auth_get_bearer_token();
+$tokenProvided = ($token !== '');
+if ($token !== '') {
+    $tmp = verify_token($token);
+    if ($tmp && (string)($tmp['t'] ?? '') === 'play') {
+        $payload = $tmp;
+    } else {
+        json_out(['ok' => false, 'error' => 'UNAUTH'], 401);
+    }
+}
+
+$cur = null;
+$authBypass = false;
+if ($payload) {
+    $player_id = (int)($payload['player_id'] ?? 0);
+    $account_id = (int)($payload['account_id'] ?? 0);
+    if ($player_id <= 0 || $account_id <= 0) {
+        json_out(['ok' => false, 'error' => 'BAD_PLAYER_ID'], 401);
+    }
+    $stmt = $conn->prepare('SELECT player_id, account_id, map_id, x, y, dir, COALESCE(client_tick,0) AS client_tick FROM player WHERE player_id=? AND account_id=? LIMIT 1');
+    if (!$stmt) json_out(['ok' => false, 'error' => 'DB_PREPARE_FAIL', 'detail' => $conn->error], 500);
+    $stmt->bind_param('ii', $player_id, $account_id);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $cur = $res ? $res->fetch_assoc() : null;
+    $stmt->close();
+} elseif (!$tokenProvided) {
+    $cur = dev_pick_player($conn);
+    $authBypass = true;
+}
 if (!$cur) {
     json_out(['ok' => false, 'error' => 'NO_SUCH_PLAYER'], 404);
 }
@@ -86,7 +117,7 @@ if ($map_id === $oldMap && $x === $oldX && $y === $oldY && $dir === $oldDir) {
         'warpOk' => false,
         'noop' => true,
         'guardDisabled' => true,
-        'authBypass' => true,
+        'authBypass' => $authBypass,
         'player_id' => $player_id,
     ]);
 }
@@ -112,6 +143,6 @@ json_out([
     'edgeOk' => false,
     'warpOk' => false,
     'guardDisabled' => true,
-    'authBypass' => true,
+    'authBypass' => $authBypass,
     'player_id' => $player_id,
 ]);

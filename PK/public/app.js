@@ -4,6 +4,37 @@ const byId = (id) => document.getElementById(id);
 const firstEl = (...ids) => ids.map((id) => byId(id)).find(Boolean) || null;
 const qs = (sel) => document.querySelector(sel);
 
+
+const LOGIN_URL = "./login.html";
+
+function redirectToLogin(reason = "") {
+  try {
+    sessionStorage.removeItem("play_token");
+  } catch (_e) {
+    // ignore
+  }
+  const next = String(LOGIN_URL || "./login.html");
+  if (reason) {
+    try {
+      const url = new URL(next, window.location.href);
+      url.searchParams.set("reason", reason);
+      window.location.href = url.toString();
+      return;
+    } catch (_e) {
+      // ignore
+    }
+  }
+  window.location.href = next;
+}
+
+function getPlayToken() {
+  try {
+    return String(sessionStorage.getItem("play_token") || "").trim();
+  } catch (_e) {
+    return "";
+  }
+}
+
 const ui = {
   status: () => firstEl("status"),
   pretStatus: () => firstEl("pretStatus"),
@@ -491,7 +522,11 @@ async function boot({ forceReload = false } = {}) {
   closeFatalOverlay();
   try {
     const canvas = ensureCanvas();
-    const playToken = sessionStorage.getItem("play_token") || "";
+    const playToken = getPlayToken();
+    if (!playToken) {
+      redirectToLogin("play_token_missing");
+      return;
+    }
     if (!state.ow || forceReload) {
       state.ow = new Overworld({
         canvas,
@@ -502,9 +537,26 @@ async function boot({ forceReload = false } = {}) {
         lockZoom: true,
       });
       window.__ow = state.ow;
+    } else {
+      state.ow.playToken = playToken;
     }
     await loadMap(currentMapId());
     if (!state.ow._started) state.ow.start();
+    if (state.ow._serverInitPromise) {
+      try {
+        await state.ow._serverInitPromise;
+      } catch (_e) {
+        // handled by fetch overlay / later validation
+      }
+    }
+    if (!(Number(state.ow.playerId) > 0)) {
+      redirectToLogin("player_bootstrap_failed");
+      return;
+    }
+    if (!String(state.ow.playerName || "").trim()) {
+      const fallbackName = String(state.ow.player?.display_name || state.ow.player?.name || "").trim();
+      if (fallbackName) state.ow.playerName = fallbackName;
+    }
     renderPartyHud([
       {
         species: "pikachu",
@@ -516,6 +568,7 @@ async function boot({ forceReload = false } = {}) {
     ]);
     setPartyHudCollapsed(false);
     startLocalNameplateLoop();
+    updateLocalNameplate();
     setStatus("오버월드 로드 OK");
   } catch (err) {
     console.error(err);
@@ -543,7 +596,7 @@ function bindUi() {
     } catch (_e) {
       // ignore
     }
-    window.location.href = "./login.html";
+    redirectToLogin("manual_logout");
   });
 
   ui.btnDbgToggle()?.addEventListener("click", () => {

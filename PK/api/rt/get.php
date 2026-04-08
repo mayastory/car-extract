@@ -26,14 +26,17 @@ $conn = db();
 $devAuthBypass = false;
 $payload = null;
 $token = auth_get_bearer_token();
+$tokenProvided = ($token !== '');
 if ($token !== '') {
   $tmp = verify_token($token);
   if ($tmp && (string)($tmp['t'] ?? '') === 'play') {
     $payload = $tmp;
+  } else {
+    json_out(['ok'=>false,'error'=>'UNAUTH'], 401);
   }
 }
 
-if (!$payload) {
+if (!$payload && !$tokenProvided) {
   $fallback = dev_pick_player($conn, (int)($_GET['player_id'] ?? 0));
   if ($fallback) {
     $payload = [
