@@ -5017,7 +5017,7 @@ async _actionInteract(){
       
 
     // Not an item ball in front;
-       try hidden item (front)
+    // try hidden item (front)
     const r2 = await fetch(`${this.apiBase}/rt/pick_item.php`,{
         
       method:"POST",
