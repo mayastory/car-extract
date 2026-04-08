@@ -1855,20 +1855,37 @@ export class Overworld{
       return { tile:t, img, cols: assets.tilesetCols || this.tilesetCols || 16 };
     }
 
-    const t=this._groundAt(mx,my);
+    let t=this._groundAt(mx,my);
+    if((t|0)===0 && this.map && (this.map.width|0) > 0 && (this.map.height|0) > 0){
+      const cx=Math.max(0, Math.min((this.map.width|0)-1, mx|0));
+      const cy=Math.max(0, Math.min((this.map.height|0)-1, my|0));
+      const idx=cy*(this.map.width|0)+cx;
+      t=(this.map.layers?.[0]?.data?.[idx] ?? 0);
+    }
     return { tile:t, img:this._currentTilesetImg(), cols:this.tilesetCols||16 };
   }
 
   _tileUpperInfoAt(mx,my){
     const ctx=this._resolveMapContextAt(mx,my);
-    if(!ctx) return null;
-    const idx=ctx.y*ctx.map.width+ctx.x;
-    const t=(ctx.map.layers?.[0]?.data?.[idx] ?? 0);
-    const assets=ctx.assets||{};
-    const img=(assets.tilesetUpperImgs && assets.tilesetUpperImgs.length)
-      ? assets.tilesetUpperImgs[this._tileAnimFrame % assets.tilesetUpperImgs.length]
-      : assets.tilesetUpperImg;
-    return img ? { tile:t, img, cols: assets.tilesetCols || this.tilesetCols || 16 } : null;
+    if(ctx){
+      const idx=ctx.y*ctx.map.width+ctx.x;
+      const t=(ctx.map.layers?.[0]?.data?.[idx] ?? 0);
+      const assets=ctx.assets||{};
+      const img=(assets.tilesetUpperImgs && assets.tilesetUpperImgs.length)
+        ? assets.tilesetUpperImgs[this._tileAnimFrame % assets.tilesetUpperImgs.length]
+        : assets.tilesetUpperImg;
+      return img ? { tile:t, img, cols: assets.tilesetCols || this.tilesetCols || 16 } : null;
+    }
+
+    if(!this.map || (this.map.width|0) <= 0 || (this.map.height|0) <= 0) return null;
+    const cx=Math.max(0, Math.min((this.map.width|0)-1, mx|0));
+    const cy=Math.max(0, Math.min((this.map.height|0)-1, my|0));
+    const idx=cy*(this.map.width|0)+cx;
+    const t=(this.map.layers?.[0]?.data?.[idx] ?? 0);
+    const img=(this.tilesetUpperImgs && this.tilesetUpperImgs.length)
+      ? this.tilesetUpperImgs[this._tileAnimFrame % this.tilesetUpperImgs.length]
+      : this.tilesetUpperImg;
+    return img ? { tile:t, img, cols: this.tilesetCols || 16 } : null;
   }
 
   _findWarpAt(x,y){
