@@ -257,12 +257,8 @@ export class Overworld{
     
     this._warpPending=false;
     
-    this._neighborCache=new Map();
-            // mapId -> {
-       map, tilesetImgs, tilesetImg, tilesetCols }
-    
-    this._neighborPromises=new Map();
-         // mapId -> Promise
+    this._neighborCache=new Map(); // mapId -> { map, tilesetImgs, tilesetImg, tilesetCols }
+    this._neighborPromises=new Map(); // mapId -> Promise
 
     // Seamless connections + ledge jump (FRLG feel)
     this._edgePending=null;
