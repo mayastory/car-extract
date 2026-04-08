@@ -1,4 +1,4 @@
-import { Overworld } from "./overworld/overworld.js?v=20260408_map_state_swap_v1";
+import { Overworld } from "./overworld/overworld.js?v=20260213_overworld_sync_v1";
 
 const byId = (id) => document.getElementById(id);
 const firstEl = (...ids) => ids.map((id) => byId(id)).find(Boolean) || null;
@@ -47,6 +47,8 @@ const state = {
   partyCollapsed: false,
   mapToastTimerA: null,
   mapToastTimerB: null,
+  nameplateEl: null,
+  nameplateRaf: 0,
 };
 
 function getCanvas() {
@@ -61,7 +63,6 @@ function getCanvas() {
 function ensureCanvas() {
   let canvas = getCanvas();
   if (canvas) return canvas;
-
   const pane = ui.overworldPane() || document.body;
   canvas = document.createElement("canvas");
   canvas.id = "overworldCanvas";
@@ -122,17 +123,14 @@ function showFatalOverlay(kind, title, message, detail = "") {
   const btnLogin = ui.btnFatalLogin();
   const btnRetry = ui.btnFatalRetry();
   if (!overlay || !titleEl || !msgEl) return;
-
   const finalTitle = String(title || "오류");
   const finalMessage = String(message || "오류가 발생했습니다.");
   const finalDetail = String(detail || "").trim();
-
   titleEl.textContent = finalTitle;
   msgEl.textContent = finalMessage;
   if (detailEl) detailEl.textContent = finalDetail;
   if (btnRetry) btnRetry.textContent = kind === "server" ? "다시 시도" : "새로고침";
   if (btnLogin) btnLogin.classList.toggle("hidden", kind === "server");
-
   overlay.classList.remove("hidden");
   overlay.setAttribute("aria-hidden", "false");
 }
@@ -148,7 +146,9 @@ function formatErrorDetail(err) {
   const parts = [];
   if (err.message) parts.push(`메시지: ${truncateText(err.message, 500)}`);
   if (err.fileName) parts.push(`파일: ${err.fileName}`);
-  if (Number.isFinite(err.lineNumber)) parts.push(`위치: ${err.lineNumber}:${err.columnNumber || 0}`);
+  if (Number.isFinite(err.lineNumber)) {
+    parts.push(`위치: ${err.lineNumber}:${err.columnNumber || 0}`);
+  }
   if (err.stack) parts.push(`스택: ${truncateText(err.stack, 1500)}`);
   return parts.join("\n");
 }
@@ -184,8 +184,9 @@ function isCriticalUrl(url) {
 const originalFetch = window.fetch.bind(window);
 window.fetch = async function wrappedFetch(input, init) {
   const url = typeof input === "string" ? input : input?.url || "";
-  const method = String(init?.method || (typeof input !== "string" ? input?.method : "") || "GET").toUpperCase();
-
+  const method = String(
+    init?.method || (typeof input !== "string" ? input?.method : "") || "GET",
+  ).toUpperCase();
   try {
     const res = await originalFetch(input, init);
     if (isCriticalUrl(url) && !res.ok) {
@@ -200,7 +201,7 @@ window.fetch = async function wrappedFetch(input, init) {
           preview ? `응답: ${preview}` : "",
         ]
           .filter(Boolean)
-          .join("\n")
+          .join("\n"),
       );
     }
     return res;
@@ -216,7 +217,7 @@ window.fetch = async function wrappedFetch(input, init) {
           err?.stack ? `스택: ${truncateText(err.stack, 1500)}` : "",
         ]
           .filter(Boolean)
-          .join("\n")
+          .join("\n"),
       );
     }
     throw err;
@@ -248,20 +249,16 @@ function showMapNameToast(label) {
   if (!toast || !textEl) return;
   const text = String(label || "").trim();
   if (!text) return;
-
   textEl.textContent = text;
   toast.classList.remove("hidden");
   toast.classList.add("show");
   toast.setAttribute("aria-hidden", "false");
-
   if (state.mapToastTimerA) clearTimeout(state.mapToastTimerA);
   if (state.mapToastTimerB) clearTimeout(state.mapToastTimerB);
-
   state.mapToastTimerA = window.setTimeout(() => {
     toast.classList.remove("show");
     toast.setAttribute("aria-hidden", "true");
   }, 1800);
-
   state.mapToastTimerB = window.setTimeout(() => {
     if (!toast.classList.contains("show")) toast.classList.add("hidden");
   }, 2400);
@@ -285,7 +282,6 @@ function openPokePanel(key) {
   const title = ui.pokePanelTitle();
   const body = ui.pokePanelBody();
   if (!panel || !title || !body) return;
-
   const titleMap = {
     bag: "Bag",
     trainer: "Trainer",
@@ -296,9 +292,8 @@ function openPokePanel(key) {
     gift: "Gift Shop",
     menu: "Menu",
   };
-
   title.textContent = titleMap[key] || "Menu";
-  body.textContent = "준비중... (아이콘/기능은 나중에 연결)";
+  body.textContent = "준비중...\n(아이콘/기능은 나중에 연결)";
   panel.classList.remove("hidden");
   panel.setAttribute("aria-hidden", "false");
 }
@@ -322,7 +317,6 @@ function renderPartyHud(party) {
   if (!slotsEl) return;
   const list = Array.isArray(party) ? party : [];
   slotsEl.innerHTML = "";
-
   for (let i = 0; i < 6; i += 1) {
     const mon = list[i] || null;
     const slot = document.createElement("div");
@@ -344,14 +338,11 @@ function renderPartyHud(party) {
 
     const nameRow = document.createElement("div");
     nameRow.className = "pname";
-
     const nameText = document.createElement("span");
-    nameText.textContent = mon ? (mon.nickname || mon.species || `Slot ${i + 1}`) : `Slot ${i + 1}`;
-
+    nameText.textContent = mon ? mon.nickname || mon.species || `Slot ${i + 1}` : `Slot ${i + 1}`;
     const levelText = document.createElement("span");
     levelText.className = "plv";
     levelText.textContent = mon ? `Lv.${mon.level ?? "?"}` : `#${i + 1}`;
-
     nameRow.appendChild(nameText);
     nameRow.appendChild(levelText);
 
@@ -375,11 +366,94 @@ function renderPartyHud(party) {
   }
 }
 
+function ensureLocalNameplate() {
+  let el = state.nameplateEl;
+  if (el && document.body.contains(el)) return el;
+  el = document.createElement("div");
+  el.id = "owLocalNameplate";
+  Object.assign(el.style, {
+    position: "fixed",
+    left: "0px",
+    top: "0px",
+    transform: "translate(-50%, -100%)",
+    padding: "2px 6px",
+    borderRadius: "999px",
+    border: "1px solid rgba(0,0,0,0.9)",
+    background: "rgba(255,255,255,0.96)",
+    color: "#111",
+    font: "bold 12px/1.1 system-ui, sans-serif",
+    whiteSpace: "nowrap",
+    pointerEvents: "none",
+    zIndex: "9999",
+    boxShadow: "0 1px 0 rgba(0,0,0,0.35)",
+    textShadow: "0 1px 0 rgba(255,255,255,0.35)",
+    display: "none",
+  });
+  document.body.appendChild(el);
+  state.nameplateEl = el;
+  return el;
+}
+
+function hideLocalNameplate() {
+  const el = state.nameplateEl;
+  if (!el) return;
+  el.style.display = "none";
+}
+
+function updateLocalNameplate() {
+  const ow = state.ow;
+  const el = ensureLocalNameplate();
+  const pane = ui.overworldPane();
+  const canvas = getCanvas();
+  const name = String(ow?.playerName || "").trim();
+
+  if (!ow || !canvas || !pane || pane.classList.contains("hidden") || !name) {
+    hideLocalNameplate();
+    return;
+  }
+
+  const zoom = Number.isFinite(ow.zoom) ? ow.zoom : 1;
+  const tileSize = Number.isFinite(ow.tileSize) ? ow.tileSize : 16;
+  const camX = Number.isFinite(ow.camera?.x) ? ow.camera.x : 0;
+  const camY = Number.isFinite(ow.camera?.y) ? ow.camera.y : 0;
+  const rx = typeof ow._playerRenderX === "function" ? Number(ow._playerRenderX()) : Number(ow.player?.x || 0);
+  const ry = typeof ow._playerRenderY === "function" ? Number(ow._playerRenderY()) : Number(ow.player?.y || 0);
+  const rect = canvas.getBoundingClientRect();
+
+  if (!Number.isFinite(rect.left) || !Number.isFinite(rect.top) || rect.width <= 0 || rect.height <= 0) {
+    hideLocalNameplate();
+    return;
+  }
+
+  const worldX = (rx * tileSize) + (tileSize / 2);
+  const worldY = (ry * tileSize) - (tileSize * 0.75);
+  const screenX = rect.left + ((worldX - camX) * zoom);
+  const screenY = rect.top + ((worldY - camY) * zoom);
+
+  el.textContent = name;
+  el.style.left = `${Math.round(screenX)}px`;
+  el.style.top = `${Math.round(screenY)}px`;
+  el.style.display = "block";
+}
+
+function startLocalNameplateLoop() {
+  if (state.nameplateRaf) {
+    cancelAnimationFrame(state.nameplateRaf);
+    state.nameplateRaf = 0;
+  }
+  const tick = () => {
+    updateLocalNameplate();
+    state.nameplateRaf = window.requestAnimationFrame(tick);
+  };
+  state.nameplateRaf = window.requestAnimationFrame(tick);
+}
+
 function showOverworld() {
   ui.battlePane()?.classList.add("hidden");
   ui.overworldPane()?.classList.remove("hidden");
   ui.pokeHud()?.classList.remove("hidden");
   ui.partyHud()?.classList.remove("hidden");
+  updateLocalNameplate();
 }
 
 function showBattle() {
@@ -394,6 +468,7 @@ function showBattle() {
   closePokePanel();
   ui.pokeHud()?.classList.add("hidden");
   ui.partyHud()?.classList.add("hidden");
+  hideLocalNameplate();
 }
 
 function currentMapId() {
@@ -407,17 +482,16 @@ async function loadMap(mapId, opts = {}) {
   setPretStatus(`로드중... (${mapId})`, false);
   await state.ow.loadPret(mapId, opts);
   updateZoomLabel();
+  updateLocalNameplate();
 }
 
 async function boot({ forceReload = false } = {}) {
   if (state.booting) return;
   state.booting = true;
   closeFatalOverlay();
-
   try {
     const canvas = ensureCanvas();
     const playToken = sessionStorage.getItem("play_token") || "";
-
     if (!state.ow || forceReload) {
       state.ow = new Overworld({
         canvas,
@@ -429,13 +503,19 @@ async function boot({ forceReload = false } = {}) {
       });
       window.__ow = state.ow;
     }
-
     await loadMap(currentMapId());
     if (!state.ow._started) state.ow.start();
     renderPartyHud([
-      { species: "pikachu", nickname: "Pikachu", level: 5, hp: 20, hpMax: 20 },
+      {
+        species: "pikachu",
+        nickname: "Pikachu",
+        level: 5,
+        hp: 20,
+        hpMax: 20,
+      },
     ]);
     setPartyHudCollapsed(false);
+    startLocalNameplateLoop();
     setStatus("오버월드 로드 OK");
   } catch (err) {
     console.error(err);
@@ -453,6 +533,7 @@ function bindUi() {
     const label = String(detail.label || mapId).trim() || mapId;
     setPretStatus(`OK (${label})`, true);
     showMapNameToast(label);
+    updateLocalNameplate();
   });
 
   ui.btnFatalRetry()?.addEventListener("click", () => window.location.reload());
@@ -477,6 +558,7 @@ function bindUi() {
 
   ui.btnOverworld()?.addEventListener("click", showOverworld);
   ui.btnBattle()?.addEventListener("click", showBattle);
+
   ui.btnMapReload()?.addEventListener("click", async () => {
     try {
       await loadMap(currentMapId(), { force: true });
@@ -501,20 +583,26 @@ function bindUi() {
     if (!state.ow) return;
     state.ow.setZoom((state.ow.zoom || 3) + (state.ow.zoomStep || 0.5), { user: true });
     updateZoomLabel();
+    updateLocalNameplate();
   });
+
   ui.btnZoomOut()?.addEventListener("click", () => {
     if (!state.ow) return;
     state.ow.setZoom((state.ow.zoom || 3) - (state.ow.zoomStep || 0.5), { user: true });
     updateZoomLabel();
+    updateLocalNameplate();
   });
+
   ui.btnZoomReset()?.addEventListener("click", () => {
     if (!state.ow) return;
     state.ow.resetZoom();
     updateZoomLabel();
+    updateLocalNameplate();
   });
 
   ui.partyCollapse()?.addEventListener("click", () => setPartyHudCollapsed(!state.partyCollapsed));
   ui.pokePanelClose()?.addEventListener("click", closePokePanel);
+
   ui.pokeHud()?.addEventListener("click", (e) => {
     const btn = e.target?.closest?.(".pokebtn");
     if (!btn) return;
@@ -536,6 +624,7 @@ function init() {
   updateZoomLabel();
   window.__setPartyHud = renderPartyHud;
   window.__showMapNameToast = showMapNameToast;
+  window.__updateLocalNameplate = updateLocalNameplate;
   boot().catch((err) => {
     console.error(err);
     showFatalOverlay("fatal", "부팅 실패", err?.message || String(err), formatErrorDetail(err));
