@@ -1871,14 +1871,10 @@ export class Overworld{
     const W=this.map.width, H=this.map.height;
     if(x>=0&&y>=0&&x<W&&y<H) return this.map.layers[0].data[y*W+x] ?? 0;
 
-    // Fill outside view with repeating border metatiles if provided.
-    const b=this.map.border;
-    if(b && Array.isArray(b.data) && b.data.length>0){
-      const bw=b.w||2, bh=b.h||2;
-      const ix=((x%bw)+bw)%bw;
-      const iy=((y%bh)+bh)%bh;
-      return b.data[iy*bw+ix] ?? 0;
-    }
+    // Keep non-connected out-of-bounds as pure black/empty.
+    // Connected-map previews are already handled by _resolveMapContextAt().
+    // Repeating border metatiles here makes interiors show garbage tiles
+    // around the valid map area and does not match the desired FRLG look.
     return 0;
   }
 
@@ -3271,26 +3267,9 @@ export class Overworld{
        : null;
       
     }
-    
-
-    if(!this.map || (this.map.width|0) <= 0 || (this.map.height|0) <= 0) return null;
-    
-    const cx=Math.max(0, Math.min((this.map.width|0)-1, mx|0));
-    
-    const cy=Math.max(0, Math.min((this.map.height|0)-1, my|0));
-    
-    const idx=cy*(this.map.width|0)+cx;
-    
-    const t=(this.map.layers?.[0]?.data?.[idx] ?? 0);
-    
-    const img=(this.tilesetUpperImgs && this.tilesetUpperImgs.length)
-      ? this.tilesetUpperImgs[this._tileAnimFrame % this.tilesetUpperImgs.length]
-      : this.tilesetUpperImg;
-    
-    return img ? {
-       tile:t, img, cols: this.tilesetCols || 16 }
-     : null;
-    
+    // Non-connected out-of-bounds must not borrow/clamp upper-layer tiles.
+    // That smears walls, windows and counter pieces into the surrounding black area.
+    return null;
   }
   
 
