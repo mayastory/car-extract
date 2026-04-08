@@ -522,7 +522,7 @@ code{background:rgba(255,255,255,.08);padding:2px 6px;border-radius:8px;}
 
 .ow-local-nameplate{
   position:fixed;
-  transform:translate(-50%, calc(-100% + 10px));
+  transform:translate(-50%, calc(-100% + 12px));
   white-space:nowrap;
   pointer-events:none;
   z-index:9999;
@@ -534,51 +534,54 @@ code{background:rgba(255,255,255,.08);padding:2px 6px;border-radius:8px;}
   position:relative;
   display:inline-flex;
   align-items:center;
+  justify-content:center;
   min-height:18px;
-  padding:3px 8px 2px 16px;
+  padding:3px 8px 2px;
   border:3px solid #000;
   border-radius:0;
-  background:#e8e8e8;
+  overflow:visible;
+  background:#efefef;
   color:#111;
   font-family:var(--ui-font-family);
   font-size:11px;
   line-height:1;
   letter-spacing:0;
-  box-shadow:inset 0 0 0 1px #fafafa, inset 0 0 0 2px #cfcfcf;
+  box-shadow:inset 0 0 0 1px #ffffff;
 }
-.ow-local-nameplate__frame::before,
-.ow-local-nameplate__frame::after{
-  content:"";
+.ow-local-nameplate__corner{
   position:absolute;
-  width:4px;
-  height:4px;
-  background:#000;
+  width:12px;
+  height:12px;
+  background:
+    linear-gradient(#000 0 0) 4px 0 / 8px 2px no-repeat,
+    linear-gradient(#000 0 0) 0 4px / 2px 8px no-repeat,
+    linear-gradient(#fff 0 0) 2px 1px / 6px 2px no-repeat,
+    linear-gradient(#fff 0 0) 1px 2px / 2px 6px no-repeat,
+    linear-gradient(#fff 0 0) 3px 3px / 4px 4px no-repeat,
+    linear-gradient(#000 0 0) 5px 5px / 2px 2px no-repeat,
+    linear-gradient(#000 0 0) 8px 2px / 2px 2px no-repeat,
+    linear-gradient(#000 0 0) 2px 8px / 2px 2px no-repeat;
+  background-repeat:no-repeat;
+  image-rendering:pixelated;
 }
-.ow-local-nameplate__frame::before{
-  left:-5px;
-  top:-5px;
-  box-shadow:calc(100% + 6px) 0 0 #000, 0 calc(100% + 6px) 0 #000, calc(100% + 6px) calc(100% + 6px) 0 #000;
+.ow-local-nameplate__corner--tl{
+  left:-9px;
+  top:-9px;
 }
-.ow-local-nameplate__frame::after{
-  inset:0;
-  width:auto;
-  height:auto;
-  background:linear-gradient(#000,#000) left 1px top 1px / 2px 2px no-repeat,
-             linear-gradient(#000,#000) right 1px top 1px / 2px 2px no-repeat,
-             linear-gradient(#000,#000) left 1px bottom 1px / 2px 2px no-repeat,
-             linear-gradient(#000,#000) right 1px bottom 1px / 2px 2px no-repeat;
+.ow-local-nameplate__corner--tr{
+  right:-9px;
+  top:-9px;
+  transform:scaleX(-1);
 }
-.ow-local-nameplate__arrow{
-  position:absolute;
-  left:9px;
-  top:50%;
-  width:0;
-  height:0;
-  border-top:5px solid transparent;
-  border-bottom:5px solid transparent;
-  border-right:8px solid #000;
-  transform:translateY(-50%);
-  z-index:1;
+.ow-local-nameplate__corner--bl{
+  left:-9px;
+  bottom:-9px;
+  transform:scaleY(-1);
+}
+.ow-local-nameplate__corner--br{
+  right:-9px;
+  bottom:-9px;
+  transform:scale(-1);
 }
 .ow-local-nameplate__label{
   display:block;

@@ -404,8 +404,13 @@ function ensureLocalNameplate() {
   el.id = "owLocalNameplate";
   el.className = "ow-local-nameplate";
   el.innerHTML = `
-    <span class="ow-local-nameplate__arrow" aria-hidden="true"></span>
-    <span class="ow-local-nameplate__frame"><span class="ow-local-nameplate__label"></span></span>
+    <span class="ow-local-nameplate__frame">
+      <span class="ow-local-nameplate__corner ow-local-nameplate__corner--tl" aria-hidden="true"></span>
+      <span class="ow-local-nameplate__corner ow-local-nameplate__corner--tr" aria-hidden="true"></span>
+      <span class="ow-local-nameplate__corner ow-local-nameplate__corner--bl" aria-hidden="true"></span>
+      <span class="ow-local-nameplate__corner ow-local-nameplate__corner--br" aria-hidden="true"></span>
+      <span class="ow-local-nameplate__label"></span>
+    </span>
   `;
   Object.assign(el.style, {
     position: "fixed",
@@ -450,7 +455,7 @@ function updateLocalNameplate() {
   }
 
   const worldX = (rx * tileSize) + (tileSize / 2);
-  const worldY = (ry * tileSize) - (tileSize * 0.75);
+  const worldY = (ry * tileSize) - (tileSize * 0.55);
   const screenX = rect.left + ((worldX - camX) * zoom);
   const screenY = rect.top + ((worldY - camY) * zoom);
 
