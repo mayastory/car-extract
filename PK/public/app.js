@@ -314,6 +314,7 @@ function setPartyHudCollapsed(collapsed) {
   const hud = ui.partyHud();
   if (!hud) return;
   hud.classList.toggle("collapsed", state.partyCollapsed);
+  hud.classList.toggle("is-collapsed", state.partyCollapsed);
 }
 
 function renderPartyHud(party) {
@@ -327,11 +328,8 @@ function renderPartyHud(party) {
     const slot = document.createElement("div");
     slot.className = "party-slot";
 
-    const left = document.createElement("div");
-    left.className = "party-slot-left";
-
     const iconWrap = document.createElement("div");
-    iconWrap.className = "party-slot-icon";
+    iconWrap.className = "pico";
     if (mon?.species) {
       const img = document.createElement("img");
       img.alt = mon.nickname || mon.species || `Slot ${i + 1}`;
@@ -339,30 +337,40 @@ function renderPartyHud(party) {
       img.onerror = () => img.remove();
       iconWrap.appendChild(img);
     }
-    left.appendChild(iconWrap);
+    slot.appendChild(iconWrap);
 
-    const info = document.createElement("div");
-    info.className = "party-slot-info";
+    const meta = document.createElement("div");
+    meta.className = "pmeta";
 
-    const name = document.createElement("div");
-    name.className = "party-slot-name";
-    name.textContent = mon ? `${mon.nickname || mon.species || `Slot ${i + 1}`} Lv.${mon.level ?? "?"}` : `Slot ${i + 1} #${i + 1}`;
+    const nameRow = document.createElement("div");
+    nameRow.className = "pname";
 
-    const hpRow = document.createElement("div");
-    hpRow.className = "party-slot-hp";
-    const hpBar = document.createElement("div");
-    hpBar.className = "party-slot-hp-bar";
-    const hpFill = document.createElement("span");
-    const hpNow = Number(mon?.hp ?? 0);
-    const hpMax = Math.max(1, Number(mon?.hpMax ?? 1));
+    const nameText = document.createElement("span");
+    nameText.textContent = mon ? (mon.nickname || mon.species || `Slot ${i + 1}`) : `Slot ${i + 1}`;
+
+    const levelText = document.createElement("span");
+    levelText.className = "plv";
+    levelText.textContent = mon ? `Lv.${mon.level ?? "?"}` : `#${i + 1}`;
+
+    nameRow.appendChild(nameText);
+    nameRow.appendChild(levelText);
+
+    const hpWrap = document.createElement("div");
+    hpWrap.className = "php";
+    const hpFill = document.createElement("i");
+    const hpNow = Math.max(0, Number(mon?.hp ?? 0));
+    const hpMax = Math.max(1, Number(mon?.hpMax ?? mon?.maxHp ?? 1));
     hpFill.style.width = `${Math.max(0, Math.min(100, Math.round((hpNow / hpMax) * 100)))}%`;
-    hpBar.appendChild(hpFill);
-    hpRow.appendChild(hpBar);
+    hpWrap.appendChild(hpFill);
 
-    info.appendChild(name);
-    info.appendChild(hpRow);
-    left.appendChild(info);
-    slot.appendChild(left);
+    const hpText = document.createElement("div");
+    hpText.className = "phptext";
+    hpText.textContent = mon ? `${hpNow}/${hpMax}` : "—";
+
+    meta.appendChild(nameRow);
+    meta.appendChild(hpWrap);
+    meta.appendChild(hpText);
+    slot.appendChild(meta);
     slotsEl.appendChild(slot);
   }
 }
