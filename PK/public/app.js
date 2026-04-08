@@ -104,20 +104,52 @@ function explainUrl(url){
   if(u.includes('/rt/map_items.php')) return '맵 아이템 조회';
   return u;
 }
+function isCriticalFetch(url){
+  const u = String(url || '');
+  return (
+    u.includes('/auth/whoami.php') ||
+    u.includes('/rt/get.php') ||
+    u.includes('/rt/upsert.php')
+  );
+}
+function isSoftFetch(url){
+  const u = String(url || '');
+  return (
+    u.includes('/rt/map_items.php') ||
+    u.includes('/rt/map_mobs.php')
+  );
+}
 
 const __origFetch = window.fetch.bind(window);
 window.fetch = async function(input, init){
   const url = (typeof input === 'string') ? input : (input?.url || '');
+  const critical = isCriticalFetch(url);
+  const soft = isSoftFetch(url);
   try{
     const res = await __origFetch(input, init);
+    if(res.ok && critical && __fatalState.open && (__fatalState.type === 'auth' || __fatalState.type === 'server')){
+      closeFatalOverlay();
+    }
     if(res.status === 401){
-      showFatalOverlay('auth', '로그인이 만료되었습니다. 다시 로그인해주세요.', explainUrl(url));
+      if(critical){
+        showFatalOverlay('auth', '로그인이 만료되었습니다. 다시 로그인해주세요.', explainUrl(url));
+      }else if(!soft){
+        console.warn('[fetch 401 ignored]', url);
+      }
     }else if(res.status >= 500){
-      showFatalOverlay('server', '서버가 종료되었거나 연결할 수 없습니다.', explainUrl(url));
+      if(critical){
+        showFatalOverlay('server', '서버가 종료되었거나 연결할 수 없습니다.', explainUrl(url));
+      }else{
+        console.warn('[fetch 5xx ignored]', url, res.status);
+      }
     }
     return res;
   }catch(err){
-    showFatalOverlay('server', '서버가 종료되었거나 연결이 끊어졌습니다.', explainUrl(url));
+    if(critical){
+      showFatalOverlay('server', '서버가 종료되었거나 연결이 끊어졌습니다.', explainUrl(url));
+    }else{
+      console.warn('[fetch error ignored]', url, err);
+    }
     throw err;
   }
 };
