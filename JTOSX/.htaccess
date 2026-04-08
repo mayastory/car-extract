@@ -1,0 +1,18 @@
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # IMPORTANT:
+  # We do NOT rewrite assets to /public/* here (to avoid rewrite loops).
+  # All requests are routed to router.php, and router.php serves static files
+  # from ./public/* (Next.js public/ behavior) safely.
+
+  # If a real file/dir exists at the requested path, let Apache serve it.
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Everything else goes through router.php
+  RewriteRule ^ router.php [L,QSA]
+</IfModule>

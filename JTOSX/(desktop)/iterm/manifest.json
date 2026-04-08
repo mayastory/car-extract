@@ -1,0 +1,9 @@
+{
+  "id": "iterm",
+  "name": "iTerm",
+  "icon": "/iterm.png",
+  "menuBarTitle": "iTerm",
+  "defaultPosition": {"x": 120, "y": 70},
+  "defaultSize": {"width": 800, "height": 500},
+  "minSize": {"width": 500, "height": 300}
+}

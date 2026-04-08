@@ -1,0 +1,9 @@
+{
+  "id": "finder",
+  "name": "Finder",
+  "icon": "/finder.png",
+  "menuBarTitle": "Finder",
+  "defaultPosition": {"x": 80, "y": 40},
+  "defaultSize": {"width": 900, "height": 600},
+  "minSize": {"width": 600, "height": 400}
+}

@@ -1,0 +1,12 @@
+{
+    "id": "aa6ca15c-8e1d-4865-ba04-f20843f4f21a",
+    "slug": "quick-links",
+    "title": "Quick Links",
+    "emoji": "🔗",
+    "public": true,
+    "category": "older",
+    "created_at": "2026-02-26T08:24:50+00:00",
+    "updated_at": "2026-02-26T08:24:50+00:00",
+    "content": "# Quick Links\n\n- [alanagoyal.com/notes](https://www.alanagoyal.com/notes)\n- [Apple Human Interface Guidelines](https://developer.apple.com/design/human-interface-guidelines/)\n\n---\n\n> Public notes are read-only unless you set `NOTES_ADMIN_TOKEN` and send `x-notes-admin-token`.",
+    "excerpt": "- [alanagoyal.com/notes](https://www.alanagoyal.com/notes)"
+}

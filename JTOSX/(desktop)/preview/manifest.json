@@ -1,0 +1,12 @@
+{
+  "id": "preview",
+  "name": "Preview",
+  "icon": "/preview.png",
+  "menuBarTitle": "Preview",
+  "showOnDockByDefault": false,
+  "multiWindow": true,
+  "cascadeOffset": 30,
+  "defaultPosition": {"x": 180, "y": 100},
+  "defaultSize": {"width": 800, "height": 600},
+  "minSize": {"width": 400, "height": 300}
+}

@@ -1,0 +1,12 @@
+{
+    "id": "71f310bf-67de-491e-92d7-28ed15715c24",
+    "slug": "about-me",
+    "title": "About Me",
+    "emoji": "👋",
+    "public": true,
+    "category": "older",
+    "created_at": "2026-02-26T08:24:50+00:00",
+    "updated_at": "2026-02-26T08:24:50+00:00",
+    "content": "# About Me\n\nThis is a **public** note.\n\n- [x] Task lists are clickable for *your* private notes\n- Paste an image into a private note to upload\n\nTry creating a new note from the sidebar.",
+    "excerpt": "This is a **public** note."
+}

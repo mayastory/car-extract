@@ -1,0 +1,9 @@
+{
+  "id": "notes",
+  "name": "Notes",
+  "icon": "/notes.png",
+  "menuBarTitle": "Notes",
+  "defaultPosition": {"x": 100, "y": 50},
+  "defaultSize": {"width": 900, "height": 600},
+  "minSize": {"width": 600, "height": 400}
+}

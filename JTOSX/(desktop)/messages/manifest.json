@@ -1,0 +1,9 @@
+{
+  "id": "messages",
+  "name": "Messages",
+  "icon": "/messages.png",
+  "menuBarTitle": "Messages",
+  "defaultPosition": {"x": 150, "y": 80},
+  "defaultSize": {"width": 800, "height": 550},
+  "minSize": {"width": 500, "height": 400}
+}
