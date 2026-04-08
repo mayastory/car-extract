@@ -576,6 +576,8 @@ export class Overworld{
     // tileset (static or animated frames)
     this.tilesetCols=16; // generator uses 16 columns (16x16 metatiles)
     this.tilesetImgs=[];
+    this.tilesetUpperImgs = [];
+    this.tilesetUpperImg = null;
     this._tileAnimFrame=0;
     this._tileAnimT=0;
     this._tileAnimFps=(typeof this.map.tileAnimFps==="number" && this.map.tileAnimFps>0) ? this.map.tileAnimFps : 7.5;
@@ -591,8 +593,6 @@ export class Overworld{
     
 
       // Upper tileset (metatile layer1) if provided
-      this.tilesetUpperImgs = [];
-      this.tilesetUpperImg = null;
       if (this.map.tilesetUpperFrames && this.map.tilesetUpperFrames.length) {
         this.tilesetUpperImgs = this.map.tilesetUpperFrames.map((u)=>{
           const img = new Image();
@@ -1878,9 +1878,19 @@ export class Overworld{
     }
 
     if(!this.map || (this.map.width|0) <= 0 || (this.map.height|0) <= 0) return null;
-    const cx=Math.max(0, Math.min((this.map.width|0)-1, mx|0));
-    const cy=Math.max(0, Math.min((this.map.height|0)-1, my|0));
-    const idx=cy*(this.map.width|0)+cx;
+
+    const W=this.map.width|0;
+    const H=this.map.height|0;
+    const x=mx|0;
+    const y=my|0;
+
+    // Interior / non-connected edges:
+    // do NOT clamp the upper layer outside the map bounds.
+    // Clamping repeats the last wall/roof upper tile and causes the
+    // indoor edge to look broken right after a warp.
+    if(x < 0 || y < 0 || x >= W || y >= H) return null;
+
+    const idx=y*W+x;
     const t=(this.map.layers?.[0]?.data?.[idx] ?? 0);
     const img=(this.tilesetUpperImgs && this.tilesetUpperImgs.length)
       ? this.tilesetUpperImgs[this._tileAnimFrame % this.tilesetUpperImgs.length]
