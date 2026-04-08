@@ -642,8 +642,10 @@ export class Overworld{
     }
     this.player.x=sp.x; this.player.y=sp.y; this.player.dir=sp.dir;
     this.player.px=sp.x; this.player.py=sp.y;
+    this._resetMapTransientState();
 
     this._resize();
+    this._snapCameraToPlayer();
     if(!this._zoomUser) this.resetZoom();
     if(!this._inputBound){
       window.addEventListener("resize",()=>this._resize());
@@ -969,6 +971,42 @@ export class Overworld{
       img.onload=()=>res();
       img.onerror=()=>rej(new Error(`img fail: ${img.src||"(empty src)"}`));
     });
+  }
+
+  _resetMapTransientState({clearNeighbors=false}={}){
+    this._edgePending = null;
+    this._warpPending = false;
+    this._queuedDir = null;
+    this._moveSecondsNow = null;
+    this._jumping = false;
+    this.moveCooldown = 0;
+    this.stepCooldown = 0.0;
+    this.player.moving = false;
+    this._moveT = 0;
+    this._moveFrames = 0;
+    this._moveFramesTotal = 0;
+    this._movePx = 0;
+    this._moveDistPx = 0;
+    this._moveDirLocked = null;
+    if(this._grassFx && this._grassFx.clear) this._grassFx.clear();
+    if(clearNeighbors){
+      if(this._neighborCache && this._neighborCache.clear) this._neighborCache.clear();
+      if(this._neighborPromises && this._neighborPromises.clear) this._neighborPromises.clear();
+    }
+  }
+
+  _snapCameraToPlayer(){
+    if(!this.player || !this.canvas) return;
+    const ts = this.tileSize || 16;
+    const cssW = (typeof this._cssW === "number") ? this._cssW : this.canvas.getBoundingClientRect().width;
+    const cssH = (typeof this._cssH === "number") ? this._cssH : this.canvas.getBoundingClientRect().height;
+    const zoom = this.zoom || 1;
+    const viewW = cssW / zoom;
+    const viewH = cssH / zoom;
+    const px = (this.player.x|0) * ts;
+    const py = (this.player.y|0) * ts;
+    this.camera.x = Math.round(px - viewW / 2);
+    this.camera.y = Math.round(py - viewH / 2);
   }
 
   _groundAt(x,y){
@@ -1922,6 +1960,11 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
   this.player.dir = entryDir;
 }
 
+      this._resetMapTransientState({ clearNeighbors: true });
+      this.player.px = this.player.x;
+      this.player.py = this.player.y;
+      this._snapCameraToPlayer();
+      this._prefetchNeighbors();
       this._warpCooldown=0.35;
       this._queuedDir = null;
       ["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].forEach(k=>this.keys.delete(k));
