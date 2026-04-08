@@ -403,6 +403,10 @@ function ensureLocalNameplate() {
   el = document.createElement("div");
   el.id = "owLocalNameplate";
   el.className = "ow-local-nameplate";
+  el.innerHTML = `
+    <span class="ow-local-nameplate__arrow" aria-hidden="true"></span>
+    <span class="ow-local-nameplate__frame"><span class="ow-local-nameplate__label"></span></span>
+  `;
   Object.assign(el.style, {
     position: "fixed",
     left: "0px",
@@ -450,7 +454,9 @@ function updateLocalNameplate() {
   const screenX = rect.left + ((worldX - camX) * zoom);
   const screenY = rect.top + ((worldY - camY) * zoom);
 
-  el.textContent = name;
+  const labelEl = el.querySelector(".ow-local-nameplate__label");
+  if (labelEl) labelEl.textContent = name;
+  else el.textContent = name;
   el.style.left = `${Math.round(screenX)}px`;
   el.style.top = `${Math.round(screenY)}px`;
   el.style.display = "block";
