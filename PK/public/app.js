@@ -80,9 +80,49 @@ function showFatalOverlay(kind, message, detail=""){
   fatalOverlay.classList.remove('hidden');
   fatalOverlay.setAttribute('aria-hidden','false');
 
-  if(type === 'auth'){
-    __fatalState.timer = setTimeout(()=>{ goLoginNow(); }, 1800);
+}
+
+function _truncateForUi(value, maxLen = 500){
+  const s = String(value ?? '').trim();
+  if(!s) return '';
+  return s.length > maxLen ? (s.slice(0, maxLen) + '…') : s;
+}
+
+function _stackForUi(err){
+  const st = String(err?.stack || '').trim();
+  return _truncateForUi(st, 1200);
+}
+
+async function _readResponsePreview(res){
+  try{
+    const cloned = res.clone();
+    const txt = await cloned.text();
+    return _truncateForUi(txt, 500);
+  }catch(_e){
+    return '';
   }
+}
+
+function _joinDetail(lines){
+  return lines.filter(Boolean).join('
+');
+}
+
+async function _showFetchFailure(kind, url, res, fallbackMessage){
+  const statusLine = `${res.status}${res.statusText ? ' ' + res.statusText : ''}`.trim();
+  const bodyPreview = await _readResponsePreview(res);
+  const message = fallbackMessage || `${explainUrl(url) || '요청'} 실패`;
+  const detail = _joinDetail([
+    `요청: ${url || '(알 수 없음)'}`,
+    `설명: ${explainUrl(url) || '(알 수 없음)'}`,
+    `상태: ${statusLine || '(알 수 없음)'}`,
+    bodyPreview ? `응답: ${bodyPreview}` : ''
+  ]);
+  showFatalOverlay(kind, message, detail);
+}
+
+function _showRuntimeFailure(kind, message, detailLines){
+  showFatalOverlay(kind, message, _joinDetail(detailLines));
 }
 
 btnFatalRetry?.addEventListener('click', ()=>{
@@ -104,52 +144,27 @@ function explainUrl(url){
   if(u.includes('/rt/map_items.php')) return '맵 아이템 조회';
   return u;
 }
-function isCriticalFetch(url){
-  const u = String(url || '');
-  return (
-    u.includes('/auth/whoami.php') ||
-    u.includes('/rt/get.php') ||
-    u.includes('/rt/upsert.php')
-  );
-}
-function isSoftFetch(url){
-  const u = String(url || '');
-  return (
-    u.includes('/rt/map_items.php') ||
-    u.includes('/rt/map_mobs.php')
-  );
-}
 
 const __origFetch = window.fetch.bind(window);
 window.fetch = async function(input, init){
   const url = (typeof input === 'string') ? input : (input?.url || '');
-  const critical = isCriticalFetch(url);
-  const soft = isSoftFetch(url);
+  const method = String(init?.method || (typeof input !== 'string' ? input?.method : '') || 'GET').toUpperCase();
   try{
     const res = await __origFetch(input, init);
-    if(res.ok && critical && __fatalState.open && (__fatalState.type === 'auth' || __fatalState.type === 'server')){
-      closeFatalOverlay();
-    }
     if(res.status === 401){
-      if(critical){
-        showFatalOverlay('auth', '로그인이 만료되었습니다. 다시 로그인해주세요.', explainUrl(url));
-      }else if(!soft){
-        console.warn('[fetch 401 ignored]', url);
-      }
+      await _showFetchFailure('auth', url, res, '인증 오류가 발생했습니다.');
     }else if(res.status >= 500){
-      if(critical){
-        showFatalOverlay('server', '서버가 종료되었거나 연결할 수 없습니다.', explainUrl(url));
-      }else{
-        console.warn('[fetch 5xx ignored]', url, res.status);
-      }
+      await _showFetchFailure('server', url, res, '서버 오류가 발생했습니다.');
     }
     return res;
   }catch(err){
-    if(critical){
-      showFatalOverlay('server', '서버가 종료되었거나 연결이 끊어졌습니다.', explainUrl(url));
-    }else{
-      console.warn('[fetch error ignored]', url, err);
-    }
+    _showRuntimeFailure('server', '서버 연결 오류가 발생했습니다.', [
+      `요청: ${method} ${url || '(알 수 없음)'}`,
+      `설명: ${explainUrl(url) || '(알 수 없음)'}`,
+      `메시지: ${_truncateForUi(err?.message || err || 'fetch 실패', 500)}`,
+      _stackForUi(err) ? `스택:
+${_stackForUi(err)}` : ''
+    ]);
     throw err;
   }
 };
@@ -158,13 +173,21 @@ window.addEventListener('error', (e)=>{
   const msg = String(e?.message || '알 수 없는 스크립트 오류');
   const file = String(e?.filename || '');
   if(file.includes('/overworld/') || file.endsWith('/app.js') || file.endsWith('/index.html')){
-    console.error('[overworld script error]', msg, file, e?.lineno || 0, e?.colno || 0);
+    _showRuntimeFailure('fatal', msg, [
+      file ? `파일: ${file}` : '',
+      (Number.isFinite(e?.lineno) && e.lineno > 0) ? `위치: ${e.lineno}:${e.colno || 0}` : '',
+      _stackForUi(e?.error) ? `스택:
+${_stackForUi(e?.error)}` : ''
+    ]);
   }
 });
 window.addEventListener('unhandledrejection', (e)=>{
   const reason = e?.reason;
   const msg = typeof reason === 'string' ? reason : (reason?.message || '처리되지 않은 Promise 오류');
-  console.error('[overworld promise error]', msg, reason);
+  _showRuntimeFailure('fatal', String(msg), [
+    _stackForUi(reason) ? `스택:
+${_stackForUi(reason)}` : ''
+  ]);
 });
 
 // Map name pop-up (FRLG-style)
