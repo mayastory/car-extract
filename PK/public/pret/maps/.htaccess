@@ -1,0 +1,7 @@
+Options -MultiViews
+RewriteEngine On
+
+# Missing PRET map JSON -> generate once through api/pret/map.php, then serve raw JSON.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^([A-Za-z0-9_]+)\.json$ _autogen.php?map=$1 [L,QSA]
