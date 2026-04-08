@@ -89,9 +89,7 @@ export class Overworld{
       
       this.zoomMax = _fz;
       
-      this.zoomStep = 0.5;
-       // UI label helper only;
-       no effect while locked
+      this.zoomStep = 0.5; // UI label helper only; no effect while locked
       this.defaultZoom = _fz;
       
       this.zoom = _fz;
