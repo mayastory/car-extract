@@ -269,6 +269,9 @@ export class Overworld{
                     // jump is a bit slower than a normal step
     this._jumping=false;
     
+    // Full map-state replacement bookkeeping
+    this._lastMapChangeKey = "";
+    
 
     // HTML debug window (forced OFF)
     // 사용자 요청: 맵 이동 로그(Seamless ...)가 뜨는 DEBUG 창은 우선 완전히 끈다.
@@ -1068,310 +1071,398 @@ export class Overworld{
   }
   
 
-  async load(mapUrl, opts={
+
+  _mapLabel(mapObj=this.map){
+
+    const raw = (mapObj && (mapObj.label || mapObj?.meta?.label || mapObj?.map_id))
+      ? String(mapObj.label || mapObj?.meta?.label || mapObj.map_id)
+      : "";
+
+    return raw || "";
+
+  }
+
+
+  async _buildMapAssets(mapObj){
+
+    const assets = {
+      tileSize: mapObj?.tileSize || 16,
+      tilesetCols: 16,
+      tileAnimFps: (typeof mapObj?.tileAnimFps === "number" && mapObj.tileAnimFps > 0) ? mapObj.tileAnimFps : 7.5,
+      tilesetImgs: [],
+      tilesetImg: null,
+      tilesetUpperImgs: [],
+      tilesetUpperImg: null,
+    };
+
+    if(Array.isArray(mapObj?.tilesetFrames) && mapObj.tilesetFrames.length > 0){
+
+      assets.tilesetImgs = mapObj.tilesetFrames.map((p)=>{
+
+        const img = new Image();
+
+        img.src = this._publicUrl(p);
+
+        return img;
+
+      });
+
+      await Promise.all(assets.tilesetImgs.map((img)=>this._waitImage(img)));
+
+      assets.tilesetImg = assets.tilesetImgs[0] || null;
+
     }
-  ){
+    else{
+
+      const img = new Image();
+
+      img.src = this._publicUrl(mapObj?.tileset || "assets/tiles/tileset_placeholder.png");
+
+      await this._waitImage(img);
+
+      assets.tilesetImg = img;
+
+    }
+
+    if(Array.isArray(mapObj?.tilesetUpperFrames) && mapObj.tilesetUpperFrames.length > 0){
+
+      assets.tilesetUpperImgs = mapObj.tilesetUpperFrames.map((p)=>{
+
+        const img = new Image();
+
+        img.src = this._publicUrl(p);
+
+        return img;
+
+      });
+
+      await Promise.all(assets.tilesetUpperImgs.map((img)=>this._waitImage(img)));
+
+      assets.tilesetUpperImg = assets.tilesetUpperImgs[0] || null;
+
+    }
+    else if(mapObj?.tilesetUpper){
+
+      const img = new Image();
+
+      img.src = this._publicUrl(mapObj.tilesetUpper);
+
+      await this._waitImage(img);
+
+      assets.tilesetUpperImgs = [img];
+
+      assets.tilesetUpperImg = img;
+
+    }
+
+    return assets;
+
+  }
+
+
+  _commitLoadedMap(nextMap, assets, {mapLabel=null}={}){
+
+    if(nextMap && mapLabel){
+
+      const label = String(mapLabel || "").trim();
+
+      if(label){
+
+        nextMap.label = label;
+
+        nextMap.meta = Object.assign({}, nextMap.meta || {}, {
+          label }
+        );
+
+      }
+
+    }
+
+    this.map = nextMap;
+
+    this.tileSize = assets?.tileSize || 16;
+
+    this.tilesetCols = assets?.tilesetCols || 16;
+
+    this.tilesetImgs = Array.isArray(assets?.tilesetImgs) ? assets.tilesetImgs : [];
+
+    this.tilesetImg = assets?.tilesetImg || new Image();
+
+    this.tilesetUpperImgs = Array.isArray(assets?.tilesetUpperImgs) ? assets.tilesetUpperImgs : [];
+
+    this.tilesetUpperImg = assets?.tilesetUpperImg || null;
+
+    this._tileAnimFrame = 0;
+
+    this._tileAnimT = 0;
+
+    this._tileAnimFps = (typeof assets?.tileAnimFps === "number" && assets.tileAnimFps > 0) ? assets.tileAnimFps : 7.5;
+
+  }
+
+
+  _emitMapChange(reason="load"){
+
+    const mapId = String(this.map?.map_id || "");
+
+    if(!mapId) return;
+
+    const label = this._mapLabel(this.map) || mapId;
+
+    this._lastMapChangeKey = `${reason}:${mapId}:${label}`;
     
+    try{
+
+      window.dispatchEvent(new CustomEvent("ow:mapchange", {
+        detail: {
+          reason,
+          mapId,
+          label,
+          map: this.map,
+        }
+      }));
+
+    }
+    catch(_e){
+      }
+
+    try{
+
+      this.showMapNamePopup(label);
+
+    }
+    catch(_e){
+      }
+
+  }
+
+
+  async load(mapUrl, opts={}, meta={}){
+
     const r=await fetch(mapUrl,{
       cache:"no-store"}
     );
-    
+
     if(!r.ok) throw new Error(`map load fail: ${mapUrl} (${r.status})`);
-    
-    this.map=await r.json();
-    
-    this.tileSize=this.map.tileSize||16;
-    
-    this.tilesetCols=this.map.tilesetCols||0;
-    
 
-    // tileset (static or animated frames)
-    this.tilesetCols=16;
-     // generator uses 16 columns (16x16 metatiles)
-    this.tilesetImgs=[];
-    
-    this._tileAnimFrame=0;
-    
-    this._tileAnimT=0;
-    
-    this._tileAnimFps=(typeof this.map.tileAnimFps==="number" && this.map.tileAnimFps>0) ? this.map.tileAnimFps : 7.5;
-    
+    const nextMap = await r.json();
 
-    if(Array.isArray(this.map.tilesetFrames) && this.map.tilesetFrames.length>0){
-      
-      this.tilesetImgs=this.map.tilesetFrames.map(p=>{
-        
-        const img=new Image();
-        
-        img.src=this._publicUrl(p);
-        
-        return img;
-        
-      }
-      );
-      
-      await Promise.all(this.tilesetImgs.map(img=>this._waitImage(img)));
-      
-      this.tilesetImg=this.tilesetImgs[0];
-      
-    
+    const assets = await this._buildMapAssets(nextMap);
 
-      // Upper tileset (metatile layer1) if provided
-      this.tilesetUpperImgs = [];
-      
-      this.tilesetUpperImg = null;
-      
-      if (this.map.tilesetUpperFrames && this.map.tilesetUpperFrames.length) {
-        
-        this.tilesetUpperImgs = this.map.tilesetUpperFrames.map((u)=>{
-          
-          const img = new Image();
-          
-          img.src = this._publicUrl(u);
-          
-          return img;
-          
-        }
-        );
-        
-        await Promise.all(this.tilesetUpperImgs.map(img=>this._waitImage(img)));
-        
-        this.tilesetUpperImg = this.tilesetUpperImgs[0] || null;
-        
-      }
-       else if (this.map.tilesetUpper) {
-        
-        const img = new Image();
-        
-        img.src = this._publicUrl(this.map.tilesetUpper);
-        
-        await this._waitImage(img);
-        
-        this.tilesetUpperImgs = [img];
-        
-        this.tilesetUpperImg = img;
-        
-      }
-      
-}
-    else{
-      
-      // tileset path: stored in map as /assets/... under public
-      this.tilesetImg.src=this._publicUrl(this.map.tileset || "assets/tiles/tileset_placeholder.png");
-      
-      await this._waitImage(this.tilesetImg);
-      
-    }
-    
+    this._commitLoadedMap(nextMap, assets, {
+      mapLabel: meta?.mapLabel || null}
+    );
+
 
 // Player sprite: fallback to placeholder if red_normal is missing.
     try{
-      
+
       await this._waitImage(this.playerImg);
-      
+
     }
     catch(e){
-      
+
       this.playerSprite={
          kind:"placeholder", frameW:16, frameH:24, framesPerDir:3 }
       ;
-      
+
       this.playerImg.src=this._publicUrl("assets/sprites/player_placeholder.png");
-      
+
       await this._waitImage(this.playerImg);
-      
+
     }
-    
+
 
     // Spawn
     let sp=this.map.spawn||{
       x:10,y:10,dir:0}
     ;
-    
+
     if(opts && opts.transition){
-      
+
       const t=opts.transition;
-      
+
       const W=this.map.width, H=this.map.height;
-      
+
       const fromX=t.fromX|0, fromY=t.fromY|0;
-      
+
       const off=t.offset|0;
-      
+
       const dir=String(t.direction||"");
-      
+
       let x=sp.x|0, y=sp.y|0;
-      
+
       if(dir==="up")   {
          x=fromX-off;
          y=H-1;
          }
-      
+
       if(dir==="down") {
          x=fromX-off;
          y=0;
            }
-      
+
       if(dir==="left") {
          x=W-1;
                y=fromY-off;
          }
-      
+
       if(dir==="right"){
          x=0;
                  y=fromY-off;
          }
-      
+
       x=Math.max(0,Math.min(W-1,x));
-      
+
       y=Math.max(0,Math.min(H-1,y));
-      
+
       sp={
         x,y,dir:t.faceDir ?? sp.dir ?? 0}
       ;
-      
+
     }
-    
+
     this.player.x=sp.x;
      this.player.y=sp.y;
      this.player.dir=sp.dir;
-    
+
     this.player.px=sp.x;
      this.player.py=sp.y;
-    
-    this._resetMapTransientState();
-    
+
+    this._resetMapTransientState({
+      clearNeighbors:true}
+    );
+
 
     this._resize();
-    
+
     this._snapCameraToPlayer();
-    
+
     if(!this._zoomUser) this.resetZoom();
-    
+
     if(!this._inputBound){
-      
+
       window.addEventListener("resize",()=>this._resize());
-      
+
       window.addEventListener("keydown",(e)=>{
-        
+
       // Prevent browser scroll on arrows.
       if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.key)) e.preventDefault();
-        
+
 
       // Debug toggle (F3)
       if(e.key==="F3"){
-          
+
         this.debug=!this.debug;
-          
+
         this.status(this.debug? "DEBUG ON" : "DEBUG OFF");
-          
+
         return;
-          
+
       }
-        
+
 
       // Dialog input (if an NPC/script opened a dialog)
       if(this._dialog && this._dialog.open){
-          
-        const k=e.key;
-          
-        if(k==="a"||k==="A"){
-            
-          e.preventDefault();
-            
-          this._dialogNext();
-            
-          return;
-            
-        }
-          
-        if(k==="s"||k==="S"){
-            
-          e.preventDefault();
-            
-          this._dialogClose();
-            
-          return;
-            
-        }
-          
-        // Block other inputs while dialog is open.
-        return;
-          
-      }
-        
 
-      // GBA keymap:
-      //   A key   -> A button
-      //   S key   -> B button
-      //   Z key   -> START
-      //   X key   -> SELECT
+        const k=e.key;
+
+        if(k==="a"||k==="A"){
+
+          e.preventDefault();
+
+          this._dialogNext();
+
+          return;
+
+          }
+
+        if(k==="x"||k==="X"||k==="Escape"){
+
+          e.preventDefault();
+
+          this._dialogClose();
+
+          return;
+
+          }
+
+        return;
+
+        }
+
+
+      // Action buttons
       if(e.key==="a"||e.key==="A"){
            e.preventDefault();
-           this._actionInteract();
+           this._actionA();
            return;
            }
-        
+
       if(e.key==="s"||e.key==="S"){
            e.preventDefault();
-           this._actionCancel();
+           this._actionB();
            return;
            }
-        
+
       if(e.key==="z"||e.key==="Z"){
            e.preventDefault();
            this._actionStart();
            return;
            }
-        
+
       if(e.key==="x"||e.key==="X"){
            e.preventDefault();
            this._actionSelect();
            return;
            }
-        
+
 
       // Movement: arrows only (server-authoritative movement).
       this.keys.add(e.key);
-        
+
       if(e.key==="ArrowUp") this.player.dir=1;
-        
+
       if(e.key==="ArrowDown") this.player.dir=0;
-        
+
       if(e.key==="ArrowLeft") this.player.dir=2;
-        
+
       if(e.key==="ArrowRight") this.player.dir=3;
-        
+
       }
       , {
         passive:false}
       );
-      
+
       window.addEventListener("keyup",(e)=>this.keys.delete(e.key));
-      
+
       this._inputBound=true;
-      
+
     }
-    
+
 
     // Do not force-write spawn/transition coordinates here.
     // The saved server state is applied by _initFromServer(), and later movement/warp
     // commits are synced explicitly. Forcing an upsert here can overwrite the saved
     // location and desync seamless connections.
     this.status("오버월드 로드 OK");
-    
+
 
     // Prefetch connected maps (for seamless connection preview)
     this._prefetchNeighbors();
-    
+
     this._fetchNpcs().catch(()=>{
       }
     );
-    
+
+    this._emitMapChange(meta?.reason || opts?.mapChangeReason || (opts?.transition ? "connection" : "load"));
+
     this._log(`로드: ${this.map?.map_id || 'UNKNOWN'} (${this.map?.width||0}x${this.map?.height||0})`);
-    
+
+    return true;
+
   }
-  
+
 
   async _loadStaticPretMap(mapId, opts={
     }
@@ -1385,7 +1476,9 @@ export class Overworld{
     
     if(!r.ok) throw new Error(`static pret map failed (${r.status})`);
     
-    await this.load(url, opts);
+    await this.load(url, opts, {
+      reason: opts?.mapChangeReason || (opts?.transition ? "connection" : "load")}
+    );
     
     return true;
     
@@ -1422,7 +1515,10 @@ export class Overworld{
     
     if(!r.ok || !j || !j.ok) throw new Error(j?.detail||j?.err||"pret/map.php failed");
     
-    await this.load(j.mapUrl, opts);
+    await this.load(j.mapUrl, opts, {
+      mapLabel: j?.label || null,
+      reason: opts?.mapChangeReason || (opts?.transition ? "connection" : "load")}
+    );
     
     return j;
     
@@ -1629,7 +1725,9 @@ export class Overworld{
       if(st.map_id && (!this.map || this.map.map_id !== st.map_id)){
         
         try{
-           await this.loadPret(st.map_id);
+           await this.loadPret(st.map_id, {
+             mapChangeReason:"server-sync"}
+           );
            }
         catch(e){
           }
@@ -1710,7 +1808,9 @@ export class Overworld{
           if(st.map_id && (!this.map || this.map.map_id !== st.map_id)){
             
             try{
-               await this.loadPret(st.map_id);
+               await this.loadPret(st.map_id, {
+                 mapChangeReason:"server-init"}
+               );
                }
             catch(e){
               }
@@ -2326,6 +2426,7 @@ export class Overworld{
     
     this._log(`Seamless -> ${c.map_id} (${dir}, off=${off})`);
     
+    this._emitMapChange("connection");
 
     // Prefetch next neighbors and persist position.
     this._prefetchNeighbors();
@@ -2378,8 +2479,8 @@ export class Overworld{
         
         await this.loadPret(c.map_id, {
            transition:{
-             fromX, fromY, direction:dir, offset:(c.offset||0), faceDir }
-           }
+             fromX, fromY, direction:dir, offset:(c.offset||0), faceDir },
+           mapChangeReason:"connection"}
         );
         
         await this._upsert();
@@ -3389,7 +3490,9 @@ export class Overworld{
     
     try{
       
-      await this.loadPret(to);
+      await this.loadPret(to, {
+        mapChangeReason:"warp"}
+      );
       
 
 // after load, place player at destination

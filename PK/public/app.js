@@ -1,4 +1,4 @@
-import { Overworld } from "./overworld/overworld.js?v=20260213_overworld_sync_v1";
+import { Overworld } from "./overworld/overworld.js?v=20260408_map_state_swap_v1";
 
 const byId = (id) => document.getElementById(id);
 const firstEl = (...ids) => ids.map((id) => byId(id)).find(Boolean) || null;
@@ -406,9 +406,7 @@ async function loadMap(mapId, opts = {}) {
   if (!state.ow) throw new Error("오버월드가 아직 초기화되지 않았습니다.");
   setPretStatus(`로드중... (${mapId})`, false);
   await state.ow.loadPret(mapId, opts);
-  setPretStatus(`OK (${state.ow.map?.map_id || mapId})`, true);
   updateZoomLabel();
-  showMapNameToast(state.ow.map?.map_id || mapId);
 }
 
 async function boot({ forceReload = false } = {}) {
@@ -448,6 +446,15 @@ async function boot({ forceReload = false } = {}) {
 }
 
 function bindUi() {
+  window.addEventListener("ow:mapchange", (e) => {
+    const detail = e?.detail || {};
+    const mapId = String(detail.mapId || state.ow?.map?.map_id || "").trim();
+    if (!mapId) return;
+    const label = String(detail.label || mapId).trim() || mapId;
+    setPretStatus(`OK (${label})`, true);
+    showMapNameToast(label);
+  });
+
   ui.btnFatalRetry()?.addEventListener("click", () => window.location.reload());
   ui.btnFatalLogin()?.addEventListener("click", () => {
     try {
