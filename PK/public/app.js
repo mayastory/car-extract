@@ -1,4 +1,4 @@
-import { Overworld } from "./overworld/overworld.js?v=20260213_overworld_sync_v1";
+import { Overworld } from "./overworld/overworld.js?v=20260408_mapborder_conn_v1";
 
 const byId = (id) => document.getElementById(id);
 const firstEl = (...ids) => ids.map((id) => byId(id)).find(Boolean) || null;

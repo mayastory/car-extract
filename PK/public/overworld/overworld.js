@@ -1964,14 +1964,34 @@ export class Overworld{
     this.camera.y = Math.round(py - viewH / 2);
   }
 
+  _hasOutdoorBorderFallback(){
+    const conns = Array.isArray(this.map?.connections) ? this.map.connections.filter(c=>c && c.map_id) : [];
+    return conns.length > 0;
+  }
+
+  _borderTileAt(x,y){
+    const b=this.map?.border;
+    const bw=(b?.w|0), bh=(b?.h|0);
+    const data=Array.isArray(b?.data) ? b.data : null;
+    if(!data || bw<=0 || bh<=0) return 0;
+    const W=this.map?.width|0, H=this.map?.height|0;
+    const ox=(x<0) ? x : (x>=W ? (x-W) : x);
+    const oy=(y<0) ? y : (y>=H ? (y-H) : y);
+    const bx=((ox % bw) + bw) % bw;
+    const by=((oy % bh) + bh) % bh;
+    return data[by*bw + bx] ?? 0;
+  }
+
   _groundAt(x,y){
     const W=this.map.width, H=this.map.height;
     if(x>=0&&y>=0&&x<W&&y<H) return this.map.layers[0].data[y*W+x] ?? 0;
 
-    // Keep non-connected out-of-bounds as pure black/empty.
-    // Connected-map previews are already handled by _resolveMapContextAt().
-    // Repeating border metatiles here makes interiors show garbage tiles
-    // around the valid map area and does not match the desired FRLG look.
+    // Outdoors should use the Packege/exported border metatiles so the camera sees
+    // natural edge filler instead of tileset index 0 smearing into mint-colored voids.
+    // Indoors keep 0 so small-room black margins still behave like the GBA look.
+    if(this._hasOutdoorBorderFallback()){
+      return this._borderTileAt(x,y);
+    }
     return 0;
   }
 
@@ -2568,21 +2588,20 @@ export class Overworld{
         let meta = null;
         
 
-        // Prefer the static public cache for seamless neighbor previews, but reject
-        // stale r16 caches because their metatile overlays are clipped and connections
-        // look broken at the map edges.
+        // Keep neighbor previews on the same freshest Packege-derived path as normal loads.
+        // Using an older static cache here can make outdoor borders and indoor connection
+        // previews disagree with the current map after warps/F5.
         try{
           
-          const rr = await fetch(`./pret/maps/${encodeURIComponent(mapId)}.json`, {
+          const rg = await fetch(`${this.apiBase}/pret/map.php?map=${encodeURIComponent(mapId)}`, {
             cache:"no-store"}
           );
           
-          if(rr.ok){
-            
-            mj = await rr.json();
-            
-            if(this._pretMapNeedsRefresh(mj)) mj = null;
-            
+          meta = await rg.json().catch(()=>null);
+          
+          if(rg.ok && meta && meta.ok && meta.mapUrl){
+            const rr = await fetch(meta.mapUrl, { cache:"no-store" });
+            if(rr.ok) mj = await rr.json();
           }
           
         }
@@ -2592,21 +2611,11 @@ export class Overworld{
 
         if(!mj){
           
-          const rg = await fetch(`${this.apiBase}/pret/map.php?map=${encodeURIComponent(mapId)}`, {
+          const rr = await fetch(`./pret/maps/${encodeURIComponent(mapId)}.json`, {
             cache:"no-store"}
           );
           
-          meta = await rg.json().catch(()=>null);
-          
-          if(!rg.ok || !meta || !meta.ok){
-            
-            throw new Error(meta?.detail || meta?.err || `pret/map.php failed (${rg.status})`);
-            
-          }
-          
-          const rr = await fetch(meta.mapUrl, {
-            cache:"no-store"}
-          );
+          if(!rr.ok) throw new Error(`neighbor map load failed (${rr.status})`);
           
           mj = await rr.json();
           
