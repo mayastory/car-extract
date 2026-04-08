@@ -878,7 +878,7 @@ export class Overworld{
         
 
         // Decide facing by delta (do NOT trust server dir;
-         it may be static)
+        // it may be static)
         if(dx>0){
           
           s.dir = 3;
@@ -902,7 +902,7 @@ export class Overworld{
         
 
         // flip only for horizontal move;
-         keep last flip for vertical
+        // keep last flip for vertical
         if(dx!==0){
           
           const facesLeft = (this._mobIconFacesLeft !== false);
@@ -1048,7 +1048,7 @@ export class Overworld{
     const url=this._publicUrl(`pret/sprites/player/${want}.png`);
     
     // Only swap if changed;
-     keep existing Image instance for smoothness.
+    // keep existing Image instance for smoothness.
     if(this.playerImg && this.playerImg.src===url) return;
     
     const img=new Image();
