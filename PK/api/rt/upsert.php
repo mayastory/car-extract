@@ -173,8 +173,6 @@ function validate_warp_transition(string $fromMap, int $fromX, int $fromY, strin
     return false;
 }
 
-ensure_move_guard_tables($conn);
-
 $stmt = $conn->prepare('SELECT map_id, x, y, dir, updated_at, client_tick FROM player WHERE player_id=? AND account_id=? LIMIT 1');
 if (!$stmt) json_out(['ok' => false, 'error' => 'DB_PREPARE_FAIL', 'detail' => $conn->error], 500);
 $stmt->bind_param('ii', $player_id, $account_id);
@@ -189,9 +187,9 @@ $oldX = (int)$cur['x'];
 $oldY = (int)$cur['y'];
 $oldDir = (int)($cur['dir'] ?? 0);
 $oldTick = (int)$cur['client_tick'];
-$oldUpdated = (string)$cur['updated_at'];
 
-// Harmless duplicates should not trip any guard.
+// 개발 단계: 이동/워프/속도 가드 전부 비활성화.
+// 위치 저장은 서버 DB를 그대로 신뢰하고, 인증/DB 오류/OOB만 남긴다.
 if ($map_id === $oldMap && $x === $oldX && $y === $oldY && $dir === $oldDir) {
     if ($tick < $oldTick - 5) $tick = $oldTick;
     $stmt = $conn->prepare('UPDATE player SET dir=?, client_tick=? WHERE player_id=? AND account_id=?');
@@ -201,7 +199,7 @@ if ($map_id === $oldMap && $x === $oldX && $y === $oldY && $dir === $oldDir) {
     $err = $stmt->error;
     $stmt->close();
     if (!$ok) json_out(['ok' => false, 'error' => 'DB_EXEC_FAIL', 'detail' => $err], 500);
-    json_out(['ok' => true, 'tick' => $tick, 'dt' => 0.0, 'maxStep' => 0, 'dist' => 0, 'mapChanged' => false, 'edgeOk' => false, 'warpOk' => false, 'noop' => true]);
+    json_out(['ok' => true, 'tick' => $tick, 'dt' => 0.0, 'maxStep' => 0, 'dist' => 0, 'mapChanged' => false, 'edgeOk' => false, 'warpOk' => false, 'noop' => true, 'guardDisabled' => true]);
 }
 
 $maxW = null;
@@ -220,72 +218,16 @@ if ($stmt) {
 }
 if ($maxW !== null && $maxH !== null && $maxW > 0 && $maxH > 0) {
     if ($x < 0 || $y < 0 || $x >= $maxW || $y >= $maxH) {
-        cheat_log($conn, $player_id, 'OOB', "map=$map_id x=$x y=$y w=$maxW h=$maxH");
         json_out(['ok' => false, 'error' => 'OOB'], 400);
     }
 }
 
 $dist = abs($x - $oldX) + abs($y - $oldY);
-$guard = move_guard_get($conn, $player_id);
-$nowMs = (int)floor(microtime(true) * 1000);
-$lastMoveMs = (int)$guard['last_move_ms'];
-$lastMapChangeMs = (int)$guard['last_map_change_ms'];
-
-$dtMs = 0;
-if ($lastMoveMs > 0) {
-    $dtMs = max(0, $nowMs - $lastMoveMs);
-} else {
-    try {
-        $t0 = strtotime($oldUpdated);
-        if ($t0 !== false) $dtMs = max(0, $nowMs - ((int)$t0 * 1000));
-    } catch (Throwable $e) {
-        $dtMs = 0;
-    }
-}
-$dt = $dtMs / 1000.0;
-
-$moveSeconds = 0.2666667;
-$maxStep = 2;
-if ($dt > 0) {
-    $maxStep = max(2, (int)floor($dt / $moveSeconds) + 1);
-    $maxStep = min($maxStep, 12);
-}
-
 $mapChanged = ($map_id !== $oldMap);
 $edgeOk = false;
 $warpOk = false;
-$fastMapChangeOk = false;
-
-if ($mapChanged) {
-    $edgeOk = validate_edge_transition($oldMap, $oldX, $oldY, $map_id, $x, $y);
-    $warpOk = validate_warp_transition($oldMap, $oldX, $oldY, $map_id, $x, $y);
-    $fastMapChangeOk = ($edgeOk || $warpOk);
-
-    // A legitimate door/warp often arrives very quickly after the source tile step.
-    // Use the explicit warp/edge validators first; only reject clearly-invalid rapid teleports.
-    if (!$fastMapChangeOk) {
-        $sinceMapChangeMs = ($lastMapChangeMs > 0) ? max(0, $nowMs - $lastMapChangeMs) : PHP_INT_MAX;
-        $graceOk = ($dtMs >= 900) || ($sinceMapChangeMs >= 900);
-        if (!$graceOk) {
-            cheat_log($conn, $player_id, 'MAP_WARP', "from=$oldMap($oldX,$oldY) to=$map_id($x,$y) dt_ms=$dtMs tick=$tick");
-            json_out(['ok' => false, 'error' => 'MAP_WARP_RATE_LIMIT'], 429);
-        }
-    }
-} else {
-    if ($lastMoveMs > 0 && $dist > 0) {
-        $baseMs = 267;
-        $graceMs = 60;
-        $minMs = max(0, $baseMs * $dist - $graceMs);
-        if (($nowMs - $lastMoveMs) < $minMs) {
-            cheat_log($conn, $player_id, 'SPEED_RATE', 'dt_ms=' . ($nowMs - $lastMoveMs) . " min_ms=$minMs dist=$dist map=$map_id");
-            json_out(['ok' => false, 'error' => 'SPEED_RATE'], 429);
-        }
-    }
-    if ($dist > $maxStep) {
-        cheat_log($conn, $player_id, 'SPEED', "dist=$dist max=$maxStep dt=$dt from=($oldX,$oldY) to=($x,$y) map=$map_id");
-        json_out(['ok' => false, 'error' => 'SPEED'], 400);
-    }
-}
+$dt = 0.0;
+$maxStep = 9999;
 
 if ($tick < $oldTick - 5) $tick = $oldTick;
 
@@ -297,10 +239,6 @@ $err = $stmt->error;
 $stmt->close();
 if (!$ok) json_out(['ok' => false, 'error' => 'DB_EXEC_FAIL', 'detail' => $err], 500);
 
-if ($mapChanged || $dist > 0) {
-    move_guard_set($conn, $player_id, $nowMs, $mapChanged ? $nowMs : null);
-}
-
 json_out([
     'ok' => true,
     'tick' => $tick,
@@ -310,4 +248,5 @@ json_out([
     'mapChanged' => $mapChanged,
     'edgeOk' => $edgeOk,
     'warpOk' => $warpOk,
+    'guardDisabled' => true,
 ]);
