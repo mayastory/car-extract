@@ -158,13 +158,13 @@ window.addEventListener('error', (e)=>{
   const msg = String(e?.message || '알 수 없는 스크립트 오류');
   const file = String(e?.filename || '');
   if(file.includes('/overworld/') || file.endsWith('/app.js') || file.endsWith('/index.html')){
-    showFatalOverlay('fatal', '오버월드 실행 중 치명 오류가 발생했습니다.', msg);
+    console.error('[overworld script error]', msg, file, e?.lineno || 0, e?.colno || 0);
   }
 });
 window.addEventListener('unhandledrejection', (e)=>{
   const reason = e?.reason;
   const msg = typeof reason === 'string' ? reason : (reason?.message || '처리되지 않은 Promise 오류');
-  showFatalOverlay('fatal', '오버월드 로드 실패', String(msg));
+  console.error('[overworld promise error]', msg, reason);
 });
 
 // Map name pop-up (FRLG-style)
