@@ -4665,49 +4665,7 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
     this._drawTallGrassFx(oc, x0, y0, x1, y1);
     
 
-    // Name label (above the player)
-    const _nm = String(this.playerName||"").trim();
-    
-    if(_nm){
-      
-      const _labelPx = Math.round(this._playerRenderX()*ts);
-      
-      const _labelPyBase = Math.round(this._playerRenderY()*ts);
-      
-      const _labelJumpT = Math.max(0, Math.min(1, this._moveT||0));
-      
-      const _labelJumpRaise = (this._jumping && this.player.moving) ? (Math.sin(Math.PI*_labelJumpT) * 8) : 0;
-      
-      const _labelPy = Math.round(_labelPyBase - _labelJumpRaise);
-      
-      const tx = _labelPx + ts/2;
-      
-      const ty = _labelPy - 2;
-      
-      const shown = (_nm.length>12) ? (_nm.slice(0,12)+"…") : _nm;
-      
-      oc.save();
-      
-      oc.font = "bold 8px system-ui";
-      
-      oc.textAlign = "center";
-      
-      oc.textBaseline = "bottom";
-      
-      oc.lineWidth = 3;
-      
-      oc.strokeStyle = "rgba(0,0,0,0.85)";
-      
-      oc.fillStyle = "rgba(255,255,255,0.95)";
-      
-      oc.strokeText(shown, tx, ty);
-      
-      oc.fillText(shown, tx, ty);
-      
-      oc.restore();
-      
-    }
-    
+    // Local player name is rendered by app.js DOM nameplate to keep UI font/style consistent.
 
     // Fishing FX (cast + rise)
     if(this._fishFx){

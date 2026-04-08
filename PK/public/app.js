@@ -402,22 +402,11 @@ function ensureLocalNameplate() {
   if (el && document.body.contains(el)) return el;
   el = document.createElement("div");
   el.id = "owLocalNameplate";
+  el.className = "ow-local-nameplate";
   Object.assign(el.style, {
     position: "fixed",
     left: "0px",
     top: "0px",
-    transform: "translate(-50%, -100%)",
-    padding: "2px 6px",
-    borderRadius: "999px",
-    border: "1px solid rgba(0,0,0,0.9)",
-    background: "rgba(255,255,255,0.96)",
-    color: "#111",
-    font: "bold 12px/1.1 system-ui, sans-serif",
-    whiteSpace: "nowrap",
-    pointerEvents: "none",
-    zIndex: "9999",
-    boxShadow: "0 1px 0 rgba(0,0,0,0.35)",
-    textShadow: "0 1px 0 rgba(255,255,255,0.35)",
     display: "none",
   });
   document.body.appendChild(el);
