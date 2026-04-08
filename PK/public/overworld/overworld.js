@@ -1,4 +1,4 @@
-import { getActorPriorityState, getFrontCoverAt as getOwFrontCoverAt, getGrassCoverAt as getOwGrassCoverAt, isTallGrassBehavior as isOwTallGrassBehavior } from "./overworld_priority.js";
+import { getActorPriorityState, getFrontCoverAt as getOwFrontCoverAt, getFrontOccluderAt as getOwFrontOccluderAt, getGrassCoverAt as getOwGrassCoverAt, isTallGrassBehavior as isOwTallGrassBehavior } from "./overworld_priority.js";
 export class Overworld{
   constructor({canvas,status,playToken=null,apiBase="/api", fixedZoom=2.0, lockZoom=true}){
     this.canvas=canvas; this.ctx=canvas.getContext("2d");
@@ -986,11 +986,49 @@ export class Overworld{
     return 0;
   }
 
+  _resolveMapContextAt(x,y){
+    if(!this.map) return null;
+    const W=this.map.width|0, H=this.map.height|0;
+    if(x>=0 && y>=0 && x<W && y<H){
+      return { map:this.map, x:x|0, y:y|0, assets:{ tilesetCols:this.tilesetCols||16, tilesetImgs:this.tilesetImgs||[], tilesetImg:this.tilesetImg, tilesetUpperImgs:this.tilesetUpperImgs||[], tilesetUpperImg:this.tilesetUpperImg||null } };
+    }
+
+    let dir=null;
+    if(y<0) dir="up";
+    else if(y>=H) dir="down";
+    else if(x<0) dir="left";
+    else if(x>=W) dir="right";
+    if(!dir) return null;
+
+    const c=this._getConnection(dir);
+    if(!(c && c.map_id && this._neighborCache.has(c.map_id))) return null;
+
+    const nb=this._neighborCache.get(c.map_id);
+    const nW=nb?.map?.width|0, nH=nb?.map?.height|0;
+    let nx=x|0, ny=y|0;
+    const off=(c.offset||0)|0;
+
+    if(dir==="up")        { ny=(nH + y); nx=(x-off); }
+    else if(dir==="down") { ny=(y - H);  nx=(x-off); }
+    else if(dir==="left") { nx=(nW + x); ny=(y-off); }
+    else if(dir==="right"){ nx=(x - W);  ny=(y-off); }
+
+    if(nx<0 || ny<0 || nx>=nW || ny>=nH) return null;
+    return { map:nb.map, x:nx|0, y:ny|0, assets:{ tilesetCols:nb.tilesetCols||16, tilesetImgs:nb.tilesetImgs||[], tilesetImg:nb.tilesetImg, tilesetUpperImgs:nb.tilesetUpperImgs||[], tilesetUpperImg:nb.tilesetUpperImg||null } };
+  }
+
+  _mapArrayValue(map, key, x, y, fallback=0){
+    const W=map?.width|0, H=map?.height|0;
+    const arr=map?.[key];
+    if(!Array.isArray(arr) || arr.length !== W*H) return fallback;
+    if(x<0 || y<0 || x>=W || y>=H) return fallback;
+    return arr[y*W+x] ?? fallback;
+  }
+
   _behaviorAt(x,y){
-    const W=this.map.width, H=this.map.height;
-    if(!this.map.behavior || this.map.behavior.length!==W*H) return 0;
-    if(x<0||y<0||x>=W||y>=H) return 0;
-    return this.map.behavior[y*W+x] ?? 0;
+    const ctx=this._resolveMapContextAt(x,y);
+    if(!ctx) return 0;
+    return this._mapArrayValue(ctx.map, 'behavior', ctx.x, ctx.y, 0);
   }
 
   _isTallGrassBehavior(b) {
@@ -998,11 +1036,21 @@ export class Overworld{
   }
 
   _frontCoverAt(x, y) {
-    return getOwFrontCoverAt(this.map, x, y);
+    const ctx=this._resolveMapContextAt(x,y);
+    if(!ctx) return 0;
+    return getOwFrontCoverAt(ctx.map, ctx.x, ctx.y);
+  }
+
+  _frontOccluderAt(x, y) {
+    const ctx=this._resolveMapContextAt(x,y);
+    if(!ctx) return 0;
+    return getOwFrontOccluderAt(ctx.map, ctx.x, ctx.y);
   }
 
   _grassCoverAt(x, y) {
-    return getOwGrassCoverAt(this.map, x, y, (tx, ty) => this._behaviorAt(tx, ty));
+    const ctx=this._resolveMapContextAt(x,y);
+    if(!ctx) return 0;
+    return getOwGrassCoverAt(ctx.map, ctx.x, ctx.y, (tx, ty) => this._mapArrayValue(ctx.map, 'behavior', tx, ty, 0));
   }
 
   _playerPriorityState() {
@@ -1013,6 +1061,8 @@ export class Overworld{
       dir: this.player?.dir ?? 0,
       moving: !!this.player?.moving,
       behaviorAt: (tx, ty) => this._behaviorAt(tx, ty),
+      grassCoverAt: (tx, ty) => this._grassCoverAt(tx, ty),
+      frontOccluderAt: (tx, ty) => this._frontOccluderAt(tx, ty),
     });
   }
 
@@ -1294,6 +1344,8 @@ export class Overworld{
     this.tilesetCols = nb.tilesetCols||16;
     this.tilesetImgs = nb.tilesetImgs||[];
     this.tilesetImg  = nb.tilesetImg;
+    this.tilesetUpperImgs = nb.tilesetUpperImgs||[];
+    this.tilesetUpperImg = nb.tilesetUpperImg||null;
 
     // Adjust camera so the screen doesn't "jump" when local coordinates reset.
     this.camera.x += camDx;
@@ -1754,91 +1806,31 @@ export class Overworld{
   }
 
   _tileInfoAt(mx,my){
-    const W=this.map.width, H=this.map.height;
-
-    // inside current map
-    if(mx>=0 && my>=0 && mx<W && my<H){
-      const idx=my*W+mx;
-      const t=(this.map.layers?.[0]?.data?.[idx] ?? 0);
-      return { tile:t, img:this._currentTilesetImg(), cols:this.tilesetCols||16 };
+    const ctx=this._resolveMapContextAt(mx,my);
+    if(ctx){
+      const idx=ctx.y*ctx.map.width+ctx.x;
+      const t=(ctx.map.layers?.[0]?.data?.[idx] ?? 0);
+      const assets=ctx.assets||{};
+      const img=(assets.tilesetImgs && assets.tilesetImgs.length)
+        ? assets.tilesetImgs[this._tileAnimFrame % assets.tilesetImgs.length]
+        : (assets.tilesetImg || this._currentTilesetImg());
+      return { tile:t, img, cols: assets.tilesetCols || this.tilesetCols || 16 };
     }
 
-    // outside: try connected map preview
-    let dir=null;
-    if(my<0) dir="up";
-    else if(my>=H) dir="down";
-    else if(mx<0) dir="left";
-    else if(mx>=W) dir="right";
-
-    const c=this._getConnection(dir);
-    if(c && c.map_id && this._neighborCache.has(c.map_id)){
-      const nb=this._neighborCache.get(c.map_id);
-      const nW=nb.map.width, nH=nb.map.height;
-      let nx=mx, ny=my;
-      const off=(c.offset||0)|0;
-
-      // Allow drawing multiple tiles beyond the border, not just a 1-tile strip.
-      if(dir==="up")        { ny=(nH + my); nx=(mx-off); }
-      else if(dir==="down") { ny=(my - H);  nx=(mx-off); }
-      else if(dir==="left") { nx=(nW + mx); ny=(my-off); }
-      else if(dir==="right"){ nx=(mx - W);  ny=(my-off); }
-
-      if(nx>=0 && ny>=0 && nx<nW && ny<nH){
-        const tidx=ny*nW+nx;
-        const t=(nb.map.layers?.[0]?.data?.[tidx] ?? 0);
-        const img = (nb.tilesetImgs && nb.tilesetImgs.length)
-          ? nb.tilesetImgs[this._tileAnimFrame % nb.tilesetImgs.length]
-          : nb.tilesetImg;
-        return { tile:t, img, cols: nb.tilesetCols || 16 };
-      }
-    }
-
-    // fallback: current map border repeat
     const t=this._groundAt(mx,my);
     return { tile:t, img:this._currentTilesetImg(), cols:this.tilesetCols||16 };
   }
 
   _tileUpperInfoAt(mx,my){
-    const W=this.map.width, H=this.map.height;
-
-    if(mx>=0 && my>=0 && mx<W && my<H){
-      const idx=my*W+mx;
-      const t=(this.map.layers?.[0]?.data?.[idx] ?? 0);
-      const img = (this.tilesetUpperImgs && this.tilesetUpperImgs.length)
-        ? this.tilesetUpperImgs[this._tileAnimFrame % this.tilesetUpperImgs.length]
-        : this.tilesetUpperImg;
-      return img ? { tile:t, img, cols:this.tilesetCols||16 } : null;
-    }
-
-    let dir=null;
-    if(my<0) dir="up";
-    else if(my>=H) dir="down";
-    else if(mx<0) dir="left";
-    else if(mx>=W) dir="right";
-
-    const c=this._getConnection(dir);
-    if(c && c.map_id && this._neighborCache.has(c.map_id)){
-      const nb=this._neighborCache.get(c.map_id);
-      const nW=nb.map.width, nH=nb.map.height;
-      let nx=mx, ny=my;
-      const off=(c.offset||0)|0;
-
-      if(dir==="up")        { ny=(nH + my); nx=(mx-off); }
-      else if(dir==="down") { ny=(my - H);  nx=(mx-off); }
-      else if(dir==="left") { nx=(nW + mx); ny=(my-off); }
-      else if(dir==="right"){ nx=(mx - W);  ny=(my-off); }
-
-      if(nx>=0 && ny>=0 && nx<nW && ny<nH){
-        const tidx=ny*nW+nx;
-        const t=(nb.map.layers?.[0]?.data?.[tidx] ?? 0);
-        const img = (nb.tilesetUpperImgs && nb.tilesetUpperImgs.length)
-          ? nb.tilesetUpperImgs[this._tileAnimFrame % nb.tilesetUpperImgs.length]
-          : nb.tilesetUpperImg;
-        return img ? { tile:t, img, cols: nb.tilesetCols || 16 } : null;
-      }
-    }
-
-    return null;
+    const ctx=this._resolveMapContextAt(mx,my);
+    if(!ctx) return null;
+    const idx=ctx.y*ctx.map.width+ctx.x;
+    const t=(ctx.map.layers?.[0]?.data?.[idx] ?? 0);
+    const assets=ctx.assets||{};
+    const img=(assets.tilesetUpperImgs && assets.tilesetUpperImgs.length)
+      ? assets.tilesetUpperImgs[this._tileAnimFrame % assets.tilesetUpperImgs.length]
+      : assets.tilesetUpperImg;
+    return img ? { tile:t, img, cols: assets.tilesetCols || this.tilesetCols || 16 } : null;
   }
 
   _findWarpAt(x,y){

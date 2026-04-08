@@ -34,11 +34,24 @@ function stableTileCoord(v) {
   return Math.floor(n + 0.0001);
 }
 
-export function getActorPriorityState({ map, renderX, renderY, dir = 0, moving = false, behaviorAt = null } = {}) {
+export function getActorPriorityState({
+  map,
+  renderX,
+  renderY,
+  dir = 0,
+  moving = false,
+  behaviorAt = null,
+  grassCoverAt = null,
+  frontOccluderAt = null,
+} = {}) {
   const footX = stableTileCoord(renderX);
   const footY = stableTileCoord(renderY);
-  const inGrass = !!getGrassCoverAt(map, footX, footY, behaviorAt);
-  const hasFrontOccluder = !!getFrontOccluderAt(map, footX, footY);
+  const inGrass = (typeof grassCoverAt === "function")
+    ? !!grassCoverAt(footX, footY)
+    : !!getGrassCoverAt(map, footX, footY, behaviorAt);
+  const hasFrontOccluder = (typeof frontOccluderAt === "function")
+    ? !!frontOccluderAt(footX, footY)
+    : !!getFrontOccluderAt(map, footX, footY);
 
   return {
     footX,
