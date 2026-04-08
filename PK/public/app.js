@@ -455,7 +455,7 @@ function updateLocalNameplate() {
   }
 
   const worldX = (rx * tileSize) + (tileSize / 2);
-  const worldY = (ry * tileSize) - (tileSize * 0.55);
+  const worldY = (ry * tileSize) - (tileSize * 0.32);
   const screenX = rect.left + ((worldX - camX) * zoom);
   const screenY = rect.top + ((worldY - camY) * zoom);
 
