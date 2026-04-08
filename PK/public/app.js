@@ -19,6 +19,121 @@ const btnZoomOut = document.getElementById("btnZoomOut");
 const btnZoomReset = document.getElementById("btnZoomReset");
 const btnMapReload = document.getElementById("btnMapReload");
 const mapSelect = document.getElementById("mapSelect");
+const fatalOverlay = document.getElementById("fatalOverlay");
+const fatalTitle = document.getElementById("fatalTitle");
+const fatalMessage = document.getElementById("fatalMessage");
+const fatalDetail = document.getElementById("fatalDetail");
+const btnFatalRetry = document.getElementById("btnFatalRetry");
+const btnFatalLogin = document.getElementById("btnFatalLogin");
+
+let __fatalState = { open:false, type:"", timer:null, redirected:false };
+
+function closeFatalOverlay(){
+  if(!fatalOverlay) return;
+  fatalOverlay.classList.add("hidden");
+  fatalOverlay.setAttribute("aria-hidden","true");
+  __fatalState.open = false;
+  __fatalState.type = "";
+  if(__fatalState.timer){ clearTimeout(__fatalState.timer); __fatalState.timer = null; }
+}
+
+function goLoginNow(){
+  if(__fatalState.redirected) return;
+  __fatalState.redirected = true;
+  try{ sessionStorage.removeItem('play_token'); }catch(_e){}
+  window.location.href = './login.html';
+}
+
+function showFatalOverlay(kind, message, detail=""){
+  if(!fatalOverlay || !fatalTitle || !fatalMessage || !fatalDetail) return;
+  const type = String(kind || '').trim() || 'fatal';
+  const msg = String(message || '').trim() || '오류가 발생했습니다.';
+  const det = String(detail || '').trim();
+  if(__fatalState.open && __fatalState.type === type && fatalMessage.textContent === msg && fatalDetail.textContent === det) return;
+  __fatalState.open = true;
+  __fatalState.type = type;
+  __fatalState.redirected = false;
+  if(__fatalState.timer){ clearTimeout(__fatalState.timer); __fatalState.timer = null; }
+
+  let title = '오류';
+  let loginHidden = true;
+  let retryText = '새로고침';
+  if(type === 'auth'){
+    title = '로그인 만료';
+    loginHidden = false;
+    retryText = '다시 로그인';
+  }else if(type === 'server'){
+    title = '서버 연결 오류';
+    loginHidden = true;
+    retryText = '다시 시도';
+  }else if(type === 'fatal'){
+    title = '오버월드 로드 실패';
+    loginHidden = false;
+    retryText = '새로고침';
+  }
+
+  fatalTitle.textContent = title;
+  fatalMessage.textContent = msg;
+  fatalDetail.textContent = det;
+  btnFatalRetry.textContent = retryText;
+  btnFatalLogin.classList.toggle('hidden', loginHidden);
+  fatalOverlay.classList.remove('hidden');
+  fatalOverlay.setAttribute('aria-hidden','false');
+
+  if(type === 'auth'){
+    __fatalState.timer = setTimeout(()=>{ goLoginNow(); }, 1800);
+  }
+}
+
+btnFatalRetry?.addEventListener('click', ()=>{
+  if(__fatalState.type === 'auth'){
+    goLoginNow();
+    return;
+  }
+  window.location.reload();
+});
+btnFatalLogin?.addEventListener('click', ()=>{ goLoginNow(); });
+
+function explainUrl(url){
+  const u = String(url || '');
+  if(!u) return '';
+  if(u.includes('/auth/')) return '인증 확인 요청';
+  if(u.includes('/rt/get.php')) return '플레이어 상태 조회';
+  if(u.includes('/rt/upsert.php')) return '플레이어 위치 저장';
+  if(u.includes('/rt/map_mobs.php')) return '맵 몹 조회';
+  if(u.includes('/rt/map_items.php')) return '맵 아이템 조회';
+  return u;
+}
+
+const __origFetch = window.fetch.bind(window);
+window.fetch = async function(input, init){
+  const url = (typeof input === 'string') ? input : (input?.url || '');
+  try{
+    const res = await __origFetch(input, init);
+    if(res.status === 401){
+      showFatalOverlay('auth', '로그인이 만료되었습니다. 다시 로그인해주세요.', explainUrl(url));
+    }else if(res.status >= 500){
+      showFatalOverlay('server', '서버가 종료되었거나 연결할 수 없습니다.', explainUrl(url));
+    }
+    return res;
+  }catch(err){
+    showFatalOverlay('server', '서버가 종료되었거나 연결이 끊어졌습니다.', explainUrl(url));
+    throw err;
+  }
+};
+
+window.addEventListener('error', (e)=>{
+  const msg = String(e?.message || '알 수 없는 스크립트 오류');
+  const file = String(e?.filename || '');
+  if(file.includes('/overworld/') || file.endsWith('/app.js') || file.endsWith('/index.html')){
+    showFatalOverlay('fatal', '오버월드 실행 중 치명 오류가 발생했습니다.', msg);
+  }
+});
+window.addEventListener('unhandledrejection', (e)=>{
+  const reason = e?.reason;
+  const msg = typeof reason === 'string' ? reason : (reason?.message || '처리되지 않은 Promise 오류');
+  showFatalOverlay('fatal', '오버월드 로드 실패', String(msg));
+});
 
 // Map name pop-up (FRLG-style)
 const mapNameToast = document.getElementById("mapNameToast");
@@ -574,6 +689,7 @@ async function initPret(preferMap="PalletTown"){
       console.error("[PRET MAP FAIL]", e);
       pretStatusEl.textContent = "PRET: 연결 실패 (F12 Console 확인)";
       pretStatusEl.classList.add("err");
+      showFatalOverlay('fatal', 'PRET 맵 초기화에 실패했습니다.', `${String(eApi?.message || eApi || '')} / ${String(eIdx?.message || eIdx || '')}`);
     }
   };
 
@@ -588,6 +704,7 @@ async function initPret(preferMap="PalletTown"){
       console.error("[PRET RELOAD FAIL]", e);
       pretStatusEl.textContent = "PRET: 새로고침 실패";
       pretStatusEl.classList.add("err");
+      showFatalOverlay('fatal', 'PRET 목록 새로고침에 실패했습니다.', String(e?.message || e || ''));
     }
   });
 
@@ -642,6 +759,7 @@ async function tryLoadFromIndexJsonFallback(){
       console.error("[PRET INDEX LOAD FAIL]", eIdx);
       pretStatusEl.textContent = "PRET: 연결 실패 (F12 Console 확인)";
       pretStatusEl.classList.add("err");
+      showFatalOverlay('fatal', 'PRET 맵 초기화에 실패했습니다.', `${String(eApi?.message || eApi || '')} / ${String(eIdx?.message || eIdx || '')}`);
     }
   }
 

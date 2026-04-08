@@ -84,6 +84,22 @@
     <button class="pokebtn" data-pane="menu" title="Menu"><span class="ico"><img src="./assets/ui/menu/menu.png" alt=""></span><span class="lbl">Menu</span></button>
   </div>
 
+  <div id="fatalOverlay" class="fatal-overlay hidden" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="fatal-card">
+      <div class="fatal-head">
+        <b id="fatalTitle">오류</b>
+      </div>
+      <div class="fatal-body">
+        <div id="fatalMessage" class="fatal-message">오류가 발생했습니다.</div>
+        <div id="fatalDetail" class="fatal-detail"></div>
+      </div>
+      <div class="fatal-actions">
+        <button id="btnFatalRetry">새로고침</button>
+        <button id="btnFatalLogin">로그인으로</button>
+      </div>
+    </div>
+  </div>
+
   <div id="pokePanel" class="pokepanel hidden" role="dialog" aria-modal="false" aria-hidden="true">
     <div class="pokepanel-head">
       <b id="pokePanelTitle">Menu</b>
