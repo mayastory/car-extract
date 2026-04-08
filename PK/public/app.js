@@ -1,334 +1,291 @@
 import { Overworld } from "./overworld/overworld.js?v=20260213_overworld_sync_v1";
 
-// Simple auth gate: require play_token (from character select)
-const PLAY_TOKEN = sessionStorage.getItem('play_token');
-if (!PLAY_TOKEN) {
-  window.location.href = './login.html';
+const byId = (id) => document.getElementById(id);
+const firstEl = (...ids) => ids.map((id) => byId(id)).find(Boolean) || null;
+const qs = (sel) => document.querySelector(sel);
+
+const ui = {
+  status: () => firstEl("status"),
+  pretStatus: () => firstEl("pretStatus"),
+  overworldPane: () => firstEl("overworldPane"),
+  battlePane: () => firstEl("battlePane"),
+  battleFrame: () => firstEl("battleFrame"),
+  btnOverworld: () => firstEl("btnOverworld"),
+  btnBattle: () => firstEl("btnBattle"),
+  btnZoomIn: () => firstEl("btnZoomIn"),
+  btnZoomOut: () => firstEl("btnZoomOut"),
+  btnZoomReset: () => firstEl("btnZoomReset"),
+  btnMapReload: () => firstEl("btnMapReload"),
+  mapSelect: () => firstEl("mapSelect"),
+  mapNameToast: () => firstEl("mapNameToast"),
+  mapNameToastText: () => firstEl("mapNameToastText"),
+  debugPanel: () => firstEl("debugPanel"),
+  debugLog: () => firstEl("debugLog"),
+  btnDbgToggle: () => firstEl("btnDbgToggle"),
+  btnDbgHide: () => firstEl("btnDbgHide"),
+  btnDbgClear: () => firstEl("btnDbgClear"),
+  pokeHud: () => firstEl("pokeHud"),
+  pokePanel: () => firstEl("pokePanel"),
+  pokePanelTitle: () => firstEl("pokePanelTitle"),
+  pokePanelBody: () => firstEl("pokePanelBody"),
+  pokePanelClose: () => firstEl("pokePanelClose"),
+  partyHud: () => firstEl("partyHud"),
+  partySlots: () => firstEl("partySlots"),
+  partyCollapse: () => firstEl("partyCollapse"),
+  fatalOverlay: () => firstEl("fatalOverlay"),
+  fatalTitle: () => firstEl("fatalTitle"),
+  fatalMessage: () => firstEl("fatalMessage"),
+  fatalDetail: () => firstEl("fatalDetail"),
+  btnFatalRetry: () => firstEl("btnFatalRetry"),
+  btnFatalLogin: () => firstEl("btnFatalLogin"),
+};
+
+const state = {
+  ow: null,
+  booting: false,
+  battleLoaded: false,
+  partyCollapsed: false,
+  mapToastTimerA: null,
+  mapToastTimerB: null,
+};
+
+function getCanvas() {
+  return (
+    firstEl("overworldCanvas", "gameCanvas", "owCanvas", "canvas") ||
+    qs("#overworldPane canvas") ||
+    qs("canvas") ||
+    null
+  );
 }
 
-const statusEl = document.getElementById("status");
-const pretStatusEl = document.getElementById("pretStatus");
-const overworldPane = document.getElementById("overworldPane");
-const battlePane = document.getElementById("battlePane");
-const battleFrame = document.getElementById("battleFrame");
-let _battleLoaded = false;
-const btnOverworld = document.getElementById("btnOverworld");
-const btnBattle = document.getElementById("btnBattle");
-const btnZoomIn = document.getElementById("btnZoomIn");
-const btnZoomOut = document.getElementById("btnZoomOut");
-const btnZoomReset = document.getElementById("btnZoomReset");
-const btnMapReload = document.getElementById("btnMapReload");
-const mapSelect = document.getElementById("mapSelect");
-const fatalOverlay = document.getElementById("fatalOverlay");
-const fatalTitle = document.getElementById("fatalTitle");
-const fatalMessage = document.getElementById("fatalMessage");
-const fatalDetail = document.getElementById("fatalDetail");
-const btnFatalRetry = document.getElementById("btnFatalRetry");
-const btnFatalLogin = document.getElementById("btnFatalLogin");
+function ensureCanvas() {
+  let canvas = getCanvas();
+  if (canvas) return canvas;
 
-let __fatalState = { open:false, type:"", timer:null, redirected:false };
-
-function closeFatalOverlay(){
-  if(!fatalOverlay) return;
-  fatalOverlay.classList.add("hidden");
-  fatalOverlay.setAttribute("aria-hidden","true");
-  __fatalState.open = false;
-  __fatalState.type = "";
-  if(__fatalState.timer){ clearTimeout(__fatalState.timer); __fatalState.timer = null; }
+  const pane = ui.overworldPane() || document.body;
+  canvas = document.createElement("canvas");
+  canvas.id = "overworldCanvas";
+  canvas.style.width = "100%";
+  canvas.style.height = "100%";
+  canvas.style.display = "block";
+  pane.prepend(canvas);
+  return canvas;
 }
 
-function goLoginNow(){
-  if(__fatalState.redirected) return;
-  __fatalState.redirected = true;
-  try{ sessionStorage.removeItem('play_token'); }catch(_e){}
-  window.location.href = './login.html';
+function logLine(msg) {
+  const log = ui.debugLog();
+  if (!log) return;
+  const line = `[${new Date().toLocaleTimeString()}] ${String(msg ?? "")}`;
+  log.textContent += (log.textContent ? "\n" : "") + line;
+  log.scrollTop = log.scrollHeight;
 }
 
-function showFatalOverlay(kind, message, detail=""){
-  if(!fatalOverlay || !fatalTitle || !fatalMessage || !fatalDetail) return;
-  const type = String(kind || '').trim() || 'fatal';
-  const msg = String(message || '').trim() || '오류가 발생했습니다.';
-  const det = String(detail || '').trim();
-  if(__fatalState.open && __fatalState.type === type && fatalMessage.textContent === msg && fatalDetail.textContent === det) return;
-  __fatalState.open = true;
-  __fatalState.type = type;
-  __fatalState.redirected = false;
-  if(__fatalState.timer){ clearTimeout(__fatalState.timer); __fatalState.timer = null; }
-
-  let title = '오류';
-  let loginHidden = true;
-  let retryText = '새로고침';
-  if(type === 'auth'){
-    title = '로그인 만료';
-    loginHidden = false;
-    retryText = '다시 로그인';
-  }else if(type === 'server'){
-    title = '서버 연결 오류';
-    loginHidden = true;
-    retryText = '다시 시도';
-  }else if(type === 'fatal'){
-    title = '오버월드 로드 실패';
-    loginHidden = false;
-    retryText = '새로고침';
-  }
-
-  fatalTitle.textContent = title;
-  fatalMessage.textContent = msg;
-  fatalDetail.textContent = det;
-  btnFatalRetry.textContent = retryText;
-  btnFatalLogin.classList.toggle('hidden', loginHidden);
-  fatalOverlay.classList.remove('hidden');
-  fatalOverlay.setAttribute('aria-hidden','false');
-
+function setStatus(msg) {
+  const el = ui.status();
+  if (el) el.textContent = String(msg ?? "");
+  if (msg) logLine(msg);
 }
 
-function _truncateForUi(value, maxLen = 500){
-  const s = String(value ?? '').trim();
-  if(!s) return '';
-  return s.length > maxLen ? (s.slice(0, maxLen) + '…') : s;
-}
-
-function _stackForUi(err){
-  const st = String(err?.stack || '').trim();
-  return _truncateForUi(st, 1200);
-}
-
-async function _readResponsePreview(res){
-  try{
-    const cloned = res.clone();
-    const txt = await cloned.text();
-    return _truncateForUi(txt, 500);
-  }catch(_e){
-    return '';
+function setPretStatus(text, ok = null) {
+  const el = ui.pretStatus();
+  if (!el) return;
+  el.textContent = String(text ?? "");
+  if (ok === true) {
+    el.classList.add("ok");
+    el.classList.remove("bad");
+  } else if (ok === false) {
+    el.classList.add("bad");
+    el.classList.remove("ok");
   }
 }
 
-function _joinDetail(lines){
-  return lines.filter(Boolean).join('
-');
+function updateZoomLabel() {
+  const btn = ui.btnZoomReset();
+  const ow = state.ow;
+  if (!btn || !ow) return;
+  const zoom = Number.isFinite(ow.zoom) ? ow.zoom : 3;
+  btn.textContent = `${Math.round(zoom * 100)}%`;
 }
 
-async function _showFetchFailure(kind, url, res, fallbackMessage){
-  const statusLine = `${res.status}${res.statusText ? ' ' + res.statusText : ''}`.trim();
-  const bodyPreview = await _readResponsePreview(res);
-  const message = fallbackMessage || `${explainUrl(url) || '요청'} 실패`;
-  const detail = _joinDetail([
-    `요청: ${url || '(알 수 없음)'}`,
-    `설명: ${explainUrl(url) || '(알 수 없음)'}`,
-    `상태: ${statusLine || '(알 수 없음)'}`,
-    bodyPreview ? `응답: ${bodyPreview}` : ''
-  ]);
-  showFatalOverlay(kind, message, detail);
+function closeFatalOverlay() {
+  const overlay = ui.fatalOverlay();
+  if (!overlay) return;
+  overlay.classList.add("hidden");
+  overlay.setAttribute("aria-hidden", "true");
 }
 
-function _showRuntimeFailure(kind, message, detailLines){
-  showFatalOverlay(kind, message, _joinDetail(detailLines));
+function showFatalOverlay(kind, title, message, detail = "") {
+  const overlay = ui.fatalOverlay();
+  const titleEl = ui.fatalTitle();
+  const msgEl = ui.fatalMessage();
+  const detailEl = ui.fatalDetail();
+  const btnLogin = ui.btnFatalLogin();
+  const btnRetry = ui.btnFatalRetry();
+  if (!overlay || !titleEl || !msgEl) return;
+
+  const finalTitle = String(title || "오류");
+  const finalMessage = String(message || "오류가 발생했습니다.");
+  const finalDetail = String(detail || "").trim();
+
+  titleEl.textContent = finalTitle;
+  msgEl.textContent = finalMessage;
+  if (detailEl) detailEl.textContent = finalDetail;
+  if (btnRetry) btnRetry.textContent = kind === "server" ? "다시 시도" : "새로고침";
+  if (btnLogin) btnLogin.classList.toggle("hidden", kind === "server");
+
+  overlay.classList.remove("hidden");
+  overlay.setAttribute("aria-hidden", "false");
 }
 
-btnFatalRetry?.addEventListener('click', ()=>{
-  if(__fatalState.type === 'auth'){
-    goLoginNow();
-    return;
+function truncateText(value, maxLen = 1200) {
+  const s = String(value ?? "").trim();
+  if (!s) return "";
+  return s.length > maxLen ? `${s.slice(0, maxLen)}…` : s;
+}
+
+function formatErrorDetail(err) {
+  if (!err) return "";
+  const parts = [];
+  if (err.message) parts.push(`메시지: ${truncateText(err.message, 500)}`);
+  if (err.fileName) parts.push(`파일: ${err.fileName}`);
+  if (Number.isFinite(err.lineNumber)) parts.push(`위치: ${err.lineNumber}:${err.columnNumber || 0}`);
+  if (err.stack) parts.push(`스택: ${truncateText(err.stack, 1500)}`);
+  return parts.join("\n");
+}
+
+async function readResponsePreview(res) {
+  try {
+    return truncateText(await res.clone().text(), 800);
+  } catch (_e) {
+    return "";
   }
-  window.location.reload();
-});
-btnFatalLogin?.addEventListener('click', ()=>{ goLoginNow(); });
+}
 
-function explainUrl(url){
-  const u = String(url || '');
-  if(!u) return '';
-  if(u.includes('/auth/')) return '인증 확인 요청';
-  if(u.includes('/rt/get.php')) return '플레이어 상태 조회';
-  if(u.includes('/rt/upsert.php')) return '플레이어 위치 저장';
-  if(u.includes('/rt/map_mobs.php')) return '맵 몹 조회';
-  if(u.includes('/rt/map_items.php')) return '맵 아이템 조회';
+function explainUrl(url) {
+  const u = String(url || "");
+  if (!u) return "";
+  if (u.includes("/auth/")) return "인증 확인 요청";
+  if (u.includes("/rt/get.php")) return "플레이어 상태 조회";
+  if (u.includes("/rt/upsert.php")) return "플레이어 위치 저장";
+  if (u.includes("/rt/map_mobs.php")) return "맵 몹 조회";
+  if (u.includes("/rt/map_items.php")) return "맵 아이템 조회";
   return u;
 }
 
-const __origFetch = window.fetch.bind(window);
-window.fetch = async function(input, init){
-  const url = (typeof input === 'string') ? input : (input?.url || '');
-  const method = String(init?.method || (typeof input !== 'string' ? input?.method : '') || 'GET').toUpperCase();
-  try{
-    const res = await __origFetch(input, init);
-    if(res.status === 401){
-      await _showFetchFailure('auth', url, res, '인증 오류가 발생했습니다.');
-    }else if(res.status >= 500){
-      await _showFetchFailure('server', url, res, '서버 오류가 발생했습니다.');
+function isCriticalUrl(url) {
+  const u = String(url || "");
+  return (
+    u.includes("/auth/whoami.php") ||
+    u.includes("/rt/get.php") ||
+    u.includes("/rt/upsert.php")
+  );
+}
+
+const originalFetch = window.fetch.bind(window);
+window.fetch = async function wrappedFetch(input, init) {
+  const url = typeof input === "string" ? input : input?.url || "";
+  const method = String(init?.method || (typeof input !== "string" ? input?.method : "") || "GET").toUpperCase();
+
+  try {
+    const res = await originalFetch(input, init);
+    if (isCriticalUrl(url) && !res.ok) {
+      const preview = await readResponsePreview(res);
+      showFatalOverlay(
+        res.status === 401 ? "auth" : "server",
+        res.status === 401 ? "로그인/인증 오류" : "서버 오류",
+        `${explainUrl(url) || "요청"} 실패`,
+        [
+          `요청: ${method} ${url || "(알 수 없음)"}`,
+          `상태: ${res.status} ${res.statusText || ""}`.trim(),
+          preview ? `응답: ${preview}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n")
+      );
     }
     return res;
-  }catch(err){
-    _showRuntimeFailure('server', '서버 연결 오류가 발생했습니다.', [
-      `요청: ${method} ${url || '(알 수 없음)'}`,
-      `설명: ${explainUrl(url) || '(알 수 없음)'}`,
-      `메시지: ${_truncateForUi(err?.message || err || 'fetch 실패', 500)}`,
-      _stackForUi(err) ? `스택:
-${_stackForUi(err)}` : ''
-    ]);
+  } catch (err) {
+    if (isCriticalUrl(url)) {
+      showFatalOverlay(
+        "server",
+        "서버 연결 오류",
+        `${explainUrl(url) || "요청"} 중 예외가 발생했습니다.`,
+        [
+          `요청: ${method} ${url || "(알 수 없음)"}`,
+          `메시지: ${truncateText(err?.message || err, 500)}`,
+          err?.stack ? `스택: ${truncateText(err.stack, 1500)}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n")
+      );
+    }
     throw err;
   }
 };
 
-window.addEventListener('error', (e)=>{
-  const msg = String(e?.message || '알 수 없는 스크립트 오류');
-  const file = String(e?.filename || '');
-  if(file.includes('/overworld/') || file.endsWith('/app.js') || file.endsWith('/index.html')){
-    _showRuntimeFailure('fatal', msg, [
-      file ? `파일: ${file}` : '',
-      (Number.isFinite(e?.lineno) && e.lineno > 0) ? `위치: ${e.lineno}:${e.colno || 0}` : '',
-      _stackForUi(e?.error) ? `스택:
-${_stackForUi(e?.error)}` : ''
-    ]);
-  }
-});
-window.addEventListener('unhandledrejection', (e)=>{
-  const reason = e?.reason;
-  const msg = typeof reason === 'string' ? reason : (reason?.message || '처리되지 않은 Promise 오류');
-  _showRuntimeFailure('fatal', String(msg), [
-    _stackForUi(reason) ? `스택:
-${_stackForUi(reason)}` : ''
-  ]);
+window.addEventListener("error", (e) => {
+  const message = String(e?.message || "알 수 없는 스크립트 오류");
+  const detail = [
+    e?.filename ? `파일: ${e.filename}` : "",
+    Number.isFinite(e?.lineno) && e.lineno > 0 ? `위치: ${e.lineno}:${e.colno || 0}` : "",
+    e?.error?.stack ? `스택: ${truncateText(e.error.stack, 1500)}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+  showFatalOverlay("fatal", "스크립트 오류", message, detail);
 });
 
-// Map name pop-up (FRLG-style)
-const mapNameToast = document.getElementById("mapNameToast");
-const mapNameToastText = document.getElementById("mapNameToastText");
-let _mapToastTimerA = null;
-let _mapToastTimerB = null;
-function showMapNameToast(label){
-  if(!mapNameToast || !mapNameToastText) return;
-  const text = (label && String(label).trim()) ? String(label).trim() : "";
-  if(!text) return;
-  mapNameToastText.textContent = text;
-  mapNameToast.classList.remove("hidden");
-  mapNameToast.classList.add("show");
-  mapNameToast.setAttribute("aria-hidden","false");
-  if(_mapToastTimerA) clearTimeout(_mapToastTimerA);
-  if(_mapToastTimerB) clearTimeout(_mapToastTimerB);
-  _mapToastTimerA = setTimeout(()=>{
-    mapNameToast.classList.remove("show");
-    mapNameToast.setAttribute("aria-hidden","true");
+window.addEventListener("unhandledrejection", (e) => {
+  const reason = e?.reason;
+  const message = typeof reason === "string" ? reason : reason?.message || "처리되지 않은 Promise 오류";
+  const detail = reason?.stack ? `스택: ${truncateText(reason.stack, 1500)}` : "";
+  showFatalOverlay("fatal", "Promise 오류", String(message), detail);
+});
+
+function showMapNameToast(label) {
+  const toast = ui.mapNameToast();
+  const textEl = ui.mapNameToastText();
+  if (!toast || !textEl) return;
+  const text = String(label || "").trim();
+  if (!text) return;
+
+  textEl.textContent = text;
+  toast.classList.remove("hidden");
+  toast.classList.add("show");
+  toast.setAttribute("aria-hidden", "false");
+
+  if (state.mapToastTimerA) clearTimeout(state.mapToastTimerA);
+  if (state.mapToastTimerB) clearTimeout(state.mapToastTimerB);
+
+  state.mapToastTimerA = window.setTimeout(() => {
+    toast.classList.remove("show");
+    toast.setAttribute("aria-hidden", "true");
   }, 1800);
-  _mapToastTimerB = setTimeout(()=>{
-    if(!mapNameToast.classList.contains("show")) mapNameToast.classList.add("hidden");
+
+  state.mapToastTimerB = window.setTimeout(() => {
+    if (!toast.classList.contains("show")) toast.classList.add("hidden");
   }, 2400);
 }
 
-const debugPanel = document.getElementById("debugPanel");
-const debugLog = document.getElementById("debugLog");
-const btnDbgToggle = document.getElementById("btnDbgToggle");
-const btnDbgHide = document.getElementById("btnDbgHide");
-const btnDbgClear = document.getElementById("btnDbgClear");
-
-
-// PokéMMO-style HUD (bottom)
-const pokeHud = document.getElementById("pokeHud");
-const pokePanel = document.getElementById("pokePanel");
-const pokePanelTitle = document.getElementById("pokePanelTitle");
-const pokePanelBody = document.getElementById("pokePanelBody");
-const pokePanelClose = document.getElementById("pokePanelClose");
-
-// Party HUD (right sidebar) - UI only
-const partyHud = document.getElementById("partyHud");
-const partySlots = document.getElementById("partySlots");
-const partyCollapseBtn = document.getElementById("partyCollapse");
-let _partyCollapsed = false;
-
-function _partyIconUrl(species){
-  if(!species) return null;
-  const s = String(species).trim();
-  if(!s) return null;
-  // convention: /public/assets/pokemon/<SpeciesName>/icon.png
-  // (kept as best-effort; server will later send resolved sprite paths)
-  return `./assets/pokemon/${encodeURIComponent(s)}/icon.png`;
+function setDebugVisible(v) {
+  const panel = ui.debugPanel();
+  if (!panel) return;
+  panel.classList.toggle("hidden", !v);
 }
 
-function renderPartyHud(party){
-  if(!partySlots) return;
-  const list = Array.isArray(party) ? party : [];
-  partySlots.innerHTML = "";
-
-  const maxSlots = 6;
-  for(let i=0;i<maxSlots;i++){
-    const p = list[i] || null;
-    const slot = document.createElement("div");
-    slot.className = "party-slot";
-    slot.dataset.slot = String(i+1);
-
-    const ico = document.createElement("div");
-    ico.className = "pico";
-    if(p && (p.icon || p.species)){
-      const picon = document.createElement("div");
-      picon.className = "picon";
-      const url = p.icon ? String(p.icon) : _partyIconUrl(p.species);
-      if(url) picon.style.backgroundImage = `url("${url}")`;;
-      ico.appendChild(picon);
-    }else{
-      ico.textContent = "?";
-    }
-
-    const meta = document.createElement("div");
-    meta.className = "pmeta";
-
-    const nameRow = document.createElement("div");
-    nameRow.className = "pname";
-    const nm = document.createElement("span");
-    nm.textContent = p?.nickname || p?.species || `Slot ${i+1}`;
-    const lv = document.createElement("span");
-    lv.className = "plv";
-    lv.textContent = p?.level ? `Lv.${p.level}` : `#${i+1}`;
-    nameRow.appendChild(nm);
-    nameRow.appendChild(lv);
-
-    const hpBar = document.createElement("div");
-    hpBar.className = "php";
-    const hpFill = document.createElement("i");
-    const hp = Number(p?.hp ?? 0);
-    const hpMax = Math.max(1, Number(p?.hpMax ?? 0) || 1);
-    const pct = p ? Math.max(0, Math.min(1, hp / hpMax)) : 0;
-    hpFill.style.width = `${Math.round(pct*100)}%`;
-    hpBar.appendChild(hpFill);
-
-    const hpText = document.createElement("div");
-    hpText.className = "phptext";
-    hpText.textContent = p ? `${hp}/${hpMax}` : "";
-
-    meta.appendChild(nameRow);
-    meta.appendChild(hpBar);
-    meta.appendChild(hpText);
-
-    slot.appendChild(ico);
-    slot.appendChild(meta);
-    partySlots.appendChild(slot);
-  }
+function closePokePanel() {
+  const panel = ui.pokePanel();
+  if (!panel) return;
+  panel.classList.add("hidden");
+  panel.setAttribute("aria-hidden", "true");
 }
 
-function setPartyHudCollapsed(v){
-  _partyCollapsed = !!v;
-  if(!partyHud) return;
-  partyHud.classList.toggle("is-collapsed", _partyCollapsed);
-}
+function openPokePanel(key) {
+  const panel = ui.pokePanel();
+  const title = ui.pokePanelTitle();
+  const body = ui.pokePanelBody();
+  if (!panel || !title || !body) return;
 
-partyCollapseBtn?.addEventListener("click", ()=>{
-  setPartyHudCollapsed(!_partyCollapsed);
-});
-
-// Expose a debug helper (server will replace this later)
-window.__setPartyHud = renderPartyHud;
-
-// Initial layout preview (will be replaced by server party state)
-renderPartyHud([
-  { species: "pikachu", nickname: "Pikachu", level: 5, hp: 20, hpMax: 20 },
-]);
-setPartyHudCollapsed(false);
-
-function closePokePanel(){
-  if(!pokePanel) return;
-  pokePanel.classList.add("hidden");
-  pokePanel.setAttribute("aria-hidden","true");
-}
-function openPokePanel(key){
-  if(!pokePanel || !pokePanelTitle || !pokePanelBody) return;
   const titleMap = {
     bag: "Bag",
     trainer: "Trainer",
@@ -339,502 +296,239 @@ function openPokePanel(key){
     gift: "Gift Shop",
     menu: "Menu",
   };
-  pokePanelTitle.textContent = titleMap[key] || "Menu";
-  pokePanelBody.textContent = "준비중... (아이콘/기능은 나중에 연결)";
-  pokePanel.classList.remove("hidden");
-  pokePanel.setAttribute("aria-hidden","false");
-}
-pokePanelClose?.addEventListener("click", closePokePanel);
-window.addEventListener("keydown", (e)=>{
-  if(e.key === "Escape") closePokePanel();
-});
-pokeHud?.addEventListener("click", (e)=>{
-  const btn = e.target?.closest?.(".pokebtn");
-  if(!btn) return;
-  const pane = btn.getAttribute("data-pane") || "menu";
-  openPokePanel(pane);
-});
 
-function logLine(msg){
-  if(!debugLog) return;
-  const t = `[${new Date().toLocaleTimeString()}] ${String(msg)}`;
-  debugLog.textContent += (debugLog.textContent ? "\n" : "") + t;
-  debugLog.scrollTop = debugLog.scrollHeight;
+  title.textContent = titleMap[key] || "Menu";
+  body.textContent = "준비중... (아이콘/기능은 나중에 연결)";
+  panel.classList.remove("hidden");
+  panel.setAttribute("aria-hidden", "false");
 }
-function setDebugVisible(v){
-  if(!debugPanel) return;
-  debugPanel.classList.toggle("hidden", !v);
+
+function partyIconUrl(species) {
+  const s = String(species || "").trim();
+  if (!s) return "";
+  return `./assets/pokemon/${encodeURIComponent(s)}/icon.png`;
 }
-btnDbgToggle?.addEventListener("click", ()=> setDebugVisible(debugPanel?.classList.contains("hidden")));
-btnDbgHide?.addEventListener("click", ()=> setDebugVisible(false));
-btnDbgClear?.addEventListener("click", ()=> { if(debugLog) debugLog.textContent=""; });
 
-window.addEventListener("keydown",(e)=>{
-  if(e.key==="F2"){
-    e.preventDefault();
-    setDebugVisible(debugPanel?.classList.contains("hidden"));
-  }
-});
-
-
-function showOverworld(){
-  battlePane.classList.add("hidden");
-  overworldPane.classList.remove("hidden");
-  pokeHud?.classList.remove("hidden");
-  partyHud?.classList.remove("hidden");
+function setPartyHudCollapsed(collapsed) {
+  state.partyCollapsed = !!collapsed;
+  const hud = ui.partyHud();
+  if (!hud) return;
+  hud.classList.toggle("collapsed", state.partyCollapsed);
 }
-function showBattle(){
-  if(battleFrame && !_battleLoaded){
-    const want = battleFrame.getAttribute("data-src") || "./battle/battle.html";
-    if(battleFrame.getAttribute("src") !== want){
-      battleFrame.setAttribute("src", want);
+
+function renderPartyHud(party) {
+  const slotsEl = ui.partySlots();
+  if (!slotsEl) return;
+  const list = Array.isArray(party) ? party : [];
+  slotsEl.innerHTML = "";
+
+  for (let i = 0; i < 6; i += 1) {
+    const mon = list[i] || null;
+    const slot = document.createElement("div");
+    slot.className = "party-slot";
+
+    const left = document.createElement("div");
+    left.className = "party-slot-left";
+
+    const iconWrap = document.createElement("div");
+    iconWrap.className = "party-slot-icon";
+    if (mon?.species) {
+      const img = document.createElement("img");
+      img.alt = mon.nickname || mon.species || `Slot ${i + 1}`;
+      img.src = partyIconUrl(mon.species);
+      img.onerror = () => img.remove();
+      iconWrap.appendChild(img);
     }
-    _battleLoaded = true;
+    left.appendChild(iconWrap);
+
+    const info = document.createElement("div");
+    info.className = "party-slot-info";
+
+    const name = document.createElement("div");
+    name.className = "party-slot-name";
+    name.textContent = mon ? `${mon.nickname || mon.species || `Slot ${i + 1}`} Lv.${mon.level ?? "?"}` : `Slot ${i + 1} #${i + 1}`;
+
+    const hpRow = document.createElement("div");
+    hpRow.className = "party-slot-hp";
+    const hpBar = document.createElement("div");
+    hpBar.className = "party-slot-hp-bar";
+    const hpFill = document.createElement("span");
+    const hpNow = Number(mon?.hp ?? 0);
+    const hpMax = Math.max(1, Number(mon?.hpMax ?? 1));
+    hpFill.style.width = `${Math.max(0, Math.min(100, Math.round((hpNow / hpMax) * 100)))}%`;
+    hpBar.appendChild(hpFill);
+    hpRow.appendChild(hpBar);
+
+    info.appendChild(name);
+    info.appendChild(hpRow);
+    left.appendChild(info);
+    slot.appendChild(left);
+    slotsEl.appendChild(slot);
   }
-  overworldPane.classList.add("hidden");
-  battlePane.classList.remove("hidden");
+}
+
+function showOverworld() {
+  ui.battlePane()?.classList.add("hidden");
+  ui.overworldPane()?.classList.remove("hidden");
+  ui.pokeHud()?.classList.remove("hidden");
+  ui.partyHud()?.classList.remove("hidden");
+}
+
+function showBattle() {
+  const frame = ui.battleFrame();
+  if (frame && !state.battleLoaded) {
+    const src = frame.getAttribute("data-src") || "./battle/battle.html";
+    if (frame.getAttribute("src") !== src) frame.setAttribute("src", src);
+    state.battleLoaded = true;
+  }
+  ui.overworldPane()?.classList.add("hidden");
+  ui.battlePane()?.classList.remove("hidden");
   closePokePanel();
-  pokeHud?.classList.add("hidden");
-  partyHud?.classList.add("hidden");
+  ui.pokeHud()?.classList.add("hidden");
+  ui.partyHud()?.classList.add("hidden");
 }
 
-btnOverworld.addEventListener("click", showOverworld);
-btnBattle.addEventListener("click", showBattle);
-
-// API lives at ../api relative to /public/
-const API_BASE = "../api";
-window.__uiModalOpen = false;
-window.__registeredItem = { item_id: 0, const_name: "", name: "", name_ko: "" };
-
-
-
-// =========================
-// GBA Key Mapping (fixed)
-// A_BUTTON  : keyboard 'A'
-// B_BUTTON  : keyboard 'S'
-// START     : keyboard 'Z'
-// SELECT    : keyboard 'X'
-// Movement  : Arrow keys only (WASD disabled to avoid conflicts)
-// =========================
-let _gbaMenuOpen = false;
-let _gbaBagOpen = false;
-let _gbaFocus = "menu"; // "menu" | "bag"
-let _gbaSel = 0;
-let _bagSel = 0;
-let _bagItems = [];
-let _regItemId = 0;
-
-const _menuItems = [
-  { key:"POKEDEX", label:"POKEDEX", icon:"./assets/ui/menu/pokedex.png" },
-  { key:"POKEMON", label:"POKEMON", icon:"./assets/ui/menu/community.png" },
-  { key:"BAG", label:"BAG", icon:"./assets/ui/menu/bag.png" },
-  { key:"TRAINER", label:"TRAINER", icon:"./assets/ui/menu/trainer.png" },
-  { key:"SAVE", label:"SAVE", icon:"./assets/ui/menu/gift.png" },
-  { key:"OPTION", label:"OPTION", icon:"./assets/ui/menu/menu.png" },
-  { key:"EXIT", label:"EXIT", icon:"./assets/ui/menu/menu.png" },
-];
-
-let gbaMenuEl = null;
-let gbaBagEl = null;
-
-function _ensureGbaUi(){
-  if(gbaMenuEl) return;
-  gbaMenuEl = document.createElement("div");
-  gbaMenuEl.className = "gba-startmenu";
-  gbaMenuEl.innerHTML = `
-    <div class="hdr">START MENU</div>
-    <div class="lst"></div>
-    <div class="foot" id="gbaMenuFoot"></div>
-  `;
-  document.body.appendChild(gbaMenuEl);
-
-  gbaBagEl = document.createElement("div");
-  gbaBagEl.className = "gba-bag";
-  gbaBagEl.innerHTML = `
-    <div class="hdr">
-      <div class="title">BAG</div>
-      <div class="reg" id="gbaRegTag">REG: -</div>
-    </div>
-    <div class="lst"></div>
-  `;
-  document.body.appendChild(gbaBagEl);
+function currentMapId() {
+  const sel = ui.mapSelect();
+  const value = String(sel?.value || sel?.options?.[sel.selectedIndex]?.value || "").trim();
+  return value || "PalletTown";
 }
 
-function _setUiModalOpen(v){
-  window.__uiModalOpen = !!v;
-}
-
-function _openGbaMenu(){
-  _ensureGbaUi();
-  _gbaMenuOpen = true;
-  _gbaFocus = "menu";
-  _gbaSel = Math.max(0, Math.min(_menuItems.length-1, _gbaSel|0));
-  gbaMenuEl.classList.add("open");
-  gbaBagEl.classList.remove("open");
-  _gbaBagOpen = false;
-  _setUiModalOpen(true);
-  _renderGbaMenu();
-}
-
-function _closeGbaMenu(){
-  if(!gbaMenuEl) return;
-  _gbaMenuOpen = false;
-  _gbaBagOpen = false;
-  gbaMenuEl.classList.remove("open");
-  gbaBagEl.classList.remove("open");
-  _setUiModalOpen(false);
-}
-
-function _openBag(){
-  _ensureGbaUi();
-  _gbaBagOpen = true;
-  _gbaFocus = "bag";
-  gbaBagEl.classList.add("open");
-  _renderBag();
-}
-
-function _closeBag(){
-  _gbaBagOpen = false;
-  _gbaFocus = "menu";
-  if(gbaBagEl) gbaBagEl.classList.remove("open");
-  _renderGbaMenu();
-}
-
-async function _refreshBagAndReg(){
-  try{
-    const r = await fetch(`${API_BASE}/game/player_items.php?limit=5000`, { credentials:"include", cache:"no-store" });
-    const j = await r.json().catch(()=>null);
-    if(j && j.ok){
-      _bagItems = Array.isArray(j.items) ? j.items : [];
-      _regItemId = +j.reg_item_id || 0;
-      window.__registeredItem = { item_id: _regItemId };
-    }
-  }catch(_e){}
-}
-
-function _renderGbaMenu(){
-  if(!gbaMenuEl) return;
-  const lst = gbaMenuEl.querySelector(".lst");
-  lst.innerHTML = "";
-  for(let i=0;i<_menuItems.length;i++){
-    const it = _menuItems[i];
-    const row = document.createElement("div");
-    row.className = "row" + (i===_gbaSel ? " sel" : "");
-    row.innerHTML = `
-      <div class="ico"><img src="${it.icon}" alt=""></div>
-      <div class="lbl">${it.label}</div>
-    `;
-    lst.appendChild(row);
-  }
-  const foot = gbaMenuEl.querySelector("#gbaMenuFoot");
-  const reg = _bagItems.find(x => (+x.item_id||0) === (_regItemId|0));
-  const regName = reg ? (reg.name_ko || reg.name || reg.const_name || "-") : "-";
-  foot.textContent = `SELECT: use registered item  |  REG: ${regName}`;
-  const tag = gbaBagEl.querySelector("#gbaRegTag");
-  if(tag) tag.textContent = `REG: ${regName}`;
-}
-
-function _renderBag(){
-  if(!gbaBagEl) return;
-  const lst = gbaBagEl.querySelector(".lst");
-  lst.innerHTML = "";
-  const items = Array.isArray(_bagItems) ? _bagItems : [];
-  if(_bagSel >= items.length) _bagSel = Math.max(0, items.length-1);
-  for(let i=0;i<items.length;i++){
-    const it = items[i];
-    const name = it.name_ko || it.name || it.const_name || `ITEM_${it.item_id}`;
-    const row = document.createElement("div");
-    row.className = "row" + (i===_bagSel ? " sel" : "");
-    const reg = (+it.item_id||0) === (_regItemId|0);
-    const regTag = reg ? `<span class="tag">REG</span>` : "";
-    row.innerHTML = `<div class="lbl">${name}</div><div class="qty">x${it.qty||0}</div>${regTag}`;
-    lst.appendChild(row);
-  }
-  _renderGbaMenu();
-}
-
-async function _registerSelectedItem(){
-  const items = Array.isArray(_bagItems) ? _bagItems : [];
-  const it = items[_bagSel];
-  if(!it) return;
-  const itemId = +it.item_id || 0;
-  try{
-    const r = await fetch(`${API_BASE}/game/register_item.php`, {
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      credentials:"include",
-      body: JSON.stringify({ item_id: itemId })
-    });
-    const j = await r.json().catch(()=>null);
-    if(j && j.ok){
-      _regItemId = +j.reg_item_id || 0;
-      window.__registeredItem = { item_id: _regItemId, const_name: j.const_name || "", name: j.name || "", name_ko: j.name_ko || "" };
-      _renderBag();
-    }
-  }catch(_e){}
-}
-
-// UI key handler for overworld to call
-// - When menu is CLOSED: START opens menu, SELECT uses registered item
-// - When menu is OPEN  : A confirms, B cancels/back, START closes
-const __KEYMAP = { A: 'a', B: 's', START: 'z', SELECT: 'x' };
-
-window.__useRegisteredItem = async function(){
-  // keep REG item fresh
-  await _refreshBagAndReg();
-  try{
-    window.dispatchEvent(new CustomEvent('use-registered-item', { detail: window.__registeredItem || {} }));
-  }catch(_e){}
-};
-
-window.__uiHandleKey = function(e){
-  const key = String(e.key || '').toLowerCase();
-  const isA = (key === __KEYMAP.A);
-  const isB = (key === __KEYMAP.B);
-  const isSTART = (key === __KEYMAP.START);
-  const isSELECT = (key === __KEYMAP.SELECT);
-
-  // Menu closed: only START/SELECT are handled here
-  if(!_gbaMenuOpen){
-    if(isSTART){
-      e.preventDefault();
-      window.__openStartMenu?.();
-      return true;
-    }
-    if(isSELECT){
-      e.preventDefault();
-      window.__useRegisteredItem?.();
-      return true;
-    }
-    return false;
-  }
-
-  // Menu open
-  if(isB){
-    e.preventDefault();
-    if(_gbaFocus === 'bag') _closeBag();
-    else _closeGbaMenu();
-    return true;
-  }
-
-  if(isSTART){
-    e.preventDefault();
-    _closeGbaMenu();
-    return true;
-  }
-
-  if(key === 'arrowup' || key === 'arrowdown'){
-    e.preventDefault();
-    const dir = (key === 'arrowup') ? -1 : 1;
-    if(_gbaFocus === 'menu'){
-      _gbaSel = (_gbaSel + dir + _menuItems.length) % _menuItems.length;
-      _renderGbaMenu();
-    }else{
-      const n = Math.max(1, _bagItems.length);
-      _bagSel = (_bagSel + dir + n) % n;
-      _renderBag();
-    }
-    return true;
-  }
-
-  if(isA){
-    e.preventDefault();
-    if(_gbaFocus === 'menu'){
-      const pick = _menuItems[_gbaSel];
-      if(pick && pick.key === 'BAG'){
-        _openBag();
-      }else if(pick && pick.key === 'EXIT'){
-        _closeGbaMenu();
-      }
-      // Others are stubs for now (layout-first)
-    }else{
-      _registerSelectedItem();
-    }
-    return true;
-  }
-
-  return false;
-};
-
-// Overworld will call this to open menu (START)
-window.__openStartMenu = async function(){
-  // refresh items so REG is always correct
-  await _refreshBagAndReg();
-  _openGbaMenu();
-};
-
-
-const ow = new Overworld({
-  canvas: document.getElementById("game"),
-  status: (t)=>{
-    if(String(t).startsWith("서버")) statusEl.textContent = t;
-    else statusEl.textContent = "서버 OK";
-    logLine(t);
-  },
-  apiBase: "../api",
-  playToken: PLAY_TOKEN,
-  fixedZoom: 3.0,
-  lockZoom: true,
-  onMapLabel: (info)=>{
-    // info: {mapId,label,width,height,via}
-    if(!info) return;
-    showMapNameToast(info.label || info.mapId);
-  },
-});
-
-function updateZoomLabel(){
-  // defaultZoom=3.0 => 300% (GBA 느낌 고정)
-  btnZoomReset.textContent = `${Math.round(ow.zoom*100)}%`;
-  btnZoomReset.title = `줌 리셋 (기본 ${Math.round(ow.defaultZoom*100)}%)`;
-}
-updateZoomLabel();
-
-// Zoom is locked by design (avoid accidental scale changes)
-if(ow.lockZoom){
-  [btnZoomIn, btnZoomOut, btnZoomReset].forEach(b=>{ if(!b) return; b.disabled=true; b.style.opacity='0.55'; b.title='줌 고정(300%)'; });
-}
-
-async function loadPretList(){
-  const apiBase = "../api/pret";
-  const listRes = await fetch(`${apiBase}/list.php`, {cache:"no-store"});
-  if(!listRes.ok) throw new Error(`pret list fail: HTTP ${listRes.status}`);
-  const list = await listRes.json();
-  if(!list.ok) throw new Error(`pret list err: ${list.err||"unknown"}`);
-  return list.maps || [];
-}
-
-function fillMapSelect(maps, prefer){
-  mapSelect.innerHTML = "";
-  const ids = [];
-  for(const m of maps){
-    const id = (typeof m === 'string') ? m : m.id;
-    const label = (typeof m === 'string') ? m : (m.label || m.id);
-    const opt = document.createElement("option");
-    opt.value = id;
-    opt.textContent = label;
-    mapSelect.appendChild(opt);
-    ids.push(id);
-  }
-  const first = (prefer && ids.includes(prefer)) ? prefer : (ids[0] || "");
-  mapSelect.value = first;
-  return first;
-}
-
-async function loadPretMap(mapId){
-  pretStatusEl.textContent = `PRET: ${mapId} 생성/로드중...`;
-  pretStatusEl.className = "pretstatus";
-
-  await ow.loadPret(mapId);
+async function loadMap(mapId, opts = {}) {
+  if (!state.ow) throw new Error("오버월드가 아직 초기화되지 않았습니다.");
+  setPretStatus(`로드중... (${mapId})`, false);
+  await state.ow.loadPret(mapId, opts);
+  setPretStatus(`OK (${state.ow.map?.map_id || mapId})`, true);
   updateZoomLabel();
-
-  pretStatusEl.textContent = `PRET: OK (${mapId})`;
-  pretStatusEl.classList.add("ok");
-  pretStatusEl.classList.remove("err");
+  showMapNameToast(state.ow.map?.map_id || mapId);
 }
 
-async function initPret(preferMap="PalletTown"){
-  const maps = await loadPretList();
-  if(!maps.length) throw new Error("pret maps empty");
-  const first = fillMapSelect(maps, preferMap);
+async function boot({ forceReload = false } = {}) {
+  if (state.booting) return;
+  state.booting = true;
+  closeFatalOverlay();
 
-  mapSelect.onchange = async ()=>{
-    try{
-      await loadPretMap(mapSelect.value);
-    }catch(e){
-      console.error("[PRET MAP FAIL]", e);
-      pretStatusEl.textContent = "PRET: 연결 실패 (F12 Console 확인)";
-      pretStatusEl.classList.add("err");
-      showFatalOverlay('fatal', 'PRET 맵 초기화에 실패했습니다.', `${String(eApi?.message || eApi || '')} / ${String(eIdx?.message || eIdx || '')}`);
+  try {
+    const canvas = ensureCanvas();
+    const playToken = sessionStorage.getItem("play_token") || "";
+
+    if (!state.ow || forceReload) {
+      state.ow = new Overworld({
+        canvas,
+        status: setStatus,
+        playToken,
+        apiBase: "../api",
+        fixedZoom: 3.0,
+        lockZoom: true,
+      });
+      window.__ow = state.ow;
     }
-  };
 
-  btnMapReload?.addEventListener("click", async ()=>{
-    try{
-      pretStatusEl.textContent = "PRET: 목록 새로고침...";
-      const cur = mapSelect.value;
-      const maps2 = await loadPretList();
-      const pick = fillMapSelect(maps2, cur);
-      await loadPretMap(pick);
-    }catch(e){
-      console.error("[PRET RELOAD FAIL]", e);
-      pretStatusEl.textContent = "PRET: 새로고침 실패";
-      pretStatusEl.classList.add("err");
-      showFatalOverlay('fatal', 'PRET 목록 새로고침에 실패했습니다.', String(e?.message || e || ''));
+    await loadMap(currentMapId());
+    if (!state.ow._started) state.ow.start();
+    renderPartyHud([
+      { species: "pikachu", nickname: "Pikachu", level: 5, hp: 20, hpMax: 20 },
+    ]);
+    setPartyHudCollapsed(false);
+    setStatus("오버월드 로드 OK");
+  } catch (err) {
+    console.error(err);
+    showFatalOverlay("fatal", "오버월드 로드 실패", err?.message || String(err), formatErrorDetail(err));
+  } finally {
+    state.booting = false;
+  }
+}
+
+function bindUi() {
+  ui.btnFatalRetry()?.addEventListener("click", () => window.location.reload());
+  ui.btnFatalLogin()?.addEventListener("click", () => {
+    try {
+      sessionStorage.removeItem("play_token");
+    } catch (_e) {
+      // ignore
+    }
+    window.location.href = "./login.html";
+  });
+
+  ui.btnDbgToggle()?.addEventListener("click", () => {
+    const panel = ui.debugPanel();
+    setDebugVisible(panel?.classList.contains("hidden"));
+  });
+  ui.btnDbgHide()?.addEventListener("click", () => setDebugVisible(false));
+  ui.btnDbgClear()?.addEventListener("click", () => {
+    const log = ui.debugLog();
+    if (log) log.textContent = "";
+  });
+
+  ui.btnOverworld()?.addEventListener("click", showOverworld);
+  ui.btnBattle()?.addEventListener("click", showBattle);
+  ui.btnMapReload()?.addEventListener("click", async () => {
+    try {
+      await loadMap(currentMapId(), { force: true });
+    } catch (err) {
+      console.error(err);
+      showFatalOverlay("fatal", "맵 다시 불러오기 실패", err?.message || String(err), formatErrorDetail(err));
     }
   });
 
-  await loadPretMap(first);
-}
-
-async function tryLoadFromIndexJsonFallback(){
-  // Fallback: if PHP/GD is not available, try static pret export.
-  const idxUrl = "./pret/index.json";
-  const idxRes = await fetch(idxUrl, {cache:"no-store"});
-  if(!idxRes.ok) throw new Error(`HTTP ${idxRes.status} - ${idxUrl}`);
-  const idx = await idxRes.json();
-  const first = (idx.maps && idx.maps.length) ? idx.maps[0] : null;
-  if(!first) throw new Error("pret/index.json has no maps");
-  pretStatusEl.textContent = `PRET: (정적) ${first} 로드중...`;
-  await ow.load(`./pret/maps/${first}.json`);
-  updateZoomLabel();
-  pretStatusEl.textContent = `PRET: OK (${first})`;
-  pretStatusEl.classList.add("ok");
-  return first;
-}
-
-(async ()=>{
-  let loaded = false;
-
-  // Prefer spawning at the server-side saved position
-  let preferMap = "PalletTown";
-  try {
-    const stRes = await fetch(`${API_BASE}/rt/get.php`, {
-      method: "GET",
-      cache: "no-store",
-      headers: { "Authorization": `Bearer ${PLAY_TOKEN}` }
-    });
-    if (stRes.ok) {
-      const st = await stRes.json();
-      if (st && st.ok && st.state && st.state.map_id) {
-        preferMap = st.state.map_id;
-      }
+  ui.mapSelect()?.addEventListener("change", async (e) => {
+    const mapId = String(e.target?.value || "").trim();
+    if (!mapId) return;
+    try {
+      await loadMap(mapId);
+    } catch (err) {
+      console.error(err);
+      showFatalOverlay("fatal", "맵 이동 실패", err?.message || String(err), formatErrorDetail(err));
     }
-  } catch(e) {}
+  });
 
-  try{
-    // ✅ ALWAYS prefer API so we can include connections/border/collision and correct palette rendering.
-    await initPret(preferMap);
-    loaded = true;
-  }catch(eApi){
-    console.error("[PRET API LOAD FAIL]", eApi);
-    try{
-      await tryLoadFromIndexJsonFallback();
-      loaded = true;
-    }catch(eIdx){
-      console.error("[PRET INDEX LOAD FAIL]", eIdx);
-      pretStatusEl.textContent = "PRET: 연결 실패 (F12 Console 확인)";
-      pretStatusEl.classList.add("err");
-      showFatalOverlay('fatal', 'PRET 맵 초기화에 실패했습니다.', `${String(eApi?.message || eApi || '')} / ${String(eIdx?.message || eIdx || '')}`);
-    }
-  }
-
-  if(!loaded){
-    // Fallback demo map
-    await ow.load("./overworld/maps/overworld_demo.json");
+  ui.btnZoomIn()?.addEventListener("click", () => {
+    if (!state.ow) return;
+    state.ow.setZoom((state.ow.zoom || 3) + (state.ow.zoomStep || 0.5), { user: true });
     updateZoomLabel();
-  }
+  });
+  ui.btnZoomOut()?.addEventListener("click", () => {
+    if (!state.ow) return;
+    state.ow.setZoom((state.ow.zoom || 3) - (state.ow.zoomStep || 0.5), { user: true });
+    updateZoomLabel();
+  });
+  ui.btnZoomReset()?.addEventListener("click", () => {
+    if (!state.ow) return;
+    state.ow.resetZoom();
+    updateZoomLabel();
+  });
 
-  ow.start();
-})();
+  ui.partyCollapse()?.addEventListener("click", () => setPartyHudCollapsed(!state.partyCollapsed));
+  ui.pokePanelClose()?.addEventListener("click", closePokePanel);
+  ui.pokeHud()?.addEventListener("click", (e) => {
+    const btn = e.target?.closest?.(".pokebtn");
+    if (!btn) return;
+    openPokePanel(btn.getAttribute("data-pane") || "menu");
+  });
 
-// Zoom controls: step-based (픽셀아트는 정수/고정 스텝 줌이 깔끔함)
-btnZoomIn.addEventListener("click", ()=>{ ow.setZoom(ow.zoom + ow.zoomStep); updateZoomLabel(); });
-btnZoomOut.addEventListener("click", ()=>{ ow.setZoom(ow.zoom - ow.zoomStep); updateZoomLabel(); });
-btnZoomReset.addEventListener("click", ()=>{ ow.resetZoom(); updateZoomLabel(); });
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closePokePanel();
+    if (e.key === "F2") {
+      e.preventDefault();
+      const panel = ui.debugPanel();
+      setDebugVisible(panel?.classList.contains("hidden"));
+    }
+  });
+}
 
-window.addEventListener("keydown", (e)=>{
-  if (e.key === "b" || e.key === "B") showBattle();
-  if (e.key === "+" || e.key === "=") { ow.setZoom(ow.zoom + ow.zoomStep); updateZoomLabel(); }
-  if (e.key === "-") { ow.setZoom(ow.zoom - ow.zoomStep); updateZoomLabel(); }
-  if (e.key === "0") { ow.resetZoom(); updateZoomLabel(); }
-});
+function init() {
+  bindUi();
+  updateZoomLabel();
+  window.__setPartyHud = renderPartyHud;
+  window.__showMapNameToast = showMapNameToast;
+  boot().catch((err) => {
+    console.error(err);
+    showFatalOverlay("fatal", "부팅 실패", err?.message || String(err), formatErrorDetail(err));
+  });
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", init, { once: true });
+} else {
+  init();
+}
