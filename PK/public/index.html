@@ -30,10 +30,6 @@
       <canvas id="game"></canvas>
       <div id="mapNamePopup" class="mapnamepopup hidden" aria-hidden="true"><span id="mapNamePopupText"></span></div>
 
-      <!-- Party HUD (PokéMMO-style right sidebar)
-           - Layout only (data will be wired to server later)
-           - Kept as pure UI overlay (no gameplay authority)
-      -->
       <div id="partyHud" class="partyhud" aria-label="Party" aria-hidden="false">
         <div class="partyhud-head">
           <b>PARTY</b>
@@ -42,6 +38,7 @@
         </div>
         <div id="partySlots" class="partyhud-slots"></div>
       </div>
+
       <div id="help">
         <div><b>이동</b>: 방향키</div>
         <div><b>줌</b>: 300% 고정</div>
@@ -49,7 +46,6 @@
         <div class="muted">※ ROM 선택 UI 없음(고정 경로). 오버월드 좌표는 DB(player)에 저장 + 서버 이동 검증. / <a href="./pret_debug.html" target="_blank">PRET 디버그</a></div>
       </div>
 
-      <!-- Debug panel (overlay) -->
       <button id="btnDbgToggle" class="debugtoggle" title="디버그 패널 토글 (F2)">DBG</button>
       <div id="debugPanel" class="debugpanel hidden">
         <div class="head">
@@ -71,8 +67,6 @@
     </div>
   </div>
 
-
-  <!-- PokéMMO-style bottom HUD -->
   <div id="pokeHud" class="pokehud" aria-label="Quick menu">
     <button class="pokebtn" data-pane="bag" title="Bag"><span class="ico"><img src="./assets/ui/menu/bag.png" alt=""></span><span class="lbl">Bag</span></button>
     <button class="pokebtn" data-pane="trainer" title="Trainer"><span class="ico"><img src="./assets/ui/menu/trainer.png" alt=""></span><span class="lbl">Trainer</span></button>
@@ -82,22 +76,6 @@
     <button class="pokebtn" data-pane="trade" title="Trade"><span class="ico"><img src="./assets/ui/menu/trade.png" alt=""></span><span class="lbl">Trade</span></button>
     <button class="pokebtn" data-pane="gift" title="Gift Shop"><span class="ico"><img src="./assets/ui/menu/gift.png" alt=""></span><span class="lbl">Gift Shop</span></button>
     <button class="pokebtn" data-pane="menu" title="Menu"><span class="ico"><img src="./assets/ui/menu/menu.png" alt=""></span><span class="lbl">Menu</span></button>
-  </div>
-
-  <div id="fatalOverlay" class="fatal-overlay hidden" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="fatal-card">
-      <div class="fatal-head">
-        <b id="fatalTitle">오류</b>
-      </div>
-      <div class="fatal-body">
-        <div id="fatalMessage" class="fatal-message">오류가 발생했습니다.</div>
-        <div id="fatalDetail" class="fatal-detail"></div>
-      </div>
-      <div class="fatal-actions">
-        <button id="btnFatalRetry">새로고침</button>
-        <button id="btnFatalLogin">로그인으로</button>
-      </div>
-    </div>
   </div>
 
   <div id="pokePanel" class="pokepanel hidden" role="dialog" aria-modal="false" aria-hidden="true">
@@ -111,6 +89,7 @@
     </div>
   </div>
 
+  <script src="./fatal-debug.js?v=r47"></script>
   <script type="module" src="./app.js?v=20260213_overworld_sync_v1"></script>
 </body>
 </html>
