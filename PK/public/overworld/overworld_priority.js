@@ -58,6 +58,6 @@ export function getActorPriorityState({
     footY,
     sortRow: footY,
     grassCover: inGrass ? { x: footX, y: footY } : null,
-    southOccluder: (!inGrass && hasFrontOccluder) ? { x: footX, y: footY + 1 } : null,
+    southOccluder: (!inGrass && hasFrontOccluder) ? { x: footX, y: footY } : null,
   };
 }
