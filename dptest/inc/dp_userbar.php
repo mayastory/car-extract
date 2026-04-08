@@ -16,6 +16,149 @@ function dp_userbar_assets_once(): void {
     echo '<script defer src="' . h(dp_url('assets/dp_userbar.js')) . '?v=' . $v . '"></script>';
 }
 
+if (!function_exists('dp_userbar_status_table_exists')) {
+    function dp_userbar_status_table_exists(PDO $pdo, string $tableName): bool
+    {
+        static $cache = [];
+        $key = spl_object_hash($pdo) . '|' . $tableName;
+        if (array_key_exists($key, $cache)) {
+            return $cache[$key];
+        }
+
+        try {
+            $st = $pdo->prepare(
+                'SELECT 1
+                   FROM information_schema.tables
+                  WHERE table_schema = DATABASE()
+                    AND table_name = :table
+                  LIMIT 1'
+            );
+            $st->execute([':table' => $tableName]);
+            $cache[$key] = (bool)$st->fetchColumn();
+        } catch (Throwable $e) {
+            $cache[$key] = false;
+        }
+
+        return $cache[$key];
+    }
+}
+
+if (!function_exists('dp_userbar_fetch_uploader_items')) {
+    /**
+     * Read-only uploader status chips for the top userbar.
+     *
+     * Expected DB table (graceful no-op when missing):
+     * - module
+     * - status
+     * - pid
+     * - host_name
+     * - last_seen
+     * - current_file
+     * - last_message
+     * - updated_at
+     */
+    function dp_userbar_fetch_uploader_items(array $modules = ['OQC', 'IPQC', 'SHIP'], int $staleAfterSec = 45): array
+    {
+        $modules = array_values(array_unique(array_filter(array_map(static function ($v): string {
+            return strtoupper(trim((string)$v));
+        }, $modules), static function ($v): bool {
+            return $v !== '';
+        })));
+
+        if (!$modules) {
+            return [];
+        }
+
+        try {
+            $pdo = dp_get_pdo();
+            if (!($pdo instanceof PDO)) {
+                return [];
+            }
+            if (!dp_userbar_status_table_exists($pdo, 'uploader_status')) {
+                return [];
+            }
+
+            $placeholders = implode(',', array_fill(0, count($modules), '?'));
+            $sql = "SELECT module, status, pid, host_name, last_seen, current_file, last_message, updated_at
+                      FROM uploader_status
+                     WHERE UPPER(module) IN ($placeholders)";
+            $st = $pdo->prepare($sql);
+            $st->execute($modules);
+            $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        } catch (Throwable $e) {
+            return [];
+        }
+
+        if (!$rows) {
+            return [];
+        }
+
+        $byModule = [];
+        foreach ($rows as $row) {
+            $mod = strtoupper(trim((string)($row['module'] ?? '')));
+            if ($mod !== '') {
+                $byModule[$mod] = $row;
+            }
+        }
+
+        $now = time();
+        $items = [];
+
+        foreach ($modules as $mod) {
+            if (!isset($byModule[$mod])) {
+                continue;
+            }
+
+            $row = $byModule[$mod];
+            $statusRaw = strtoupper(trim((string)($row['status'] ?? '')));
+            $lastSeenRaw = trim((string)($row['last_seen'] ?? $row['updated_at'] ?? ''));
+            $lastSeenTs = $lastSeenRaw !== '' ? strtotime($lastSeenRaw) : false;
+            $isStale = !$lastSeenTs || (($now - $lastSeenTs) > max(5, $staleAfterSec));
+
+            $tone = 'off';
+            $text = 'OFF';
+
+            if (in_array($statusRaw, ['ERROR', 'ERR', 'FAIL', 'FAILED'], true)) {
+                $tone = 'error';
+                $text = 'ERR';
+            } elseif (!$isStale && in_array($statusRaw, ['RUNNING', 'RUN', 'IDLE', 'WATCH', 'WATCHING', 'ACTIVE', 'OK'], true)) {
+                $tone = 'on';
+                $text = 'ON';
+            }
+
+            $titleParts = [];
+            $titleParts[] = $mod . ' · ' . $text;
+            if ($statusRaw !== '') {
+                $titleParts[] = 'Status: ' . $statusRaw;
+            }
+            if ($lastSeenRaw !== '') {
+                $titleParts[] = 'Last seen: ' . $lastSeenRaw;
+            }
+            if (!empty($row['pid'])) {
+                $titleParts[] = 'PID: ' . (string)$row['pid'];
+            }
+            if (!empty($row['host_name'])) {
+                $titleParts[] = 'Host: ' . (string)$row['host_name'];
+            }
+            if (!empty($row['current_file'])) {
+                $titleParts[] = 'File: ' . (string)$row['current_file'];
+            }
+            if (!empty($row['last_message'])) {
+                $titleParts[] = 'Log: ' . (string)$row['last_message'];
+            }
+
+            $items[] = [
+                'module' => $mod,
+                'tone' => $tone,
+                'text' => $text,
+                'title' => implode("\n", $titleParts),
+            ];
+        }
+
+        return $items;
+    }
+}
+
 function dp_render_userbar(array $opt = []): string
 {
     $title        = (string)($opt['title'] ?? '');
@@ -65,6 +208,11 @@ function dp_render_userbar(array $opt = []): string
     $logoutAct = dp_url($logoutAction);
     $iframeUrl = dp_url($iframeSrc);
 
+    $showUploaderStatus = (bool)($opt['show_uploader_status'] ?? $isAdmin);
+    $uploaderModules = $opt['uploader_modules'] ?? ['OQC', 'IPQC', 'SHIP'];
+    $uploaderStaleAfter = (int)($opt['uploader_stale_after_sec'] ?? 45);
+    $uploaderItems = $showUploaderStatus ? dp_userbar_fetch_uploader_items((array)$uploaderModules, $uploaderStaleAfter) : [];
+
     ob_start(); ?>
 <?php dp_userbar_assets_once(); ?>
 <div class="dp-ub">
@@ -75,6 +223,20 @@ function dp_render_userbar(array $opt = []): string
   </div>
 
   <div class="dp-ub-right">
+    <?php if ($uploaderItems): ?>
+      <div class="dp-ub-statuses" aria-label="Uploader status">
+        <?php foreach ($uploaderItems as $item): ?>
+          <div class="dp-ub-status-item is-<?php echo h($item['tone']); ?>" title="<?php echo h($item['title']); ?>">
+            <span class="dp-ub-status-name"><?php echo h($item['module']); ?></span>
+            <span class="dp-ub-status-toggle" aria-hidden="true">
+              <span class="dp-ub-status-text"><?php echo h($item['text']); ?></span>
+              <span class="dp-ub-status-knob"></span>
+            </span>
+          </div>
+        <?php endforeach; ?>
+      </div>
+    <?php endif; ?>
+
     <div class="dp-ub-user">로그인 : <?php echo $userIdentityHtml; ?> 님</div>
 
     <?php if ($isAdmin && $adminMode !== 'none'): ?>
