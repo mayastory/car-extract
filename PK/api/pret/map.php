@@ -47,7 +47,7 @@ try {
   
   // bump to force tileset regen when generator changes
   // Cache-buster for generated PNG/JSON. Bump when renderer logic changes.
-  $GEN_VER = 'r19_split_upper_cover';
+  $GEN_VER = 'r20_priority_split';
 $mapId = safe_id($_GET['map'] ?? '');
   if ($mapId==='') jexit(['ok'=>0,'err'=>'NO_MAP'], 400);
 
@@ -483,6 +483,7 @@ foreach($collisions as $c){ $collisionOut[] = ($c ? 1 : 0); }
   // - grass_cover: this tile should only apply the local lower-body grass cover, not the
   //   south/front occluder path.
   $frontCoverOut = [];
+  $frontOccluderOut = [];
   $grassCoverOut = [];
   try {
     $pMetaBin3 = @file_get_contents($pDir . '/metatiles.bin');
@@ -496,9 +497,16 @@ foreach($collisions as $c){ $collisionOut[] = ($c ? 1 : 0); }
       $local = $isSecMeta ? ($mtId - $pMetaCount3) : $mtId;
       $metaBin3 = $isSecMeta ? $sMetaBin3 : $pMetaBin3;
 
+      $hasUpperTop = false;
       $hasUpperBottom = false;
       if ($metaBin3 !== false && $local >= 0) {
         $entries3 = metatile_entries($metaBin3, $local);
+        for ($q = 4; $q < 6; $q++) {
+          if ((((int)$entries3[$q]) & 0x03FF) !== 0) {
+            $hasUpperTop = true;
+            break;
+          }
+        }
         for ($q = 6; $q < 8; $q++) {
           if ((((int)$entries3[$q]) & 0x03FF) !== 0) {
             $hasUpperBottom = true;
@@ -506,13 +514,22 @@ foreach($collisions as $c){ $collisionOut[] = ($c ? 1 : 0); }
           }
         }
       }
-      $frontCoverOut[] = $hasUpperBottom ? 1 : 0;
+      $frontCoverOut[] = ($hasUpperBottom && !$hasUpperTop) ? 1 : 0;
 
       $b = (int)($behaviorOut[$i] ?? 0);
       $grassCoverOut[] = (($b === 0x02) || ($b === 0xD1) || ($b === 0x49) || ($b === 0x4A) || ($b === 0x48)) ? 1 : 0;
     }
+    $frontOccluderOut = array_fill(0, count($tiles), 0);
+    for ($y = 0; $y < $height; $y++) {
+      for ($x = 0; $x < $width; $x++) {
+        $i = $y * $width + $x;
+        $srcY = $y + 1;
+        $frontOccluderOut[$i] = ($srcY < $height && !empty($frontCoverOut[$srcY * $width + $x])) ? 1 : 0;
+      }
+    }
   } catch (Throwable $e) {
     $frontCoverOut = array_fill(0, count($tiles), 0);
+    $frontOccluderOut = array_fill(0, count($tiles), 0);
     $grassCoverOut = array_fill(0, count($tiles), 0);
   }
 
@@ -646,6 +663,7 @@ $out = [
   'collision' => $collisionOut,
   'behavior' => $behaviorOut,
   'front_cover' => $frontCoverOut,
+  'front_occluder' => $frontOccluderOut,
   'grass_cover' => $grassCoverOut,
   'border' => $borderOut,
   'connections' => $connectionsOut,

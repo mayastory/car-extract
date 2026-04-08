@@ -1,3 +1,4 @@
+import { getActorPriorityState, getFrontCoverAt as getOwFrontCoverAt, getGrassCoverAt as getOwGrassCoverAt, isTallGrassBehavior as isOwTallGrassBehavior } from "./overworld_priority.js";
 export class Overworld{
   constructor({canvas,status,playToken=null,apiBase="/api", fixedZoom=2.0, lockZoom=true}){
     this.canvas=canvas; this.ctx=canvas.getContext("2d");
@@ -716,7 +717,7 @@ export class Overworld{
   }
 
   _pretRequiredGenVer(){
-    return "r19_split_upper_cover";
+    return "r20_priority_split";
   }
 
   _pretMapNeedsRefresh(mapObj){
@@ -993,38 +994,26 @@ export class Overworld{
   }
 
   _isTallGrassBehavior(b) {
-    return b === 2 || b === 0x4A || b === 0x49 || b === 0x48;
+    return isOwTallGrassBehavior(b);
   }
 
   _frontCoverAt(x, y) {
-    const W = this.map?.width|0, H = this.map?.height|0;
-    const arr = this.map?.front_cover;
-    if (!Array.isArray(arr) || arr.length !== W*H) return null;
-    if (x<0 || y<0 || x>=W || y>=H) return 0;
-    return arr[y*W+x] ? 1 : 0;
+    return getOwFrontCoverAt(this.map, x, y);
   }
 
   _grassCoverAt(x, y) {
-    const W = this.map?.width|0, H = this.map?.height|0;
-    const arr = this.map?.grass_cover;
-    if (Array.isArray(arr) && arr.length === W*H) {
-      if (x<0 || y<0 || x>=W || y>=H) return 0;
-      return arr[y*W+x] ? 1 : 0;
-    }
-    return this._isTallGrassBehavior(this._behaviorAt(x, y)) ? 1 : 0;
+    return getOwGrassCoverAt(this.map, x, y, (tx, ty) => this._behaviorAt(tx, ty));
   }
 
-  _playerFootTile() {
-    // Keep the foot tile anchored to the tile the player is currently standing on.
-    // Using Math.round() flips to the next tile too early while moving vertically,
-    // which makes grass cover jump up into the head area and causes row-priority
-    // jitter near roofs/trees.
-    const rx = this._playerRenderX();
-    const ry = this._playerRenderY();
-    return {
-      x: Math.floor(rx + 0.0001),
-      y: Math.floor(ry + 0.0001),
-    };
+  _playerPriorityState() {
+    return getActorPriorityState({
+      map: this.map,
+      renderX: this._playerRenderX(),
+      renderY: this._playerRenderY(),
+      dir: this.player?.dir ?? 0,
+      moving: !!this.player?.moving,
+      behaviorAt: (tx, ty) => this._behaviorAt(tx, ty),
+    });
   }
 
   _ensureFxTallGrass() {
@@ -2162,6 +2151,11 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
     return this.player.py + Math.sign(dy) * off;
   }
 
+  _playerFootTile(){
+    const pr = this._playerPriorityState();
+    return { x: pr.footX|0, y: pr.footY|0 };
+  }
+
   _draw(){
     const rect=this.canvas.getBoundingClientRect();
     if(!rect.width || !rect.height) return;
@@ -2261,11 +2255,7 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
       const tileId = base.tile|0;
       const upper = this._tileUpperInfoAt(tx, ty);
       const frontMeta = this._frontCoverAt(tx, ty);
-      const blocked = this._isBlockedTile(tileId, tx, ty);
-      const hasUpper = !!(upper && upper.img);
-
-      // Prefer exporter-backed Packege metadata. Legacy caches may not have it yet.
-      const shouldCover = (frontMeta !== null) ? !!frontMeta : (!!blocked || !!hasUpper);
+      const shouldCover = (frontMeta !== null) ? !!frontMeta : false;
       if(!shouldCover) return;
 
       const dx = tx * ts;
@@ -2465,10 +2455,15 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
         const p = this._mobPos(m);
         const mx = +p.x;
         const my = +p.y;
-        const tx = Math.floor(mx);
-        const ty = Math.floor(my);
-        const mobTallGrass = !!this._grassCoverAt(tx, ty);
-        queueRowDraw(ty, mx, ()=>drawMob(m), mobTallGrass ? {x:tx, y:ty} : null, mobTallGrass ? null : {x:tx, y:ty+1});
+        const pr = getActorPriorityState({
+          map: this.map,
+          renderX: mx,
+          renderY: my,
+          dir: p.dir|0,
+          moving: !!p.moving,
+          behaviorAt: (tx, ty) => this._behaviorAt(tx, ty),
+        });
+        queueRowDraw(pr.sortRow, mx, ()=>drawMob(m), pr.grassCover, pr.southOccluder);
       }
     }
 
@@ -2476,13 +2471,19 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
     for(const n of npcs){
       if(!n) continue;
       const nx=n.x|0, ny=n.y|0;
-      const npcTallGrass = !!this._grassCoverAt(nx, ny);
-      queueRowDraw(ny, nx, ()=>drawNpc(n), npcTallGrass ? {x:nx, y:ny} : null, npcTallGrass ? null : {x:nx, y:ny+1});
+      const pr = getActorPriorityState({
+        map: this.map,
+        renderX: nx,
+        renderY: ny,
+        dir: (n.dir|0),
+        moving: !!(n.moving || n.walking || n.animating),
+        behaviorAt: (tx, ty) => this._behaviorAt(tx, ty),
+      });
+      queueRowDraw(pr.sortRow, nx, ()=>drawNpc(n), pr.grassCover, pr.southOccluder);
     }
 
-    const pFoot = this._playerFootTile();
-    const playerTallGrass = !!this._grassCoverAt(pFoot.x, pFoot.y);
-    queueRowDraw(pFoot.y, this._playerRenderX(), ()=>drawPlayer(), playerTallGrass ? {x:pFoot.x, y:pFoot.y} : null, playerTallGrass ? null : {x:pFoot.x, y:pFoot.y+1});
+    const pPriority = this._playerPriorityState();
+    queueRowDraw(pPriority.sortRow, this._playerRenderX(), ()=>drawPlayer(), pPriority.grassCover, pPriority.southOccluder);
 
     for(let ty=y0; ty<=y1; ty++){
       const bucket = rowBuckets.get(ty);
