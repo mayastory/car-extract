@@ -9,26 +9,33 @@ require_once __DIR__ . '/../lib/flag_runtime.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') json_out(['ok'=>true]);
 
-$payload = auth_require_player();
-$player_id = (int)($payload['player_id'] ?? 0);
-$account_id = (int)($payload['account_id'] ?? 0);
-if ($player_id <= 0 || $account_id <= 0) json_out(['ok'=>false,'error'=>'BAD_AUTH'], 401);
-
 $mapOverride = isset($_GET['map']) ? trim((string)$_GET['map']) : '';
-$debug = isset($_GET['debug']) ? ((int)$_GET['debug'] === 1) : false;
+$debug = isset($_GET['debug']) ? ((int)($_GET['debug'] ?? 0) === 1) : false;
 
 $conn = db();
-
-// current player state (map)
+$player_id = 0;
+$account_id = 0;
 $map_id = '';
-$stmt = $conn->prepare('SELECT map_id FROM player WHERE player_id=? AND account_id=? LIMIT 1');
-if ($stmt) {
-  $stmt->bind_param('ii', $player_id, $account_id);
-  $stmt->execute();
-  $res = $stmt->get_result();
-  $row = $res ? $res->fetch_assoc() : null;
-  $stmt->close();
-  if ($row) $map_id = (string)($row['map_id'] ?? '');
+$authBypass = false;
+
+$token = auth_get_bearer_token();
+$payload = ($token !== '') ? verify_token($token) : null;
+if (is_array($payload) && (string)($payload['t'] ?? '') === 'play') {
+  $player_id = (int)($payload['player_id'] ?? 0);
+  $account_id = (int)($payload['account_id'] ?? 0);
+}
+if ($player_id > 0 && $account_id > 0) {
+  $stmt = $conn->prepare('SELECT map_id FROM player WHERE player_id=? AND account_id=? LIMIT 1');
+  if ($stmt) {
+    $stmt->bind_param('ii', $player_id, $account_id);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $row = $res ? $res->fetch_assoc() : null;
+    $stmt->close();
+    if ($row) $map_id = (string)($row['map_id'] ?? '');
+  }
+} else {
+  $authBypass = true;
 }
 if ($mapOverride !== '') $map_id = $mapOverride;
 if ($map_id === '') $map_id = 'PalletTown';
@@ -43,7 +50,7 @@ foreach ($placements as $p) {
   if ($kind === '') continue;
 
   $flag = (string)($p['flag'] ?? '');
-  if ($flag !== '' && player_flag_has($conn, $player_id, $flag)) {
+  if ($player_id > 0 && $flag !== '' && player_flag_has($conn, $player_id, $flag)) {
     continue; // already picked / resolved
   }
 
@@ -71,4 +78,5 @@ json_out([
   'map_id' => $map_id,
   'items' => $items,
   'debug' => $debug,
+  'auth_bypass' => $authBypass,
 ]);
