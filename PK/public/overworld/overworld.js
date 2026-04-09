@@ -1353,7 +1353,8 @@ export class Overworld{
 
     this._resetMapTransientState({
       clearNeighbors:true,
-      preserveMapLoadInFlight:true}
+      preserveMapLoadInFlight:true,
+      preserveServerStateReq: !!txn?.preserveServerStateReq}
     );
 
     if(!this._isMapLoadTxnCurrent(txn)) return false;
@@ -1568,7 +1569,9 @@ export class Overworld{
     }
   ){
     
-    const txn = this._beginMapLoadTxn(mapId);
+    const txn = this._beginMapLoadTxn(mapId, {
+      preserveServerStateReq: !!(opts && opts.preserveServerStateReq)}
+    );
     let loaded=false;
     let txnStillCurrent=false;
     try{
@@ -1789,7 +1792,8 @@ export class Overworld{
         
         try{
            const loaded = await this.loadPret(st.map_id, {
-             mapChangeReason:"server-sync"}
+             mapChangeReason:"server-sync",
+             preserveServerStateReq:true}
            );
            if(loaded === false) return;
            }
@@ -1879,7 +1883,8 @@ export class Overworld{
             
             try{
                const loaded = await this.loadPret(st.map_id, {
-                 mapChangeReason:"server-init"}
+                 mapChangeReason:"server-init",
+                 preserveServerStateReq:true}
                );
                if(loaded === false) return;
                if(!this._isServerStateReqCurrent(serverReq)) return;
@@ -2048,17 +2053,18 @@ export class Overworld{
     if(this._neighborPromises && this._neighborPromises.clear) this._neighborPromises.clear();
   }
 
-  _beginMapLoadTxn(targetMapId=null){
+  _beginMapLoadTxn(targetMapId=null, { preserveServerStateReq=false }={}){
     this._activeMapLoadTxn = (((this._mapLoadTxnSeq|0) + 1) >>> 0);
     this._mapLoadTxnSeq = this._activeMapLoadTxn;
     this._mapLoadInFlight = true;
     this._abortSyncLoop();
-    this._abortServerStateRequests();
+    if(!preserveServerStateReq) this._abortServerStateRequests();
     this._abortNeighborPrefetches();
     this._nextMapAsyncRev();
     return {
       seq:(this._activeMapLoadTxn|0),
       targetMapId:(targetMapId == null ? null : String(targetMapId)),
+      preserveServerStateReq: !!preserveServerStateReq,
     };
   }
 
@@ -2087,9 +2093,9 @@ export class Overworld{
     return true;
   }
 
-  _resetMapTransientState({clearNeighbors=false, preserveMapLoadInFlight=false}={}){
+  _resetMapTransientState({clearNeighbors=false, preserveMapLoadInFlight=false, preserveServerStateReq=false}={}){
     this._nextMapAsyncRev();
-    this._abortServerStateRequests();
+    if(!preserveServerStateReq) this._abortServerStateRequests();
     this._edgePending = null;
     this._warpPending = false;
     this._queuedDir = null;

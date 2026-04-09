@@ -1825,69 +1825,58 @@ window.FRLG = window.FRLG || {};
     drawUiGlyph(ctx, glyph, x + 2, y, 16, 24);
   }
 
-  function getOakSpeechBackdropBands(img) {
+  const PACKEDGE_COLORKEY_CACHE = new WeakMap();
+
+  function getColorKeyCanvas(img) {
     if (!img || !img.complete || !img.naturalWidth || !img.naturalHeight) return null;
-    const tileW = Math.max(1, Math.floor(img.naturalWidth / 2));
-    const tileH = 8;
-    const order = [
-      [0, 0],
-      [1, 1],
-      [0, 1],
-      [0, 2],
-      [1, 2],
-      [0, 3],
-      [1, 3],
-      [0, 4]
-    ];
+    if (PACKEDGE_COLORKEY_CACHE.has(img)) {
+      return PACKEDGE_COLORKEY_CACHE.get(img);
+    }
 
-    const probe = document.createElement('canvas');
-    probe.width = img.naturalWidth;
-    probe.height = img.naturalHeight;
-    const pctx = probe.getContext('2d', { willReadFrequently: true });
-    pctx.imageSmoothingEnabled = false;
-    pctx.drawImage(img, 0, 0);
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const cctx = canvas.getContext('2d', { willReadFrequently: true });
+    cctx.imageSmoothingEnabled = false;
+    cctx.drawImage(img, 0, 0);
 
-    const colorAt = (px, py) => {
-      const data = pctx.getImageData(px, py, 1, 1).data;
-      return `rgb(${data[0]}, ${data[1]}, ${data[2]})`;
-    };
+    try {
+      const imageData = cctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      const keyR = data[0];
+      const keyG = data[1];
+      const keyB = data[2];
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i] === keyR && data[i + 1] === keyG && data[i + 2] === keyB) {
+          data[i + 3] = 0;
+        }
+      }
+      cctx.putImageData(imageData, 0, 0);
+    } catch (err) {
+      PACKEDGE_COLORKEY_CACHE.set(img, img);
+      return img;
+    }
 
-    return order
-      .map(([tx, ty]) => {
-        const sx = tx * tileW;
-        const sy = ty * tileH;
-        return {
-          top: colorAt(Math.min(img.naturalWidth - 1, sx + Math.floor(tileW / 2)), Math.min(img.naturalHeight - 1, sy + 1)),
-          bottom: colorAt(Math.min(img.naturalWidth - 1, sx + Math.floor(tileW / 2)), Math.min(img.naturalHeight - 1, sy + tileH - 2))
-        };
-      })
-      .filter(Boolean);
+    PACKEDGE_COLORKEY_CACHE.set(img, canvas);
+    return canvas;
   }
 
   function drawOakSpeechBackdrop(ctx) {
     const bg = PACKEGE_OAK_SPEECH_ASSETS.bg;
     const contentHeight = 210;
-    const bandHeight = 16;
 
-    if (bg && bg.complete && bg.naturalWidth) {
-      const bands = getOakSpeechBackdropBands(bg);
-      if (bands && bands.length) {
-        let y = 0;
-        while (y < contentHeight) {
-          for (let i = 0; i < bands.length && y < contentHeight; i += 1) {
-            const band = bands[i];
-            const topH = Math.min(8, contentHeight - y);
-            ctx.fillStyle = band.top;
-            ctx.fillRect(0, y, 480, topH);
-            if (y + topH < contentHeight) {
-              const bottomH = Math.min(8, contentHeight - (y + topH));
-              ctx.fillStyle = band.bottom;
-              ctx.fillRect(0, y + topH, 480, bottomH);
-            }
-            y += bandHeight;
-          }
+    if (bg && bg.complete && bg.naturalWidth && bg.naturalHeight) {
+      const scale = 2;
+      const tileW = bg.naturalWidth * scale;
+      const tileH = bg.naturalHeight * scale;
+      ctx.save();
+      ctx.imageSmoothingEnabled = false;
+      for (let y = 0; y < contentHeight; y += tileH) {
+        for (let x = 0; x < 480; x += tileW) {
+          ctx.drawImage(bg, 0, 0, bg.naturalWidth, bg.naturalHeight, x, y, tileW, tileH);
         }
       }
+      ctx.restore();
     } else {
       const gradient = ctx.createLinearGradient(0, 0, 0, 246);
       gradient.addColorStop(0, '#edf5fa');
@@ -1905,13 +1894,14 @@ window.FRLG = window.FRLG || {};
     const x = Math.round(cx - width / 2);
     const y = Math.round(baseY - height / 2);
     if (img && img.complete && img.naturalWidth) {
+      const source = getColorKeyCanvas(img) || img;
       const srcX = 0;
       const srcY = Math.min(32, Math.max(0, img.naturalHeight - 64));
       const srcW = img.naturalWidth;
       const srcH = 24;
       ctx.save();
       ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(img, srcX, srcY, srcW, srcH, x, y, width, height);
+      ctx.drawImage(source, srcX, srcY, srcW, srcH, x, y, width, height);
       ctx.restore();
       return;
     }
@@ -1925,12 +1915,13 @@ window.FRLG = window.FRLG || {};
 
   function drawOakSpeechCharacter(ctx, img, cx, footY, scale = 2, alpha = 1) {
     if (!img || !img.complete || !img.naturalWidth) return false;
+    const source = getColorKeyCanvas(img) || img;
     const w = Math.round(img.naturalWidth * scale);
     const h = Math.round(img.naturalHeight * scale);
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(img, Math.round(cx - w / 2), Math.round(footY - h), w, h);
+    ctx.drawImage(source, Math.round(cx - w / 2), Math.round(footY - h), w, h);
     ctx.restore();
     return true;
   }
