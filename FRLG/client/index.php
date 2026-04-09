@@ -46,7 +46,7 @@
           <li>타이틀 / New Game / Continue(local) 흐름 유지</li>
           <li>오박사 대사 / 성별 / 이름 / 라이벌 이름 흐름 유지</li>
           <li>이름 입력은 browser input 박스 대신 Packege naming_screen 스타일 문자판 skeleton으로 교체</li>
-          <li>필드에서 ESC / X 로 여는 게임 내 메뉴 skeleton 추가</li>
+          <li>필드에서 ESC / X 로 여는 게임 내 메뉴 skeleton 추가 (창/커서 UI 보강)</li>
           <li>최종 도착점은 PlayersHouse 2F 시작 후 1F / PalletTown / RivalHouse / OaksLab 이동 가능</li>
           <li>starter / rival starter / first battle 완료 상태가 local continue에도 저장됨</li>
         </ul>

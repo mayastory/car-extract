@@ -1008,46 +1008,62 @@ window.FRLG = window.FRLG || {};
       this.drawField();
       const ctx = this.ctx;
       ctx.save();
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.14)';
       ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
       ctx.restore();
 
       const items = this.getFieldMenuItems();
-      const panelX = 328;
-      const panelY = 36;
-      const itemH = 24;
-      const panelH = 16 + items.length * itemH + 16;
-      drawWindow(ctx, panelX, panelY, 124, panelH, false, '#f8fff8', '#2f5676');
+      const selected = items[this.fieldMenuIndex];
+      const starterLabel = this.progress && this.progress.starter ? this.getStarterLabel(this.progress.starter) : '없음';
+      const cursorPulse = Math.sin(performance.now() / 160) * 2;
+
+      const infoX = 28;
+      const infoY = 28;
+      drawWindow(ctx, infoX, infoY, 186, 94, false, '#f8fff8', '#2f5676');
+      ctx.fillStyle = '#d7edf9';
+      ctx.fillRect(infoX + 6, infoY + 6, 174, 18);
+      ctx.fillStyle = '#1c3850';
+      ctx.font = 'bold 12px Arial';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(this.profile.playerName || 'PLAYER', infoX + 14, infoY + 16);
+      ctx.font = '12px Arial';
+      ctx.fillStyle = '#284156';
+      ctx.fillText(`MAP  ${this.world.mapId}`, infoX + 14, infoY + 40);
+      ctx.fillText(`POS  ${this.world.x}, ${this.world.y}`, infoX + 14, infoY + 58);
+      ctx.fillText(`STARTER  ${starterLabel}`, infoX + 14, infoY + 76);
+
+      const panelX = 324;
+      const panelY = 24;
+      const itemH = 20;
+      const panelH = 26 + items.length * itemH + 12;
+      drawWindow(ctx, panelX, panelY, 128, panelH, false, '#f8fff8', '#2f5676');
+      ctx.fillStyle = '#d7edf9';
+      ctx.fillRect(panelX + 6, panelY + 6, 116, 16);
+      ctx.fillStyle = '#1c3850';
+      ctx.font = 'bold 12px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('MENU', panelX + 64, panelY + 18);
+
       items.forEach((item, idx) => {
-        const y = panelY + 20 + idx * itemH;
+        const baseY = panelY + 38 + idx * itemH;
         const active = idx === this.fieldMenuIndex;
         if (active) {
-          ctx.fillStyle = '#4d7ea5';
-          ctx.fillRect(panelX + 8, y - 14, 108, 20);
+          ctx.fillStyle = '#dcebf6';
+          ctx.fillRect(panelX + 18, baseY - 12, 98, 16);
+          drawMenuArrow(ctx, panelX + 12 + cursorPulse, baseY - 4, '#29455b');
         }
         ctx.font = '13px Arial';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = active ? '#ffffff' : '#21384d';
-        ctx.fillText(item.label, panelX + 16, y - 3);
+        ctx.fillStyle = active ? '#12293c' : '#21384d';
+        ctx.fillText(item.label, panelX + 28, baseY - 3);
       });
 
-      drawWindow(ctx, 28, 34, 184, 78, false, '#f8fff8', '#2f5676');
-      const selected = items[this.fieldMenuIndex];
-      const starterLabel = this.progress && this.progress.starter ? this.getStarterLabel(this.progress.starter) : '없음';
-      const lines = [
-        `${this.profile.playerName || 'PLAYER'} / ${this.world.mapId}`,
-        `스타터 ${starterLabel}`,
-        selected ? `${selected.label} 선택` : '메뉴'
-      ];
-      ctx.font = '12px Arial';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#1f3344';
-      lines.forEach((line, idx) => ctx.fillText(line, 40, 56 + idx * 18));
-
       drawWindow(ctx, 24, 246, 432, 60, false, '#102030', '#365d79');
-      wrapText(ctx, 'ESC / X 메뉴 열기·닫기 · 방향키 선택 · Enter 확인', 44, 270, 392, 20, '#ffffff', 14);
+      const footerLine = selected ? `${selected.label} 을(를) 선택할 수 있다.` : '메뉴';
+      wrapText(ctx, footerLine, 44, 266, 392, 18, '#ffffff', 14);
+      wrapText(ctx, 'ESC / X 메뉴 열기·닫기 · 방향키 선택 · Enter 확인', 44, 286, 392, 18, '#d9efff', 12);
     }
 
     drawIndoorMap(map) {
@@ -1379,6 +1395,18 @@ window.FRLG = window.FRLG || {};
     ctx.strokeStyle = selected ? '#ffffff' : line;
     ctx.lineWidth = selected ? 3 : 2;
     ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+    ctx.restore();
+  }
+
+  function drawMenuArrow(ctx, x, y, color = '#ffffff') {
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + 8, y + 5);
+    ctx.lineTo(x, y + 10);
+    ctx.closePath();
+    ctx.fill();
     ctx.restore();
   }
 
