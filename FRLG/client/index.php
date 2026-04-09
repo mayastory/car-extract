@@ -3,68 +3,80 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>FRLG Web Client</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>FRLG Web Client Prototype</title>
   <link rel="stylesheet" href="assets/frlg.css">
 </head>
 <body>
-  <main class="app-shell">
-    <header class="top-card">
+  <div class="shell">
+    <header class="hud">
       <div>
-        <h1>FRLG Web Client</h1>
-        <p class="sub">client full reset build · broken oak/field patches removed · clean base restart</p>
+        <div class="title">FRLG Web Client Prototype</div>
+        <div class="subtitle">intro → title → new game → oak → gender → names → PlayersHouse 2F → 1F → PalletTown → RivalHouse / OaksLab → starter → first rival battle skeleton</div>
       </div>
-      <div class="pill-row">
-        <span class="pill" id="statePill">title</span>
-        <span class="pill" id="savePill">continue 없음</span>
+      <div class="hud-right">
+        <div class="mini" id="phaseName">boot</div>
+        <div class="mini muted" id="saveState">local only</div>
       </div>
     </header>
 
-    <section class="game-card">
-      <aside class="left-rail">
-        <span class="rail-pill">LOCAL</span>
-        <span class="rail-pill" id="scenePill">title</span>
-        <div class="help-box">
-          <div>Enter / A 진행</div>
-          <div>ESC / MENU 취소</div>
-          <div>방향키 / 디패드 이동</div>
-          <div>R 리셋</div>
+    <main class="stage-wrap">
+      <canvas id="game" width="480" height="320" aria-label="FRLG canvas"></canvas>
+      <div class="overlay">
+        <div class="badge">LOCAL</div>
+        <div id="sceneName" class="scene-name">boot</div>
+        <div class="hint">Enter/Space 진행·대화·입력 · 방향키 선택/이동 · ESC/X 메뉴 · Backspace 삭제 · R 리셋 · 모바일은 아래 디패드 / 버튼</div>
+      </div>
+    </main>
+
+    <section class="touch-ui" id="touchControls" aria-label="터치 컨트롤">
+      <div class="touch-dpad" aria-label="방향키">
+        <button type="button" class="touch-btn dpad-btn up" data-key="ArrowUp" aria-label="위">▲</button>
+        <button type="button" class="touch-btn dpad-btn left" data-key="ArrowLeft" aria-label="왼쪽">◀</button>
+        <button type="button" class="touch-btn dpad-btn right" data-key="ArrowRight" aria-label="오른쪽">▶</button>
+        <button type="button" class="touch-btn dpad-btn down" data-key="ArrowDown" aria-label="아래">▼</button>
+        <div class="dpad-center" aria-hidden="true"></div>
+      </div>
+      <div class="touch-actions" aria-label="액션 버튼">
+        <div class="touch-ab">
+          <button type="button" class="touch-btn action-circle action-b" data-key="Backspace" aria-label="B 버튼">B</button>
+          <button type="button" class="touch-btn action-circle action-a" data-key="Enter" aria-label="A 버튼">A</button>
         </div>
-      </aside>
-
-      <div class="stage-wrap">
-        <canvas id="gameCanvas" width="720" height="480"></canvas>
-      </div>
-    </section>
-
-    <section class="touch-wrap" id="touchWrap" aria-label="touch controls">
-      <div class="touch-left">
-        <button class="pad up" data-key="ArrowUp" aria-label="up">▲</button>
-        <button class="pad left" data-key="ArrowLeft" aria-label="left">◀</button>
-        <button class="pad right" data-key="ArrowRight" aria-label="right">▶</button>
-        <button class="pad down" data-key="ArrowDown" aria-label="down">▼</button>
-      </div>
-      <div class="touch-right">
-        <button class="act b" data-key="Backspace" aria-label="B">B</button>
-        <button class="act a" data-key="Enter" aria-label="A">A</button>
-        <div class="aux-row">
-          <button class="aux" data-key="Escape">MENU</button>
-          <button class="aux" data-key="r">R</button>
+        <div class="touch-meta">
+          <button type="button" class="touch-btn action-meta action-menu" data-key="Escape" aria-label="메뉴 버튼">MENU</button>
+          <button type="button" class="touch-btn action-meta action-reset" data-key="r" aria-label="리셋 버튼">R</button>
         </div>
       </div>
     </section>
 
-    <section class="bottom-card">
-      <h2>현재 상태</h2>
-      <ul>
-        <li>오크 구간 포함 기존 임시 구현 제거</li>
-        <li>클라이언트 전체를 최소 안정 베이스로 재구성</li>
-        <li>터치 버튼 / 키보드 입력 / 텍스트 박스만 유지</li>
-        <li>다음 단계부터 <code>oak_speech.c</code> 기준으로 다시 포팅 시작</li>
-      </ul>
+    <section class="panel panel-grid">
+      <div>
+        <div class="panel-title">현재 단계</div>
+        <ul>
+          <li>원본처럼 바로 PalletTown 직행하지 않고 시작 순서를 먼저 연결</li>
+          <li>Packege 맵 json 기준으로 PlayersHouse 2F / 1F / PalletTown / RivalHouse / OaksLab 연결</li>
+          <li>맵 타일은 아직 placeholder지만 플레이어 / NPC / 표지판 / 일부 오브젝트 자산 + text_window / naming_screen / red_arrow UI 자산 첫 연결</li>
+          <li>OaksLab에서 starter 선택 skeleton / 첫 rival battle skeleton / PalletTown 북쪽 Oak 차단 placeholder 추가</li>
+        </ul>
+      </div>
+      <div>
+        <div class="panel-title">이번 기준</div>
+        <ul>
+          <li>인트로 scene 러너 유지</li>
+          <li>타이틀 / New Game / Continue(local) 흐름 유지</li>
+          <li>오박사 대사 / 성별 / 이름 / 라이벌 이름 흐름 유지</li>
+          <li>이름 입력은 browser input 박스 대신 Packege naming_screen 스타일 문자판 skeleton으로 교체</li>
+          <li>필드에서 ESC / X 로 여는 게임 내 메뉴 skeleton 추가 (창/커서 UI 보강)</li>
+          <li>Packege object_events/pics 기준 필드 캐릭터 / 표지판 스프라이트 적용 + text_window/std / naming_screen / red_arrow UI 자산 1단계 적용</li>
+          <li>최종 도착점은 PlayersHouse 2F 시작 후 1F / PalletTown / RivalHouse / OaksLab 이동 가능</li>
+          <li>starter / rival starter / first battle 완료 상태가 local continue에도 저장됨</li>
+        </ul>
+      </div>
     </section>
-  </main>
+  </div>
 
+  <script src="assets/intro-scenes.js"></script>
+  <script src="assets/map-data.js"></script>
   <script src="assets/intro-engine.js"></script>
   <script src="assets/app.js"></script>
 </body>
