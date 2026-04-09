@@ -42,6 +42,7 @@ window.FRLG = window.FRLG || {};
         dir: startMap.start.dir || 'down',
         lastWarp: null
       };
+      this.fieldDialogue = null;
       this.continueSnapshot = this.readLocalSnapshot();
       this.updateStatus();
       this.emitSaveState();
@@ -137,7 +138,10 @@ window.FRLG = window.FRLG || {};
           this.confirmNameEntry();
           break;
         case 'field':
+          if (this.consumeFieldDialogue()) break;
+          if (this.tryInteract()) break;
           this.saveLocalSnapshot();
+          this.setFieldDialogue([this.flow.saveMessage || 'LOCAL 저장 완료.']);
           break;
       }
     }
@@ -191,6 +195,7 @@ window.FRLG = window.FRLG || {};
           this.genderIndex = clamp(this.genderIndex + (dx || dy), 0, 1);
           break;
         case 'field':
+          if (this.hasFieldDialogue()) return;
           this.movePlayer(dx, dy);
           break;
       }
@@ -216,6 +221,7 @@ window.FRLG = window.FRLG || {};
       this.world.x = nextX;
       this.world.y = nextY;
       this.tryWarp();
+      this.clearFieldDialogue();
       this.emitSaveState();
     }
 
@@ -289,6 +295,93 @@ window.FRLG = window.FRLG || {};
         dir: snapshot.world.dir || 'down',
         lastWarp: snapshot.world.lastWarp || null
       };
+    }
+
+
+    hasFieldDialogue() {
+      return !!(this.fieldDialogue && this.fieldDialogue.lines && this.fieldDialogue.lines.length);
+    }
+
+    getActiveFieldText() {
+      if (this.hasFieldDialogue()) {
+        return this.fieldDialogue.lines[this.fieldDialogue.index] || this.flow.roomMessage;
+      }
+      const hint = this.peekInteractionHint();
+      return hint || this.flow.roomMessage;
+    }
+
+    setFieldDialogue(lines) {
+      if (!Array.isArray(lines) || !lines.length) return false;
+      this.fieldDialogue = { lines, index: 0 };
+      return true;
+    }
+
+    clearFieldDialogue() {
+      this.fieldDialogue = null;
+    }
+
+    consumeFieldDialogue() {
+      if (!this.hasFieldDialogue()) return false;
+      if (this.fieldDialogue.index < this.fieldDialogue.lines.length - 1) {
+        this.fieldDialogue.index += 1;
+      } else {
+        this.clearFieldDialogue();
+      }
+      return true;
+    }
+
+    getFacingPos() {
+      const offsets = {
+        up: { x: 0, y: -1 },
+        down: { x: 0, y: 1 },
+        left: { x: -1, y: 0 },
+        right: { x: 1, y: 0 }
+      };
+      const delta = offsets[this.world.dir] || offsets.down;
+      return { x: this.world.x + delta.x, y: this.world.y + delta.y };
+    }
+
+    isFacingTile(x, y) {
+      const pos = this.getFacingPos();
+      return pos.x === x && pos.y === y;
+    }
+
+    peekInteractionHint() {
+      const target = this.findInteractionTarget();
+      if (!target) return null;
+      if (target.kind === 'object') return 'Enter로 대화하기';
+      if (target.kind === 'sign') return 'Enter로 조사하기';
+      return null;
+    }
+
+    tryInteract() {
+      const target = this.findInteractionTarget();
+      if (!target) return false;
+      const lines = this.resolveInteractionLines(target);
+      if (!lines || !lines.length) return false;
+      return this.setFieldDialogue(lines);
+    }
+
+    findInteractionTarget() {
+      const map = this.currentMap();
+      const pos = this.getFacingPos();
+      const object = (map.objectEvents || []).find((entry) => entry.x === pos.x && entry.y === pos.y && !entry.hiddenByFlag);
+      if (object) return { kind: 'object', data: object };
+      const sign = (map.bgEvents || []).find((entry) => entry.x === pos.x && entry.y === pos.y);
+      if (sign) return { kind: 'sign', data: sign };
+      return null;
+    }
+
+    resolveInteractionLines(target) {
+      const data = target.data || {};
+      if (target.kind === 'sign') {
+        const text = (this.flow.signs && this.flow.signs[data.script]) || `${data.script || 'sign'} 를 조사했다.`;
+        return [text];
+      }
+      const lines = (this.flow.npcLines && this.flow.npcLines[data.script]) || null;
+      if (Array.isArray(lines) && lines.length) return lines;
+      if (data.script) return [`${data.script} placeholder 대화`];
+      return ['아직 연결되지 않은 오브젝트다.'];
     }
 
     handleKeyDown(e) {
@@ -424,7 +517,8 @@ window.FRLG = window.FRLG || {};
       }
       const mapNote = `${this.profile.playerName || 'PLAYER'} · ${map.id} · ${this.world.x},${this.world.y}`;
       centerText(this.ctx, mapNote, 240, 28, 12, 0.92, '#f6fbff');
-      this.drawDialogue(this.flow.roomMessage);
+      const activeText = this.getActiveFieldText();
+      this.drawDialogue(activeText);
     }
 
     drawIndoorMap(map) {
@@ -452,6 +546,15 @@ window.FRLG = window.FRLG || {};
         if (map.structures.kitchen) drawRectTiles(ctx, origin, tile, map.structures.kitchen, '#7f5f41', '#b7dbe2');
         if (map.structures.table) drawRectTiles(ctx, origin, tile, map.structures.table, '#6b4d33', '#d9d1af');
         if (map.structures.tv) drawRectTiles(ctx, origin, tile, map.structures.tv, '#3d4755', '#7f95aa');
+        if (map.structures.entryDoor) drawDoor(ctx, origin, tile, map.structures.entryDoor);
+        if (map.structures.mapStand) drawRectTiles(ctx, origin, tile, map.structures.mapStand, '#cdbb76', '#8e7341');
+        if (map.structures.desk) drawRectTiles(ctx, origin, tile, map.structures.desk, '#6f5138', '#d3d0ba');
+        if (map.structures.sofa) drawRectTiles(ctx, origin, tile, map.structures.sofa, '#658fc2', '#c8d5ec');
+        if (map.structures.leftBench) drawRectTiles(ctx, origin, tile, map.structures.leftBench, '#6b5137', '#a0c2d8');
+        if (map.structures.rightBench) drawRectTiles(ctx, origin, tile, map.structures.rightBench, '#6b5137', '#a0c2d8');
+        if (map.structures.starterTable) drawRectTiles(ctx, origin, tile, map.structures.starterTable, '#6f5138', '#d8ccb2');
+        if (map.structures.leftShelves) drawRectTiles(ctx, origin, tile, map.structures.leftShelves, '#8d6b44', '#8d6b44');
+        if (map.structures.rightShelves) drawRectTiles(ctx, origin, tile, map.structures.rightShelves, '#8d6b44', '#8d6b44');
         if (map.structures.stairs) drawStairs(ctx, origin, tile, map.structures.stairs);
         if (map.structures.door) drawDoor(ctx, origin, tile, map.structures.door);
       }
@@ -492,7 +595,8 @@ window.FRLG = window.FRLG || {};
       });
       (map.objectEvents || []).forEach((event) => {
         if (event.hiddenByFlag) return;
-        drawNpc(ctx, origin, tile, event.x, event.y, event.local_id && event.local_id.includes('MOM') ? '#f58ea8' : '#f4f4f4');
+        const isInteract = this.isFacingTile(event.x, event.y);
+        drawNpc(ctx, origin, tile, event.x, event.y, objectColor(event), isInteract);
       });
       drawTrainerMini(ctx, origin.x + this.world.x * tile, origin.y + this.world.y * tile, PLAYER_COLORS[this.profile.gender], this.world.dir, tile);
     }
@@ -617,7 +721,7 @@ window.FRLG = window.FRLG || {};
     ctx.restore();
   }
 
-  function drawNpc(ctx, origin, tile, x, y, bodyColor) {
+  function drawNpc(ctx, origin, tile, x, y, bodyColor, active = false) {
     const px = origin.x + x * tile;
     const py = origin.y + y * tile;
     ctx.save();
@@ -628,7 +732,26 @@ window.FRLG = window.FRLG || {};
     ctx.fillStyle = '#2e3440';
     ctx.fillRect(px + tile * 0.28, py + tile * 0.78, tile * 0.16, tile * 0.22);
     ctx.fillRect(px + tile * 0.56, py + tile * 0.78, tile * 0.16, tile * 0.22);
+    if (active) {
+      ctx.strokeStyle = '#fff6a2';
+      ctx.lineWidth = Math.max(2, tile * 0.10);
+      ctx.strokeRect(px + tile * 0.12, py + tile * 0.06, tile * 0.76, tile * 0.88);
+    }
     ctx.restore();
+  }
+
+  function objectColor(event) {
+    const gid = String(event.graphics_id || '');
+    const lid = String(event.local_id || '');
+    if (lid.includes('MOM')) return '#f58ea8';
+    if (lid.includes('DAISY')) return '#f5d35f';
+    if (gid.includes('PROF_OAK')) return '#dedede';
+    if (gid.includes('BLUE')) return '#6ea2ff';
+    if (gid.includes('ITEM_BALL')) return '#ff6464';
+    if (gid.includes('POKEDEX')) return '#e264ff';
+    if (gid.includes('TOWN_MAP')) return '#8ad674';
+    if (gid.includes('WORKER_F')) return '#f0b7a8';
+    return '#f4f4f4';
   }
 
   function clamp(v, min, max) {

@@ -99,7 +99,39 @@ window.FRLG_FLOW_CONFIG = {
     '좋다! 이제 네 이름을 알려다오.',
     '이어서 네 라이벌의 이름도 정해야 해.'
   ],
-  roomMessage: 'Packege 맵 json 기준으로 PlayersHouse 2F / 1F / PalletTown 연결 완료. 다음 단계는 실제 자산 추출과 원문 대사 치환.'
+  roomMessage: 'Packege 맵 json 기준 skeleton 유지. Enter는 상호작용 우선, 대상이 없으면 local save.',
+  saveMessage: 'LOCAL 저장 완료.',
+  signs: {
+    PalletTown_EventScript_OaksLabSign: '오박사의 연구소다. 안에 들어가 볼까?',
+    PalletTown_EventScript_PlayersHouseSign: '여기가 너의 집이다.',
+    PalletTown_EventScript_RivalsHouseSign: '라이벌의 집이다.',
+    PalletTown_EventScript_TownSign: '태초마을. 모든 것이 시작되는 곳.',
+    PalletTown_EventScript_TrainerTips: 'TRAINER TIPS! SAVE는 자주 하는 편이 좋다.',
+    PalletTown_PlayersHouse_2F_EventScript_NES: '게임기가 놓여 있다. 아직은 플레이하지 않는 편이 좋겠다.',
+    PalletTown_PlayersHouse_2F_EventScript_PC: 'PC다. 아직 조작 기능은 skeleton 상태다.',
+    PalletTown_PlayersHouse_2F_EventScript_Sign: '벽 장식이다. 나중에 원문으로 교체된다.',
+    PalletTown_PlayersHouse_1F_EventScript_TV: 'TV다. 흥미로운 영화가 방영 중인 것 같다.',
+    PalletTown_RivalsHouse_EventScript_Bookshelf: '책장이 빼곡하다. 포켓몬 관련 책들이다.',
+    PalletTown_RivalsHouse_EventScript_Picture: '마을 지도가 걸려 있다.',
+    PalletTown_ProfessorOaksLab_EventScript_Computer: '연구용 컴퓨터가 작동 중이다.',
+    PalletTown_ProfessorOaksLab_EventScript_LeftSign: '왼쪽 받침대. 어떤 포켓몬이 들어 있었던 자리처럼 보인다.',
+    PalletTown_ProfessorOaksLab_EventScript_RightSign: '오른쪽 받침대. 스타터 연출은 아직 skeleton이다.'
+  },
+  npcLines: {
+    PalletTown_PlayersHouse_1F_EventScript_Mom: ['엄마: 이제 아래층까지도 연결됐구나.', '다음엔 원본 대사와 이벤트 플래그를 붙이면 되겠네.'],
+    PalletTown_EventScript_SignLady: ['주민: 표지판도 이제 읽을 수 있게 됐네.'],
+    PalletTown_EventScript_FatMan: ['주민: 아직은 placeholder지만, 맵 흐름은 점점 잡히고 있어.'],
+    PalletTown_RivalsHouse_EventScript_Daisy: ['다이: 안녕! 여긴 라이벌의 집이야.', '나중엔 town map 연출도 붙일 수 있겠지.'],
+    PalletTown_ProfessorOaksLab_EventScript_Aide1: ['조수: 오박사님은 언제나 연구에 몰두하고 계셔.'],
+    PalletTown_ProfessorOaksLab_EventScript_Aide2: ['조수: 스타터 볼과 이벤트는 아직 구현 전이야.'],
+    PalletTown_ProfessorOaksLab_EventScript_Aide3: ['조수: 지금은 원본 흐름 skeleton을 먼저 맞추는 중이야.'],
+    PalletTown_ProfessorOaksLab_EventScript_ProfOak: ['오박사: 좋아, 이제 연구소 안까지 왔구나.'],
+    PalletTown_ProfessorOaksLab_EventScript_Rival: ['라이벌: 흥, 먼저 포켓몬을 고를 수 있을까?'],
+    PalletTown_ProfessorOaksLab_EventScript_Pokedex: ['도감이다. 아직은 placeholder 장식이다.'],
+    PalletTown_ProfessorOaksLab_EventScript_BulbasaurBall: ['이건 이상해보이는 몬스터볼이다.'],
+    PalletTown_ProfessorOaksLab_EventScript_SquirtleBall: ['물타입 스타터가 들어 있을 것 같은 볼이다.'],
+    PalletTown_ProfessorOaksLab_EventScript_CharmanderBall: ['불꽃 타입 스타터가 들어 있을 것 같은 볼이다.']
+  }
 };
 
 function centerText(ctx, text, x, y, size, alpha = 1, color = '#ffffff') {

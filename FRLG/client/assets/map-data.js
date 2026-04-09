@@ -68,6 +68,93 @@ window.FRLG_MAP_DATA = {
         door: { x: 4, y: 8, w: 2, h: 1 }
       }
     },
+
+    PalletTown_RivalsHouse: {
+      id: 'PalletTown_RivalsHouse',
+      label: 'PalletTown_RivalsHouse',
+      mapType: 'MAP_TYPE_INDOOR',
+      width: 14,
+      height: 10,
+      start: { x: 4, y: 7, dir: 'up' },
+      blocked: [
+        '0,0','1,0','2,0','3,0','4,0','5,0','6,0','7,0','8,0','9,0','10,0','11,0','12,0','13,0',
+        '0,1','0,2','0,3','0,4','0,5','0,6','0,7','0,8','0,9',
+        '13,1','13,2','13,3','13,4','13,5','13,6','13,7','13,8','13,9',
+        '0,9','1,9','2,9','6,9','7,9','8,9','9,9','10,9','11,9','12,9','13,9',
+        '1,1','2,1','3,1','4,1','5,1','1,2','2,2','3,2','4,2','5,2',
+        '9,1','10,1','11,1','12,1','10,2','11,2','12,2',
+        '10,5','11,5','12,5','12,6'
+      ],
+      warpEvents: [
+        { x: 4, y: 8, elevation: 3, dest_map: 'PalletTown', dest_warp_id: 1 },
+        { x: 5, y: 8, elevation: 3, dest_map: 'PalletTown', dest_warp_id: 1 },
+        { x: 3, y: 8, elevation: 3, dest_map: 'PalletTown', dest_warp_id: 1 }
+      ],
+      objectEvents: [
+        { local_id: 'LOCALID_DAISY', graphics_id: 'OBJ_EVENT_GFX_DAISY', x: 10, y: 6, script: 'PalletTown_RivalsHouse_EventScript_Daisy' },
+        { local_id: 'LOCALID_TOWN_MAP', graphics_id: 'OBJ_EVENT_GFX_TOWN_MAP', x: 6, y: 4, script: 'PalletTown_RivalsHouse_EventScript_TownMap' }
+      ],
+      bgEvents: [
+        { type: 'sign', x: 12, y: 1, script: 'PalletTown_RivalsHouse_EventScript_Bookshelf' },
+        { type: 'sign', x: 11, y: 1, script: 'PalletTown_RivalsHouse_EventScript_Bookshelf' },
+        { type: 'sign', x: 9, y: 1, script: 'PalletTown_RivalsHouse_EventScript_Picture' }
+      ],
+      structures: {
+        entryDoor: { x: 3, y: 8, w: 3, h: 1 },
+        desk: { x: 9, y: 1, w: 4, h: 2 },
+        shelf: { x: 1, y: 1, w: 5, h: 2 },
+        mapStand: { x: 6, y: 4, w: 1, h: 1 },
+        sofa: { x: 10, y: 5, w: 3, h: 2 }
+      }
+    },
+    PalletTown_ProfessorOaksLab: {
+      id: 'PalletTown_ProfessorOaksLab',
+      label: 'PalletTown_ProfessorOaksLab',
+      mapType: 'MAP_TYPE_INDOOR',
+      width: 14,
+      height: 14,
+      start: { x: 6, y: 11, dir: 'up' },
+      blocked: [
+        '0,0','1,0','2,0','3,0','4,0','5,0','6,0','7,0','8,0','9,0','10,0','11,0','12,0','13,0',
+        '0,1','0,2','0,3','0,4','0,5','0,6','0,7','0,8','0,9','0,10','0,11','0,12','0,13',
+        '13,1','13,2','13,3','13,4','13,5','13,6','13,7','13,8','13,9','13,10','13,11','13,12','13,13',
+        '0,13','1,13','2,13','3,13','8,13','9,13','10,13','11,13','12,13','13,13',
+        '2,1','3,1','4,1','5,1','8,1','9,1','10,1','11,1',
+        '3,4','4,4','5,4','11,4',
+        '1,9','2,9','3,9','10,9','11,9','12,9'
+      ],
+      warpEvents: [
+        { x: 6, y: 12, elevation: 3, dest_map: 'PalletTown', dest_warp_id: 2 },
+        { x: 7, y: 12, elevation: 3, dest_map: 'PalletTown', dest_warp_id: 2 },
+        { x: 5, y: 12, elevation: 3, dest_map: 'PalletTown', dest_warp_id: 2 }
+      ],
+      objectEvents: [
+        { graphics_id: 'OBJ_EVENT_GFX_SCIENTIST', x: 3, y: 11, script: 'PalletTown_ProfessorOaksLab_EventScript_Aide1' },
+        { graphics_id: 'OBJ_EVENT_GFX_WORKER_F', x: 2, y: 10, script: 'PalletTown_ProfessorOaksLab_EventScript_Aide3' },
+        { graphics_id: 'OBJ_EVENT_GFX_SCIENTIST', x: 11, y: 10, script: 'PalletTown_ProfessorOaksLab_EventScript_Aide2' },
+        { local_id: 'LOCALID_OAKS_LAB_PROF_OAK', graphics_id: 'OBJ_EVENT_GFX_PROF_OAK', x: 6, y: 3, script: 'PalletTown_ProfessorOaksLab_EventScript_ProfOak' },
+        { local_id: 'LOCALID_BULBASAUR_BALL', graphics_id: 'OBJ_EVENT_GFX_ITEM_BALL', x: 8, y: 4, script: 'PalletTown_ProfessorOaksLab_EventScript_BulbasaurBall' },
+        { local_id: 'LOCALID_SQUIRTLE_BALL', graphics_id: 'OBJ_EVENT_GFX_ITEM_BALL', x: 9, y: 4, script: 'PalletTown_ProfessorOaksLab_EventScript_SquirtleBall' },
+        { local_id: 'LOCALID_CHARMANDER_BALL', graphics_id: 'OBJ_EVENT_GFX_ITEM_BALL', x: 10, y: 4, script: 'PalletTown_ProfessorOaksLab_EventScript_CharmanderBall' },
+        { local_id: 'LOCALID_OAKS_LAB_RIVAL', graphics_id: 'OBJ_EVENT_GFX_BLUE', x: 5, y: 4, script: 'PalletTown_ProfessorOaksLab_EventScript_Rival' },
+        { local_id: 'LOCALID_POKEDEX_1', graphics_id: 'OBJ_EVENT_GFX_POKEDEX', x: 4, y: 1, script: 'PalletTown_ProfessorOaksLab_EventScript_Pokedex' },
+        { local_id: 'LOCALID_POKEDEX_2', graphics_id: 'OBJ_EVENT_GFX_POKEDEX', x: 5, y: 1, script: 'PalletTown_ProfessorOaksLab_EventScript_Pokedex' }
+      ],
+      bgEvents: [
+        { type: 'sign', x: 2, y: 1, script: 'PalletTown_ProfessorOaksLab_EventScript_Computer' },
+        { type: 'sign', x: 3, y: 1, script: 'PalletTown_ProfessorOaksLab_EventScript_Computer' },
+        { type: 'sign', x: 6, y: 1, script: 'PalletTown_ProfessorOaksLab_EventScript_LeftSign' },
+        { type: 'sign', x: 7, y: 1, script: 'PalletTown_ProfessorOaksLab_EventScript_RightSign' }
+      ],
+      structures: {
+        leftBench: { x: 2, y: 1, w: 4, h: 1 },
+        rightBench: { x: 8, y: 1, w: 4, h: 1 },
+        starterTable: { x: 5, y: 4, w: 6, h: 1 },
+        leftShelves: { x: 1, y: 9, w: 3, h: 1 },
+        rightShelves: { x: 10, y: 9, w: 3, h: 1 },
+        door: { x: 5, y: 12, w: 3, h: 1 }
+      }
+    },
     PalletTown: {
       id: 'PalletTown',
       label: 'PalletTown',
