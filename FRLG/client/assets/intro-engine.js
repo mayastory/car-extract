@@ -61,6 +61,7 @@ window.FRLG = window.FRLG || {};
       this.introIndex = 0;
       this.sceneStart = performance.now();
       this.menuIndex = 0;
+      this.fieldMenuIndex = 0;
       this.oakLine = 0;
       this.genderIndex = 0;
       this.postGenderLine = 0;
@@ -118,7 +119,7 @@ window.FRLG = window.FRLG || {};
     updateStatus() {
       const current = this.state === 'intro'
         ? this.currentScene().id
-        : this.state === 'field'
+        : (this.state === 'field' || this.state === 'field-menu')
           ? this.world.mapId
           : this.state;
       if (this.hooks.onSceneChange) this.hooks.onSceneChange(current);
@@ -127,7 +128,7 @@ window.FRLG = window.FRLG || {};
 
     emitSaveState() {
       if (!this.hooks.onSaveStateChange) return;
-      if (this.state === 'field') {
+      if (this.state === 'field' || this.state === 'field-menu') {
         const starter = this.progress && this.progress.starter ? ` / ${this.progress.starter}` : '';
         const battle = this.getFlag('firstBattleDone') ? ' / battle1' : '';
         const desc = `${this.profile.playerName || 'PLAYER'} / ${this.world.mapId} / ${this.world.x},${this.world.y}${starter}${battle}`;
@@ -139,6 +140,7 @@ window.FRLG = window.FRLG || {};
 
     setState(nextState) {
       this.state = nextState;
+      if (nextState === 'field-menu') this.fieldMenuIndex = 0;
       this.sceneStart = performance.now();
       this.updateStatus();
       this.emitSaveState();
@@ -194,6 +196,9 @@ window.FRLG = window.FRLG || {};
           this.saveLocalSnapshot();
           this.setFieldDialogue([this.flow.saveMessage || 'LOCAL 저장 완료.']);
           break;
+        case 'field-menu':
+          this.handleFieldMenuConfirm();
+          break;
         case 'battle':
           this.handleBattleAction();
           break;
@@ -210,6 +215,61 @@ window.FRLG = window.FRLG || {};
         this.applySnapshot(this.continueSnapshot);
         this.setState('field');
       }
+    }
+
+    getFieldMenuItems() {
+      const items = [];
+      if (this.getFlag('gotPokedex')) items.push({ id: 'pokedex', label: 'POKéDEX' });
+      items.push({ id: 'pokemon', label: 'POKéMON' });
+      items.push({ id: 'bag', label: 'BAG' });
+      items.push({ id: 'player', label: this.profile.playerName || 'PLAYER' });
+      items.push({ id: 'save', label: 'SAVE' });
+      items.push({ id: 'option', label: 'OPTION' });
+      items.push({ id: 'exit', label: 'EXIT' });
+      return items;
+    }
+
+    openFieldMenu() {
+      if (this.state !== 'field') return false;
+      if (this.hasFieldDialogue()) return false;
+      this.fieldMenuIndex = 0;
+      this.setState('field-menu');
+      return true;
+    }
+
+    closeFieldMenu() {
+      if (this.state !== 'field-menu') return false;
+      this.setState('field');
+      return true;
+    }
+
+    handleFieldMenuConfirm() {
+      const items = this.getFieldMenuItems();
+      const item = items[this.fieldMenuIndex];
+      if (!item) return;
+      const playerLabel = this.profile.playerName || 'PLAYER';
+      const starterLabel = this.progress && this.progress.starter ? this.getStarterLabel(this.progress.starter) : '없음';
+      const optionMessages = {
+        pokedex: ['도감 skeleton.', '오박사에게 도감을 받은 뒤 실제 목록을 붙이면 된다.'],
+        pokemon: [`${playerLabel}의 포켓몬 메뉴 skeleton.`, `현재 스타터: ${starterLabel}`],
+        bag: ['가방 skeleton.', '현재는 실제 아이템 목록이 아직 연결되지 않았다.'],
+        player: [`${playerLabel}의 프로필 skeleton.`, `성별: ${this.profile.gender === 'M' ? 'BOY' : 'GIRL'} / 스타터: ${starterLabel}`, `위치: ${this.world.mapId} ${this.world.x},${this.world.y}`],
+        save: [this.flow.saveMessage || 'LOCAL 저장 완료.'],
+        option: ['옵션 skeleton.', '텍스트 속도 / 사운드 / 프레임 등은 나중에 붙이면 된다.'],
+        exit: []
+      };
+      if (item.id === 'save') {
+        this.saveLocalSnapshot();
+        this.setState('field');
+        this.setFieldDialogue(optionMessages.save);
+        return;
+      }
+      if (item.id === 'exit') {
+        this.closeFieldMenu();
+        return;
+      }
+      this.setState('field');
+      this.setFieldDialogue(optionMessages[item.id] || ['아직 연결되지 않은 메뉴다.']);
     }
 
     createNameEntryState() {
@@ -347,6 +407,11 @@ window.FRLG = window.FRLG || {};
           if (this.hasFieldDialogue()) return;
           this.movePlayer(dx, dy);
           break;
+        case 'field-menu': {
+          const max = Math.max(0, this.getFieldMenuItems().length - 1);
+          this.fieldMenuIndex = clamp(this.fieldMenuIndex + dy, 0, max);
+          break;
+        }
         case 'battle':
           if (this.battle && this.battle.phase === 'command') {
             this.battle.selectedMove = clamp(this.battle.selectedMove + (dy || dx), 0, 1);
@@ -771,6 +836,18 @@ window.FRLG = window.FRLG || {};
         this.restart();
         return;
       }
+      if (e.key === 'Escape' || e.code === 'KeyX') {
+        if (this.state === 'field') {
+          e.preventDefault();
+          this.openFieldMenu();
+          return;
+        }
+        if (this.state === 'field-menu') {
+          e.preventDefault();
+          this.closeFieldMenu();
+          return;
+        }
+      }
       if (KEY_ENTER.has(e.code)) {
         e.preventDefault();
         this.onAction();
@@ -927,6 +1004,52 @@ window.FRLG = window.FRLG || {};
       this.drawDialogue(activeText);
     }
 
+    drawFieldMenu() {
+      this.drawField();
+      const ctx = this.ctx;
+      ctx.save();
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
+      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+      ctx.restore();
+
+      const items = this.getFieldMenuItems();
+      const panelX = 328;
+      const panelY = 36;
+      const itemH = 24;
+      const panelH = 16 + items.length * itemH + 16;
+      drawWindow(ctx, panelX, panelY, 124, panelH, false, '#f8fff8', '#2f5676');
+      items.forEach((item, idx) => {
+        const y = panelY + 20 + idx * itemH;
+        const active = idx === this.fieldMenuIndex;
+        if (active) {
+          ctx.fillStyle = '#4d7ea5';
+          ctx.fillRect(panelX + 8, y - 14, 108, 20);
+        }
+        ctx.font = '13px Arial';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = active ? '#ffffff' : '#21384d';
+        ctx.fillText(item.label, panelX + 16, y - 3);
+      });
+
+      drawWindow(ctx, 28, 34, 184, 78, false, '#f8fff8', '#2f5676');
+      const selected = items[this.fieldMenuIndex];
+      const starterLabel = this.progress && this.progress.starter ? this.getStarterLabel(this.progress.starter) : '없음';
+      const lines = [
+        `${this.profile.playerName || 'PLAYER'} / ${this.world.mapId}`,
+        `스타터 ${starterLabel}`,
+        selected ? `${selected.label} 선택` : '메뉴'
+      ];
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#1f3344';
+      lines.forEach((line, idx) => ctx.fillText(line, 40, 56 + idx * 18));
+
+      drawWindow(ctx, 24, 246, 432, 60, false, '#102030', '#365d79');
+      wrapText(ctx, 'ESC / X 메뉴 열기·닫기 · 방향키 선택 · Enter 확인', 44, 270, 392, 20, '#ffffff', 14);
+    }
+
     drawIndoorMap(map) {
       const ctx = this.ctx;
       this.drawBg('#7aa6cc', '#29445e');
@@ -1067,6 +1190,8 @@ window.FRLG = window.FRLG || {};
         this.drawNameEntry(now);
       } else if (this.state === 'field') {
         this.drawField();
+      } else if (this.state === 'field-menu') {
+        this.drawFieldMenu();
       } else if (this.state === 'battle') {
         this.drawBattle();
       }
