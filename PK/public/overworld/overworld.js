@@ -265,8 +265,9 @@ export class Overworld{
     
     this._warpPending=false;
     
-    this._neighborCache=new Map(); // mapId -> { map, tilesetImgs, tilesetImg, tilesetCols }
+    this._neighborCache=new Map(); // mapId -> { map, tilesetImgs, tilesetImg, tilesetCols, epoch }
     this._neighborPromises=new Map(); // mapId -> Promise
+    this._neighborEpoch=0;
 
     // Seamless connections + ledge jump (FRLG feel)
     this._edgePending=null;
@@ -2049,6 +2050,21 @@ export class Overworld{
     this._syncPromise = null;
   }
 
+  _nextNeighborEpoch(){
+    this._neighborEpoch = (((this._neighborEpoch|0) + 1) >>> 0);
+    return this._neighborEpoch;
+  }
+
+  _neighborCacheEntry(mapId){
+    const entry = this._neighborCache.get(mapId);
+    if(!entry) return null;
+    if(((entry.epoch|0) !== (this._neighborEpoch|0))){
+      this._neighborCache.delete(mapId);
+      return null;
+    }
+    return entry;
+  }
+
   _abortNeighborPrefetches(){
     if(this._neighborPromises && this._neighborPromises.clear) this._neighborPromises.clear();
   }
@@ -2059,6 +2075,7 @@ export class Overworld{
     this._mapLoadInFlight = true;
     this._abortSyncLoop();
     if(!preserveServerStateReq) this._abortServerStateRequests();
+    this._nextNeighborEpoch();
     this._abortNeighborPrefetches();
     this._nextMapAsyncRev();
     return {
@@ -2183,9 +2200,10 @@ export class Overworld{
     if(!dir) return null;
 
     const c=this._getConnection(dir);
-    if(!(c && c.map_id && this._neighborCache.has(c.map_id))) return null;
+    if(!(c && c.map_id)) return null;
 
-    const nb=this._neighborCache.get(c.map_id);
+    const nb=this._neighborCacheEntry(c.map_id);
+    if(!nb) return null;
     const nW=nb?.map?.width|0, nH=nb?.map?.height|0;
     let nx=x|0, ny=y|0;
     const off=(c.offset||0)|0;
@@ -2412,7 +2430,8 @@ export class Overworld{
     
 
     // Ensure neighbor is available (we need it for collision checks + preview drawing)
-    const have = this._neighborCache.has(c.map_id);
+    const cachedNeighbor = this._neighborCacheEntry(c.map_id);
+    const have = !!cachedNeighbor;
     
     if(!have){
       
@@ -2450,7 +2469,7 @@ export class Overworld{
     }
     
 
-    const nb=this._neighborCache.get(c.map_id);
+    const nb=cachedNeighbor;
     
     const W=this.map.width, H=this.map.height;
     
@@ -2556,7 +2575,7 @@ export class Overworld{
 
     const c=this._getConnection(dir);
     if(!c || !c.map_id) return false;
-    const nb=this._neighborCache.get(c.map_id);
+    const nb=this._neighborCacheEntry(c.map_id);
     if(!nb) return false;
     const off=(c.offset||0)|0;
     const txn = this._beginMapLoadTxn(c.map_id);
@@ -2764,7 +2783,9 @@ export class Overworld{
   async _ensureNeighbor(mapId, asyncCtx=null){
     
     const ctx = asyncCtx || this._mapAsyncCtx();
-    if(this._neighborCache.has(mapId)) return this._neighborCache.get(mapId);
+    const neighborEpoch = (this._neighborEpoch|0);
+    const cached = this._neighborCacheEntry(mapId);
+    if(cached) return cached;
     
     if(this._neighborPromises.has(mapId)) return this._neighborPromises.get(mapId);
     
@@ -2886,6 +2907,8 @@ export class Overworld{
         
 
         if(!this._isMapAsyncCtxCurrent(ctx)) return null;
+        if(((neighborEpoch|0) !== (this._neighborEpoch|0))) return null;
+        a.epoch = (neighborEpoch|0);
         this._neighborCache.set(mapId, a);
         
         return a;
