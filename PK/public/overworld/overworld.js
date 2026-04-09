@@ -1350,7 +1350,8 @@ export class Overworld{
      this.player.py=sp.y;
 
     this._resetMapTransientState({
-      clearNeighbors:true}
+      clearNeighbors:true,
+      preserveMapLoadInFlight:true}
     );
 
     if(!this._isMapLoadTxnCurrent(txn)) return false;
@@ -1562,6 +1563,8 @@ export class Overworld{
   ){
     
     const txn = this._beginMapLoadTxn(mapId);
+    let loaded=false;
+    let txnStillCurrent=false;
     try{
 
       // Regenerate first so warps / F5 always use the newest Packege-derived map JSON.
@@ -1573,6 +1576,7 @@ export class Overworld{
         
         if(generated === false) return false;
         
+        loaded = true;
         return true;
         
       }
@@ -1583,10 +1587,16 @@ export class Overworld{
       
 
       // Fallback: keep static cache support when Packege/API generation is unavailable.
-      return await this._loadStaticPretMap(mapId, opts, txn);
+      const staticLoaded = await this._loadStaticPretMap(mapId, opts, txn);
+      loaded = (staticLoaded !== false);
+      return staticLoaded;
     }
     finally{
+      txnStillCurrent = this._isMapLoadTxnCurrent(txn);
       this._finishMapLoadTxn(txn);
+      if(loaded && txnStillCurrent){
+        this._fetchNpcs().catch(()=>{});
+      }
     }
     
   }
@@ -2035,7 +2045,7 @@ export class Overworld{
     return true;
   }
 
-  _resetMapTransientState({clearNeighbors=false}={}){
+  _resetMapTransientState({clearNeighbors=false, preserveMapLoadInFlight=false}={}){
     this._nextMapAsyncRev();
     this._edgePending = null;
     this._warpPending = false;
@@ -2052,7 +2062,7 @@ export class Overworld{
     this._moveDistPx = 0;
     this._moveDirLocked = null;
     this._abortSyncLoop();
-    this._mapLoadInFlight = false;
+    if(!preserveMapLoadInFlight) this._mapLoadInFlight = false;
     if(this._grassFx && this._grassFx.clear) this._grassFx.clear();
     this.npcs=[];
     this.items=[];
