@@ -1737,6 +1737,7 @@ export class Overworld{
   async _resyncFromServerState(){
     
     if(!this.playToken || this._serverResyncing) return;
+    const reqCtx = this._mapAsyncCtx();
     
     this._serverResyncing = true;
     
@@ -1750,10 +1751,12 @@ export class Overworld{
         cache:"no-store", headers: hdr}
       );
       
+      if(!this._isMapAsyncCtxCurrent(reqCtx)) return;
       if(!s.ok) return;
       
       const j = await s.json().catch(()=>null);
       
+      if(!this._isMapAsyncCtxCurrent(reqCtx)) return;
       const st = (j && j.ok && j.state) ? j.state : null;
       
       if(!st) return;
@@ -1792,6 +1795,7 @@ export class Overworld{
        this._serverStateLoaded=true;
        return;
        }
+    const initCtx = this._mapAsyncCtx();
     
     const hdr = {
        "Authorization": `Bearer ${this.playToken}` }
@@ -1833,10 +1837,12 @@ export class Overworld{
         cache:"no-store", headers: hdr}
       );
       
+      if(!this._isMapAsyncCtxCurrent(initCtx)) return;
       if(s.ok){
         
         const j = await s.json();
         
+        if(!this._isMapAsyncCtxCurrent(initCtx)) return;
         if(j && j.ok && j.state){
           
           const st = j.state;
@@ -2016,6 +2022,9 @@ export class Overworld{
     this._movePx = 0;
     this._moveDistPx = 0;
     this._moveDirLocked = null;
+    this._syncQueued = false;
+    this._syncLatest = null;
+    this._syncLatestCtx = null;
     if(this._grassFx && this._grassFx.clear) this._grassFx.clear();
     this.npcs=[];
     this.items=[];
