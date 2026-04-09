@@ -2044,12 +2044,17 @@ export class Overworld{
     this._syncPromise = null;
   }
 
+  _abortNeighborPrefetches(){
+    if(this._neighborPromises && this._neighborPromises.clear) this._neighborPromises.clear();
+  }
+
   _beginMapLoadTxn(targetMapId=null){
     this._activeMapLoadTxn = (((this._mapLoadTxnSeq|0) + 1) >>> 0);
     this._mapLoadTxnSeq = this._activeMapLoadTxn;
     this._mapLoadInFlight = true;
     this._abortSyncLoop();
     this._abortServerStateRequests();
+    this._abortNeighborPrefetches();
     this._nextMapAsyncRev();
     return {
       seq:(this._activeMapLoadTxn|0),
@@ -2106,9 +2111,9 @@ export class Overworld{
     this.items=[];
     this.mobs=[];
     if(this._mobVis && this._mobVis.clear) this._mobVis.clear();
+    this._abortNeighborPrefetches();
     if(clearNeighbors){
       if(this._neighborCache && this._neighborCache.clear) this._neighborCache.clear();
-      if(this._neighborPromises && this._neighborPromises.clear) this._neighborPromises.clear();
     }
   }
 
