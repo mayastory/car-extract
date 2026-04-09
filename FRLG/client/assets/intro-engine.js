@@ -8,7 +8,11 @@ window.FRLG = window.FRLG || {};
   };
 
   const PACKEGE_ASSET_BASE = 'assets/packege/object_events';
+  const PACKEGE_TEXT_WINDOW_BASE = 'assets/packege/text_window';
+  const PACKEGE_INTERFACE_BASE = 'assets/packege/interface';
+  const PACKEGE_NAMING_BASE = 'assets/packege/naming_screen';
   const PACKEGE_FIELD_ASSETS = createPackegeFieldAssets();
+  const PACKEGE_UI_ASSETS = createPackegeUiAssets();
 
   const NAME_ENTRY_MAX_CHARS = 7;
   const NAME_ENTRY_PAGE_NEXT = {
@@ -1001,42 +1005,65 @@ window.FRLG = window.FRLG || {};
       const chars = targetValue.split('');
       const rows = this.getCurrentNameRows();
       const controls = this.getNameControlItems();
+      const pageKey = this.nameEntry.page === 'upper'
+        ? 'pageSwapUpper'
+        : this.nameEntry.page === 'lower'
+          ? 'pageSwapLower'
+          : 'pageSwapOthers';
 
-      centerText(ctx, targetLabel, 240, 34, 20, 1, '#1b2732');
-      centerText(ctx, `PACKEGE naming_screen.c 스타일 skeleton · ${NAME_ENTRY_PAGE_TITLE[this.nameEntry.page] || 'ABC'} 페이지 · 방향키/Enter/Backspace`, 240, 56, 11, 0.9, '#334957');
+      centerText(ctx, targetLabel, 240, 30, 20, 1, '#1b2732');
+      centerText(ctx, `Packege naming_screen 자산 1단계 · ${NAME_ENTRY_PAGE_TITLE[this.nameEntry.page] || 'ABC'} 페이지 · 방향키/Enter/Backspace`, 240, 50, 11, 0.9, '#334957');
 
-      drawWindow(ctx, 72, 66, 336, 48, false, '#103048', '#4e8cb5');
+      drawWindow(ctx, 68, 60, 344, 56, false, '#f8fff8', '#6f86a0', 'std');
+      drawUiBanner(ctx, PACKEGE_UI_ASSETS.namingMenu, 76, 67, 128, 24);
+      centerText(ctx, targetLabel, 288, 83, 14, 1, '#22384f');
       for (let i = 0; i < maxChars; i++) {
-        const x = 92 + i * 42;
+        const x = 96 + i * 40;
         const filled = chars[i] !== undefined;
-        drawWindow(ctx, x, 78, 30, 24, false, filled ? '#1f4f70' : '#23425b', '#9ac9e7');
-        centerText(ctx, filled ? displayNameChar(chars[i]) : '·', x + 15, 96, 16, filled ? 1 : 0.45, '#ffffff');
+        drawUiGlyph(ctx, PACKEGE_UI_ASSETS.underscore, x + 11, 94, 8, 8);
+        if (filled) {
+          centerText(ctx, displayNameChar(chars[i]), x + 15, 89, 16, 1, '#18324a');
+        }
       }
+      const nextIndex = Math.min(targetValue.length, maxChars - 1);
+      drawUiGlyph(ctx, PACKEGE_UI_ASSETS.inputArrow, 96 + nextIndex * 40 + 11, 72, 8, 8);
 
       const keyLeft = 46;
-      const keyTop = 120;
+      const keyTop = 124;
       const cellW = 48;
       const cellH = 24;
-      drawWindow(ctx, 32, 110, 416, 132, false, '#0e2232', '#365d79');
+      drawWindow(ctx, 28, 114, 424, 128, false, '#f8fff8', '#6f86a0', 'std');
       rows.forEach((row, rowIndex) => {
         row.forEach((ch, colIndex) => {
           const x = keyLeft + colIndex * cellW;
           const y = keyTop + rowIndex * 26;
           const active = this.nameEntry.focus === 'grid' && this.nameEntry.y === rowIndex && this.nameEntry.x === colIndex;
-          drawWindow(ctx, x, y, cellW - 6, cellH, active, active ? '#245a7e' : '#163448', active ? '#f7ff9f' : '#73b7db');
-          centerText(ctx, displayNameChar(ch), x + (cellW - 6) / 2, y + 17, 15, ch === ' ' ? 0.9 : 1, '#ffffff');
+          drawUiCell(ctx, x, y, cellW - 6, cellH, active);
+          centerText(ctx, displayNameChar(ch), x + (cellW - 6) / 2, y + 16, 15, ch === ' ' ? 0.9 : 1, '#18324a');
         });
       });
 
-      const ctrlTop = 220;
+      const ctrlTop = 224;
       controls.forEach((control, idx) => {
-        const x = 74 + idx * 114;
+        const x = 72 + idx * 114;
         const active = this.nameEntry.focus === 'controls' && this.nameEntry.controlIndex === idx;
-        drawWindow(ctx, x, ctrlTop, 96, 22, active, active ? '#245a7e' : '#163448', active ? '#f7ff9f' : '#73b7db');
-        centerText(ctx, control.label, x + 48, ctrlTop + 16, 14, 1, '#ffffff');
+        drawWindow(ctx, x, ctrlTop, 96, 24, false, '#f8fff8', '#6f86a0', 'std');
+        if (control.action === 'page') {
+          drawUiBanner(ctx, PACKEGE_UI_ASSETS[pageKey], x + 28, ctrlTop + 8, 40, 8);
+        } else if (control.action === 'ok') {
+          drawUiBanner(ctx, PACKEGE_UI_ASSETS.namingOkButton, x + 28, ctrlTop, 40, 24);
+        } else if (control.action === 'del') {
+          drawUiBanner(ctx, PACKEGE_UI_ASSETS.namingBackButton, x + 28, ctrlTop, 40, 24);
+          centerText(ctx, 'DEL', x + 49, ctrlTop + 16, 9, 1, '#18324a');
+        } else {
+          centerText(ctx, control.label, x + 48, ctrlTop + 16, 14, 1, '#18324a');
+        }
+        if (active) {
+          drawUiGlyph(ctx, PACKEGE_UI_ASSETS.namingCursor, x + 6, ctrlTop, 16, 24);
+        }
       });
 
-      centerText(ctx, `현재 길이 ${targetValue.length}/${maxChars}`, 392, 96, 11, 0.92, '#dff4ff');
+      centerText(ctx, `현재 길이 ${targetValue.length}/${maxChars}`, 392, 92, 11, 0.92, '#35526a');
       this.drawDialogue(this.nameMode === 'player' ? '너의 이름을 문자판으로 조합해라.' : '이제 라이벌의 이름을 문자판으로 조합해라.');
     }
 
@@ -1069,7 +1096,7 @@ window.FRLG = window.FRLG || {};
 
       const infoX = 28;
       const infoY = 28;
-      drawWindow(ctx, infoX, infoY, 186, 94, false, '#f8fff8', '#2f5676');
+      drawWindow(ctx, infoX, infoY, 186, 94, false, '#f8fff8', '#2f5676', 'std');
       ctx.fillStyle = '#d7edf9';
       ctx.fillRect(infoX + 6, infoY + 6, 174, 18);
       ctx.fillStyle = '#1c3850';
@@ -1087,7 +1114,7 @@ window.FRLG = window.FRLG || {};
       const panelY = 24;
       const itemH = 20;
       const panelH = 26 + items.length * itemH + 12;
-      drawWindow(ctx, panelX, panelY, 128, panelH, false, '#f8fff8', '#2f5676');
+      drawWindow(ctx, panelX, panelY, 128, panelH, false, '#f8fff8', '#2f5676', 'std');
       ctx.fillStyle = '#d7edf9';
       ctx.fillRect(panelX + 6, panelY + 6, 116, 16);
       ctx.fillStyle = '#1c3850';
@@ -1110,7 +1137,7 @@ window.FRLG = window.FRLG || {};
         ctx.fillText(item.label, panelX + 28, baseY - 3);
       });
 
-      drawWindow(ctx, 24, 246, 432, 60, false, '#102030', '#365d79');
+      drawWindow(ctx, 24, 246, 432, 60, false, '#102030', '#365d79', 'std');
       const footerLine = selected ? `${selected.label} 을(를) 선택할 수 있다.` : '메뉴';
       wrapText(ctx, footerLine, 44, 266, 392, 18, '#ffffff', 14);
       wrapText(ctx, 'ESC / X 메뉴 열기·닫기 · 방향키 선택 · Enter 확인', 44, 286, 392, 18, '#d9efff', 12);
@@ -1121,7 +1148,7 @@ window.FRLG = window.FRLG || {};
       this.drawBg('#7aa6cc', '#29445e');
       const tile = fitTileSize(map.width, map.height, 300, 196, 16, 24);
       const origin = centeredOrigin(this.canvas.width, this.canvas.height, map.width, map.height, tile, 32);
-      drawWindow(ctx, origin.x - 12, origin.y - 12, map.width * tile + 24, map.height * tile + 24, false, '#a27551', '#623f26');
+      drawWindow(ctx, origin.x - 12, origin.y - 12, map.width * tile + 24, map.height * tile + 24, false, '#a27551', '#623f26', 'std');
       for (let y = 0; y < map.height; y++) {
         for (let x = 0; x < map.width; x++) {
           const px = origin.x + x * tile;
@@ -1197,7 +1224,7 @@ window.FRLG = window.FRLG || {};
     }
 
     drawDialogue(text) {
-      drawWindow(this.ctx, 24, 246, 432, 60, false, '#102030', '#365d79');
+      drawWindow(this.ctx, 24, 246, 432, 60, false, '#102030', '#365d79', 'std');
       wrapText(this.ctx, text, 44, 270, 392, 20, '#ffffff', 14);
     }
 
@@ -1400,6 +1427,30 @@ window.FRLG = window.FRLG || {};
     };
   }
 
+
+  function createPackegeUiAssets() {
+    const load = (path) => {
+      const img = new Image();
+      img.src = path;
+      return img;
+    };
+    return {
+      windowStd: load(`${PACKEGE_TEXT_WINDOW_BASE}/std.png`),
+      windowMenuMessage: load(`${PACKEGE_TEXT_WINDOW_BASE}/menu_message.png`),
+      redArrow: load(`${PACKEGE_INTERFACE_BASE}/red_arrow.png`),
+      namingCursor: load(`${PACKEGE_NAMING_BASE}/cursor.png`),
+      namingCursorFilled: load(`${PACKEGE_NAMING_BASE}/cursor_filled.png`),
+      namingMenu: load(`${PACKEGE_NAMING_BASE}/menu.png`),
+      namingBackButton: load(`${PACKEGE_NAMING_BASE}/back_button.png`),
+      namingOkButton: load(`${PACKEGE_NAMING_BASE}/ok_button.png`),
+      pageSwapUpper: load(`${PACKEGE_NAMING_BASE}/page_swap_upper.png`),
+      pageSwapLower: load(`${PACKEGE_NAMING_BASE}/page_swap_lower.png`),
+      pageSwapOthers: load(`${PACKEGE_NAMING_BASE}/page_swap_others.png`),
+      inputArrow: load(`${PACKEGE_NAMING_BASE}/input_arrow.png`),
+      underscore: load(`${PACKEGE_NAMING_BASE}/underscore.png`)
+    };
+  }
+
   function drawPackegeImage(ctx, img, sx, sy, sw, sh, dx, dy, dw, dh, flipX = false) {
     if (!img || !img.complete || !img.naturalWidth) return false;
     ctx.save();
@@ -1580,10 +1631,17 @@ window.FRLG = window.FRLG || {};
     ctx.restore();
   }
 
-  function drawWindow(ctx, x, y, w, h, selected = false, fill = '#0e2132', line = '#4ca7db') {
+  function drawWindow(ctx, x, y, w, h, selected = false, fill = '#0e2132', line = '#4ca7db', skin = 'plain') {
     ctx.save();
-    ctx.fillStyle = fill;
-    ctx.fillRect(x, y, w, h);
+    if (skin === 'std' && PACKEGE_UI_ASSETS.windowStd?.complete && PACKEGE_UI_ASSETS.windowStd?.naturalWidth) {
+      tileUiTexture(ctx, PACKEGE_UI_ASSETS.windowStd, x, y, w, h);
+      if (PACKEGE_UI_ASSETS.windowMenuMessage?.complete && PACKEGE_UI_ASSETS.windowMenuMessage?.naturalWidth && h >= 24) {
+        drawUiBanner(ctx, PACKEGE_UI_ASSETS.windowMenuMessage, x + 8, y + 4, Math.max(48, Math.min(w - 16, 96)), 24);
+      }
+    } else {
+      ctx.fillStyle = fill;
+      ctx.fillRect(x, y, w, h);
+    }
     ctx.strokeStyle = selected ? '#ffffff' : line;
     ctx.lineWidth = selected ? 3 : 2;
     ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
@@ -1591,6 +1649,9 @@ window.FRLG = window.FRLG || {};
   }
 
   function drawMenuArrow(ctx, x, y, color = '#ffffff') {
+    if (drawUiGlyph(ctx, PACKEGE_UI_ASSETS.redArrow, x - 2, y - 3, 16, 16)) {
+      return;
+    }
     ctx.save();
     ctx.fillStyle = color;
     ctx.beginPath();
@@ -1600,6 +1661,55 @@ window.FRLG = window.FRLG || {};
     ctx.closePath();
     ctx.fill();
     ctx.restore();
+  }
+
+  function tileUiTexture(ctx, img, x, y, w, h) {
+    if (!img || !img.complete || !img.naturalWidth) {
+      ctx.fillStyle = '#f8fff8';
+      ctx.fillRect(x, y, w, h);
+      return false;
+    }
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    for (let py = y; py < y + h; py += img.naturalHeight) {
+      for (let px = x; px < x + w; px += img.naturalWidth) {
+        const dw = Math.min(img.naturalWidth, x + w - px);
+        const dh = Math.min(img.naturalHeight, y + h - py);
+        ctx.drawImage(img, 0, 0, dw, dh, px, py, dw, dh);
+      }
+    }
+    ctx.restore();
+    return true;
+  }
+
+  function drawUiBanner(ctx, img, x, y, w, h) {
+    if (!img || !img.complete || !img.naturalWidth) return false;
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, x, y, w, h);
+    ctx.restore();
+    return true;
+  }
+
+  function drawUiGlyph(ctx, img, x, y, w, h) {
+    if (!img || !img.complete || !img.naturalWidth) return false;
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, x, y, w, h);
+    ctx.restore();
+    return true;
+  }
+
+  function drawUiCell(ctx, x, y, w, h, active = false) {
+    ctx.save();
+    ctx.fillStyle = active ? '#e2eff9' : '#f8fff8';
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = '#6f86a0';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+    ctx.restore();
+    const glyph = active ? PACKEGE_UI_ASSETS.namingCursorFilled : PACKEGE_UI_ASSETS.namingCursor;
+    drawUiGlyph(ctx, glyph, x + 2, y, 16, 24);
   }
 
   function drawLeafBackdrop(ctx, now) {

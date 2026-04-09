@@ -35,7 +35,7 @@
         <ul>
           <li>원본처럼 바로 PalletTown 직행하지 않고 시작 순서를 먼저 연결</li>
           <li>Packege 맵 json 기준으로 PlayersHouse 2F / 1F / PalletTown / RivalHouse / OaksLab 연결</li>
-          <li>맵 타일은 아직 placeholder지만 플레이어 / NPC / 표지판 / 일부 오브젝트는 Packege 오브젝트 자산 첫 연결</li>
+          <li>맵 타일은 아직 placeholder지만 플레이어 / NPC / 표지판 / 일부 오브젝트 자산 + text_window / naming_screen / red_arrow UI 자산 첫 연결</li>
           <li>OaksLab에서 starter 선택 skeleton / 첫 rival battle skeleton / PalletTown 북쪽 Oak 차단 placeholder 추가</li>
         </ul>
       </div>
@@ -47,7 +47,7 @@
           <li>오박사 대사 / 성별 / 이름 / 라이벌 이름 흐름 유지</li>
           <li>이름 입력은 browser input 박스 대신 Packege naming_screen 스타일 문자판 skeleton으로 교체</li>
           <li>필드에서 ESC / X 로 여는 게임 내 메뉴 skeleton 추가 (창/커서 UI 보강)</li>
-          <li>Packege object_events/pics 기준으로 필드 캐릭터 / 표지판 스프라이트 첫 적용</li>
+          <li>Packege object_events/pics 기준 필드 캐릭터 / 표지판 스프라이트 적용 + text_window/std / naming_screen / red_arrow UI 자산 1단계 적용</li>
           <li>최종 도착점은 PlayersHouse 2F 시작 후 1F / PalletTown / RivalHouse / OaksLab 이동 가능</li>
           <li>starter / rival starter / first battle 완료 상태가 local continue에도 저장됨</li>
         </ul>
