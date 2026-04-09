@@ -13,6 +13,8 @@ window.FRLG = window.FRLG || {};
   const PACKEGE_NAMING_BASE = 'assets/packege/naming_screen';
   const PACKEGE_FIELD_ASSETS = createPackegeFieldAssets();
   const PACKEGE_UI_ASSETS = createPackegeUiAssets();
+  const PACKEGE_OAK_SPEECH_BASE = 'assets/packege/oak_speech';
+  const PACKEGE_OAK_SPEECH_ASSETS = createPackegeOakSpeechAssets();
 
   const NAME_ENTRY_MAX_CHARS = 7;
   const NAME_ENTRY_PAGE_NEXT = {
@@ -1008,32 +1010,51 @@ window.FRLG = window.FRLG || {};
     }
 
     drawOakIntro() {
-      this.drawBg('#e8f1f6', '#b7d1db');
-      drawOak(this.ctx, 135, 160);
-      drawPokemonBuddy(this.ctx, 355, 188);
+      drawOakSpeechBackdrop(this.ctx);
+      drawOakSpeechPlatform(this.ctx, 150, 186, 134, 26);
+      drawOakSpeechPlatform(this.ctx, 344, 206, 124, 24);
+      const drewOak = drawOakSpeechCharacter(this.ctx, PACKEGE_OAK_SPEECH_ASSETS.oak, 150, 182, 2.15);
+      if (!drewOak) drawOak(this.ctx, 150, 160);
+      drawPokemonBuddy(this.ctx, 344, 188);
       this.drawDialogue(this.flow.oakIntro[this.oakLine]);
       centerText(this.ctx, 'OAK INTRO', 240, 30, 14, 0.9, '#22313a');
     }
 
     drawGenderSelect() {
-      this.drawBg('#edf5fa', '#c8dceb');
-      centerText(this.ctx, '먼저 네가 어떤 아이인지 알려다오.', 240, 56, 16, 1, '#23323b');
+      drawOakSpeechBackdrop(this.ctx);
+      centerText(this.ctx, '먼저 네가 어떤 아이인지 알려다오.', 240, 50, 16, 1, '#23323b');
       const options = [
-        { label: 'BOY', color: PLAYER_COLORS.M, x: 150 },
-        { label: 'GIRL', color: PLAYER_COLORS.F, x: 330 }
+        { label: 'BOY', x: 150, sprite: PACKEGE_OAK_SPEECH_ASSETS.red },
+        { label: 'GIRL', x: 330, sprite: PACKEGE_OAK_SPEECH_ASSETS.leaf }
       ];
       options.forEach((opt, idx) => {
-        drawWindow(this.ctx, opt.x - 70, 118, 140, 120, idx === this.genderIndex);
-        drawTrainerBust(this.ctx, opt.x, 162, opt.color, idx === this.genderIndex ? 1.04 : 1);
-        centerText(this.ctx, opt.label, opt.x, 222, 18, 1, '#ffffff');
+        const selected = idx === this.genderIndex;
+        drawOakSpeechPlatform(this.ctx, opt.x, 188, selected ? 136 : 126, selected ? 28 : 24);
+        if (!drawOakSpeechCharacter(this.ctx, opt.sprite, opt.x, 184, selected ? 2.15 : 2.0, selected ? 1 : 0.84)) {
+          drawWindow(this.ctx, opt.x - 70, 118, 140, 120, selected);
+          drawTrainerBust(this.ctx, opt.x, 162, idx === 0 ? PLAYER_COLORS.M : PLAYER_COLORS.F, selected ? 1.04 : 1);
+        }
+        if (selected) {
+          this.ctx.save();
+          this.ctx.strokeStyle = '#f8e66a';
+          this.ctx.lineWidth = 3;
+          this.ctx.strokeRect(opt.x - 56, 72, 112, 136);
+          this.ctx.restore();
+        }
+        centerText(this.ctx, opt.label, opt.x, 222, 18, 1, selected ? '#fff6b3' : '#ffffff');
       });
       this.drawDialogue('Are you a boy? Or are you a girl?');
     }
 
     drawPostGender() {
-      this.drawBg('#edf5fa', '#c8dceb');
-      drawOak(this.ctx, 135, 160);
-      drawTrainerBust(this.ctx, 355, 170, PLAYER_COLORS[this.profile.gender], 1);
+      drawOakSpeechBackdrop(this.ctx);
+      drawOakSpeechPlatform(this.ctx, 150, 186, 134, 26);
+      drawOakSpeechPlatform(this.ctx, 344, 196, 134, 26);
+      if (!drawOakSpeechCharacter(this.ctx, PACKEGE_OAK_SPEECH_ASSETS.oak, 150, 182, 2.15)) drawOak(this.ctx, 150, 160);
+      const trainerSprite = this.profile.gender === 'F' ? PACKEGE_OAK_SPEECH_ASSETS.leaf : PACKEGE_OAK_SPEECH_ASSETS.red;
+      if (!drawOakSpeechCharacter(this.ctx, trainerSprite, 344, 192, 2.1)) {
+        drawTrainerBust(this.ctx, 344, 170, PLAYER_COLORS[this.profile.gender], 1);
+      }
       this.drawDialogue(this.flow.postGender[this.postGenderLine]);
     }
 
@@ -1492,6 +1513,22 @@ window.FRLG = window.FRLG || {};
     };
   }
 
+  function createPackegeOakSpeechAssets() {
+    const load = (path) => {
+      const img = new Image();
+      img.src = path;
+      return img;
+    };
+    return {
+      bg: load(`${PACKEGE_OAK_SPEECH_BASE}/oak_speech_bg.png`),
+      platform: load(`${PACKEGE_OAK_SPEECH_BASE}/platform.png`),
+      oak: load(`${PACKEGE_OAK_SPEECH_BASE}/oak/pic.png`),
+      red: load(`${PACKEGE_OAK_SPEECH_BASE}/red/pic.png`),
+      leaf: load(`${PACKEGE_OAK_SPEECH_BASE}/leaf/pic.png`),
+      rival: load(`${PACKEGE_OAK_SPEECH_BASE}/rival/pic.png`)
+    };
+  }
+
   function drawPackegeImage(ctx, img, sx, sy, sw, sh, dx, dy, dw, dh, flipX = false) {
     if (!img || !img.complete || !img.naturalWidth) return false;
     ctx.save();
@@ -1762,6 +1799,59 @@ window.FRLG = window.FRLG || {};
     ctx.restore();
     const glyph = active ? PACKEGE_UI_ASSETS.namingCursorFilled : PACKEGE_UI_ASSETS.namingCursor;
     drawUiGlyph(ctx, glyph, x + 2, y, 16, 24);
+  }
+
+  function drawOakSpeechBackdrop(ctx) {
+    const bg = PACKEGE_OAK_SPEECH_ASSETS.bg;
+    if (bg && bg.complete && bg.naturalWidth) {
+      ctx.save();
+      ctx.imageSmoothingEnabled = false;
+      for (let y = 0; y < 246; y += bg.naturalHeight) {
+        for (let x = 0; x < 480; x += bg.naturalWidth) {
+          ctx.drawImage(bg, x, y);
+        }
+      }
+      ctx.restore();
+    } else {
+      const gradient = ctx.createLinearGradient(0, 0, 0, 246);
+      gradient.addColorStop(0, '#edf5fa');
+      gradient.addColorStop(1, '#c8dceb');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 480, 246);
+    }
+    ctx.fillStyle = '#d8e6ef';
+    ctx.fillRect(0, 210, 480, 36);
+  }
+
+  function drawOakSpeechPlatform(ctx, cx, baseY, width = 128, height = 24) {
+    const img = PACKEGE_OAK_SPEECH_ASSETS.platform;
+    const x = Math.round(cx - width / 2);
+    const y = Math.round(baseY - height / 2);
+    if (img && img.complete && img.naturalWidth) {
+      ctx.save();
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(img, x, y, width, height);
+      ctx.restore();
+      return;
+    }
+    ctx.save();
+    ctx.fillStyle = '#b9ded7';
+    ctx.beginPath();
+    ctx.ellipse(cx, baseY, width / 2, height / 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawOakSpeechCharacter(ctx, img, cx, footY, scale = 2, alpha = 1) {
+    if (!img || !img.complete || !img.naturalWidth) return false;
+    const w = Math.round(img.naturalWidth * scale);
+    const h = Math.round(img.naturalHeight * scale);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(img, Math.round(cx - w / 2), Math.round(footY - h), w, h);
+    ctx.restore();
+    return true;
   }
 
   function drawLeafBackdrop(ctx, now) {
