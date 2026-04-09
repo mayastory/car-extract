@@ -119,7 +119,7 @@
 
   function drawOakFigure(ctx, img, x, y, w, h) {
     if (img.complete && img.naturalWidth) {
-      ctx.drawImage(img, x, y, w, h);
+      drawSpriteWithChroma(ctx, img, x, y, w, h);
       return;
     }
     ctx.fillStyle = '#e0d2c3';
@@ -135,7 +135,7 @@
 
   function drawBuddyFigure(ctx, img, x, y, w, h) {
     if (img.complete && img.naturalWidth) {
-      ctx.drawImage(img, x, y, w, h);
+      drawSpriteWithChroma(ctx, img, x, y, w, h);
       return;
     }
     drawFallbackBuddy(ctx, x, y, w, h);
@@ -143,7 +143,7 @@
 
   function drawTrainerFigure(ctx, img, x, y, w, h) {
     if (img.complete && img.naturalWidth) {
-      ctx.drawImage(img, x, y, w, h);
+      drawSpriteWithChroma(ctx, img, x, y, w, h);
       return;
     }
     ctx.fillStyle = '#f2f6fa';
@@ -151,6 +151,57 @@
     ctx.strokeStyle = '#537286';
     ctx.lineWidth = 2;
     ctx.strokeRect(x + 14, y + 8, w - 28, h - 16);
+  }
+
+
+
+  const __frlgSpriteChromaCache = new WeakMap();
+
+  function drawSpriteWithChroma(ctx, img, x, y, w, h) {
+    const safe = getChromaSafeImage(img);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(safe, x, y, w, h);
+  }
+
+  function getChromaSafeImage(img) {
+    const cached = __frlgSpriteChromaCache.get(img);
+    if (cached) return cached;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth || img.width;
+    canvas.height = img.naturalHeight || img.height;
+    const cctx = canvas.getContext('2d', { willReadFrequently: true });
+    cctx.drawImage(img, 0, 0);
+
+    try {
+      const imageData = cctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const a = data[i + 3];
+        if (!a) continue;
+
+        const isMintMatt =
+          g > 150 &&
+          b > 120 &&
+          g >= r + 20 &&
+          Math.abs(g - 208) < 65 &&
+          Math.abs(b - 176) < 70 &&
+          Math.abs(r - 128) < 70;
+
+        if (isMintMatt) {
+          data[i + 3] = 0;
+        }
+      }
+      cctx.putImageData(imageData, 0, 0);
+    } catch (err) {
+      // Keep original pixels if image data access fails.
+    }
+
+    __frlgSpriteChromaCache.set(img, canvas);
+    return canvas;
   }
 
   function drawFallbackBuddy(ctx, x, y, w, h) {
