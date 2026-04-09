@@ -25,7 +25,7 @@
       <div class="overlay">
         <div class="badge">LOCAL</div>
         <div id="sceneName" class="scene-name">boot</div>
-        <div class="hint">Enter/Space 진행·대화·저장 · 방향키 선택/이동 · Backspace 지우기 · R 리셋</div>
+        <div class="hint">Enter/Space 진행·대화·입력 · 방향키 선택/이동 · Backspace 삭제 · R 리셋</div>
       </div>
     </main>
 
@@ -45,6 +45,7 @@
           <li>인트로 scene 러너 유지</li>
           <li>타이틀 / New Game / Continue(local) 흐름 유지</li>
           <li>오박사 대사 / 성별 / 이름 / 라이벌 이름 흐름 유지</li>
+          <li>이름 입력은 browser input 박스 대신 Packege naming_screen 스타일 문자판 skeleton으로 교체</li>
           <li>최종 도착점은 PlayersHouse 2F 시작 후 1F / PalletTown / RivalHouse / OaksLab 이동 가능</li>
           <li>starter / rival starter / first battle 완료 상태가 local continue에도 저장됨</li>
         </ul>

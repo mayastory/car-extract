@@ -7,6 +7,43 @@ window.FRLG = window.FRLG || {};
     F: '#4ec6ff'
   };
 
+  const NAME_ENTRY_MAX_CHARS = 7;
+  const NAME_ENTRY_PAGE_NEXT = {
+    upper: 'lower',
+    lower: 'symbols',
+    symbols: 'upper'
+  };
+  const NAME_ENTRY_PAGE_BUTTON_LABEL = {
+    upper: 'abc',
+    lower: '123',
+    symbols: 'ABC'
+  };
+  const NAME_ENTRY_PAGE_TITLE = {
+    upper: 'ABC',
+    lower: 'abc',
+    symbols: '123'
+  };
+  const NAME_ENTRY_PAGES = {
+    lower: [
+      ['a', 'b', 'c', 'd', 'e', 'f', ' ', '.'],
+      ['g', 'h', 'i', 'j', 'k', 'l', ' ', ','],
+      ['m', 'n', 'o', 'p', 'q', 'r', 's'],
+      ['t', 'u', 'v', 'w', 'x', 'y', 'z']
+    ],
+    upper: [
+      ['A', 'B', 'C', 'D', 'E', 'F', ' ', '.'],
+      ['G', 'H', 'I', 'J', 'K', 'L', ' ', ','],
+      ['M', 'N', 'O', 'P', 'Q', 'R', 'S'],
+      ['T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+    ],
+    symbols: [
+      ['0', '1', '2', '3', '4'],
+      ['5', '6', '7', '8', '9'],
+      ['!', '?', '♂', '♀', '/', '-'],
+      ['…', '“', '”', '‘', "'"]
+    ]
+  };
+
   class IntroEngine {
     constructor(canvas, config, hooks) {
       this.canvas = canvas;
@@ -33,6 +70,7 @@ window.FRLG = window.FRLG || {};
         playerName: '',
         rivalName: ''
       };
+      this.nameEntry = this.createNameEntryState();
       this.progress = {
         starter: null,
         rivalStarter: null,
@@ -143,11 +181,12 @@ window.FRLG = window.FRLG || {};
             this.postGenderLine += 1;
           } else {
             this.nameMode = 'player';
+            this.resetNamingScreen();
             this.setState('name-entry');
           }
           break;
         case 'name-entry':
-          this.confirmNameEntry();
+          this.handleNameEntryAction();
           break;
         case 'field':
           if (this.consumeFieldDialogue()) break;
@@ -173,6 +212,48 @@ window.FRLG = window.FRLG || {};
       }
     }
 
+    createNameEntryState() {
+      return {
+        page: 'upper',
+        focus: 'grid',
+        x: 0,
+        y: 0,
+        controlIndex: 0
+      };
+    }
+
+    resetNamingScreen() {
+      this.nameEntry = this.createNameEntryState();
+    }
+
+    getNameMaxLength() {
+      return NAME_ENTRY_MAX_CHARS;
+    }
+
+    getCurrentNameRows() {
+      return NAME_ENTRY_PAGES[this.nameEntry.page] || NAME_ENTRY_PAGES.upper;
+    }
+
+    normalizeNameCursor() {
+      const rows = this.getCurrentNameRows();
+      const row = rows[this.nameEntry.y] || rows[0] || [];
+      this.nameEntry.y = clamp(this.nameEntry.y, 0, rows.length - 1);
+      this.nameEntry.x = clamp(this.nameEntry.x, 0, Math.max(0, row.length - 1));
+    }
+
+    getNameControlItems() {
+      return [
+        { kind: 'page', label: NAME_ENTRY_PAGE_BUTTON_LABEL[this.nameEntry.page] || 'abc' },
+        { kind: 'del', label: 'DEL' },
+        { kind: 'ok', label: 'OK' }
+      ];
+    }
+
+    cycleNamePage() {
+      this.nameEntry.page = NAME_ENTRY_PAGE_NEXT[this.nameEntry.page] || 'upper';
+      this.normalizeNameCursor();
+    }
+
     confirmNameEntry() {
       const target = this.nameMode === 'player' ? 'playerName' : 'rivalName';
       const value = this.profile[target].trim();
@@ -181,6 +262,7 @@ window.FRLG = window.FRLG || {};
       if (this.nameMode === 'player') {
         this.nameMode = 'rival';
         this.profile.rivalName = '';
+        this.resetNamingScreen();
       } else {
         this.saveLocalSnapshot();
         this.setState('field');
@@ -189,16 +271,65 @@ window.FRLG = window.FRLG || {};
 
     appendChar(ch) {
       if (this.state !== 'name-entry') return;
-      if (!/^[A-Za-z0-9 ]$/.test(ch)) return;
+      if (typeof ch !== 'string' || ch.length !== 1) return;
       const target = this.nameMode === 'player' ? 'playerName' : 'rivalName';
-      if (this.profile[target].length >= 10) return;
-      this.profile[target] += ch.toUpperCase();
+      if (this.profile[target].length >= this.getNameMaxLength()) return;
+      this.profile[target] += ch;
     }
 
     backspaceName() {
       if (this.state !== 'name-entry') return;
       const target = this.nameMode === 'player' ? 'playerName' : 'rivalName';
       this.profile[target] = this.profile[target].slice(0, -1);
+    }
+
+    moveNameSelection(dx, dy) {
+      if (this.nameEntry.focus === 'grid') {
+        if (dy > 0 && this.nameEntry.y === this.getCurrentNameRows().length - 1) {
+          this.nameEntry.focus = 'controls';
+          this.nameEntry.controlIndex = clamp(this.nameEntry.controlIndex, 0, 2);
+          return;
+        }
+        this.nameEntry.x += dx;
+        this.nameEntry.y += dy;
+        this.normalizeNameCursor();
+        return;
+      }
+
+      if (dy < 0) {
+        this.nameEntry.focus = 'grid';
+        this.nameEntry.y = this.getCurrentNameRows().length - 1;
+        const backMap = [0, 3, 6];
+        this.nameEntry.x = backMap[this.nameEntry.controlIndex] || 0;
+        this.normalizeNameCursor();
+        return;
+      }
+
+      this.nameEntry.controlIndex = clamp(this.nameEntry.controlIndex + dx, 0, 2);
+    }
+
+    handleNameEntryAction() {
+      if (this.nameEntry.focus === 'grid') {
+        const rows = this.getCurrentNameRows();
+        const row = rows[this.nameEntry.y] || [];
+        const ch = row[this.nameEntry.x];
+        if (ch !== undefined) this.appendChar(ch);
+        return;
+      }
+
+      const control = this.getNameControlItems()[this.nameEntry.controlIndex];
+      if (!control) return;
+      if (control.kind === 'page') {
+        this.cycleNamePage();
+        return;
+      }
+      if (control.kind === 'del') {
+        this.backspaceName();
+        return;
+      }
+      if (control.kind === 'ok') {
+        this.confirmNameEntry();
+      }
     }
 
     moveSelection(dx, dy) {
@@ -208,6 +339,9 @@ window.FRLG = window.FRLG || {};
           break;
         case 'gender-select':
           this.genderIndex = clamp(this.genderIndex + (dx || dy), 0, 1);
+          break;
+        case 'name-entry':
+          this.moveNameSelection(dx, dy);
           break;
         case 'field':
           if (this.hasFieldDialogue()) return;
@@ -667,9 +801,6 @@ window.FRLG = window.FRLG || {};
         this.moveSelection(1, 0);
         return;
       }
-      if (this.state === 'name-entry' && e.key.length === 1) {
-        this.appendChar(e.key);
-      }
     }
 
     drawBg(gradTop = '#020406', gradBottom = '#000000') {
@@ -736,23 +867,50 @@ window.FRLG = window.FRLG || {};
 
     drawNameEntry(now) {
       this.drawBg('#ebeff4', '#9fb6c6');
+      const ctx = this.ctx;
       const targetLabel = this.nameMode === 'player' ? '플레이어 이름' : '라이벌 이름';
       const targetValue = this.nameMode === 'player' ? this.profile.playerName : this.profile.rivalName;
-      centerText(this.ctx, targetLabel, 240, 72, 20, 1, '#1b2732');
-      drawWindow(this.ctx, 88, 112, 304, 74, true);
-      centerText(this.ctx, targetValue || '__________', 240, 156, 24, 1, '#ffffff');
-      const blink = Math.sin(now / 250) > 0 ? 1 : 0;
-      if (targetValue.length < 10) {
-        this.ctx.save();
-        this.ctx.font = '24px Arial';
-        const width = this.ctx.measureText(targetValue || '').width;
-        this.ctx.globalAlpha = blink;
-        this.ctx.fillStyle = '#d9f9ff';
-        this.ctx.fillRect(240 + width / 2 + 6, 136, 10, 22);
-        this.ctx.restore();
+      const maxChars = this.getNameMaxLength();
+      const chars = targetValue.split('');
+      const rows = this.getCurrentNameRows();
+      const controls = this.getNameControlItems();
+
+      centerText(ctx, targetLabel, 240, 34, 20, 1, '#1b2732');
+      centerText(ctx, `PACKEGE naming_screen.c 스타일 skeleton · ${NAME_ENTRY_PAGE_TITLE[this.nameEntry.page] || 'ABC'} 페이지 · 방향키/Enter/Backspace`, 240, 56, 11, 0.9, '#334957');
+
+      drawWindow(ctx, 72, 66, 336, 48, false, '#103048', '#4e8cb5');
+      for (let i = 0; i < maxChars; i++) {
+        const x = 92 + i * 42;
+        const filled = chars[i] !== undefined;
+        drawWindow(ctx, x, 78, 30, 24, false, filled ? '#1f4f70' : '#23425b', '#9ac9e7');
+        centerText(ctx, filled ? displayNameChar(chars[i]) : '·', x + 15, 96, 16, filled ? 1 : 0.45, '#ffffff');
       }
-      centerText(this.ctx, '영문/숫자 입력 · Backspace 지우기 · Enter 확정', 240, 224, 12, 0.86, '#20313d');
-      this.drawDialogue(this.nameMode === 'player' ? '너의 이름을 입력해라.' : '이제 라이벌의 이름을 입력해라.');
+
+      const keyLeft = 46;
+      const keyTop = 120;
+      const cellW = 48;
+      const cellH = 24;
+      drawWindow(ctx, 32, 110, 416, 132, false, '#0e2232', '#365d79');
+      rows.forEach((row, rowIndex) => {
+        row.forEach((ch, colIndex) => {
+          const x = keyLeft + colIndex * cellW;
+          const y = keyTop + rowIndex * 26;
+          const active = this.nameEntry.focus === 'grid' && this.nameEntry.y === rowIndex && this.nameEntry.x === colIndex;
+          drawWindow(ctx, x, y, cellW - 6, cellH, active, active ? '#245a7e' : '#163448', active ? '#f7ff9f' : '#73b7db');
+          centerText(ctx, displayNameChar(ch), x + (cellW - 6) / 2, y + 17, 15, ch === ' ' ? 0.9 : 1, '#ffffff');
+        });
+      });
+
+      const ctrlTop = 220;
+      controls.forEach((control, idx) => {
+        const x = 74 + idx * 114;
+        const active = this.nameEntry.focus === 'controls' && this.nameEntry.controlIndex === idx;
+        drawWindow(ctx, x, ctrlTop, 96, 22, active, active ? '#245a7e' : '#163448', active ? '#f7ff9f' : '#73b7db');
+        centerText(ctx, control.label, x + 48, ctrlTop + 16, 14, 1, '#ffffff');
+      });
+
+      centerText(ctx, `현재 길이 ${targetValue.length}/${maxChars}`, 392, 96, 11, 0.92, '#dff4ff');
+      this.drawDialogue(this.nameMode === 'player' ? '너의 이름을 문자판으로 조합해라.' : '이제 라이벌의 이름을 문자판으로 조합해라.');
     }
 
     drawField() {
@@ -1183,6 +1341,11 @@ window.FRLG = window.FRLG || {};
     if (dir === 'up') ctx.fillRect(-tile * 0.07, -tile * 0.58, tile * 0.14, tile * 0.14);
     if (dir === 'down') ctx.fillRect(-tile * 0.07, tile * 0.02, tile * 0.14, tile * 0.14);
     ctx.restore();
+  }
+
+  function displayNameChar(ch) {
+    if (ch === ' ') return '␣';
+    return ch;
   }
 
   function isInsideRect(x, y, rect) {
