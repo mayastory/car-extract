@@ -7,6 +7,9 @@ window.FRLG = window.FRLG || {};
     F: '#4ec6ff'
   };
 
+  const PACKEGE_ASSET_BASE = 'assets/packege/object_events';
+  const PACKEGE_FIELD_ASSETS = createPackegeFieldAssets();
+
   const NAME_ENTRY_MAX_CHARS = 7;
   const NAME_ENTRY_PAGE_NEXT = {
     upper: 'lower',
@@ -789,7 +792,7 @@ window.FRLG = window.FRLG || {};
     resolveSpecialObjectInteraction(data) {
       const script = data.script || '';
       if (script === 'PalletTown_EventScript_OakStopsYou') {
-        return (this.flow.events && this.flow.events.oakStopsYou) || ["OAK: Hey! Wait!\nDon't go out!"];
+        return (this.flow.events && this.flow.events.oakStopsYou) || ['오박사: 이리 따라오너라.'];
       }
       if (script === 'PalletTown_EventScript_SignLady') {
         if (!this.getFlag('openedStartMenu')) {
@@ -804,44 +807,36 @@ window.FRLG = window.FRLG || {};
       }
       if (script === 'PalletTown_PlayersHouse_1F_EventScript_Mom') {
         if (!this.getFlag('starterChosen')) {
-          const key = this.profile.gender === 'F'
-            ? 'PalletTown_PlayersHouse_1F_EventScript_Mom_GIRL'
-            : 'PalletTown_PlayersHouse_1F_EventScript_Mom_BOY';
-          return (this.flow.npcLines && this.flow.npcLines[key]) || ['MOM: …Right.'];
+          return (this.flow.npcLines && this.flow.npcLines[script]) || ['엄마: 오박사님이 너를 찾으시는 것 같더라.'];
         }
         if (!this.getFlag('firstBattleDone')) {
-          return (this.flow.npcLines && this.flow.npcLines.PalletTown_PlayersHouse_1F_EventScript_Mom_AFTER_STARTER)
-            || ['MOM: {PLAYER}!\nYou should take a quick rest.'];
+          return ['엄마: 포켓몬을 받았구나!', '조심해서 다녀오렴.'];
         }
-        return (this.flow.npcLines && this.flow.npcLines.PalletTown_PlayersHouse_1F_EventScript_Mom_AFTER_BATTLE)
-          || ['MOM: Oh, good!'];
+        return ['엄마: 네 포켓몬, 아주 씩씩해 보이는구나.', '항상 몸조심하렴.'];
       }
       if (script === 'PalletTown_RivalsHouse_EventScript_Daisy') {
         if (!this.getFlag('starterChosen')) {
-          return (this.flow.npcLines && this.flow.npcLines.PalletTown_RivalsHouse_EventScript_Daisy_BEFORE_STARTER)
-            || ['DAISY: Hi, {PLAYER}!'];
+          return (this.flow.npcLines && this.flow.npcLines[script]) || ['다이: {RIVAL}는 연구소에 있어.'];
         }
         if (!this.getFlag('firstBattleDone')) {
-          return (this.flow.npcLines && this.flow.npcLines.PalletTown_RivalsHouse_EventScript_Daisy_BEFORE_STARTER)
-            || ['DAISY: Hi, {PLAYER}!'];
+          return ['다이: 연구소에서 무슨 일이 있었던 거야?', '왠지 재미있는 일이 벌어질 것 같네.'];
         }
-        return (this.flow.npcLines && this.flow.npcLines.PalletTown_RivalsHouse_EventScript_Daisy_AFTER_BATTLE)
-          || ['DAISY: {PLAYER}, I heard you had a battle against {RIVAL}.'];
+        return ['다이: {RIVAL}와 배틀했다며?', '나도 그 장면을 봤으면 좋았을 텐데!'];
       }
       if (script === 'PalletTown_RivalsHouse_EventScript_TownMap') {
-        return [(this.flow.signs && this.flow.signs[script]) || "It's a big map of the KANTO region."];
+        return ['칸토 지방의 큰 지도다.', '지금은 보기만 할 수 있다.'];
       }
       if (script === 'PalletTown_ProfessorOaksLab_EventScript_Rival') {
         if (!this.getFlag('starterChosen')) {
-          return (this.flow.npcLines && this.flow.npcLines.PalletTown_ProfessorOaksLab_EventScript_Rival_BEFORE_STARTER)
-            || ['Go ahead and choose, {PLAYER}!'];
+          return (this.flow.npcLines && this.flow.npcLines[script]) || ['{RIVAL}: 먼저 골라, {PLAYER}!'];
         }
         if (!this.getFlag('firstBattleDone')) {
           this.queueBattleStart('starter-rival');
-          return (this.flow.events && this.flow.events.rivalBattleChallenge) || ["Come on, I'll take you on!"];
+          return (this.flow.events && this.flow.events.rivalBattleChallenge) || [
+            `${this.profile.rivalName || 'RIVAL'}: 좋아! 바로 한판 해 보자!`
+          ];
         }
-        return (this.flow.npcLines && this.flow.npcLines.PalletTown_ProfessorOaksLab_EventScript_Rival_AFTER_BATTLE)
-          || ['{PLAYER}! Gramps!\nSmell you later!'];
+        return (this.flow.events && this.flow.events.rivalAfterBattle) || ['{RIVAL}: 다음엔 절대 안 져!'];
       }
       const starterMap = {
         PalletTown_ProfessorOaksLab_EventScript_BulbasaurBall: 'BULBASAUR',
@@ -851,26 +846,22 @@ window.FRLG = window.FRLG || {};
       const starterId = starterMap[script] || null;
       if (starterId) {
         if (this.getFlag('starterChosen')) {
-          return (this.flow.events && this.flow.events.starterAlreadyChosen) || ["OAK: Hey!\nDon't go away yet!"];
+          return (this.flow.events && this.flow.events.starterAlreadyChosen) || ['이미 스타터를 골랐다.'];
         }
         this.progress.starter = starterId;
         this.progress.rivalStarter = this.getRivalStarter(starterId);
         this.setFlag('starterChosen', true);
         this.saveLocalSnapshot();
         if (this.hooks.onSceneChange) this.hooks.onSceneChange(this.world.mapId);
-        return (this.flow.events && this.flow.events.starterPick && this.flow.events.starterPick[starterId]) || [`${starterId} selected.`];
+        return (this.flow.events && this.flow.events.starterPick && this.flow.events.starterPick[starterId]) || [`${starterId} 선택 완료.`];
       }
       if (script === 'PalletTown_ProfessorOaksLab_EventScript_ProfOak') {
         if (this.getFlag('firstBattleDone')) {
-          return (this.flow.npcLines && this.flow.npcLines.PalletTown_ProfessorOaksLab_EventScript_ProfOak_AFTER_BATTLE)
-            || ['OAK: {PLAYER}, raise your young POKéMON by making it battle.'];
+          return (this.flow.events && this.flow.events.oakAfterBattle) || ['오박사: 좋아. 이제 진짜 모험의 시작이란다.'];
         }
         if (this.getFlag('starterChosen')) {
-          return (this.flow.npcLines && this.flow.npcLines.PalletTown_ProfessorOaksLab_EventScript_ProfOak_AFTER_STARTER)
-            || ['OAK: If a wild POKéMON appears, your POKéMON can battle it.'];
+          return (this.flow.events && this.flow.events.oakAfterStarter) || ['오박사: 이제 시작이구나.'];
         }
-        return (this.flow.npcLines && this.flow.npcLines.PalletTown_ProfessorOaksLab_EventScript_ProfOak_BEFORE_STARTER)
-          || ['OAK: Now, {PLAYER}.'];
       }
       return null;
     }
@@ -878,13 +869,6 @@ window.FRLG = window.FRLG || {};
     resolveInteractionLines(target) {
       const data = target.data || {};
       if (target.kind === 'sign') {
-        if (data.script === 'PalletTown_PlayersHouse_1F_EventScript_TV') {
-          const key = this.profile.gender === 'F'
-            ? 'PalletTown_PlayersHouse_1F_EventScript_TV_GIRL'
-            : 'PalletTown_PlayersHouse_1F_EventScript_TV_BOY';
-          const text = (this.flow.signs && this.flow.signs[key]) || `${data.script || 'sign'} 를 조사했다.`;
-          return [text];
-        }
         const text = (this.flow.signs && this.flow.signs[data.script]) || `${data.script || 'sign'} 를 조사했다.`;
         return [text];
       }
@@ -1199,17 +1183,17 @@ window.FRLG = window.FRLG || {};
     drawMapEvents(map, origin, tile) {
       const ctx = this.ctx;
       (map.bgEvents || []).forEach((event) => {
-        drawMarker(ctx, origin, tile, event.x, event.y, '#ffe46f', '?');
+        drawBgEventSprite(ctx, origin, tile, event);
       });
       (map.warpEvents || []).forEach((event) => {
         drawMarker(ctx, origin, tile, event.x, event.y, '#6fd7ff', 'W');
       });
       (map.objectEvents || []).forEach((event) => {
-        if (event.hiddenByFlag) return;
+        if (this.isObjectHidden(event)) return;
         const isInteract = this.isFacingTile(event.x, event.y);
-        drawNpc(ctx, origin, tile, event.x, event.y, objectColor(event), isInteract);
+        drawObjectEventSprite(ctx, origin, tile, event, isInteract);
       });
-      drawTrainerMini(ctx, origin.x + this.world.x * tile, origin.y + this.world.y * tile, PLAYER_COLORS[this.profile.gender], this.world.dir, tile);
+      drawPlayerSprite(ctx, origin.x + this.world.x * tile, origin.y + this.world.y * tile, this.profile.gender, this.world.dir, tile);
     }
 
     drawDialogue(text) {
@@ -1390,6 +1374,148 @@ window.FRLG = window.FRLG || {};
     ctx.fillRect(x, y, rect.w * tile, tile + 3);
     ctx.fillStyle = '#7f5b3f';
     ctx.fillRect(x + tile, y + rect.h * tile - tile, tile, tile);
+  }
+
+
+  function createPackegeFieldAssets() {
+    const load = (path) => {
+      const img = new Image();
+      img.src = path;
+      return img;
+    };
+    return {
+      playerMale: load(`${PACKEGE_ASSET_BASE}/people/red_normal.png`),
+      playerFemale: load(`${PACKEGE_ASSET_BASE}/people/green_normal.png`),
+      rivalBlue: load(`${PACKEGE_ASSET_BASE}/people/blue.png`),
+      profOak: load(`${PACKEGE_ASSET_BASE}/people/prof_oak.png`),
+      mom: load(`${PACKEGE_ASSET_BASE}/people/mom.png`),
+      daisy: load(`${PACKEGE_ASSET_BASE}/people/daisy.png`),
+      fatMan: load(`${PACKEGE_ASSET_BASE}/people/fat_man.png`),
+      littleGirl: load(`${PACKEGE_ASSET_BASE}/people/little_girl.png`),
+      scientist: load(`${PACKEGE_ASSET_BASE}/people/scientist.png`),
+      itemBall: load(`${PACKEGE_ASSET_BASE}/misc/item_ball.png`),
+      pokedex: load(`${PACKEGE_ASSET_BASE}/misc/pokedex.png`),
+      townMap: load(`${PACKEGE_ASSET_BASE}/misc/town_map.png`),
+      sign: load(`${PACKEGE_ASSET_BASE}/misc/wooden_sign.png`)
+    };
+  }
+
+  function drawPackegeImage(ctx, img, sx, sy, sw, sh, dx, dy, dw, dh, flipX = false) {
+    if (!img || !img.complete || !img.naturalWidth) return false;
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    if (flipX) {
+      ctx.translate(dx + dw, dy);
+      ctx.scale(-1, 1);
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, dw, dh);
+    } else {
+      ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+    }
+    ctx.restore();
+    return true;
+  }
+
+  function spriteFrameMeta(img) {
+    if (!img || !img.naturalWidth || !img.naturalHeight) return null;
+    const frameH = img.naturalHeight;
+    const frameW = 16;
+    const frames = Math.max(1, Math.floor(img.naturalWidth / frameW));
+    return { frameW, frameH, frames };
+  }
+
+  function getOverworldFrameIndex(dir, frames) {
+    if (frames >= 9) {
+      if (dir === 'down') return 1;
+      if (dir === 'up') return 4;
+      return 7;
+    }
+    if (frames >= 3) {
+      if (dir === 'down') return 1;
+      return 2;
+    }
+    return 0;
+  }
+
+  function pickPackegeSprite(event) {
+    const gid = String(event?.graphics_id || '');
+    const lid = String(event?.local_id || '');
+    if (gid.includes('PROF_OAK')) return PACKEGE_FIELD_ASSETS.profOak;
+    if (gid.includes('BLUE')) return PACKEGE_FIELD_ASSETS.rivalBlue;
+    if (gid.includes('SCIENTIST')) return PACKEGE_FIELD_ASSETS.scientist;
+    if (gid.includes('WORKER_F')) return PACKEGE_FIELD_ASSETS.scientist;
+    if (gid.includes('ITEM_BALL')) return PACKEGE_FIELD_ASSETS.itemBall;
+    if (gid.includes('POKEDEX')) return PACKEGE_FIELD_ASSETS.pokedex;
+    if (gid.includes('TOWN_MAP')) return PACKEGE_FIELD_ASSETS.townMap;
+    if (lid.includes('MOM')) return PACKEGE_FIELD_ASSETS.mom;
+    if (lid.includes('DAISY')) return PACKEGE_FIELD_ASSETS.daisy;
+    if (lid.includes('SIGN_LADY')) return PACKEGE_FIELD_ASSETS.littleGirl;
+    if (lid.includes('FAT_MAN')) return PACKEGE_FIELD_ASSETS.fatMan;
+    return null;
+  }
+
+  function drawObjectEventSprite(ctx, origin, tile, event, active = false) {
+    const img = pickPackegeSprite(event);
+    const px = origin.x + event.x * tile;
+    const py = origin.y + event.y * tile;
+    let drawn = false;
+
+    if (img && img.complete && img.naturalWidth) {
+      const meta = spriteFrameMeta(img);
+      if (meta) {
+        const isSmallObject = meta.frameH <= 16;
+        const frameIdx = Math.min(getOverworldFrameIndex('down', meta.frames), meta.frames - 1);
+        const sx = frameIdx * meta.frameW;
+        const sy = 0;
+        const drawW = tile * (isSmallObject ? 0.92 : 1.05);
+        const drawH = tile * (isSmallObject ? 0.92 : 1.75);
+        const dx = px + (tile - drawW) / 2;
+        const dy = py + tile - drawH;
+        drawn = drawPackegeImage(ctx, img, sx, sy, meta.frameW, meta.frameH, dx, dy, drawW, drawH);
+      }
+    }
+
+    if (!drawn) {
+      drawNpc(ctx, origin, tile, event.x, event.y, objectColor(event), active);
+      return;
+    }
+
+    if (active) {
+      ctx.save();
+      ctx.strokeStyle = '#fff6a2';
+      ctx.lineWidth = Math.max(2, tile * 0.10);
+      ctx.strokeRect(px + tile * 0.10, py - tile * 0.40, tile * 0.80, tile * 1.40);
+      ctx.restore();
+    }
+  }
+
+  function drawBgEventSprite(ctx, origin, tile, event) {
+    const px = origin.x + event.x * tile;
+    const py = origin.y + event.y * tile;
+    const img = PACKEGE_FIELD_ASSETS.sign;
+    if (img && img.complete && img.naturalWidth) {
+      const size = tile * 0.92;
+      drawPackegeImage(ctx, img, 0, 0, img.naturalWidth, img.naturalHeight, px + (tile - size) / 2, py + tile - size, size, size);
+      return;
+    }
+    drawMarker(ctx, origin, tile, event.x, event.y, '#ffe46f', '?');
+  }
+
+  function drawPlayerSprite(ctx, x, y, gender, dir, tile = 24) {
+    const img = gender === 'F' ? PACKEGE_FIELD_ASSETS.playerFemale : PACKEGE_FIELD_ASSETS.playerMale;
+    const meta = spriteFrameMeta(img);
+    if (meta && img.complete && img.naturalWidth) {
+      const frameIdx = Math.min(getOverworldFrameIndex(dir, meta.frames), meta.frames - 1);
+      const sx = frameIdx * meta.frameW;
+      const sy = 0;
+      const drawW = tile * 1.05;
+      const drawH = tile * 1.75;
+      const dx = x + (tile - drawW) / 2;
+      const dy = y + tile - drawH;
+      const flipX = dir === 'left';
+      drawPackegeImage(ctx, img, sx, sy, meta.frameW, meta.frameH, dx, dy, drawW, drawH, flipX);
+      return;
+    }
+    drawTrainerMini(ctx, x, y, PLAYER_COLORS[gender], dir, tile);
   }
 
   function drawMarker(ctx, origin, tile, x, y, color, text) {
