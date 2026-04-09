@@ -1015,7 +1015,8 @@ window.FRLG = window.FRLG || {};
       drawOakSpeechPlatform(this.ctx, 344, 206, 124, 24);
       const drewOak = drawOakSpeechCharacter(this.ctx, PACKEGE_OAK_SPEECH_ASSETS.oak, 150, 182, 2.15);
       if (!drewOak) drawOak(this.ctx, 150, 160);
-      drawPokemonBuddy(this.ctx, 344, 188);
+      const drewNidoran = drawOakSpeechCharacter(this.ctx, PACKEGE_OAK_SPEECH_ASSETS.nidoranF, 344, 194, 1.85);
+      if (!drewNidoran) drawPokemonBuddy(this.ctx, 344, 188);
       this.drawDialogue(this.flow.oakIntro[this.oakLine]);
       centerText(this.ctx, 'OAK INTRO', 240, 30, 14, 0.9, '#22313a');
     }
@@ -1525,7 +1526,8 @@ window.FRLG = window.FRLG || {};
       oak: load(`${PACKEGE_OAK_SPEECH_BASE}/oak/pic.png`),
       red: load(`${PACKEGE_OAK_SPEECH_BASE}/red/pic.png`),
       leaf: load(`${PACKEGE_OAK_SPEECH_BASE}/leaf/pic.png`),
-      rival: load(`${PACKEGE_OAK_SPEECH_BASE}/rival/pic.png`)
+      rival: load(`${PACKEGE_OAK_SPEECH_BASE}/rival/pic.png`),
+      nidoranF: load('assets/packege/pokemon/nidoran_f/front.png')
     };
   }
 
@@ -1842,16 +1844,57 @@ window.FRLG = window.FRLG || {};
     ctx.restore();
   }
 
+  const __frlgSpriteChromaCache = new WeakMap();
+
   function drawOakSpeechCharacter(ctx, img, cx, footY, scale = 2, alpha = 1) {
     if (!img || !img.complete || !img.naturalWidth) return false;
     const w = Math.round(img.naturalWidth * scale);
     const h = Math.round(img.naturalHeight * scale);
+    const safe = getChromaSafeImage(img);
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(img, Math.round(cx - w / 2), Math.round(footY - h), w, h);
+    ctx.drawImage(safe, Math.round(cx - w / 2), Math.round(footY - h), w, h);
     ctx.restore();
     return true;
+  }
+
+  function getChromaSafeImage(img) {
+    const cached = __frlgSpriteChromaCache.get(img);
+    if (cached) return cached;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth || img.width;
+    canvas.height = img.naturalHeight || img.height;
+    const cctx = canvas.getContext('2d', { willReadFrequently: true });
+    cctx.drawImage(img, 0, 0);
+
+    try {
+      const imageData = cctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const a = data[i + 3];
+        if (!a) continue;
+
+        const isMintMatt =
+          g > 150 &&
+          b > 120 &&
+          g >= r + 20 &&
+          Math.abs(g - 208) < 65 &&
+          Math.abs(b - 176) < 70 &&
+          Math.abs(r - 128) < 70;
+
+        if (isMintMatt) data[i + 3] = 0;
+      }
+      cctx.putImageData(imageData, 0, 0);
+    } catch (err) {
+    }
+
+    __frlgSpriteChromaCache.set(img, canvas);
+    return canvas;
   }
 
   function drawLeafBackdrop(ctx, now) {
