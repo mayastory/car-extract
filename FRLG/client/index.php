@@ -1,19 +1,23 @@
 <?php
-// FRLG starter client entry. Purpose: establish a local, PHP-served web client
-// that can later load extracted Packege assets and connect to SQL/runtime APIs.
 ?><!doctype html>
 <html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>FRLG Web Client Starter</title>
+  <title>FRLG Web Client Prototype</title>
   <link rel="stylesheet" href="assets/frlg.css">
 </head>
 <body>
   <div class="shell">
     <header class="hud">
-      <div class="title">FRLG Web Client Starter</div>
-      <div class="subtitle">intro scene runner / packege-ready skeleton</div>
+      <div>
+        <div class="title">FRLG Web Client Prototype</div>
+        <div class="subtitle">intro → title → new game → oak → gender → names → room start</div>
+      </div>
+      <div class="hud-right">
+        <div class="mini" id="phaseName">boot</div>
+        <div class="mini muted" id="saveState">local only</div>
+      </div>
     </header>
 
     <main class="stage-wrap">
@@ -21,17 +25,28 @@
       <div class="overlay">
         <div class="badge">LOCAL</div>
         <div id="sceneName" class="scene-name">boot</div>
-        <div class="hint">Enter/Space: next scene · R: restart</div>
+        <div class="hint">Enter/Space 진행 · 방향키 선택/이동 · Backspace 지우기 · R 리셋</div>
       </div>
     </main>
 
-    <section class="panel">
-      <div class="panel-title">현재 목적</div>
-      <ul>
-        <li>PHP에서 바로 열리는 로컬 FRLG 클라이언트 시작점</li>
-        <li>원본 intro.c 구조를 흉내 낼 수 있는 scene sequencer 골격</li>
-        <li>나중에 Packege 추출 자산으로 교체 가능한 구조</li>
-      </ul>
+    <section class="panel panel-grid">
+      <div>
+        <div class="panel-title">현재 단계</div>
+        <ul>
+          <li>원본처럼 바로 PalletTown 직행하지 않고 시작 순서를 먼저 연결</li>
+          <li>자산 추출 전이라 연출/맵은 placeholder 렌더링</li>
+          <li>이 다음 단계에서 Packege 자산 추출과 실제 방/맵 로더로 교체 예정</li>
+        </ul>
+      </div>
+      <div>
+        <div class="panel-title">이번 기준</div>
+        <ul>
+          <li>인트로 scene 러너 유지</li>
+          <li>타이틀 / New Game 분기 추가</li>
+          <li>오박사 대사 / 성별 / 이름 / 라이벌 이름 흐름 추가</li>
+          <li>최종 도착점은 PlayersHouse 2F 시작</li>
+        </ul>
+      </div>
     </section>
   </div>
 
