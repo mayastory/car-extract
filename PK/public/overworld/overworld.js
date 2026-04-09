@@ -252,6 +252,8 @@ export class Overworld{
     this._lastSyncKey="";
     this._syncLatestCtx=null;
     this._mapAsyncRev=0;
+    this._mapLoadTxnSeq=0;
+    this._activeMapLoadTxn=0;
     
 
     // Warp + map connection preview
@@ -1239,17 +1241,25 @@ export class Overworld{
   }
 
 
-  async load(mapUrl, opts={}, meta={}){
+  async load(mapUrl, opts={}, meta={}, loadTxn=null){
+
+    const txn = loadTxn || this._beginMapLoadTxn(meta?.mapId || null);
 
     const r=await fetch(mapUrl,{
       cache:"no-store"}
     );
 
+    if(!this._isMapLoadTxnCurrent(txn)) return false;
+
     if(!r.ok) throw new Error(`map load fail: ${mapUrl} (${r.status})`);
 
     const nextMap = await r.json();
 
+    if(!this._isMapLoadTxnCurrent(txn)) return false;
+
     const assets = await this._buildMapAssets(nextMap);
+
+    if(!this._isMapLoadTxnCurrent(txn)) return false;
 
     this._commitLoadedMap(nextMap, assets, {
       mapLabel: meta?.mapLabel || null}
@@ -1261,8 +1271,12 @@ export class Overworld{
 
       await this._waitImage(this.playerImg);
 
+      if(!this._isMapLoadTxnCurrent(txn)) return false;
+
     }
     catch(e){
+
+      if(!this._isMapLoadTxnCurrent(txn)) return false;
 
       this.playerSprite={
          kind:"placeholder", frameW:16, frameH:24, framesPerDir:3 }
@@ -1271,6 +1285,8 @@ export class Overworld{
       this.playerImg.src=this._publicUrl("assets/sprites/player_placeholder.png");
 
       await this._waitImage(this.playerImg);
+
+      if(!this._isMapLoadTxnCurrent(txn)) return false;
 
     }
 
@@ -1334,6 +1350,8 @@ export class Overworld{
     this._resetMapTransientState({
       clearNeighbors:true}
     );
+
+    if(!this._isMapLoadTxnCurrent(txn)) return false;
 
 
     this._resize();
@@ -1467,22 +1485,24 @@ export class Overworld{
 
 
   async _loadStaticPretMap(mapId, opts={
-    }
+    }, loadTxn=null
   ){
     
+    const txn = loadTxn || this._beginMapLoadTxn(mapId);
     const url = `./pret/maps/${encodeURIComponent(mapId)}.json`;
     
     const r = await fetch(url, {
       cache:"no-store"}
     );
+
+    if(!this._isMapLoadTxnCurrent(txn)) return false;
     
     if(!r.ok) throw new Error(`static pret map failed (${r.status})`);
     
-    await this.load(url, opts, {
+    return await this.load(url, opts, {
+      mapId,
       reason: opts?.mapChangeReason || (opts?.transition ? "connection" : "load")}
-    );
-    
-    return true;
+    , txn);
     
   }
   
@@ -1504,23 +1524,31 @@ export class Overworld{
   
 
   async _generatePretMap(mapId, opts={
-    }
+    }, loadTxn=null
   ){
     
+    const txn = loadTxn || this._beginMapLoadTxn(mapId);
     const url=`${this.apiBase}/pret/map.php?map=${encodeURIComponent(mapId)}`;
     
     const r=await fetch(url,{
       cache:"no-store"}
     );
+
+    if(!this._isMapLoadTxnCurrent(txn)) return false;
     
     const j=await r.json().catch(()=>null);
+
+    if(!this._isMapLoadTxnCurrent(txn)) return false;
     
     if(!r.ok || !j || !j.ok) throw new Error(j?.detail||j?.err||"pret/map.php failed");
     
-    await this.load(j.mapUrl, opts, {
+    const loaded = await this.load(j.mapUrl, opts, {
+      mapId,
       mapLabel: j?.label || null,
       reason: opts?.mapChangeReason || (opts?.transition ? "connection" : "load")}
-    );
+    , txn);
+    
+    if(!loaded) return false;
     
     return j;
     
@@ -1531,22 +1559,28 @@ export class Overworld{
     }
   ){
     
+    const txn = this._beginMapLoadTxn(mapId);
+
     // Regenerate first so warps / F5 always use the newest Packege-derived map JSON.
     // Static public caches have been observed to stay valid by gen_ver while still
     // containing stale interior layouts, which makes indoor warps look half-outdoor.
     try{
       
-      await this._generatePretMap(mapId, opts);
+      const generated = await this._generatePretMap(mapId, opts, txn);
       
-      return;
+      if(generated === false) return false;
+      
+      return true;
       
     }
     catch(e){
       }
+
+    if(!this._isMapLoadTxnCurrent(txn)) return false;
     
 
     // Fallback: keep static cache support when Packege/API generation is unavailable.
-    await this._loadStaticPretMap(mapId, opts);
+    return await this._loadStaticPretMap(mapId, opts, txn);
     
   }
   
@@ -1727,9 +1761,10 @@ export class Overworld{
       if(st.map_id && (!this.map || this.map.map_id !== st.map_id)){
         
         try{
-           await this.loadPret(st.map_id, {
+           const loaded = await this.loadPret(st.map_id, {
              mapChangeReason:"server-sync"}
            );
+           if(loaded === false) return;
            }
         catch(e){
           }
@@ -1810,9 +1845,10 @@ export class Overworld{
           if(st.map_id && (!this.map || this.map.map_id !== st.map_id)){
             
             try{
-               await this.loadPret(st.map_id, {
+               const loaded = await this.loadPret(st.map_id, {
                  mapChangeReason:"server-init"}
                );
+               if(loaded === false) return;
                }
             catch(e){
               }
@@ -1933,6 +1969,21 @@ export class Overworld{
   _nextMapAsyncRev(){
     this._mapAsyncRev = (((this._mapAsyncRev|0) + 1) >>> 0);
     return this._mapAsyncRev;
+  }
+
+  _beginMapLoadTxn(targetMapId=null){
+    this._activeMapLoadTxn = (((this._mapLoadTxnSeq|0) + 1) >>> 0);
+    this._mapLoadTxnSeq = this._activeMapLoadTxn;
+    this._nextMapAsyncRev();
+    return {
+      seq:(this._activeMapLoadTxn|0),
+      targetMapId:(targetMapId == null ? null : String(targetMapId)),
+    };
+  }
+
+  _isMapLoadTxnCurrent(txn){
+    if(!txn) return true;
+    return ((txn.seq|0) === (this._activeMapLoadTxn|0));
   }
 
   _mapAsyncCtx(mapId=null){
@@ -2527,11 +2578,13 @@ export class Overworld{
       
       try{
         
-        await this.loadPret(c.map_id, {
+        const loaded = await this.loadPret(c.map_id, {
            transition:{
              fromX, fromY, direction:dir, offset:(c.offset||0), faceDir },
            mapChangeReason:"connection"}
         );
+
+        if(loaded === false) return;
         
         await this._upsert();
         
@@ -3536,9 +3589,11 @@ export class Overworld{
     
     try{
       
-      await this.loadPret(to, {
+      const loaded = await this.loadPret(to, {
         mapChangeReason:"warp"}
       );
+
+      if(loaded === false) return;
       
 
 // after load, place player at destination
