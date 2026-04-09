@@ -1471,16 +1471,20 @@ export class Overworld{
     this.status("오버월드 로드 OK");
 
 
-    // Prefetch connected maps (for seamless connection preview)
-    this._prefetchNeighbors();
+    const deferPostLoadSideEffects = !!(opts && opts.deferPostLoadSideEffects);
 
-    this._fetchNpcs().catch(()=>{
-      }
-    );
+    if(!deferPostLoadSideEffects){
+      // Prefetch connected maps (for seamless connection preview)
+      this._prefetchNeighbors();
 
-    this._emitMapChange(meta?.reason || opts?.mapChangeReason || (opts?.transition ? "connection" : "load"));
+      this._fetchNpcs().catch(()=>{
+        }
+      );
 
-    this._log(`로드: ${this.map?.map_id || 'UNKNOWN'} (${this.map?.width||0}x${this.map?.height||0})`);
+      this._emitMapChange(meta?.reason || opts?.mapChangeReason || (opts?.transition ? "connection" : "load"));
+
+      this._log(`로드: ${this.map?.map_id || 'UNKNOWN'} (${this.map?.width||0}x${this.map?.height||0})`);
+    }
 
     return true;
 
@@ -1594,7 +1598,7 @@ export class Overworld{
     finally{
       txnStillCurrent = this._isMapLoadTxnCurrent(txn);
       this._finishMapLoadTxn(txn);
-      if(loaded && txnStillCurrent){
+      if(loaded && txnStillCurrent && !(opts && opts.deferPostLoadSideEffects)){
         this._fetchNpcs().catch(()=>{});
       }
     }
@@ -2628,11 +2632,16 @@ export class Overworld{
         const loaded = await this.loadPret(c.map_id, {
            transition:{
              fromX, fromY, direction:dir, offset:(c.offset||0), faceDir },
-           mapChangeReason:"connection"}
+           mapChangeReason:"connection",
+           deferPostLoadSideEffects:true}
         );
 
         if(loaded === false) return;
-        
+
+        this._prefetchNeighbors();
+        this._emitMapChange("connection");
+        this._log(`로드: ${this.map?.map_id || 'UNKNOWN'} (${this.map?.width||0}x${this.map?.height||0}) [connection]`);
+
         await this._upsert();
         
         await this._fetchMobs();
@@ -3638,7 +3647,8 @@ export class Overworld{
     try{
       
       const loaded = await this.loadPret(to, {
-        mapChangeReason:"warp"}
+        mapChangeReason:"warp",
+        deferPostLoadSideEffects:true}
       );
 
       if(loaded === false) return;
@@ -3703,6 +3713,8 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
       this._snapCameraToPlayer();
       
       this._prefetchNeighbors();
+      this._emitMapChange("warp");
+      this._log(`로드: ${this.map?.map_id || 'UNKNOWN'} (${this.map?.width||0}x${this.map?.height||0}) [warp]`);
       
       this._warpCooldown=0.35;
       
