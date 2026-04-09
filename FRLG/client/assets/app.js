@@ -24,9 +24,23 @@
     }
   );
 
+  const KEY_CODE_MAP = {
+    ArrowUp: 'ArrowUp',
+    ArrowDown: 'ArrowDown',
+    ArrowLeft: 'ArrowLeft',
+    ArrowRight: 'ArrowRight',
+    Enter: 'Enter',
+    Backspace: 'Backspace',
+    Escape: 'Escape',
+    r: 'KeyR',
+    R: 'KeyR'
+  };
+
   function dispatchKey(key) {
+    const code = KEY_CODE_MAP[key] || key;
     engine.handleKeyDown({
       key,
+      code,
       preventDefault() {},
       stopPropagation() {}
     });
@@ -50,7 +64,10 @@
     const repeating = key.startsWith('Arrow');
 
     const press = (event) => {
-      if (event) event.preventDefault();
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
       button.classList.add('is-pressed');
       dispatchKey(key);
 
@@ -64,7 +81,10 @@
     };
 
     const release = (event) => {
-      if (event) event.preventDefault();
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
       button.classList.remove('is-pressed');
       clearTimeout(repeatStarter);
       clearInterval(repeatTimer);
@@ -76,6 +96,12 @@
     button.addEventListener('pointerup', release, { passive: false });
     button.addEventListener('pointercancel', release, { passive: false });
     button.addEventListener('pointerleave', release, { passive: false });
+    button.addEventListener('touchstart', press, { passive: false });
+    button.addEventListener('touchend', release, { passive: false });
+    button.addEventListener('touchcancel', release, { passive: false });
+    button.addEventListener('mousedown', press, { passive: false });
+    button.addEventListener('mouseup', release, { passive: false });
+    button.addEventListener('mouseleave', release, { passive: false });
     button.addEventListener('contextmenu', (event) => event.preventDefault());
   }
 
