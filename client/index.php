@@ -78,6 +78,7 @@
   <script src="assets/intro-scenes.js"></script>
   <script src="assets/map-data.js"></script>
   <script src="assets/intro-engine.js"></script>
+  <script src="assets/oak_speech.js"></script>
   <script src="assets/app.js"></script>
 </body>
 </html>

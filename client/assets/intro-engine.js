@@ -53,33 +53,6 @@ window.FRLG = window.FRLG || {};
     ]
   };
 
-  const OAK_DIALOGUE_STEPS = [
-    { key: 'welcome', text: '안녕! 포켓몬의 세계에 온 것을 환영한다!' },
-    { key: 'thisWorld', text: '이 세계에는 포켓몬이라고 불리는 생명체가 곳곳에 살고 있단다.' },
-    { key: 'inhabited', text: '사람들은 포켓몬과 함께 살아가고, 어떤 이들은 배틀을 하며, 어떤 이들은 친구처럼 지낸단다.' },
-    { key: 'study', text: '그리고 나는 포켓몬을 연구하는 학자란다.' },
-    { key: 'aboutYou', text: '자, 우선 너에 대해서 조금 이야기해 보자.' }
-  ];
-
-  const OAK_PLAYER_NAME_CHOICES = {
-    M: ['RED', 'FIRE', 'ASH', 'KENE'],
-    F: ['RED', 'FIRE', 'GREEN', 'LEAF']
-  };
-
-  const OAK_RIVAL_NAME_CHOICES = ['GREEN', 'GARY', 'KAZ', 'TORU'];
-
-  const OAK_STAGE = {
-    DIALOGUE: 'dialogue',
-    GENDER: 'gender',
-    PLAYER_INTRO: 'player-intro',
-    PLAYER_CHOICES: 'player-choices',
-    PLAYER_CONFIRM: 'player-confirm',
-    RIVAL_INTRO: 'rival-intro',
-    RIVAL_CHOICES: 'rival-choices',
-    RIVAL_CONFIRM: 'rival-confirm',
-    LETS_GO: 'lets-go'
-  };
-
   class IntroEngine {
     constructor(canvas, config, hooks) {
       this.canvas = canvas;
@@ -108,7 +81,6 @@ window.FRLG = window.FRLG || {};
         rivalName: ''
       };
       this.nameEntry = this.createNameEntryState();
-      this.resetOakSpeech();
       this.progress = {
         starter: null,
         rivalStarter: null,
@@ -129,163 +101,11 @@ window.FRLG = window.FRLG || {};
         lastWarp: null
       };
       this.fieldDialogue = null;
+      this.oakSpeech = null;
       this.continueSnapshot = this.readLocalSnapshot();
       this.updateStatus();
       this.emitSaveState();
     }
-
-    resetOakSpeech() {
-      this.oak = {
-        stage: OAK_STAGE.DIALOGUE,
-        dialogueIndex: 0,
-        genderIndex: 0,
-        choiceIndex: 0,
-        confirmIndex: 0
-      };
-      this.nameMode = 'player';
-      this.profile.gender = 'M';
-      this.profile.playerName = '';
-      this.profile.rivalName = '';
-      this.resetNamingScreen();
-    }
-
-    getOakStage() {
-      return this.oak && this.oak.stage ? this.oak.stage : OAK_STAGE.DIALOGUE;
-    }
-
-    getCurrentOakDialogue() {
-      return OAK_DIALOGUE_STEPS[this.oak.dialogueIndex] || OAK_DIALOGUE_STEPS[0];
-    }
-
-    getCurrentOakNameChoices() {
-      if (this.nameMode === 'player') {
-        return OAK_PLAYER_NAME_CHOICES[this.profile.gender] || OAK_PLAYER_NAME_CHOICES.M;
-      }
-      return OAK_RIVAL_NAME_CHOICES;
-    }
-
-    getOakPromptText() {
-      switch (this.getOakStage()) {
-        case OAK_STAGE.GENDER:
-          return '너는 소년이냐? 아니면 소녀이냐?';
-        case OAK_STAGE.PLAYER_INTRO:
-          return '좋다! 이제 네 이름을 알려다오.';
-        case OAK_STAGE.PLAYER_CHOICES:
-          return '네 이름을 정해 보자.';
-        case OAK_STAGE.PLAYER_CONFIRM:
-          return `${this.profile.playerName || 'PLAYER'}... 네 이름이 맞느냐?`;
-        case OAK_STAGE.RIVAL_INTRO:
-          return '이 녀석은 내 손자다. 어릴 때부터 네 라이벌이었지. ...이름이 뭐였더라?';
-        case OAK_STAGE.RIVAL_CHOICES:
-          return '라이벌의 이름을 정해 보자.';
-        case OAK_STAGE.RIVAL_CONFIRM:
-          return `${this.profile.rivalName || 'RIVAL'}... 이 이름이 맞느냐?`;
-        case OAK_STAGE.LETS_GO:
-          return `${this.profile.playerName || 'PLAYER'}! 너만의 포켓몬 이야기가 이제 시작된다! 꿈과 모험, 그리고 포켓몬이 기다리는 세계로 떠나 보자!`;
-        case OAK_STAGE.DIALOGUE:
-        default:
-          return this.getCurrentOakDialogue().text;
-      }
-    }
-
-    isOakNidoranVisible() {
-      const stage = this.getOakStage();
-      if (stage === OAK_STAGE.DIALOGUE) {
-        const key = this.getCurrentOakDialogue().key;
-        return key === 'inhabited' || key === 'study';
-      }
-      return false;
-    }
-
-    handleOakAction() {
-      const stage = this.getOakStage();
-      switch (stage) {
-        case OAK_STAGE.DIALOGUE:
-          if (this.oak.dialogueIndex < OAK_DIALOGUE_STEPS.length - 1) {
-            this.oak.dialogueIndex += 1;
-          } else {
-            this.oak.stage = OAK_STAGE.GENDER;
-            this.oak.genderIndex = 0;
-          }
-          return;
-        case OAK_STAGE.GENDER:
-          this.profile.gender = this.oak.genderIndex === 0 ? 'M' : 'F';
-          this.oak.stage = OAK_STAGE.PLAYER_INTRO;
-          return;
-        case OAK_STAGE.PLAYER_INTRO:
-          this.nameMode = 'player';
-          this.oak.choiceIndex = 0;
-          this.oak.stage = OAK_STAGE.PLAYER_CHOICES;
-          return;
-        case OAK_STAGE.PLAYER_CHOICES:
-          if (this.oak.choiceIndex === 0) {
-            this.nameMode = 'player';
-            this.resetNamingScreen();
-            this.setState('name-entry');
-          } else {
-            const choice = this.getCurrentOakNameChoices()[this.oak.choiceIndex - 1];
-            if (choice) this.profile.playerName = choice;
-            this.oak.confirmIndex = 0;
-            this.oak.stage = OAK_STAGE.PLAYER_CONFIRM;
-          }
-          return;
-        case OAK_STAGE.PLAYER_CONFIRM:
-          if (this.oak.confirmIndex === 0) {
-            this.nameMode = 'rival';
-            this.oak.stage = OAK_STAGE.RIVAL_INTRO;
-          } else {
-            this.oak.choiceIndex = 0;
-            this.oak.stage = OAK_STAGE.PLAYER_CHOICES;
-          }
-          return;
-        case OAK_STAGE.RIVAL_INTRO:
-          this.nameMode = 'rival';
-          this.oak.choiceIndex = 0;
-          this.oak.stage = OAK_STAGE.RIVAL_CHOICES;
-          return;
-        case OAK_STAGE.RIVAL_CHOICES:
-          if (this.oak.choiceIndex === 0) {
-            this.nameMode = 'rival';
-            this.resetNamingScreen();
-            this.setState('name-entry');
-          } else {
-            const choice = this.getCurrentOakNameChoices()[this.oak.choiceIndex - 1];
-            if (choice) this.profile.rivalName = choice;
-            this.oak.confirmIndex = 0;
-            this.oak.stage = OAK_STAGE.RIVAL_CONFIRM;
-          }
-          return;
-        case OAK_STAGE.RIVAL_CONFIRM:
-          if (this.oak.confirmIndex === 0) {
-            this.oak.stage = OAK_STAGE.LETS_GO;
-          } else {
-            this.oak.choiceIndex = 0;
-            this.oak.stage = OAK_STAGE.RIVAL_CHOICES;
-          }
-          return;
-        case OAK_STAGE.LETS_GO:
-          this.saveLocalSnapshot();
-          this.setState('field');
-          return;
-      }
-    }
-
-    moveOakSelection(dx, dy) {
-      const stage = this.getOakStage();
-      if (stage === OAK_STAGE.GENDER) {
-        if (dx !== 0 || dy !== 0) this.oak.genderIndex = clamp(this.oak.genderIndex + (dx || dy), 0, 1);
-        return;
-      }
-      if (stage === OAK_STAGE.PLAYER_CHOICES || stage === OAK_STAGE.RIVAL_CHOICES) {
-        const max = this.getCurrentOakNameChoices().length;
-        this.oak.choiceIndex = clamp(this.oak.choiceIndex + (dy || dx), 0, max);
-        return;
-      }
-      if (stage === OAK_STAGE.PLAYER_CONFIRM || stage === OAK_STAGE.RIVAL_CONFIRM) {
-        if (dx !== 0 || dy !== 0) this.oak.confirmIndex = clamp(this.oak.confirmIndex + (dx || dy), 0, 1);
-      }
-    }
-
 
     currentScene() {
       return this.flow.introScenes[this.introIndex];
@@ -357,12 +177,30 @@ window.FRLG = window.FRLG || {};
         case 'main-menu':
           this.handleMenuConfirm();
           break;
+        case 'oak-speech':
+          if (this.oakSpeech && typeof this.oakSpeech.onAction === 'function') {
+            this.oakSpeech.onAction();
+          }
+          break;
         case 'oak-intro':
-          this.handleOakAction();
+          if (this.oakLine < this.flow.oakIntro.length - 1) {
+            this.oakLine += 1;
+          } else {
+            this.setState('gender-select');
+          }
           break;
         case 'gender-select':
+          this.profile.gender = this.genderIndex === 0 ? 'M' : 'F';
+          this.setState('post-gender');
+          break;
         case 'post-gender':
-          this.setState('oak-intro');
+          if (this.postGenderLine < this.flow.postGender.length - 1) {
+            this.postGenderLine += 1;
+          } else {
+            this.nameMode = 'player';
+            this.resetNamingScreen();
+            this.setState('name-entry');
+          }
           break;
         case 'name-entry':
           this.handleNameEntryAction();
@@ -384,8 +222,13 @@ window.FRLG = window.FRLG || {};
 
     handleMenuConfirm() {
       if (this.menuIndex === 0) {
-        this.resetOakSpeech();
-        this.setState('oak-intro');
+        if (window.FRLG && typeof window.FRLG.OakSpeech === 'function') {
+          this.oakSpeech = new window.FRLG.OakSpeech(this);
+          this.setState('oak-speech');
+        } else {
+          this.oakLine = 0;
+          this.setState('oak-intro');
+        }
         return;
       }
       if (this.menuIndex === 1 && this.continueSnapshot) {
@@ -496,13 +339,14 @@ window.FRLG = window.FRLG || {};
       const value = this.profile[target].trim();
       if (!value) return;
 
-      this.oak.confirmIndex = 0;
       if (this.nameMode === 'player') {
-        this.oak.stage = OAK_STAGE.PLAYER_CONFIRM;
+        this.nameMode = 'rival';
+        this.profile.rivalName = '';
+        this.resetNamingScreen();
       } else {
-        this.oak.stage = OAK_STAGE.RIVAL_CONFIRM;
+        this.saveLocalSnapshot();
+        this.setState('field');
       }
-      this.setState('oak-intro');
     }
 
     appendChar(ch) {
@@ -573,10 +417,13 @@ window.FRLG = window.FRLG || {};
         case 'main-menu':
           this.menuIndex = clamp(this.menuIndex + dy, 0, 1);
           break;
+        case 'oak-speech':
+          if (this.oakSpeech && typeof this.oakSpeech.moveSelection === 'function') {
+            this.oakSpeech.moveSelection(dx, dy);
+          }
+          break;
         case 'gender-select':
-        case 'post-gender':
-        case 'oak-intro':
-          this.moveOakSelection(dx, dy);
+          this.genderIndex = clamp(this.genderIndex + (dx || dy), 0, 1);
           break;
         case 'name-entry':
           this.moveNameSelection(dx, dy);
@@ -1073,6 +920,10 @@ window.FRLG = window.FRLG || {};
           this.onAction();
           return;
         case 'b':
+          if (this.state === 'oak-speech' && this.oakSpeech && typeof this.oakSpeech.onBackspace === 'function') {
+            this.oakSpeech.onBackspace();
+            return;
+          }
           if (this.state === 'name-entry') {
             this.backspaceName();
             return;
@@ -1121,7 +972,11 @@ window.FRLG = window.FRLG || {};
       }
       if (e.key === 'Backspace') {
         e.preventDefault();
-        this.backspaceName();
+        if (this.state === 'oak-speech' && this.oakSpeech && typeof this.oakSpeech.onBackspace === 'function') {
+          this.oakSpeech.onBackspace();
+        } else {
+          this.backspaceName();
+        }
         return;
       }
       if (e.key === 'ArrowUp') {
@@ -1179,73 +1034,22 @@ window.FRLG = window.FRLG || {};
     }
 
     drawOakIntro() {
-      const ctx = this.ctx;
-      drawOakSpeechBackdrop(ctx);
-      const stage = this.getOakStage();
-      const trainerSprite = stage === OAK_STAGE.RIVAL_INTRO || stage === OAK_STAGE.RIVAL_CHOICES || stage === OAK_STAGE.RIVAL_CONFIRM
-        ? PACKEGE_OAK_SPEECH_ASSETS.rival
-        : (stage === OAK_STAGE.PLAYER_INTRO || stage === OAK_STAGE.PLAYER_CHOICES || stage === OAK_STAGE.PLAYER_CONFIRM || stage === OAK_STAGE.LETS_GO
-          ? (this.profile.gender === 'F' ? PACKEGE_OAK_SPEECH_ASSETS.leaf : PACKEGE_OAK_SPEECH_ASSETS.red)
-          : PACKEGE_OAK_SPEECH_ASSETS.oak);
+      drawOakSpeechBackdrop(this.ctx);
 
-      if (stage === OAK_STAGE.DIALOGUE) {
-        const oakDrawn = drawOakSpeechCharacter(ctx, PACKEGE_OAK_SPEECH_ASSETS.oak, 240, 196, 2);
-        if (!oakDrawn) drawOak(ctx, 240, 126);
-        if (this.isOakNidoranVisible()) {
-          drawOakSpeechPlatform(ctx, 240, 228, 96, 24);
-          const nidoranDrawn = drawOakSpeechCharacter(ctx, PACKEGE_OAK_SPEECH_ASSETS.nidoran, 240, 212, 2);
-          if (!nidoranDrawn) drawPokemonBuddy(ctx, 240, 190);
-        }
-      } else if (stage === OAK_STAGE.GENDER) {
-        this.drawDialogue(this.getOakPromptText());
-        drawWindow(ctx, 310, 142, 118, 58, false, '#102030', '#365d79', 'std');
-        drawMenuArrow(ctx, 324, this.oak.genderIndex === 0 ? 160 : 180, '#29343d');
-        ctx.save();
-        ctx.fillStyle = '#2d3942';
-        ctx.font = '16px Arial';
-        ctx.fillText('BOY', 342, 164);
-        ctx.fillText('GIRL', 342, 184);
-        ctx.restore();
-        return;
-      } else {
-        const trainerDrawn = drawOakSpeechCharacter(ctx, trainerSprite, 240, 196, 2);
-        if (!trainerDrawn) {
-          if (stage === OAK_STAGE.RIVAL_INTRO || stage === OAK_STAGE.RIVAL_CHOICES || stage === OAK_STAGE.RIVAL_CONFIRM) {
-            drawTrainerBust(ctx, 240, 138, '#7f6aa7', 1.1);
-          } else {
-            drawTrainerBust(ctx, 240, 138, PLAYER_COLORS[this.profile.gender], 1.1);
-          }
-        }
+      const oakDrawn = drawOakSpeechCharacter(this.ctx, PACKEGE_OAK_SPEECH_ASSETS.oak, 240, 220, 2);
+      if (!oakDrawn) drawOak(this.ctx, 240, 126);
+
+      const showNidoran = this.oakLine >= 2 && this.oakLine <= 3;
+      if (showNidoran) {
+        drawOakSpeechPlatform(this.ctx, 198, 224, 92, 18);
+        const nidoranDrawn = drawOakSpeechCharacter(this.ctx, PACKEGE_OAK_SPEECH_ASSETS.nidoran, 198, 212, 2);
+        if (!nidoranDrawn) drawPokemonBuddy(this.ctx, 198, 190);
       }
 
-      this.drawDialogue(this.getOakPromptText());
-
-      if (stage === OAK_STAGE.PLAYER_CHOICES || stage === OAK_STAGE.RIVAL_CHOICES) {
-        const choices = ['NEW NAME', ...this.getCurrentOakNameChoices()];
-        drawWindow(ctx, 304, 120, 132, 110, false, '#102030', '#365d79', 'std');
-        choices.forEach((choice, idx) => {
-          const y = 142 + idx * 18;
-          if (idx === this.oak.choiceIndex) drawMenuArrow(ctx, 316, y - 4, '#29343d');
-          ctx.fillStyle = '#2d3942';
-          ctx.font = '14px Arial';
-          ctx.fillText(choice, 336, y + 1);
-        });
-      }
-
-      if (stage === OAK_STAGE.PLAYER_CONFIRM || stage === OAK_STAGE.RIVAL_CONFIRM) {
-        drawWindow(ctx, 332, 178, 96, 40, false, '#102030', '#365d79', 'std');
-        drawMenuArrow(ctx, 344, this.oak.confirmIndex === 0 ? 194 : 212, '#29343d');
-        ctx.save();
-        ctx.fillStyle = '#2d3942';
-        ctx.font = '14px Arial';
-        ctx.fillText('YES', 364, 198);
-        ctx.fillText('NO', 364, 216);
-        ctx.restore();
-      }
+      this.drawDialogue(this.flow.oakIntro[this.oakLine]);
     }
 
     drawGenderSelect() {
-
       const ctx = this.ctx;
       drawOakSpeechBackdrop(ctx);
       this.drawDialogue('Are you a boy? Or are you a girl?');
@@ -1342,7 +1146,7 @@ window.FRLG = window.FRLG || {};
       });
 
       centerText(ctx, `현재 길이 ${targetValue.length}/${maxChars}`, 392, 92, 11, 0.92, '#35526a');
-      this.drawDialogue(this.nameMode === 'player' ? '문자판으로 네 이름을 입력해라.' : '문자판으로 라이벌의 이름을 입력해라.');
+      this.drawDialogue(this.nameMode === 'player' ? '너의 이름을 문자판으로 조합해라.' : '이제 라이벌의 이름을 문자판으로 조합해라.');
     }
 
     drawField() {
@@ -1551,6 +1355,10 @@ window.FRLG = window.FRLG || {};
         this.drawTitle(now);
       } else if (this.state === 'main-menu') {
         this.drawMenu();
+      } else if (this.state === 'oak-speech') {
+        if (this.oakSpeech && typeof this.oakSpeech.draw === 'function') {
+          this.oakSpeech.draw(now);
+        }
       } else if (this.state === 'oak-intro') {
         this.drawOakIntro();
       } else if (this.state === 'gender-select') {
@@ -1741,8 +1549,7 @@ window.FRLG = window.FRLG || {};
       oak: load(`${PACKEGE_OAK_SPEECH_BASE}/oak/pic.png`),
       red: load(`${PACKEGE_OAK_SPEECH_BASE}/red/pic.png`),
       leaf: load(`${PACKEGE_OAK_SPEECH_BASE}/leaf/pic.png`),
-      rival: load(`${PACKEGE_OAK_SPEECH_BASE}/rival/pic.png`),
-      nidoran: load(`assets/packege/pokemon/nidoran_f/front.png`)
+      rival: load(`${PACKEGE_OAK_SPEECH_BASE}/rival/pic.png`)
     };
   }
 
@@ -2040,64 +1847,14 @@ window.FRLG = window.FRLG || {};
     ctx.fillRect(0, 210, 480, 36);
   }
 
-  const OAK_CHROMA_CACHE = new WeakMap();
-
-  function getOakProcessedSprite(img) {
-    if (!img || !img.complete || !img.naturalWidth) return null;
-    if (OAK_CHROMA_CACHE.has(img)) return OAK_CHROMA_CACHE.get(img);
-    const canvas = document.createElement('canvas');
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(img, 0, 0);
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const data = imageData.data;
-    const key = { r: 115, g: 197, b: 164 };
-    let minX = canvas.width, minY = canvas.height, maxX = -1, maxY = -1;
-    for (let i = 0; i < data.length; i += 4) {
-      const r = data[i], g = data[i + 1], b = data[i + 2];
-      if (Math.abs(r - key.r) <= 3 && Math.abs(g - key.g) <= 3 && Math.abs(b - key.b) <= 3) {
-        data[i + 3] = 0;
-      }
-    }
-    ctx.putImageData(imageData, 0, 0);
-    for (let y = 0; y < canvas.height; y += 1) {
-      for (let x = 0; x < canvas.width; x += 1) {
-        const a = ctx.getImageData(x, y, 1, 1).data[3];
-        if (!a) continue;
-        if (x < minX) minX = x;
-        if (y < minY) minY = y;
-        if (x > maxX) maxX = x;
-        if (y > maxY) maxY = y;
-      }
-    }
-    const sprite = {
-      canvas,
-      cropX: minX <= maxX ? minX : 0,
-      cropY: minY <= maxY ? minY : 0,
-      cropW: minX <= maxX ? (maxX - minX + 1) : canvas.width,
-      cropH: minY <= maxY ? (maxY - minY + 1) : canvas.height
-    };
-    OAK_CHROMA_CACHE.set(img, sprite);
-    return sprite;
-  }
-
-  function drawOakSpeechPlatform(ctx, cx, baseY, width = 96, height = 24) {
+  function drawOakSpeechPlatform(ctx, cx, baseY, width = 128, height = 24) {
     const img = PACKEGE_OAK_SPEECH_ASSETS.platform;
+    const x = Math.round(cx - width / 2);
+    const y = Math.round(baseY - height / 2);
     if (img && img.complete && img.naturalWidth) {
-      const segH = Math.floor(img.naturalHeight / 3);
-      const segW = img.naturalWidth;
-      const leftW = Math.round(width * 0.25);
-      const rightW = Math.round(width * 0.25);
-      const middleW = Math.max(16, width - leftW - rightW);
-      const x = Math.round(cx - width / 2);
-      const y = Math.round(baseY - height / 2);
       ctx.save();
       ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(img, 0, 0, segW, segH, x, y, leftW, height);
-      ctx.drawImage(img, 0, segH, segW, segH, x + leftW, y, middleW, height);
-      ctx.drawImage(img, 0, segH * 2, segW, segH, x + leftW + middleW, y, rightW, height);
+      ctx.drawImage(img, x, y, width, height);
       ctx.restore();
       return;
     }
@@ -2111,24 +1868,12 @@ window.FRLG = window.FRLG || {};
 
   function drawOakSpeechCharacter(ctx, img, cx, footY, scale = 2, alpha = 1) {
     if (!img || !img.complete || !img.naturalWidth) return false;
-    const sprite = getOakProcessedSprite(img);
-    if (!sprite) return false;
-    const w = Math.round(sprite.cropW * scale);
-    const h = Math.round(sprite.cropH * scale);
+    const w = Math.round(img.naturalWidth * scale);
+    const h = Math.round(img.naturalHeight * scale);
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(
-      sprite.canvas,
-      sprite.cropX,
-      sprite.cropY,
-      sprite.cropW,
-      sprite.cropH,
-      Math.round(cx - w / 2),
-      Math.round(footY - h),
-      w,
-      h
-    );
+    ctx.drawImage(img, Math.round(cx - w / 2), Math.round(footY - h), w, h);
     ctx.restore();
     return true;
   }
@@ -2251,6 +1996,32 @@ window.FRLG = window.FRLG || {};
     ctx.fillText(line.trim(), x, y + row * lineHeight);
     ctx.restore();
   }
+
+  window.FRLG.Shared = {
+    centerText,
+    wrapText,
+    clamp,
+    drawWindow,
+    drawMenuArrow,
+    drawUiBanner,
+    drawUiGlyph,
+    drawUiCell,
+    drawOakSpeechBackdrop,
+    drawOakSpeechPlatform,
+    drawOakSpeechCharacter,
+    drawOak,
+    drawPokemonBuddy,
+    drawTrainerBust,
+    displayNameChar,
+    PACKEGE_UI_ASSETS,
+    PACKEGE_OAK_SPEECH_ASSETS,
+    PLAYER_COLORS,
+    NAME_ENTRY_MAX_CHARS,
+    NAME_ENTRY_PAGE_NEXT,
+    NAME_ENTRY_PAGE_BUTTON_LABEL,
+    NAME_ENTRY_PAGE_TITLE,
+    NAME_ENTRY_PAGES
+  };
 
   window.FRLG.IntroEngine = IntroEngine;
 })();
