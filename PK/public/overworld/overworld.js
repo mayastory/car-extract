@@ -251,6 +251,7 @@ export class Overworld{
     
     this._lastSyncKey="";
     this._syncLatestCtx=null;
+    this._syncEpoch=0;
     this._mapAsyncRev=0;
     this._mapLoadTxnSeq=0;
     this._activeMapLoadTxn=0;
@@ -1983,10 +1984,25 @@ export class Overworld{
     return this._mapAsyncRev;
   }
 
+  _nextSyncEpoch(){
+    this._syncEpoch = (((this._syncEpoch|0) + 1) >>> 0);
+    return this._syncEpoch;
+  }
+
+  _abortSyncLoop(){
+    this._nextSyncEpoch();
+    this._syncInFlight = false;
+    this._syncQueued = false;
+    this._syncLatest = null;
+    this._syncLatestCtx = null;
+    this._syncPromise = null;
+  }
+
   _beginMapLoadTxn(targetMapId=null){
     this._activeMapLoadTxn = (((this._mapLoadTxnSeq|0) + 1) >>> 0);
     this._mapLoadTxnSeq = this._activeMapLoadTxn;
     this._mapLoadInFlight = true;
+    this._abortSyncLoop();
     this._nextMapAsyncRev();
     return {
       seq:(this._activeMapLoadTxn|0),
@@ -2035,9 +2051,7 @@ export class Overworld{
     this._movePx = 0;
     this._moveDistPx = 0;
     this._moveDirLocked = null;
-    this._syncQueued = false;
-    this._syncLatest = null;
-    this._syncLatestCtx = null;
+    this._abortSyncLoop();
     this._mapLoadInFlight = false;
     if(this._grassFx && this._grassFx.clear) this._grassFx.clear();
     this.npcs=[];
@@ -4945,12 +4959,14 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
     
 
     this._syncInFlight = true;
+    const loopEpoch = (this._syncEpoch|0);
     
     this._syncPromise = (async()=>{
       
       try{
         
         do{
+          if(((loopEpoch|0) !== (this._syncEpoch|0))) break;
           
           this._syncQueued = false;
           
@@ -4987,12 +5003,14 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
           }
           catch(e){
             
+            if(((loopEpoch|0) !== (this._syncEpoch|0))) break;
             this.status("서버 연결 실패");
             
             continue;
             
           }
           
+          if(((loopEpoch|0) !== (this._syncEpoch|0))) break;
 
           if(!this._isMapAsyncCtxCurrent(sendCtx)){
             continue;
@@ -5046,9 +5064,10 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
       }
       finally{
         
-        this._syncInFlight = false;
-        
-        this._syncPromise = null;
+        if(((loopEpoch|0) === (this._syncEpoch|0))){
+          this._syncInFlight = false;
+          this._syncPromise = null;
+        }
         
       }
       
