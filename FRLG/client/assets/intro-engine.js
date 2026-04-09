@@ -1011,7 +1011,8 @@ window.FRLG = window.FRLG || {};
 
     drawOakIntro() {
       drawOakSpeechBackdrop(this.ctx);
-      drawOakSpeechPlatform(this.ctx, 150, 186, 134, 26);
+      // Packege oak_speech.c creates the platform sprites for the intro species
+      // (NIDORAN_F), not for Oak himself. Keep Oak unshadowed here.
       drawOakSpeechPlatform(this.ctx, 344, 206, 124, 24);
       const drewOak = drawOakSpeechCharacter(this.ctx, PACKEGE_OAK_SPEECH_ASSETS.oak, 150, 182, 2.15);
       if (!drewOak) drawOak(this.ctx, 150, 160);
