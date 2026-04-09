@@ -25,7 +25,7 @@
       <div class="overlay">
         <div class="badge">LOCAL</div>
         <div id="sceneName" class="scene-name">boot</div>
-        <div class="hint">Enter/Space 진행·대화·입력 · 방향키 선택/이동 · ESC/X 메뉴 · Backspace 삭제 · R 리셋 · 모바일은 아래 터치 버튼</div>
+        <div class="hint">Enter/Space 진행·대화·입력 · 방향키 선택/이동 · ESC/X 메뉴 · Backspace 삭제 · R 리셋 · 모바일은 아래 디패드 / 버튼</div>
       </div>
     </main>
 
