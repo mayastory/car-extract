@@ -789,7 +789,7 @@ window.FRLG = window.FRLG || {};
     resolveSpecialObjectInteraction(data) {
       const script = data.script || '';
       if (script === 'PalletTown_EventScript_OakStopsYou') {
-        return (this.flow.events && this.flow.events.oakStopsYou) || ['오박사: 이리 따라오너라.'];
+        return (this.flow.events && this.flow.events.oakStopsYou) || ["OAK: Hey! Wait!\nDon't go out!"];
       }
       if (script === 'PalletTown_EventScript_SignLady') {
         if (!this.getFlag('openedStartMenu')) {
@@ -804,36 +804,44 @@ window.FRLG = window.FRLG || {};
       }
       if (script === 'PalletTown_PlayersHouse_1F_EventScript_Mom') {
         if (!this.getFlag('starterChosen')) {
-          return (this.flow.npcLines && this.flow.npcLines[script]) || ['엄마: 오박사님이 너를 찾으시는 것 같더라.'];
+          const key = this.profile.gender === 'F'
+            ? 'PalletTown_PlayersHouse_1F_EventScript_Mom_GIRL'
+            : 'PalletTown_PlayersHouse_1F_EventScript_Mom_BOY';
+          return (this.flow.npcLines && this.flow.npcLines[key]) || ['MOM: …Right.'];
         }
         if (!this.getFlag('firstBattleDone')) {
-          return ['엄마: 포켓몬을 받았구나!', '조심해서 다녀오렴.'];
+          return (this.flow.npcLines && this.flow.npcLines.PalletTown_PlayersHouse_1F_EventScript_Mom_AFTER_STARTER)
+            || ['MOM: {PLAYER}!\nYou should take a quick rest.'];
         }
-        return ['엄마: 네 포켓몬, 아주 씩씩해 보이는구나.', '항상 몸조심하렴.'];
+        return (this.flow.npcLines && this.flow.npcLines.PalletTown_PlayersHouse_1F_EventScript_Mom_AFTER_BATTLE)
+          || ['MOM: Oh, good!'];
       }
       if (script === 'PalletTown_RivalsHouse_EventScript_Daisy') {
         if (!this.getFlag('starterChosen')) {
-          return (this.flow.npcLines && this.flow.npcLines[script]) || ['다이: {RIVAL}는 연구소에 있어.'];
+          return (this.flow.npcLines && this.flow.npcLines.PalletTown_RivalsHouse_EventScript_Daisy_BEFORE_STARTER)
+            || ['DAISY: Hi, {PLAYER}!'];
         }
         if (!this.getFlag('firstBattleDone')) {
-          return ['다이: 연구소에서 무슨 일이 있었던 거야?', '왠지 재미있는 일이 벌어질 것 같네.'];
+          return (this.flow.npcLines && this.flow.npcLines.PalletTown_RivalsHouse_EventScript_Daisy_BEFORE_STARTER)
+            || ['DAISY: Hi, {PLAYER}!'];
         }
-        return ['다이: {RIVAL}와 배틀했다며?', '나도 그 장면을 봤으면 좋았을 텐데!'];
+        return (this.flow.npcLines && this.flow.npcLines.PalletTown_RivalsHouse_EventScript_Daisy_AFTER_BATTLE)
+          || ['DAISY: {PLAYER}, I heard you had a battle against {RIVAL}.'];
       }
       if (script === 'PalletTown_RivalsHouse_EventScript_TownMap') {
-        return ['칸토 지방의 큰 지도다.', '지금은 보기만 할 수 있다.'];
+        return [(this.flow.signs && this.flow.signs[script]) || "It's a big map of the KANTO region."];
       }
       if (script === 'PalletTown_ProfessorOaksLab_EventScript_Rival') {
         if (!this.getFlag('starterChosen')) {
-          return (this.flow.npcLines && this.flow.npcLines[script]) || ['{RIVAL}: 먼저 골라, {PLAYER}!'];
+          return (this.flow.npcLines && this.flow.npcLines.PalletTown_ProfessorOaksLab_EventScript_Rival_BEFORE_STARTER)
+            || ['Go ahead and choose, {PLAYER}!'];
         }
         if (!this.getFlag('firstBattleDone')) {
           this.queueBattleStart('starter-rival');
-          return (this.flow.events && this.flow.events.rivalBattleChallenge) || [
-            `${this.profile.rivalName || 'RIVAL'}: 좋아! 바로 한판 해 보자!`
-          ];
+          return (this.flow.events && this.flow.events.rivalBattleChallenge) || ["Come on, I'll take you on!"];
         }
-        return (this.flow.events && this.flow.events.rivalAfterBattle) || ['{RIVAL}: 다음엔 절대 안 져!'];
+        return (this.flow.npcLines && this.flow.npcLines.PalletTown_ProfessorOaksLab_EventScript_Rival_AFTER_BATTLE)
+          || ['{PLAYER}! Gramps!\nSmell you later!'];
       }
       const starterMap = {
         PalletTown_ProfessorOaksLab_EventScript_BulbasaurBall: 'BULBASAUR',
@@ -843,22 +851,26 @@ window.FRLG = window.FRLG || {};
       const starterId = starterMap[script] || null;
       if (starterId) {
         if (this.getFlag('starterChosen')) {
-          return (this.flow.events && this.flow.events.starterAlreadyChosen) || ['이미 스타터를 골랐다.'];
+          return (this.flow.events && this.flow.events.starterAlreadyChosen) || ["OAK: Hey!\nDon't go away yet!"];
         }
         this.progress.starter = starterId;
         this.progress.rivalStarter = this.getRivalStarter(starterId);
         this.setFlag('starterChosen', true);
         this.saveLocalSnapshot();
         if (this.hooks.onSceneChange) this.hooks.onSceneChange(this.world.mapId);
-        return (this.flow.events && this.flow.events.starterPick && this.flow.events.starterPick[starterId]) || [`${starterId} 선택 완료.`];
+        return (this.flow.events && this.flow.events.starterPick && this.flow.events.starterPick[starterId]) || [`${starterId} selected.`];
       }
       if (script === 'PalletTown_ProfessorOaksLab_EventScript_ProfOak') {
         if (this.getFlag('firstBattleDone')) {
-          return (this.flow.events && this.flow.events.oakAfterBattle) || ['오박사: 좋아. 이제 진짜 모험의 시작이란다.'];
+          return (this.flow.npcLines && this.flow.npcLines.PalletTown_ProfessorOaksLab_EventScript_ProfOak_AFTER_BATTLE)
+            || ['OAK: {PLAYER}, raise your young POKéMON by making it battle.'];
         }
         if (this.getFlag('starterChosen')) {
-          return (this.flow.events && this.flow.events.oakAfterStarter) || ['오박사: 이제 시작이구나.'];
+          return (this.flow.npcLines && this.flow.npcLines.PalletTown_ProfessorOaksLab_EventScript_ProfOak_AFTER_STARTER)
+            || ['OAK: If a wild POKéMON appears, your POKéMON can battle it.'];
         }
+        return (this.flow.npcLines && this.flow.npcLines.PalletTown_ProfessorOaksLab_EventScript_ProfOak_BEFORE_STARTER)
+          || ['OAK: Now, {PLAYER}.'];
       }
       return null;
     }
@@ -866,6 +878,13 @@ window.FRLG = window.FRLG || {};
     resolveInteractionLines(target) {
       const data = target.data || {};
       if (target.kind === 'sign') {
+        if (data.script === 'PalletTown_PlayersHouse_1F_EventScript_TV') {
+          const key = this.profile.gender === 'F'
+            ? 'PalletTown_PlayersHouse_1F_EventScript_TV_GIRL'
+            : 'PalletTown_PlayersHouse_1F_EventScript_TV_BOY';
+          const text = (this.flow.signs && this.flow.signs[key]) || `${data.script || 'sign'} 를 조사했다.`;
+          return [text];
+        }
         const text = (this.flow.signs && this.flow.signs[data.script]) || `${data.script || 'sign'} 를 조사했다.`;
         return [text];
       }

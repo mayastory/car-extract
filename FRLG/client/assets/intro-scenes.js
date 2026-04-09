@@ -102,52 +102,119 @@ window.FRLG_FLOW_CONFIG = {
   roomMessage: 'Packege 기준 맵/이벤트를 하나씩 입히는 중이다.',
   saveMessage: '리포트를 작성했다. (LOCAL)',
   signs: {
-    PalletTown_EventScript_OaksLabSign: '오박사의 포켓몬 연구소다.',
-    PalletTown_EventScript_PlayersHouseSign: '{PLAYER}의 집.',
-    PalletTown_EventScript_RivalsHouseSign: '{RIVAL}의 집.',
-    PalletTown_EventScript_TownSign: '태초마을. 여행의 빛깔이 너를 기다린다.',
+    PalletTown_EventScript_OaksLabSign: 'OAK POKéMON RESEARCH LAB',
+    PalletTown_EventScript_PlayersHouseSign: "{PLAYER}'s house",
+    PalletTown_EventScript_RivalsHouseSign: "{RIVAL}'s house",
+    PalletTown_EventScript_TownSign: 'PALLET TOWN\nShades of your journey await!',
     PalletTown_EventScript_TrainerTipsSign: '트레이너 팁! START 버튼으로 메뉴를 열 수 있다.',
-    PalletTown_PlayersHouse_2F_EventScript_NES: '{PLAYER}는 NES를 만지작거렸다.\n…좋아! 이제 내려가자.',
+    PalletTown_PlayersHouse_2F_EventScript_NES: "{PLAYER} played with the NES.\n…Okay!\nIt's time to go!",
     PalletTown_PlayersHouse_2F_EventScript_PC: '컴퓨터다. 아직 볼 일은 없어 보인다.',
-    PalletTown_PlayersHouse_2F_EventScript_Sign: '게시물이 붙어 있다. HELP가 필요하면 L/R 버튼을 눌러 보자.',
-    PalletTown_PlayersHouse_1F_EventScript_TV: 'TV에서 영화가 나오고 있다.\n…이제 슬슬 나갈 시간이다.',
-    PalletTown_RivalsHouse_EventScript_Bookshelf: '책장이 포켓몬 책으로 가득하다.',
-    PalletTown_RivalsHouse_EventScript_Picture: '칸토 지방의 큰 지도가 걸려 있다. 있으면 편리하겠다.',
+    PalletTown_PlayersHouse_2F_EventScript_Sign: "It's a posted notice…\nIf you're confused, ask for HELP!\nPress the L or R Button!",
+    PalletTown_PlayersHouse_1F_EventScript_TV_BOY: "There's a movie on TV.\nFour boys are walking on railroad tracks.\n…I better go, too.",
+    PalletTown_PlayersHouse_1F_EventScript_TV_GIRL: "There's a movie on TV.\nA girl with her hair in pigtails is walking up a brick road.\n…I better go, too.",
+    PalletTown_RivalsHouse_EventScript_Bookshelf: 'The shelves are crammed full of\nbooks on POKéMON.',
+    PalletTown_RivalsHouse_EventScript_Picture: "It's a big map of the KANTO region.\nNow this would be useful!",
+    PalletTown_RivalsHouse_EventScript_TownMap: "It's a big map of the KANTO region.\nNow this would be useful!",
     PalletTown_ProfessorOaksLab_EventScript_Computer: '연구용 컴퓨터다. 자료가 가득 저장돼 있다.',
-    PalletTown_ProfessorOaksLab_EventScript_LeftSign: '받침대 설명문이다. 포켓몬에 대한 메모가 적혀 있다.',
-    PalletTown_ProfessorOaksLab_EventScript_RightSign: '또 다른 받침대 설명문이다. 아직 자세한 내용은 읽을 수 없다.'
+    PalletTown_ProfessorOaksLab_EventScript_LeftSign: "On the desk there is my invention, the POKéDEX!\nIt automatically records data on POKéMON you've seen or caught.",
+    PalletTown_ProfessorOaksLab_EventScript_RightSign: "On the desk there is my invention, the POKéDEX!\nIt's a high-tech encyclopedia!"
   },
   npcLines: {
-    PalletTown_PlayersHouse_1F_EventScript_Mom: ['엄마: 오박사님이 너를 찾으시는 것 같더라.', '바로 옆 연구소에 계실 거야.'],
+    PalletTown_PlayersHouse_1F_EventScript_Mom_BOY: [
+      'MOM: …Right.\nAll boys leave home someday.\nIt said so on TV.',
+      'Oh, yes. PROF. OAK, next door, was\nlooking for you.'
+    ],
+    PalletTown_PlayersHouse_1F_EventScript_Mom_GIRL: [
+      'MOM: …Right.\nAll girls dream of traveling.\nIt said so on TV.',
+      'Oh, yes. PROF. OAK, next door, was\nlooking for you.'
+    ],
+    PalletTown_PlayersHouse_1F_EventScript_Mom_AFTER_STARTER: [
+      'MOM: {PLAYER}!\nYou should take a quick rest.'
+    ],
+    PalletTown_PlayersHouse_1F_EventScript_Mom_AFTER_BATTLE: [
+      'MOM: Oh, good! You and your\nPOKéMON are looking great.\nTake care now!'
+    ],
     PalletTown_EventScript_SignLady: ['여자아이: 표지판은 정말 유용해!', '궁금할 땐 직접 읽어 보는 게 좋아.'],
-    PalletTown_EventScript_FatMan: ['아저씨: 기술은 대단하지!', '지금은 PC로 아이템과 포켓몬을 보관할 수 있단다.'],
-    PalletTown_RivalsHouse_EventScript_Daisy: ['다이: 안녕, {PLAYER}!', '{RIVAL}는 할아버지 연구소에 가 있어.'],
+    PalletTown_EventScript_FatMan: [
+      'Technology is incredible!',
+      'You can now store and recall items\nand POKéMON as data via PC.'
+    ],
+    PalletTown_RivalsHouse_EventScript_Daisy_BEFORE_STARTER: [
+      'DAISY: Hi, {PLAYER}!',
+      "My brother, {RIVAL}, is out at\nGrandpa's LAB."
+    ],
+    PalletTown_RivalsHouse_EventScript_Daisy_AFTER_BATTLE: [
+      'DAISY: {PLAYER}, I heard you had\na battle against {RIVAL}.',
+      "I wish I'd seen that!"
+    ],
     PalletTown_ProfessorOaksLab_EventScript_Aide1: ['조수: 오박사님의 연구는 늘 바쁘게 돌아가고 있어.'],
     PalletTown_ProfessorOaksLab_EventScript_Aide2: ['조수: 책상 위에는 포켓몬 연구 자료가 잔뜩이야.'],
     PalletTown_ProfessorOaksLab_EventScript_Aide3: ['조수: 오늘은 뭔가 중요한 일이 생길 것 같네.'],
-    PalletTown_ProfessorOaksLab_EventScript_ProfOak: ['오박사: 그래, 여기까지 잘 왔다.', '이제 네 포켓몬을 골라 보거라.'],
-    PalletTown_ProfessorOaksLab_EventScript_Rival: ['{RIVAL}: 난 욕심부리지 않아.', '먼저 네가 골라, {PLAYER}!'],
-    PalletTown_ProfessorOaksLab_EventScript_Pokedex: ['도감이다. 지금은 아직 받아 갈 수 없다.'],
-    PalletTown_ProfessorOaksLab_EventScript_BulbasaurBall: ['몬스터볼 안에서 이상해씨가 기척을 보인다.'],
-    PalletTown_ProfessorOaksLab_EventScript_SquirtleBall: ['몬스터볼 안에서 꼬부기가 기척을 보인다.'],
-    PalletTown_ProfessorOaksLab_EventScript_CharmanderBall: ['몬스터볼 안에서 파이리가 기척을 보인다.']
+    PalletTown_ProfessorOaksLab_EventScript_ProfOak_BEFORE_STARTER: [
+      'OAK: Now, {PLAYER}.',
+      'Inside those three POKé BALLS are POKéMON. Which one will you choose for yourself?'
+    ],
+    PalletTown_ProfessorOaksLab_EventScript_ProfOak_AFTER_STARTER: [
+      'OAK: If a wild POKéMON appears, your POKéMON can battle it.',
+      'With it at your side, you should be able to reach the next town.'
+    ],
+    PalletTown_ProfessorOaksLab_EventScript_ProfOak_AFTER_BATTLE: [
+      'OAK: {PLAYER}, raise your young POKéMON by making it battle.',
+      'It has to battle for it to grow.'
+    ],
+    PalletTown_ProfessorOaksLab_EventScript_Rival_BEFORE_STARTER: [
+      "{RIVAL}: Heh, I don't need to be greedy like you. I'm mature!",
+      'Go ahead and choose, {PLAYER}!'
+    ],
+    PalletTown_ProfessorOaksLab_EventScript_Rival_AFTER_BATTLE: [
+      "{RIVAL}: Okay! I'll make my POKéMON battle to toughen it up!",
+      '{PLAYER}! Gramps!\nSmell you later!'
+    ],
+    PalletTown_ProfessorOaksLab_EventScript_Pokedex: [
+      'On the desk there is my invention, the POKéDEX!',
+      "It's a high-tech encyclopedia!"
+    ],
+    PalletTown_ProfessorOaksLab_EventScript_BulbasaurBall: ['I see! BULBASAUR is your choice.', "It's very easy to raise."],
+    PalletTown_ProfessorOaksLab_EventScript_SquirtleBall: ['Hm! SQUIRTLE is your choice.', "It's one worth raising."],
+    PalletTown_ProfessorOaksLab_EventScript_CharmanderBall: ['Ah! CHARMANDER is your choice.', 'You should raise it patiently.']
   },
   events: {
     oakStopsYou: [
-      '오박사: 이봐! 잠깐만, 아직 밖은 위험하단다!',
-      '오박사: 풀숲엔 야생 포켓몬이 살고 있어. 이리 따라오너라!'
+      "OAK: Hey! Wait!\nDon't go out!",
+      "OAK: It's unsafe!\nWild POKéMON live in tall grass!\nYou need your own POKéMON for your protection.\nI know!\nHere, come with me!"
     ],
-    starterAlreadyChosen: ['이미 포켓몬을 골랐다.'],
+    starterAlreadyChosen: ["OAK: Hey!\nDon't go away yet!"],
     starterPick: {
-      BULBASAUR: ['이상해씨를 골랐다!', '차분하지만 믿음직한 파트너다.'],
-      CHARMANDER: ['파이리를 골랐다!', '작지만 불꽃은 아주 뜨겁다.'],
-      SQUIRTLE: ['꼬부기를 골랐다!', '든든한 등껍질이 인상적이다.']
+      BULBASAUR: [
+        "I see! BULBASAUR is your choice.\nIt's very easy to raise.",
+        '{PLAYER} received the BULBASAUR\nfrom PROF. OAK!'
+      ],
+      CHARMANDER: [
+        'Ah! CHARMANDER is your choice.\nYou should raise it patiently.',
+        '{PLAYER} received the CHARMANDER\nfrom PROF. OAK!'
+      ],
+      SQUIRTLE: [
+        "Hm! SQUIRTLE is your choice.\nIt's one worth raising.",
+        '{PLAYER} received the SQUIRTLE\nfrom PROF. OAK!'
+      ]
     },
-    rivalBattleChallenge: ['{RIVAL}: 좋아! 그럼 바로 승부다!', '{RIVAL}가 첫 배틀을 걸어왔다.'],
-    rivalBattleWin: ['첫 라이벌 배틀이 끝났다.', '{RIVAL}는 분한 표정으로 물러났다.'],
-    rivalAfterBattle: ['{RIVAL}: 흥! 다음엔 절대 안 질 거야!'],
-    oakAfterStarter: ['오박사: 좋아, 이제 서로 실력을 시험해 보렴.'],
-    oakAfterBattle: ['오박사: 훌륭하구나. 이제 슬슬 여행을 준비할 때가 됐어.']
+    rivalBattleChallenge: [
+      "{RIVAL}: Wait, {PLAYER}!\nLet's check out our POKéMON!",
+      "Come on, I'll take you on!"
+    ],
+    rivalBattleWin: ['WHAT?\nUnbelievable!\nI picked the wrong POKéMON!'],
+    rivalAfterBattle: [
+      "{RIVAL}: Okay! I'll make my POKéMON battle to toughen it up!",
+      '{PLAYER}! Gramps!\nSmell you later!'
+    ],
+    oakAfterStarter: [
+      'OAK: If a wild POKéMON appears, your POKéMON can battle it.',
+      'With it at your side, you should be able to reach the next town.'
+    ],
+    oakAfterBattle: [
+      'OAK: {PLAYER}, raise your young POKéMON by making it battle.',
+      'It has to battle for it to grow.'
+    ]
   }
 };
 
