@@ -250,6 +250,8 @@ export class Overworld{
     this._syncPromise=null;
     
     this._lastSyncKey="";
+    this._syncLatestCtx=null;
+    this._mapAsyncRev=0;
     
 
     // Warp + map connection preview
@@ -1928,7 +1930,27 @@ export class Overworld{
     });
   }
 
+  _nextMapAsyncRev(){
+    this._mapAsyncRev = (((this._mapAsyncRev|0) + 1) >>> 0);
+    return this._mapAsyncRev;
+  }
+
+  _mapAsyncCtx(mapId=null){
+    return {
+      rev:(this._mapAsyncRev|0),
+      mapId:(mapId ?? this.map?.map_id ?? null),
+    };
+  }
+
+  _isMapAsyncCtxCurrent(ctx){
+    if(!ctx) return true;
+    if(((ctx.rev|0) !== (this._mapAsyncRev|0))) return false;
+    if(ctx.mapId != null && String(this.map?.map_id || "") !== String(ctx.mapId)) return false;
+    return true;
+  }
+
   _resetMapTransientState({clearNeighbors=false}={}){
+    this._nextMapAsyncRev();
     this._edgePending = null;
     this._warpPending = false;
     this._queuedDir = null;
@@ -1944,6 +1966,10 @@ export class Overworld{
     this._moveDistPx = 0;
     this._moveDirLocked = null;
     if(this._grassFx && this._grassFx.clear) this._grassFx.clear();
+    this.npcs=[];
+    this.items=[];
+    this.mobs=[];
+    if(this._mobVis && this._mobVis.clear) this._mobVis.clear();
     if(clearNeighbors){
       if(this._neighborCache && this._neighborCache.clear) this._neighborCache.clear();
       if(this._neighborPromises && this._neighborPromises.clear) this._neighborPromises.clear();
@@ -2247,9 +2273,12 @@ export class Overworld{
       
       this.status(`이웃 맵 로딩: ${c.map_id}`);
       
-      this._ensureNeighbor(c.map_id).then(()=>{
+      const asyncCtx=this._mapAsyncCtx();
+      this._ensureNeighbor(c.map_id, asyncCtx).then((neighbor)=>{
         
+        if(!this._isMapAsyncCtxCurrent(asyncCtx)) return;
         this._loading=false;
+        if(!neighbor) return;
         
         // Re-try the move once the neighbor is ready.
         this._tryMove(dx,dy,this.player.dir);
@@ -2257,6 +2286,7 @@ export class Overworld{
       }
       ).catch((e)=>{
         
+        if(!this._isMapAsyncCtxCurrent(asyncCtx)) return;
         this._loading=false;
         
         const msg=`이웃 맵 로드 실패: ${c.map_id} (${e?.message||'error'})`;
@@ -2553,15 +2583,17 @@ export class Overworld{
   _prefetchNeighbors(){
     
     if(!this.map || !Array.isArray(this.map.connections)) return;
+    const asyncCtx=this._mapAsyncCtx();
     
     for(const c of this.map.connections){
       
       if(!c || !c.map_id) continue;
       
-      this._ensureNeighbor(c.map_id).then(()=>{
+      this._ensureNeighbor(c.map_id, asyncCtx).then(()=>{
         }
       ).catch((e)=>{
         
+        if(!this._isMapAsyncCtxCurrent(asyncCtx)) return;
         this._log(`이웃 로드 실패: ${c.map_id} (${e?.message||'error'})`);
         
       }
@@ -2572,14 +2604,16 @@ export class Overworld{
   }
   
 
-  async _ensureNeighbor(mapId){
+  async _ensureNeighbor(mapId, asyncCtx=null){
     
+    const ctx = asyncCtx || this._mapAsyncCtx();
     if(this._neighborCache.has(mapId)) return this._neighborCache.get(mapId);
     
     if(this._neighborPromises.has(mapId)) return this._neighborPromises.get(mapId);
     
 
-    const p=(async()=>{
+    let p=null;
+    p=(async()=>{
       
       try{
         
@@ -2694,6 +2728,7 @@ export class Overworld{
         }
         
 
+        if(!this._isMapAsyncCtxCurrent(ctx)) return null;
         this._neighborCache.set(mapId, a);
         
         return a;
@@ -2701,7 +2736,7 @@ export class Overworld{
       }
       finally{
         
-        this._neighborPromises.delete(mapId);
+        if(this._neighborPromises.get(mapId)===p) this._neighborPromises.delete(mapId);
         
       }
       
@@ -2766,6 +2801,7 @@ export class Overworld{
   async _fetchNpcs(){
     
     if(!this.map || !this.map.map_id) return;
+    const asyncCtx=this._mapAsyncCtx();
     
     const mapId = this.map.map_id;
     
@@ -2788,6 +2824,7 @@ export class Overworld{
       
       const j = await r.json().catch(()=>null);
       
+      if(!this._isMapAsyncCtxCurrent(asyncCtx)) return;
       if(!r.ok || !j || !j.ok){
         
         this.npcs = [];
@@ -2811,7 +2848,7 @@ export class Overworld{
     }
     catch(e){
       
-      this.npcs = [];
+      if(this._isMapAsyncCtxCurrent(asyncCtx)) this.npcs = [];
       
     }
     
@@ -4802,10 +4839,12 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
   async _upsert(){
     
     const payload = this._syncPayload();
+    const asyncCtx = this._mapAsyncCtx(payload.map_id);
     
     const key = `${payload.map_id}:${payload.x}:${payload.y}:${payload.dir}`;
     
     this._syncLatest = payload;
+    this._syncLatestCtx = asyncCtx;
     
 
     if(this._syncInFlight){
@@ -4835,6 +4874,7 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
           this._syncQueued = false;
           
           const send = this._syncLatest || this._syncPayload();
+          const sendCtx = this._syncLatestCtx || this._mapAsyncCtx(send.map_id);
           
           const sendKey = `${send.map_id}:${send.x}:${send.y}:${send.dir}`;
           
@@ -4872,6 +4912,10 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
             
           }
           
+
+          if(!this._isMapAsyncCtxCurrent(sendCtx)){
+            continue;
+          }
 
           if(r.ok){
             
@@ -4937,6 +4981,7 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
 
   async _fetchMobs(){
     
+    const asyncCtx=this._mapAsyncCtx();
     try{
       
       const r=await fetch(`${this.apiBase}/rt/map_mobs.php`,{
@@ -4957,6 +5002,7 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
       if(!r.ok) return;
       
       const j=await r.json();
+      if(!this._isMapAsyncCtxCurrent(asyncCtx)) return;
       
       if(j && j.ok && Array.isArray(j.mobs)){
         
@@ -4973,6 +5019,7 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
 
 async _fetchItems(){
     
+  const asyncCtx=this._mapAsyncCtx();
   try{
       
     const debug = this.debug ? 1 : 0;
@@ -4995,6 +5042,7 @@ async _fetchItems(){
     if(!r.ok) return;
       
     const j=await r.json();
+    if(!this._isMapAsyncCtxCurrent(asyncCtx)) return;
       
     if(j && j.ok && Array.isArray(j.items)){
         

@@ -8,16 +8,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
     json_out(['ok' => true]);
 }
 
-function dev_pick_player(mysqli $conn): ?array {
-    $stmt = $conn->prepare('SELECT player_id, account_id, map_id, x, y, dir, COALESCE(client_tick,0) AS client_tick FROM player ORDER BY player_id ASC LIMIT 1');
-    if (!$stmt) return null;
-    $stmt->execute();
-    $res = $stmt->get_result();
-    $row = $res ? $res->fetch_assoc() : null;
-    $stmt->close();
-    return is_array($row) ? $row : null;
-}
-
 $in = json_in();
 require_fields($in, ['map_id', 'x', 'y', 'dir']);
 
@@ -31,43 +21,32 @@ if ($map_id === '') $map_id = 'PalletTown';
 if ($dir < 0 || $dir > 3) $dir = 0;
 
 $conn = db();
-$payload = null;
 $token = auth_get_bearer_token();
-$tokenProvided = ($token !== '');
-if ($token !== '') {
-    $tmp = verify_token($token);
-    if ($tmp && (string)($tmp['t'] ?? '') === 'play') {
-        $payload = $tmp;
-    } else {
-        json_out(['ok' => false, 'error' => 'UNAUTH'], 401);
-    }
+if ($token === '') {
+    json_out(['ok' => false, 'error' => 'UNAUTH'], 401);
+}
+$tmp = verify_token($token);
+if (!$tmp || (string)($tmp['t'] ?? '') !== 'play') {
+    json_out(['ok' => false, 'error' => 'UNAUTH'], 401);
 }
 
-$cur = null;
-$authBypass = false;
-if ($payload) {
-    $player_id = (int)($payload['player_id'] ?? 0);
-    $account_id = (int)($payload['account_id'] ?? 0);
-    if ($player_id <= 0 || $account_id <= 0) {
-        json_out(['ok' => false, 'error' => 'BAD_PLAYER_ID'], 401);
-    }
-    $stmt = $conn->prepare('SELECT player_id, account_id, map_id, x, y, dir, COALESCE(client_tick,0) AS client_tick FROM player WHERE player_id=? AND account_id=? LIMIT 1');
-    if (!$stmt) json_out(['ok' => false, 'error' => 'DB_PREPARE_FAIL', 'detail' => $conn->error], 500);
-    $stmt->bind_param('ii', $player_id, $account_id);
-    $stmt->execute();
-    $res = $stmt->get_result();
-    $cur = $res ? $res->fetch_assoc() : null;
-    $stmt->close();
-} elseif (!$tokenProvided) {
-    $cur = dev_pick_player($conn);
-    $authBypass = true;
+$player_id = (int)($tmp['player_id'] ?? 0);
+$account_id = (int)($tmp['account_id'] ?? 0);
+if ($player_id <= 0 || $account_id <= 0) {
+    json_out(['ok' => false, 'error' => 'BAD_PLAYER_ID'], 401);
 }
+
+$stmt = $conn->prepare('SELECT player_id, account_id, map_id, x, y, dir, COALESCE(client_tick,0) AS client_tick FROM player WHERE player_id=? AND account_id=? LIMIT 1');
+if (!$stmt) json_out(['ok' => false, 'error' => 'DB_PREPARE_FAIL', 'detail' => $conn->error], 500);
+$stmt->bind_param('ii', $player_id, $account_id);
+$stmt->execute();
+$res = $stmt->get_result();
+$cur = $res ? $res->fetch_assoc() : null;
+$stmt->close();
 if (!$cur) {
     json_out(['ok' => false, 'error' => 'NO_SUCH_PLAYER'], 404);
 }
 
-$player_id = (int)($cur['player_id'] ?? 0);
-$account_id = (int)($cur['account_id'] ?? 0);
 $oldMap = (string)($cur['map_id'] ?? '');
 $oldX = (int)($cur['x'] ?? 0);
 $oldY = (int)($cur['y'] ?? 0);
@@ -110,14 +89,9 @@ if ($map_id === $oldMap && $x === $oldX && $y === $oldY && $dir === $oldDir) {
         'ok' => true,
         'tick' => $tick,
         'dt' => 0.0,
-        'maxStep' => 9999,
         'dist' => 0,
         'mapChanged' => false,
-        'edgeOk' => false,
-        'warpOk' => false,
         'noop' => true,
-        'guardDisabled' => true,
-        'authBypass' => $authBypass,
         'player_id' => $player_id,
     ]);
 }
@@ -137,12 +111,7 @@ json_out([
     'ok' => true,
     'tick' => $tick,
     'dt' => 0.0,
-    'maxStep' => 9999,
     'dist' => $dist,
     'mapChanged' => $mapChanged,
-    'edgeOk' => false,
-    'warpOk' => false,
-    'guardDisabled' => true,
-    'authBypass' => $authBypass,
     'player_id' => $player_id,
 ]);
