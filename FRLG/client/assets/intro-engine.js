@@ -101,6 +101,7 @@ window.FRLG = window.FRLG || {};
         lastWarp: null
       };
       this.fieldDialogue = null;
+      this.oakSpeech = null;
       this.continueSnapshot = this.readLocalSnapshot();
       this.updateStatus();
       this.emitSaveState();
@@ -176,6 +177,11 @@ window.FRLG = window.FRLG || {};
         case 'main-menu':
           this.handleMenuConfirm();
           break;
+        case 'oak-speech':
+          if (this.oakSpeech && typeof this.oakSpeech.onAction === 'function') {
+            this.oakSpeech.onAction();
+          }
+          break;
         case 'oak-intro':
           if (this.oakLine < this.flow.oakIntro.length - 1) {
             this.oakLine += 1;
@@ -216,8 +222,13 @@ window.FRLG = window.FRLG || {};
 
     handleMenuConfirm() {
       if (this.menuIndex === 0) {
-        this.oakLine = 0;
-        this.setState('oak-intro');
+        if (window.FRLG && typeof window.FRLG.OakSpeech === 'function') {
+          this.oakSpeech = new window.FRLG.OakSpeech(this);
+          this.setState('oak-speech');
+        } else {
+          this.oakLine = 0;
+          this.setState('oak-intro');
+        }
         return;
       }
       if (this.menuIndex === 1 && this.continueSnapshot) {
@@ -405,6 +416,11 @@ window.FRLG = window.FRLG || {};
       switch (this.state) {
         case 'main-menu':
           this.menuIndex = clamp(this.menuIndex + dy, 0, 1);
+          break;
+        case 'oak-speech':
+          if (this.oakSpeech && typeof this.oakSpeech.moveSelection === 'function') {
+            this.oakSpeech.moveSelection(dx, dy);
+          }
           break;
         case 'gender-select':
           this.genderIndex = clamp(this.genderIndex + (dx || dy), 0, 1);
@@ -904,6 +920,10 @@ window.FRLG = window.FRLG || {};
           this.onAction();
           return;
         case 'b':
+          if (this.state === 'oak-speech' && this.oakSpeech && typeof this.oakSpeech.onBackspace === 'function') {
+            this.oakSpeech.onBackspace();
+            return;
+          }
           if (this.state === 'name-entry') {
             this.backspaceName();
             return;
@@ -952,7 +972,11 @@ window.FRLG = window.FRLG || {};
       }
       if (e.key === 'Backspace') {
         e.preventDefault();
-        this.backspaceName();
+        if (this.state === 'oak-speech' && this.oakSpeech && typeof this.oakSpeech.onBackspace === 'function') {
+          this.oakSpeech.onBackspace();
+        } else {
+          this.backspaceName();
+        }
         return;
       }
       if (e.key === 'ArrowUp') {
@@ -1331,6 +1355,10 @@ window.FRLG = window.FRLG || {};
         this.drawTitle(now);
       } else if (this.state === 'main-menu') {
         this.drawMenu();
+      } else if (this.state === 'oak-speech') {
+        if (this.oakSpeech && typeof this.oakSpeech.draw === 'function') {
+          this.oakSpeech.draw(now);
+        }
       } else if (this.state === 'oak-intro') {
         this.drawOakIntro();
       } else if (this.state === 'gender-select') {
@@ -1797,17 +1825,69 @@ window.FRLG = window.FRLG || {};
     drawUiGlyph(ctx, glyph, x + 2, y, 16, 24);
   }
 
+  function getOakSpeechBackdropBands(img) {
+    if (!img || !img.complete || !img.naturalWidth || !img.naturalHeight) return null;
+    const tileW = Math.max(1, Math.floor(img.naturalWidth / 2));
+    const tileH = 8;
+    const order = [
+      [0, 0],
+      [1, 1],
+      [0, 1],
+      [0, 2],
+      [1, 2],
+      [0, 3],
+      [1, 3],
+      [0, 4]
+    ];
+
+    const probe = document.createElement('canvas');
+    probe.width = img.naturalWidth;
+    probe.height = img.naturalHeight;
+    const pctx = probe.getContext('2d', { willReadFrequently: true });
+    pctx.imageSmoothingEnabled = false;
+    pctx.drawImage(img, 0, 0);
+
+    const colorAt = (px, py) => {
+      const data = pctx.getImageData(px, py, 1, 1).data;
+      return `rgb(${data[0]}, ${data[1]}, ${data[2]})`;
+    };
+
+    return order
+      .map(([tx, ty]) => {
+        const sx = tx * tileW;
+        const sy = ty * tileH;
+        return {
+          top: colorAt(Math.min(img.naturalWidth - 1, sx + Math.floor(tileW / 2)), Math.min(img.naturalHeight - 1, sy + 1)),
+          bottom: colorAt(Math.min(img.naturalWidth - 1, sx + Math.floor(tileW / 2)), Math.min(img.naturalHeight - 1, sy + tileH - 2))
+        };
+      })
+      .filter(Boolean);
+  }
+
   function drawOakSpeechBackdrop(ctx) {
     const bg = PACKEGE_OAK_SPEECH_ASSETS.bg;
+    const contentHeight = 210;
+    const bandHeight = 16;
+
     if (bg && bg.complete && bg.naturalWidth) {
-      ctx.save();
-      ctx.imageSmoothingEnabled = false;
-      for (let y = 0; y < 246; y += bg.naturalHeight) {
-        for (let x = 0; x < 480; x += bg.naturalWidth) {
-          ctx.drawImage(bg, x, y);
+      const bands = getOakSpeechBackdropBands(bg);
+      if (bands && bands.length) {
+        let y = 0;
+        while (y < contentHeight) {
+          for (let i = 0; i < bands.length && y < contentHeight; i += 1) {
+            const band = bands[i];
+            const topH = Math.min(8, contentHeight - y);
+            ctx.fillStyle = band.top;
+            ctx.fillRect(0, y, 480, topH);
+            if (y + topH < contentHeight) {
+              const bottomH = Math.min(8, contentHeight - (y + topH));
+              ctx.fillStyle = band.bottom;
+              ctx.fillRect(0, y + topH, 480, bottomH);
+            }
+            y += bandHeight;
+          }
         }
       }
-      ctx.restore();
     } else {
       const gradient = ctx.createLinearGradient(0, 0, 0, 246);
       gradient.addColorStop(0, '#edf5fa');
@@ -1815,6 +1895,7 @@ window.FRLG = window.FRLG || {};
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, 480, 246);
     }
+
     ctx.fillStyle = '#d8e6ef';
     ctx.fillRect(0, 210, 480, 36);
   }
@@ -1824,9 +1905,13 @@ window.FRLG = window.FRLG || {};
     const x = Math.round(cx - width / 2);
     const y = Math.round(baseY - height / 2);
     if (img && img.complete && img.naturalWidth) {
+      const srcX = 0;
+      const srcY = Math.min(32, Math.max(0, img.naturalHeight - 64));
+      const srcW = img.naturalWidth;
+      const srcH = 24;
       ctx.save();
       ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(img, x, y, width, height);
+      ctx.drawImage(img, srcX, srcY, srcW, srcH, x, y, width, height);
       ctx.restore();
       return;
     }
@@ -1968,6 +2053,32 @@ window.FRLG = window.FRLG || {};
     ctx.fillText(line.trim(), x, y + row * lineHeight);
     ctx.restore();
   }
+
+  window.FRLG.Shared = {
+    centerText,
+    wrapText,
+    clamp,
+    drawWindow,
+    drawMenuArrow,
+    drawUiBanner,
+    drawUiGlyph,
+    drawUiCell,
+    drawOakSpeechBackdrop,
+    drawOakSpeechPlatform,
+    drawOakSpeechCharacter,
+    drawOak,
+    drawPokemonBuddy,
+    drawTrainerBust,
+    displayNameChar,
+    PACKEGE_UI_ASSETS,
+    PACKEGE_OAK_SPEECH_ASSETS,
+    PLAYER_COLORS,
+    NAME_ENTRY_MAX_CHARS,
+    NAME_ENTRY_PAGE_NEXT,
+    NAME_ENTRY_PAGE_BUTTON_LABEL,
+    NAME_ENTRY_PAGE_TITLE,
+    NAME_ENTRY_PAGES
+  };
 
   window.FRLG.IntroEngine = IntroEngine;
 })();
