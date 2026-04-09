@@ -256,6 +256,8 @@ export class Overworld{
     this._mapLoadTxnSeq=0;
     this._activeMapLoadTxn=0;
     this._mapLoadInFlight=false;
+    this._serverStateReqSeq=0;
+    this._activeServerStateReq=0;
     
 
     // Warp + map connection preview
@@ -1758,6 +1760,7 @@ export class Overworld{
   async _resyncFromServerState(){
     
     if(!this.playToken || this._serverResyncing || this._mapLoadInFlight) return;
+    const serverReq = this._beginServerStateReq();
     const reqCtx = this._mapAsyncCtx();
     
     this._serverResyncing = true;
@@ -1772,12 +1775,12 @@ export class Overworld{
         cache:"no-store", headers: hdr}
       );
       
-      if(!this._isMapAsyncCtxCurrent(reqCtx)) return;
+      if(!this._isMapAsyncCtxCurrent(reqCtx) || !this._isServerStateReqCurrent(serverReq)) return;
       if(!s.ok) return;
       
       const j = await s.json().catch(()=>null);
       
-      if(!this._isMapAsyncCtxCurrent(reqCtx)) return;
+      if(!this._isMapAsyncCtxCurrent(reqCtx) || !this._isServerStateReqCurrent(serverReq)) return;
       const st = (j && j.ok && j.state) ? j.state : null;
       
       if(!st) return;
@@ -1795,6 +1798,7 @@ export class Overworld{
         
       }
       
+      if(!this._isServerStateReqCurrent(serverReq)) return;
       this._applyServerState(st);
       
     }
@@ -1803,7 +1807,7 @@ export class Overworld{
     
     finally{
       
-      this._serverResyncing = false;
+      if(this._isServerStateReqCurrent(serverReq)) this._serverResyncing = false;
       
     }
     
@@ -1816,6 +1820,7 @@ export class Overworld{
        this._serverStateLoaded=true;
        return;
        }
+    const serverReq = this._beginServerStateReq();
     const initCtx = this._mapAsyncCtx();
     
     const hdr = {
@@ -1833,6 +1838,7 @@ export class Overworld{
         
         const j = await w.json();
         
+        if(!this._isMapAsyncCtxCurrent(initCtx) || !this._isServerStateReqCurrent(serverReq)) return;
         if(j && j.ok && j.player){
           
           this.playerId = j.player.player_id ?? this.playerId;
@@ -1858,12 +1864,12 @@ export class Overworld{
         cache:"no-store", headers: hdr}
       );
       
-      if(!this._isMapAsyncCtxCurrent(initCtx)) return;
+      if(!this._isMapAsyncCtxCurrent(initCtx) || !this._isServerStateReqCurrent(serverReq)) return;
       if(s.ok){
         
         const j = await s.json();
         
-        if(!this._isMapAsyncCtxCurrent(initCtx)) return;
+        if(!this._isMapAsyncCtxCurrent(initCtx) || !this._isServerStateReqCurrent(serverReq)) return;
         if(j && j.ok && j.state){
           
           const st = j.state;
@@ -1876,12 +1882,14 @@ export class Overworld{
                  mapChangeReason:"server-init"}
                );
                if(loaded === false) return;
+               if(!this._isServerStateReqCurrent(serverReq)) return;
                }
             catch(e){
               }
             
           }
           
+          if(!this._isServerStateReqCurrent(serverReq)) return;
           this._applyServerState(st);
           
         }
@@ -1894,7 +1902,10 @@ export class Overworld{
     
     finally{
       
-      this._serverStateLoaded = true;
+      if(this._isServerStateReqCurrent(serverReq)){
+        this._serverStateLoaded = true;
+        this._serverInitPromise = null;
+      }
       
     }
     
@@ -2003,6 +2014,27 @@ export class Overworld{
     return this._syncEpoch;
   }
 
+  _nextServerStateReq(){
+    this._activeServerStateReq = (((this._serverStateReqSeq|0) + 1) >>> 0);
+    this._serverStateReqSeq = this._activeServerStateReq;
+    return this._activeServerStateReq;
+  }
+
+  _beginServerStateReq(){
+    return { seq:(this._nextServerStateReq()|0) };
+  }
+
+  _isServerStateReqCurrent(ctx){
+    if(!ctx) return true;
+    return ((ctx.seq|0) === (this._activeServerStateReq|0));
+  }
+
+  _abortServerStateRequests(){
+    this._nextServerStateReq();
+    this._serverResyncing = false;
+    this._serverInitPromise = null;
+  }
+
   _abortSyncLoop(){
     this._nextSyncEpoch();
     this._syncInFlight = false;
@@ -2017,6 +2049,7 @@ export class Overworld{
     this._mapLoadTxnSeq = this._activeMapLoadTxn;
     this._mapLoadInFlight = true;
     this._abortSyncLoop();
+    this._abortServerStateRequests();
     this._nextMapAsyncRev();
     return {
       seq:(this._activeMapLoadTxn|0),
@@ -2051,6 +2084,7 @@ export class Overworld{
 
   _resetMapTransientState({clearNeighbors=false, preserveMapLoadInFlight=false}={}){
     this._nextMapAsyncRev();
+    this._abortServerStateRequests();
     this._edgePending = null;
     this._warpPending = false;
     this._queuedDir = null;
