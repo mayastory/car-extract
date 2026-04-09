@@ -31,16 +31,21 @@
 
     <section class="touch-ui" id="touchControls" aria-label="터치 컨트롤">
       <div class="touch-dpad" aria-label="방향키">
-        <button type="button" class="touch-btn up" data-key="ArrowUp" aria-label="위">▲</button>
-        <button type="button" class="touch-btn left" data-key="ArrowLeft" aria-label="왼쪽">◀</button>
-        <button type="button" class="touch-btn down" data-key="ArrowDown" aria-label="아래">▼</button>
-        <button type="button" class="touch-btn right" data-key="ArrowRight" aria-label="오른쪽">▶</button>
+        <button type="button" class="touch-btn dpad-btn up" data-key="ArrowUp" aria-label="위">▲</button>
+        <button type="button" class="touch-btn dpad-btn left" data-key="ArrowLeft" aria-label="왼쪽">◀</button>
+        <button type="button" class="touch-btn dpad-btn right" data-key="ArrowRight" aria-label="오른쪽">▶</button>
+        <button type="button" class="touch-btn dpad-btn down" data-key="ArrowDown" aria-label="아래">▼</button>
+        <div class="dpad-center" aria-hidden="true"></div>
       </div>
       <div class="touch-actions" aria-label="액션 버튼">
-        <button type="button" class="touch-btn action action-a" data-key="Enter" aria-label="A 버튼">A</button>
-        <button type="button" class="touch-btn action action-b" data-key="Backspace" aria-label="B 버튼">B</button>
-        <button type="button" class="touch-btn action action-menu" data-key="Escape" aria-label="메뉴 버튼">MENU</button>
-        <button type="button" class="touch-btn action action-reset" data-key="r" aria-label="리셋 버튼">R</button>
+        <div class="touch-ab">
+          <button type="button" class="touch-btn action-circle action-b" data-key="Backspace" aria-label="B 버튼">B</button>
+          <button type="button" class="touch-btn action-circle action-a" data-key="Enter" aria-label="A 버튼">A</button>
+        </div>
+        <div class="touch-meta">
+          <button type="button" class="touch-btn action-meta action-menu" data-key="Escape" aria-label="메뉴 버튼">MENU</button>
+          <button type="button" class="touch-btn action-meta action-reset" data-key="r" aria-label="리셋 버튼">R</button>
+        </div>
       </div>
     </section>
 
