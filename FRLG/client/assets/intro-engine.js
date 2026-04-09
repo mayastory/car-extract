@@ -544,6 +544,21 @@ window.FRLG = window.FRLG || {};
       this.progress.flags[name] = !!value;
     }
 
+    formatDialogueLine(line) {
+      const player = this.profile && this.profile.playerName ? this.profile.playerName : 'PLAYER';
+      const rival = this.profile && this.profile.rivalName ? this.profile.rivalName : 'RIVAL';
+      return String(line || '')
+        .replace(/\{PLAYER\}/g, player)
+        .replace(/\{RIVAL\}/g, rival)
+        .replace(/\{STR_VAR_1\}/g, player)
+        .replace(/\{STR_VAR_2\}/g, rival);
+    }
+
+    formatDialogueLines(lines) {
+      if (!Array.isArray(lines)) return [];
+      return lines.map((line) => this.formatDialogueLine(line));
+    }
+
     getStarterLabel(id) {
       const labels = {
         BULBASAUR: '이상해씨',
@@ -619,7 +634,7 @@ window.FRLG = window.FRLG || {};
       this.battle.enemyHp = Math.max(0, this.battle.enemyHp - playerDamage);
       const turnLines = [
         `${playerLabel}의 ${move}!`,
-        `${rivalLabel}에게 ${playerDamage}의 placeholder 데미지!`
+        `${rivalLabel}에게 ${playerDamage}의 데미지!`
       ];
       if (this.battle.enemyHp <= 0 || this.battle.round >= 1) {
         this.battle.phase = 'result';
@@ -636,7 +651,7 @@ window.FRLG = window.FRLG || {};
       this.battle.lineIndex = 0;
       this.battle.lines = turnLines.concat([
         `${this.profile.rivalName || 'RIVAL'}의 ${rivalLabel}의 반격!`,
-        `${playerLabel}이(가) ${rivalDamage}의 placeholder 데미지를 받았다!`
+        `${playerLabel}이(가) ${rivalDamage}의 데미지를 받았다!`
       ]);
     }
 
@@ -648,8 +663,8 @@ window.FRLG = window.FRLG || {};
       this.saveLocalSnapshot();
       this.setState('field');
       this.setFieldDialogue((this.flow.events && this.flow.events.rivalBattleWin) || [
-        '첫 배틀 skeleton 완료.',
-        '다음엔 라이벌 퇴장 / 오박사 후속 대사 / 실제 전투 규칙을 붙이면 된다.'
+        '첫 라이벌 배틀이 끝났다.',
+        '이제 연구소 안의 다음 흐름을 이어갈 차례다.'
       ]);
     }
 
@@ -683,7 +698,7 @@ window.FRLG = window.FRLG || {};
 
     setFieldDialogue(lines) {
       if (!Array.isArray(lines) || !lines.length) return false;
-      this.fieldDialogue = { lines, index: 0 };
+      this.fieldDialogue = { lines: this.formatDialogueLines(lines), index: 0 };
       return true;
     }
 
@@ -774,11 +789,43 @@ window.FRLG = window.FRLG || {};
     resolveSpecialObjectInteraction(data) {
       const script = data.script || '';
       if (script === 'PalletTown_EventScript_OakStopsYou') {
-        return (this.flow.events && this.flow.events.oakStopsYou) || ['오박사: 연구소로 오렴.'];
+        return (this.flow.events && this.flow.events.oakStopsYou) || ['오박사: 이리 따라오너라.'];
+      }
+      if (script === 'PalletTown_EventScript_SignLady') {
+        if (!this.getFlag('openedStartMenu')) {
+          this.setFlag('openedStartMenu', true);
+          this.saveLocalSnapshot();
+          return [
+            '여자아이: 저 표지판, 한번 읽어 봐!',
+            '여자아이: START 버튼을 누르면 메뉴를 열 수 있대.'
+          ];
+        }
+        return (this.flow.npcLines && this.flow.npcLines[script]) || ['여자아이: 표지판은 정말 유용해!'];
+      }
+      if (script === 'PalletTown_PlayersHouse_1F_EventScript_Mom') {
+        if (!this.getFlag('starterChosen')) {
+          return (this.flow.npcLines && this.flow.npcLines[script]) || ['엄마: 오박사님이 너를 찾으시는 것 같더라.'];
+        }
+        if (!this.getFlag('firstBattleDone')) {
+          return ['엄마: 포켓몬을 받았구나!', '조심해서 다녀오렴.'];
+        }
+        return ['엄마: 네 포켓몬, 아주 씩씩해 보이는구나.', '항상 몸조심하렴.'];
+      }
+      if (script === 'PalletTown_RivalsHouse_EventScript_Daisy') {
+        if (!this.getFlag('starterChosen')) {
+          return (this.flow.npcLines && this.flow.npcLines[script]) || ['다이: {RIVAL}는 연구소에 있어.'];
+        }
+        if (!this.getFlag('firstBattleDone')) {
+          return ['다이: 연구소에서 무슨 일이 있었던 거야?', '왠지 재미있는 일이 벌어질 것 같네.'];
+        }
+        return ['다이: {RIVAL}와 배틀했다며?', '나도 그 장면을 봤으면 좋았을 텐데!'];
+      }
+      if (script === 'PalletTown_RivalsHouse_EventScript_TownMap') {
+        return ['칸토 지방의 큰 지도다.', '지금은 보기만 할 수 있다.'];
       }
       if (script === 'PalletTown_ProfessorOaksLab_EventScript_Rival') {
         if (!this.getFlag('starterChosen')) {
-          return (this.flow.npcLines && this.flow.npcLines[script]) || ['라이벌: 먼저 골라 보라고.'];
+          return (this.flow.npcLines && this.flow.npcLines[script]) || ['{RIVAL}: 먼저 골라, {PLAYER}!'];
         }
         if (!this.getFlag('firstBattleDone')) {
           this.queueBattleStart('starter-rival');
@@ -786,7 +833,7 @@ window.FRLG = window.FRLG || {};
             `${this.profile.rivalName || 'RIVAL'}: 좋아! 바로 한판 해 보자!`
           ];
         }
-        return (this.flow.events && this.flow.events.rivalAfterBattle) || ['라이벌: 흥! 다음엔 안 질 거야!'];
+        return (this.flow.events && this.flow.events.rivalAfterBattle) || ['{RIVAL}: 다음엔 절대 안 져!'];
       }
       const starterMap = {
         PalletTown_ProfessorOaksLab_EventScript_BulbasaurBall: 'BULBASAUR',
