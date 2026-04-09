@@ -1274,9 +1274,9 @@ export class Overworld{
 
     if(!this._isMapLoadTxnCurrent(txn)) return false;
 
-    this._commitLoadedMap(nextMap, assets, {
-      mapLabel: meta?.mapLabel || null}
-    );
+    // Do not commit the map object yet.
+    // Keep the loaded map/assets staged until every awaited step for this txn finishes,
+    // otherwise an old load can partially replace this.map/tilesets before it becomes stale.
 
 
 // Player sprite: fallback to placeholder if red_normal is missing.
@@ -1304,8 +1304,17 @@ export class Overworld{
     }
 
 
+    if(!this._isMapLoadTxnCurrent(txn)) return false;
+
+    this._commitLoadedMap(nextMap, assets, {
+      mapLabel: meta?.mapLabel || null}
+    );
+
+    if(!this._isMapLoadTxnCurrent(txn)) return false;
+
     // Spawn
-    let sp=this.map.spawn||{
+    const activeMap = nextMap || this.map || {};
+    let sp=activeMap.spawn||{
       x:10,y:10,dir:0}
     ;
 
@@ -1313,7 +1322,7 @@ export class Overworld{
 
       const t=opts.transition;
 
-      const W=this.map.width, H=this.map.height;
+      const W=activeMap.width, H=activeMap.height;
 
       const fromX=t.fromX|0, fromY=t.fromY|0;
 
@@ -1343,9 +1352,9 @@ export class Overworld{
                  y=fromY-off;
          }
 
-      x=Math.max(0,Math.min(W-1,x));
+      x=Math.max(0,Math.min((W|0)-1,x));
 
-      y=Math.max(0,Math.min(H-1,y));
+      y=Math.max(0,Math.min((H|0)-1,y));
 
       sp={
         x,y,dir:t.faceDir ?? sp.dir ?? 0}
