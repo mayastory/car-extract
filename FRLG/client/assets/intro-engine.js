@@ -1010,54 +1010,64 @@ window.FRLG = window.FRLG || {};
     }
 
     drawOakIntro() {
+
       drawOakSpeechBackdrop(this.ctx);
-      // Packege oak_speech.c creates the platform sprites for the intro species
-      // (NIDORAN_F), not for Oak himself. Keep Oak unshadowed here.
-      drawOakSpeechPlatform(this.ctx, 344, 206, 124, 24);
-      const drewOak = drawOakSpeechCharacter(this.ctx, PACKEGE_OAK_SPEECH_ASSETS.oak, 150, 182, 2.15);
-      if (!drewOak) drawOak(this.ctx, 150, 160);
-      const drewNidoran = drawOakSpeechCharacter(this.ctx, PACKEGE_OAK_SPEECH_ASSETS.nidoranF, 344, 194, 1.85);
-      if (!drewNidoran) drawPokemonBuddy(this.ctx, 344, 188);
+      const speciesVisible = this.oakLine >= 2;
+      const oakCenterX = 152;
+      const oakFootY = 208;
+      const speciesCenterX = 300;
+      const speciesFootY = 210;
+
+      const drewOak = drawOakSpeechCharacter(this.ctx, PACKEGE_OAK_SPEECH_ASSETS.oak, oakCenterX, oakFootY, 2.0);
+      if (!drewOak) drawOak(this.ctx, oakCenterX, oakFootY - 24);
+
+      if (speciesVisible) {
+        drawOakSpeechPlatform(this.ctx, speciesCenterX, 222, 96, 18);
+        if (!drawOakSpeechCharacter(this.ctx, PACKEGE_OAK_SPEECH_ASSETS.nidoranF, speciesCenterX, speciesFootY, 1.55)) {
+          drawPokemonBuddy(this.ctx, speciesCenterX, speciesFootY - 20);
+        }
+      }
+
       this.drawDialogue(this.flow.oakIntro[this.oakLine]);
       centerText(this.ctx, 'OAK INTRO', 240, 30, 14, 0.9, '#22313a');
+
     }
 
     drawGenderSelect() {
+
       drawOakSpeechBackdrop(this.ctx);
-      centerText(this.ctx, '먼저 네가 어떤 아이인지 알려다오.', 240, 50, 16, 1, '#23323b');
-      const options = [
-        { label: 'BOY', x: 150, sprite: PACKEGE_OAK_SPEECH_ASSETS.red },
-        { label: 'GIRL', x: 330, sprite: PACKEGE_OAK_SPEECH_ASSETS.leaf }
-      ];
-      options.forEach((opt, idx) => {
-        const selected = idx === this.genderIndex;
-        drawOakSpeechPlatform(this.ctx, opt.x, 188, selected ? 136 : 126, selected ? 28 : 24);
-        if (!drawOakSpeechCharacter(this.ctx, opt.sprite, opt.x, 184, selected ? 2.15 : 2.0, selected ? 1 : 0.84)) {
-          drawWindow(this.ctx, opt.x - 70, 118, 140, 120, selected);
-          drawTrainerBust(this.ctx, opt.x, 162, idx === 0 ? PLAYER_COLORS.M : PLAYER_COLORS.F, selected ? 1.04 : 1);
-        }
-        if (selected) {
-          this.ctx.save();
-          this.ctx.strokeStyle = '#f8e66a';
-          this.ctx.lineWidth = 3;
-          this.ctx.strokeRect(opt.x - 56, 72, 112, 136);
-          this.ctx.restore();
-        }
-        centerText(this.ctx, opt.label, opt.x, 222, 18, 1, selected ? '#fff6b3' : '#ffffff');
+      const menuX = 292;
+      const menuY = 126;
+      const menuW = 116;
+      const menuH = 60;
+
+      centerText(this.ctx, '성별을 골라라.', 240, 52, 14, 1, '#23323b');
+      drawWindow(this.ctx, menuX, menuY, menuW, menuH, false, '#f8fff8', '#546f86', 'std');
+      ['BOY', 'GIRL'].forEach((label, idx) => {
+        const lineY = menuY + 18 + idx * 22;
+        if (idx === this.genderIndex) drawMenuArrow(this.ctx, menuX + 10, lineY - 8, '#22313a');
+        this.ctx.save();
+        this.ctx.fillStyle = '#22313a';
+        this.ctx.font = '16px Arial';
+        this.ctx.textAlign = 'left';
+        this.ctx.fillText(label, menuX + 26, lineY + 2);
+        this.ctx.restore();
       });
+
       this.drawDialogue('Are you a boy? Or are you a girl?');
+
     }
 
     drawPostGender() {
+
       drawOakSpeechBackdrop(this.ctx);
-      drawOakSpeechPlatform(this.ctx, 150, 186, 134, 26);
-      drawOakSpeechPlatform(this.ctx, 344, 196, 134, 26);
-      if (!drawOakSpeechCharacter(this.ctx, PACKEGE_OAK_SPEECH_ASSETS.oak, 150, 182, 2.15)) drawOak(this.ctx, 150, 160);
       const trainerSprite = this.profile.gender === 'F' ? PACKEGE_OAK_SPEECH_ASSETS.leaf : PACKEGE_OAK_SPEECH_ASSETS.red;
-      if (!drawOakSpeechCharacter(this.ctx, trainerSprite, 344, 192, 2.1)) {
-        drawTrainerBust(this.ctx, 344, 170, PLAYER_COLORS[this.profile.gender], 1);
+      drawOakSpeechPlatform(this.ctx, 240, 222, 108, 18);
+      if (!drawOakSpeechCharacter(this.ctx, trainerSprite, 240, 212, 2.0)) {
+        drawTrainerBust(this.ctx, 240, 172, PLAYER_COLORS[this.profile.gender], 1);
       }
       this.drawDialogue(this.flow.postGender[this.postGenderLine]);
+
     }
 
     drawNameEntry(now) {
@@ -1528,7 +1538,7 @@ window.FRLG = window.FRLG || {};
       red: load(`${PACKEGE_OAK_SPEECH_BASE}/red/pic.png`),
       leaf: load(`${PACKEGE_OAK_SPEECH_BASE}/leaf/pic.png`),
       rival: load(`${PACKEGE_OAK_SPEECH_BASE}/rival/pic.png`),
-      nidoranF: load('assets/packege/pokemon/nidoran_f/front.png')
+      nidoranF: load(`${PACKEGE_OAK_SPEECH_BASE}/nidoran_f/front.png`)
     };
   }
 
@@ -1845,57 +1855,52 @@ window.FRLG = window.FRLG || {};
     ctx.restore();
   }
 
-  const __frlgSpriteChromaCache = new WeakMap();
-
   function drawOakSpeechCharacter(ctx, img, cx, footY, scale = 2, alpha = 1) {
     if (!img || !img.complete || !img.naturalWidth) return false;
-    const w = Math.round(img.naturalWidth * scale);
-    const h = Math.round(img.naturalHeight * scale);
-    const safe = getChromaSafeImage(img);
+
+    const sw = img.naturalWidth;
+    const sh = img.naturalHeight;
+    const tmp = document.createElement('canvas');
+    tmp.width = sw;
+    tmp.height = sh;
+    const tctx = tmp.getContext('2d', { willReadFrequently: true });
+    tctx.imageSmoothingEnabled = false;
+    tctx.drawImage(img, 0, 0);
+
+    const frame = tctx.getImageData(0, 0, sw, sh);
+    const data = frame.data;
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+      if ((g > 180 && r < 180 && b > 120) || (r > 200 && g > 235 && b > 200)) {
+        data[i + 3] = 0;
+      }
+    }
+    tctx.putImageData(frame, 0, 0);
+
+    let minX = sw, minY = sh, maxX = -1, maxY = -1;
+    const out = tctx.getImageData(0, 0, sw, sh).data;
+    for (let y = 0; y < sh; y++) {
+      for (let x = 0; x < sw; x++) {
+        if (out[(y * sw + x) * 4 + 3] > 0) {
+          if (x < minX) minX = x;
+          if (y < minY) minY = y;
+          if (x > maxX) maxX = x;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+    if (maxX < minX || maxY < minY) return false;
+
+    const cropW = maxX - minX + 1;
+    const cropH = maxY - minY + 1;
+    const dw = Math.round(cropW * scale);
+    const dh = Math.round(cropH * scale);
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(safe, Math.round(cx - w / 2), Math.round(footY - h), w, h);
+    ctx.drawImage(tmp, minX, minY, cropW, cropH, Math.round(cx - dw / 2), Math.round(footY - dh), dw, dh);
     ctx.restore();
     return true;
-  }
-
-  function getChromaSafeImage(img) {
-    const cached = __frlgSpriteChromaCache.get(img);
-    if (cached) return cached;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = img.naturalWidth || img.width;
-    canvas.height = img.naturalHeight || img.height;
-    const cctx = canvas.getContext('2d', { willReadFrequently: true });
-    cctx.drawImage(img, 0, 0);
-
-    try {
-      const imageData = cctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const a = data[i + 3];
-        if (!a) continue;
-
-        const isMintMatt =
-          g > 150 &&
-          b > 120 &&
-          g >= r + 20 &&
-          Math.abs(g - 208) < 65 &&
-          Math.abs(b - 176) < 70 &&
-          Math.abs(r - 128) < 70;
-
-        if (isMintMatt) data[i + 3] = 0;
-      }
-      cctx.putImageData(imageData, 0, 0);
-    } catch (err) {
-    }
-
-    __frlgSpriteChromaCache.set(img, canvas);
-    return canvas;
   }
 
   function drawLeafBackdrop(ctx, now) {
