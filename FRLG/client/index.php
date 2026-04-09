@@ -25,9 +25,24 @@
       <div class="overlay">
         <div class="badge">LOCAL</div>
         <div id="sceneName" class="scene-name">boot</div>
-        <div class="hint">Enter/Space 진행·대화·입력 · 방향키 선택/이동 · ESC/X 메뉴 · Backspace 삭제 · R 리셋</div>
+        <div class="hint">Enter/Space 진행·대화·입력 · 방향키 선택/이동 · ESC/X 메뉴 · Backspace 삭제 · R 리셋 · 모바일은 아래 터치 버튼</div>
       </div>
     </main>
+
+    <section class="touch-ui" id="touchControls" aria-label="터치 컨트롤">
+      <div class="touch-dpad" aria-label="방향키">
+        <button type="button" class="touch-btn up" data-key="ArrowUp" aria-label="위">▲</button>
+        <button type="button" class="touch-btn left" data-key="ArrowLeft" aria-label="왼쪽">◀</button>
+        <button type="button" class="touch-btn down" data-key="ArrowDown" aria-label="아래">▼</button>
+        <button type="button" class="touch-btn right" data-key="ArrowRight" aria-label="오른쪽">▶</button>
+      </div>
+      <div class="touch-actions" aria-label="액션 버튼">
+        <button type="button" class="touch-btn action action-a" data-key="Enter" aria-label="A 버튼">A</button>
+        <button type="button" class="touch-btn action action-b" data-key="Backspace" aria-label="B 버튼">B</button>
+        <button type="button" class="touch-btn action action-menu" data-key="Escape" aria-label="메뉴 버튼">MENU</button>
+        <button type="button" class="touch-btn action action-reset" data-key="r" aria-label="리셋 버튼">R</button>
+      </div>
+    </section>
 
     <section class="panel panel-grid">
       <div>

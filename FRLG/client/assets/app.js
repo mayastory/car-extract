@@ -3,6 +3,7 @@
   const sceneName = document.getElementById('sceneName');
   const phaseName = document.getElementById('phaseName');
   const saveState = document.getElementById('saveState');
+  const touchRoot = document.getElementById('touchControls');
 
   const engine = new window.FRLG.IntroEngine(
     canvas,
@@ -23,9 +24,71 @@
     }
   );
 
+  function dispatchKey(key) {
+    engine.handleKeyDown({
+      key,
+      preventDefault() {},
+      stopPropagation() {}
+    });
+  }
+
+  function isTouchDevice() {
+    return window.matchMedia('(pointer: coarse)').matches || window.innerWidth <= 900;
+  }
+
+  function syncTouchVisibility() {
+    if (!touchRoot) return;
+    touchRoot.classList.toggle('is-visible', isTouchDevice());
+  }
+
+  function bindTouchButton(button) {
+    const key = button.dataset.key;
+    if (!key) return;
+
+    let repeatTimer = null;
+    let repeatStarter = null;
+    const repeating = key.startsWith('Arrow');
+
+    const press = (event) => {
+      if (event) event.preventDefault();
+      button.classList.add('is-pressed');
+      dispatchKey(key);
+
+      if (repeating) {
+        clearTimeout(repeatStarter);
+        clearInterval(repeatTimer);
+        repeatStarter = setTimeout(() => {
+          repeatTimer = setInterval(() => dispatchKey(key), 95);
+        }, 260);
+      }
+    };
+
+    const release = (event) => {
+      if (event) event.preventDefault();
+      button.classList.remove('is-pressed');
+      clearTimeout(repeatStarter);
+      clearInterval(repeatTimer);
+      repeatStarter = null;
+      repeatTimer = null;
+    };
+
+    button.addEventListener('pointerdown', press, { passive: false });
+    button.addEventListener('pointerup', release, { passive: false });
+    button.addEventListener('pointercancel', release, { passive: false });
+    button.addEventListener('pointerleave', release, { passive: false });
+    button.addEventListener('contextmenu', (event) => event.preventDefault());
+  }
+
   window.addEventListener('keydown', (e) => {
     engine.handleKeyDown(e);
   });
+
+  if (touchRoot) {
+    touchRoot.querySelectorAll('[data-key]').forEach(bindTouchButton);
+    syncTouchVisibility();
+    window.addEventListener('resize', syncTouchVisibility);
+    window.addEventListener('orientationchange', syncTouchVisibility);
+  }
 
   engine.start();
 })();
