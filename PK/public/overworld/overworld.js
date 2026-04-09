@@ -254,6 +254,7 @@ export class Overworld{
     this._mapAsyncRev=0;
     this._mapLoadTxnSeq=0;
     this._activeMapLoadTxn=0;
+    this._mapLoadInFlight=false;
     
 
     // Warp + map connection preview
@@ -1560,27 +1561,32 @@ export class Overworld{
   ){
     
     const txn = this._beginMapLoadTxn(mapId);
-
-    // Regenerate first so warps / F5 always use the newest Packege-derived map JSON.
-    // Static public caches have been observed to stay valid by gen_ver while still
-    // containing stale interior layouts, which makes indoor warps look half-outdoor.
     try{
-      
-      const generated = await this._generatePretMap(mapId, opts, txn);
-      
-      if(generated === false) return false;
-      
-      return true;
-      
-    }
-    catch(e){
+
+      // Regenerate first so warps / F5 always use the newest Packege-derived map JSON.
+      // Static public caches have been observed to stay valid by gen_ver while still
+      // containing stale interior layouts, which makes indoor warps look half-outdoor.
+      try{
+        
+        const generated = await this._generatePretMap(mapId, opts, txn);
+        
+        if(generated === false) return false;
+        
+        return true;
+        
       }
+      catch(e){
+        }
 
-    if(!this._isMapLoadTxnCurrent(txn)) return false;
-    
+      if(!this._isMapLoadTxnCurrent(txn)) return false;
+      
 
-    // Fallback: keep static cache support when Packege/API generation is unavailable.
-    return await this._loadStaticPretMap(mapId, opts, txn);
+      // Fallback: keep static cache support when Packege/API generation is unavailable.
+      return await this._loadStaticPretMap(mapId, opts, txn);
+    }
+    finally{
+      this._finishMapLoadTxn(txn);
+    }
     
   }
   
@@ -1736,7 +1742,7 @@ export class Overworld{
 
   async _resyncFromServerState(){
     
-    if(!this.playToken || this._serverResyncing) return;
+    if(!this.playToken || this._serverResyncing || this._mapLoadInFlight) return;
     const reqCtx = this._mapAsyncCtx();
     
     this._serverResyncing = true;
@@ -1980,11 +1986,18 @@ export class Overworld{
   _beginMapLoadTxn(targetMapId=null){
     this._activeMapLoadTxn = (((this._mapLoadTxnSeq|0) + 1) >>> 0);
     this._mapLoadTxnSeq = this._activeMapLoadTxn;
+    this._mapLoadInFlight = true;
     this._nextMapAsyncRev();
     return {
       seq:(this._activeMapLoadTxn|0),
       targetMapId:(targetMapId == null ? null : String(targetMapId)),
     };
+  }
+
+  _finishMapLoadTxn(txn){
+    if(!txn) return;
+    if(((txn.seq|0) !== (this._activeMapLoadTxn|0))) return;
+    this._mapLoadInFlight = false;
   }
 
   _isMapLoadTxnCurrent(txn){
@@ -2025,6 +2038,7 @@ export class Overworld{
     this._syncQueued = false;
     this._syncLatest = null;
     this._syncLatestCtx = null;
+    this._mapLoadInFlight = false;
     if(this._grassFx && this._grassFx.clear) this._grassFx.clear();
     this.npcs=[];
     this.items=[];
@@ -2862,6 +2876,7 @@ export class Overworld{
 
   async _fetchNpcs(){
     
+    if(this._mapLoadInFlight) return;
     if(!this.map || !this.map.map_id) return;
     const asyncCtx=this._mapAsyncCtx();
     
@@ -3979,7 +3994,7 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
     // mobs poll (for spawn placement testing)
     this.mobNetTimer+=dt;
     
-    if(this.playToken && this.map && this.mobNetTimer>=this.mobPollInterval){
+    if(!this._mapLoadInFlight && this.playToken && this.map && this.mobNetTimer>=this.mobPollInterval){
       
       this.mobNetTimer=0;
       
@@ -3991,7 +4006,7 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
     // items poll (item balls / hidden items)
     this.itemNetTimer+=dt;
     
-    if(this.itemsEnabled && this.playToken && this.map && this.itemNetTimer>=this.itemPollInterval){
+    if(!this._mapLoadInFlight && this.itemsEnabled && this.playToken && this.map && this.itemNetTimer>=this.itemPollInterval){
       
       this.itemNetTimer=0;
       
@@ -4902,6 +4917,8 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
 
   async _upsert(){
     
+    if(this._mapLoadInFlight) return this._syncPromise || Promise.resolve();
+
     const payload = this._syncPayload();
     const asyncCtx = this._mapAsyncCtx(payload.map_id);
     
@@ -5045,6 +5062,7 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
 
   async _fetchMobs(){
     
+    if(this._mapLoadInFlight) return;
     const asyncCtx=this._mapAsyncCtx();
     try{
       
@@ -5083,6 +5101,7 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
 
 async _fetchItems(){
     
+  if(this._mapLoadInFlight) return;
   const asyncCtx=this._mapAsyncCtx();
   try{
       
