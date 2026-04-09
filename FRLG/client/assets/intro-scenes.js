@@ -99,14 +99,14 @@ window.FRLG_FLOW_CONFIG = {
     '좋다! 이제 네 이름을 알려다오.',
     '이어서 네 라이벌의 이름도 정해야 해.'
   ],
-  roomMessage: 'Packege 맵 json 기준 skeleton 유지. Enter는 상호작용 우선, 대상이 없으면 local save.',
+  roomMessage: 'Packege 맵 json skeleton 유지. RivalHouse / OaksLab / starter placeholder 흐름까지 연결 중.',
   saveMessage: 'LOCAL 저장 완료.',
   signs: {
     PalletTown_EventScript_OaksLabSign: '오박사의 연구소다. 안에 들어가 볼까?',
     PalletTown_EventScript_PlayersHouseSign: '여기가 너의 집이다.',
     PalletTown_EventScript_RivalsHouseSign: '라이벌의 집이다.',
     PalletTown_EventScript_TownSign: '태초마을. 모든 것이 시작되는 곳.',
-    PalletTown_EventScript_TrainerTips: 'TRAINER TIPS! SAVE는 자주 하는 편이 좋다.',
+    PalletTown_EventScript_TrainerTipsSign: 'TRAINER TIPS! SAVE는 자주 하는 편이 좋다.',
     PalletTown_PlayersHouse_2F_EventScript_NES: '게임기가 놓여 있다. 아직은 플레이하지 않는 편이 좋겠다.',
     PalletTown_PlayersHouse_2F_EventScript_PC: 'PC다. 아직 조작 기능은 skeleton 상태다.',
     PalletTown_PlayersHouse_2F_EventScript_Sign: '벽 장식이다. 나중에 원문으로 교체된다.',
@@ -131,6 +131,19 @@ window.FRLG_FLOW_CONFIG = {
     PalletTown_ProfessorOaksLab_EventScript_BulbasaurBall: ['이건 이상해보이는 몬스터볼이다.'],
     PalletTown_ProfessorOaksLab_EventScript_SquirtleBall: ['물타입 스타터가 들어 있을 것 같은 볼이다.'],
     PalletTown_ProfessorOaksLab_EventScript_CharmanderBall: ['불꽃 타입 스타터가 들어 있을 것 같은 볼이다.']
+  },
+  events: {
+    oakStopsYou: [
+      '오박사: 잠깐! 아직 혼자 밖으로 나가면 위험하단다.',
+      '오박사: 연구소로 오렴. 보여줄 것이 있단다.'
+    ],
+    starterAlreadyChosen: ['이미 스타터를 골랐다. 이제 다음 흐름을 붙이면 된다.'],
+    starterPick: {
+      BULBASAUR: ['이상해씨를 골랐다!', '스타터 선택 skeleton 완료. 다음엔 전투/라이벌 선택 흐름을 붙이면 된다.'],
+      CHARMANDER: ['파이리를 골랐다!', '스타터 선택 skeleton 완료. 다음엔 전투/라이벌 선택 흐름을 붙이면 된다.'],
+      SQUIRTLE: ['꼬부기를 골랐다!', '스타터 선택 skeleton 완료. 다음엔 전투/라이벌 선택 흐름을 붙이면 된다.']
+    },
+    oakAfterStarter: ['오박사: 좋다. 이제 진짜 원본 이벤트 순서를 차근차근 붙여 보자.']
   }
 };
 

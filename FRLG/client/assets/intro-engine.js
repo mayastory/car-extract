@@ -33,6 +33,12 @@ window.FRLG = window.FRLG || {};
         playerName: '',
         rivalName: ''
       };
+      this.progress = {
+        starter: null,
+        flags: {
+          starterChosen: false
+        }
+      };
       const startMapId = this.mapsConfig.startMapId;
       const startMap = this.mapsConfig.maps[startMapId];
       this.world = {
@@ -80,7 +86,8 @@ window.FRLG = window.FRLG || {};
     emitSaveState() {
       if (!this.hooks.onSaveStateChange) return;
       if (this.state === 'field') {
-        const desc = `${this.profile.playerName || 'PLAYER'} / ${this.world.mapId} / ${this.world.x},${this.world.y}`;
+        const starter = this.progress && this.progress.starter ? ` / ${this.progress.starter}` : '';
+        const desc = `${this.profile.playerName || 'PLAYER'} / ${this.world.mapId} / ${this.world.x},${this.world.y}${starter}`;
         this.hooks.onSaveStateChange(desc);
         return;
       }
@@ -214,6 +221,10 @@ window.FRLG = window.FRLG || {};
         this.emitSaveState();
         return;
       }
+      if (this.handleFieldMoveGate(map, nextX, nextY)) {
+        this.emitSaveState();
+        return;
+      }
       if (this.isBlocked(map, nextX, nextY)) {
         this.emitSaveState();
         return;
@@ -257,6 +268,7 @@ window.FRLG = window.FRLG || {};
     saveLocalSnapshot() {
       const payload = {
         profile: this.profile,
+        progress: this.progress,
         world: this.world,
         state: 'field'
       };
@@ -287,6 +299,12 @@ window.FRLG = window.FRLG || {};
         playerName: snapshot.profile.playerName || '',
         rivalName: snapshot.profile.rivalName || ''
       };
+      this.progress = {
+        starter: (snapshot.progress && snapshot.progress.starter) || null,
+        flags: {
+          starterChosen: !!(snapshot.progress && snapshot.progress.flags && snapshot.progress.flags.starterChosen)
+        }
+      };
       const fallbackMap = this.mapsConfig.startMapId;
       this.world = {
         mapId: this.mapsConfig.maps[snapshot.world.mapId] ? snapshot.world.mapId : fallbackMap,
@@ -297,6 +315,34 @@ window.FRLG = window.FRLG || {};
       };
     }
 
+
+    getFlag(name) {
+      return !!(this.progress && this.progress.flags && this.progress.flags[name]);
+    }
+
+    setFlag(name, value = true) {
+      if (!this.progress) {
+        this.progress = { starter: null, flags: {} };
+      }
+      if (!this.progress.flags) this.progress.flags = {};
+      this.progress.flags[name] = !!value;
+    }
+
+    isObjectHidden(entry) {
+      if (!entry) return false;
+      if (entry.hiddenWhen && this.getFlag(entry.hiddenWhen)) return true;
+      if (entry.hiddenByFlag && this.getFlag(entry.hiddenByFlag)) return true;
+      return false;
+    }
+
+    handleFieldMoveGate(map, nextX, nextY) {
+      if (!map || map.id !== 'PalletTown') return false;
+      if (this.getFlag('starterChosen')) return false;
+      const north = map.structures && map.structures.northBlock;
+      if (!north) return false;
+      if (!isInsideRect(nextX, nextY, north)) return false;
+      return this.setFieldDialogue((this.flow.events && this.flow.events.oakStopsYou) || ['오박사: 아직 혼자 밖으로 나가면 위험하단다.']);
+    }
 
     hasFieldDialogue() {
       return !!(this.fieldDialogue && this.fieldDialogue.lines && this.fieldDialogue.lines.length);
@@ -365,10 +411,37 @@ window.FRLG = window.FRLG || {};
     findInteractionTarget() {
       const map = this.currentMap();
       const pos = this.getFacingPos();
-      const object = (map.objectEvents || []).find((entry) => entry.x === pos.x && entry.y === pos.y && !entry.hiddenByFlag);
+      const object = (map.objectEvents || []).find((entry) => entry.x === pos.x && entry.y === pos.y && !this.isObjectHidden(entry));
       if (object) return { kind: 'object', data: object };
       const sign = (map.bgEvents || []).find((entry) => entry.x === pos.x && entry.y === pos.y);
       if (sign) return { kind: 'sign', data: sign };
+      return null;
+    }
+
+    resolveSpecialObjectInteraction(data) {
+      const script = data.script || '';
+      if (script === 'PalletTown_EventScript_OakStopsYou') {
+        return (this.flow.events && this.flow.events.oakStopsYou) || ['오박사: 연구소로 오렴.'];
+      }
+      const starterMap = {
+        PalletTown_ProfessorOaksLab_EventScript_BulbasaurBall: 'BULBASAUR',
+        PalletTown_ProfessorOaksLab_EventScript_CharmanderBall: 'CHARMANDER',
+        PalletTown_ProfessorOaksLab_EventScript_SquirtleBall: 'SQUIRTLE'
+      };
+      const starterId = starterMap[script] || null;
+      if (starterId) {
+        if (this.getFlag('starterChosen')) {
+          return (this.flow.events && this.flow.events.starterAlreadyChosen) || ['이미 스타터를 골랐다.'];
+        }
+        this.progress.starter = starterId;
+        this.setFlag('starterChosen', true);
+        this.saveLocalSnapshot();
+        if (this.hooks.onSceneChange) this.hooks.onSceneChange(this.world.mapId);
+        return (this.flow.events && this.flow.events.starterPick && this.flow.events.starterPick[starterId]) || [`${starterId} 선택 완료.`];
+      }
+      if (script === 'PalletTown_ProfessorOaksLab_EventScript_ProfOak' && this.getFlag('starterChosen')) {
+        return (this.flow.events && this.flow.events.oakAfterStarter) || ['오박사: 이제 시작이구나.'];
+      }
       return null;
     }
 
@@ -378,6 +451,8 @@ window.FRLG = window.FRLG || {};
         const text = (this.flow.signs && this.flow.signs[data.script]) || `${data.script || 'sign'} 를 조사했다.`;
         return [text];
       }
+      const special = this.resolveSpecialObjectInteraction(data);
+      if (special && special.length) return special;
       const lines = (this.flow.npcLines && this.flow.npcLines[data.script]) || null;
       if (Array.isArray(lines) && lines.length) return lines;
       if (data.script) return [`${data.script} placeholder 대화`];
@@ -515,7 +590,8 @@ window.FRLG = window.FRLG || {};
       } else {
         this.drawIndoorMap(map);
       }
-      const mapNote = `${this.profile.playerName || 'PLAYER'} · ${map.id} · ${this.world.x},${this.world.y}`;
+      const starterTag = this.progress && this.progress.starter ? ` · ${this.progress.starter}` : '';
+      const mapNote = `${this.profile.playerName || 'PLAYER'}${starterTag} · ${map.id} · ${this.world.x},${this.world.y}`;
       centerText(this.ctx, mapNote, 240, 28, 12, 0.92, '#f6fbff');
       const activeText = this.getActiveFieldText();
       this.drawDialogue(activeText);
@@ -862,6 +938,11 @@ window.FRLG = window.FRLG || {};
     if (dir === 'up') ctx.fillRect(-tile * 0.07, -tile * 0.58, tile * 0.14, tile * 0.14);
     if (dir === 'down') ctx.fillRect(-tile * 0.07, tile * 0.02, tile * 0.14, tile * 0.14);
     ctx.restore();
+  }
+
+  function isInsideRect(x, y, rect) {
+    if (!rect) return false;
+    return x >= rect.x && y >= rect.y && x < rect.x + rect.w && y < rect.y + rect.h;
   }
 
   function wrapText(ctx, text, x, y, maxWidth, lineHeight, color, size) {

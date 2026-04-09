@@ -133,9 +133,9 @@ window.FRLG_MAP_DATA = {
         { graphics_id: 'OBJ_EVENT_GFX_WORKER_F', x: 2, y: 10, script: 'PalletTown_ProfessorOaksLab_EventScript_Aide3' },
         { graphics_id: 'OBJ_EVENT_GFX_SCIENTIST', x: 11, y: 10, script: 'PalletTown_ProfessorOaksLab_EventScript_Aide2' },
         { local_id: 'LOCALID_OAKS_LAB_PROF_OAK', graphics_id: 'OBJ_EVENT_GFX_PROF_OAK', x: 6, y: 3, script: 'PalletTown_ProfessorOaksLab_EventScript_ProfOak' },
-        { local_id: 'LOCALID_BULBASAUR_BALL', graphics_id: 'OBJ_EVENT_GFX_ITEM_BALL', x: 8, y: 4, script: 'PalletTown_ProfessorOaksLab_EventScript_BulbasaurBall' },
-        { local_id: 'LOCALID_SQUIRTLE_BALL', graphics_id: 'OBJ_EVENT_GFX_ITEM_BALL', x: 9, y: 4, script: 'PalletTown_ProfessorOaksLab_EventScript_SquirtleBall' },
-        { local_id: 'LOCALID_CHARMANDER_BALL', graphics_id: 'OBJ_EVENT_GFX_ITEM_BALL', x: 10, y: 4, script: 'PalletTown_ProfessorOaksLab_EventScript_CharmanderBall' },
+        { local_id: 'LOCALID_BULBASAUR_BALL', graphics_id: 'OBJ_EVENT_GFX_ITEM_BALL', x: 8, y: 4, script: 'PalletTown_ProfessorOaksLab_EventScript_BulbasaurBall', hiddenWhen: 'starterChosen' },
+        { local_id: 'LOCALID_SQUIRTLE_BALL', graphics_id: 'OBJ_EVENT_GFX_ITEM_BALL', x: 9, y: 4, script: 'PalletTown_ProfessorOaksLab_EventScript_SquirtleBall', hiddenWhen: 'starterChosen' },
+        { local_id: 'LOCALID_CHARMANDER_BALL', graphics_id: 'OBJ_EVENT_GFX_ITEM_BALL', x: 10, y: 4, script: 'PalletTown_ProfessorOaksLab_EventScript_CharmanderBall', hiddenWhen: 'starterChosen' },
         { local_id: 'LOCALID_OAKS_LAB_RIVAL', graphics_id: 'OBJ_EVENT_GFX_BLUE', x: 5, y: 4, script: 'PalletTown_ProfessorOaksLab_EventScript_Rival' },
         { local_id: 'LOCALID_POKEDEX_1', graphics_id: 'OBJ_EVENT_GFX_POKEDEX', x: 4, y: 1, script: 'PalletTown_ProfessorOaksLab_EventScript_Pokedex' },
         { local_id: 'LOCALID_POKEDEX_2', graphics_id: 'OBJ_EVENT_GFX_POKEDEX', x: 5, y: 1, script: 'PalletTown_ProfessorOaksLab_EventScript_Pokedex' }
@@ -174,13 +174,13 @@ window.FRLG_MAP_DATA = {
       ],
       warpEvents: [
         { x: 6, y: 7, elevation: 0, dest_map: 'PalletTown_PlayersHouse_1F', dest_warp_id: 1 },
-        { x: 15, y: 7, elevation: 0, dest_map: 'PalletTown_Rivals_House', dest_warp_id: 0 },
+        { x: 15, y: 7, elevation: 0, dest_map: 'PalletTown_RivalsHouse', dest_warp_id: 0 },
         { x: 16, y: 13, elevation: 0, dest_map: 'PalletTown_ProfessorOaksLab', dest_warp_id: 0 }
       ],
       objectEvents: [
         { local_id: 'LOCALID_PALLET_SIGN_LADY', graphics_id: 'OBJ_EVENT_GFX_WOMAN_1', x: 3, y: 10, script: 'PalletTown_EventScript_SignLady' },
         { local_id: 'LOCALID_PALLET_FAT_MAN', graphics_id: 'OBJ_EVENT_GFX_FAT_MAN', x: 13, y: 17, script: 'PalletTown_EventScript_FatMan' },
-        { local_id: 'LOCALID_PALLET_PROF_OAK', graphics_id: 'OBJ_EVENT_GFX_PROF_OAK', x: 10, y: 8, script: '0x0', hiddenByFlag: 'FLAG_HIDE_OAK_IN_PALLET_TOWN' }
+        { local_id: 'LOCALID_PALLET_PROF_OAK', graphics_id: 'OBJ_EVENT_GFX_PROF_OAK', x: 10, y: 8, script: 'PalletTown_EventScript_OakStopsYou', hiddenWhen: 'starterChosen' }
       ],
       bgEvents: [
         { type: 'sign', x: 16, y: 16, script: 'PalletTown_EventScript_OaksLabSign' },
