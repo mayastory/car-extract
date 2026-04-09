@@ -11,7 +11,8 @@ window.FRLG = window.FRLG || {};
     constructor(canvas, config, hooks) {
       this.canvas = canvas;
       this.ctx = canvas.getContext('2d');
-      this.config = config;
+      this.flow = config.flow;
+      this.mapsConfig = config.maps;
       this.hooks = hooks || {};
       this.boundLoop = this.loop.bind(this);
       this.running = false;
@@ -32,20 +33,26 @@ window.FRLG = window.FRLG || {};
         playerName: '',
         rivalName: ''
       };
-      this.room = {
-        mapId: 'PalletTown_PlayersHouse_2F',
-        x: 6,
-        y: 4,
-        dir: 'down',
-        maxX: 10,
-        maxY: 7
+      const startMapId = this.mapsConfig.startMapId;
+      const startMap = this.mapsConfig.maps[startMapId];
+      this.world = {
+        mapId: startMapId,
+        x: startMap.start.x,
+        y: startMap.start.y,
+        dir: startMap.start.dir || 'down',
+        lastWarp: null
       };
+      this.continueSnapshot = this.readLocalSnapshot();
       this.updateStatus();
       this.emitSaveState();
     }
 
     currentScene() {
-      return this.config.introScenes[this.introIndex];
+      return this.flow.introScenes[this.introIndex];
+    }
+
+    currentMap() {
+      return this.mapsConfig.maps[this.world.mapId];
     }
 
     start() {
@@ -60,17 +67,23 @@ window.FRLG = window.FRLG || {};
     }
 
     updateStatus() {
-      const current = this.state === 'intro' ? this.currentScene().id : this.state;
+      const current = this.state === 'intro'
+        ? this.currentScene().id
+        : this.state === 'field'
+          ? this.world.mapId
+          : this.state;
       if (this.hooks.onSceneChange) this.hooks.onSceneChange(current);
       if (this.hooks.onPhaseChange) this.hooks.onPhaseChange(this.state);
     }
 
     emitSaveState() {
       if (!this.hooks.onSaveStateChange) return;
-      const desc = this.state === 'room-start'
-        ? `${this.profile.playerName || 'PLAYER'} / ${this.room.mapId}`
-        : 'local only';
-      this.hooks.onSaveStateChange(desc);
+      if (this.state === 'field') {
+        const desc = `${this.profile.playerName || 'PLAYER'} / ${this.world.mapId} / ${this.world.x},${this.world.y}`;
+        this.hooks.onSaveStateChange(desc);
+        return;
+      }
+      this.hooks.onSaveStateChange(this.continueSnapshot ? 'continue 가능' : 'local only');
     }
 
     setState(nextState) {
@@ -81,7 +94,7 @@ window.FRLG = window.FRLG || {};
     }
 
     advanceIntro() {
-      if (this.introIndex < this.config.introScenes.length - 1) {
+      if (this.introIndex < this.flow.introScenes.length - 1) {
         this.introIndex += 1;
         this.sceneStart = performance.now();
         this.updateStatus();
@@ -102,7 +115,7 @@ window.FRLG = window.FRLG || {};
           this.handleMenuConfirm();
           break;
         case 'oak-intro':
-          if (this.oakLine < this.config.oakIntro.length - 1) {
+          if (this.oakLine < this.flow.oakIntro.length - 1) {
             this.oakLine += 1;
           } else {
             this.setState('gender-select');
@@ -113,7 +126,7 @@ window.FRLG = window.FRLG || {};
           this.setState('post-gender');
           break;
         case 'post-gender':
-          if (this.postGenderLine < this.config.postGender.length - 1) {
+          if (this.postGenderLine < this.flow.postGender.length - 1) {
             this.postGenderLine += 1;
           } else {
             this.nameMode = 'player';
@@ -123,7 +136,7 @@ window.FRLG = window.FRLG || {};
         case 'name-entry':
           this.confirmNameEntry();
           break;
-        case 'room-start':
+        case 'field':
           this.saveLocalSnapshot();
           break;
       }
@@ -133,6 +146,11 @@ window.FRLG = window.FRLG || {};
       if (this.menuIndex === 0) {
         this.oakLine = 0;
         this.setState('oak-intro');
+        return;
+      }
+      if (this.menuIndex === 1 && this.continueSnapshot) {
+        this.applySnapshot(this.continueSnapshot);
+        this.setState('field');
       }
     }
 
@@ -146,7 +164,7 @@ window.FRLG = window.FRLG || {};
         this.profile.rivalName = '';
       } else {
         this.saveLocalSnapshot();
-        this.setState('room-start');
+        this.setState('field');
       }
     }
 
@@ -172,7 +190,7 @@ window.FRLG = window.FRLG || {};
         case 'gender-select':
           this.genderIndex = clamp(this.genderIndex + (dx || dy), 0, 1);
           break;
-        case 'room-start':
+        case 'field':
           this.movePlayer(dx, dy);
           break;
       }
@@ -180,28 +198,97 @@ window.FRLG = window.FRLG || {};
 
     movePlayer(dx, dy) {
       if (dx === 0 && dy === 0) return;
-      if (dx < 0) this.room.dir = 'left';
-      if (dx > 0) this.room.dir = 'right';
-      if (dy < 0) this.room.dir = 'up';
-      if (dy > 0) this.room.dir = 'down';
-      this.room.x = clamp(this.room.x + dx, 2, this.room.maxX);
-      this.room.y = clamp(this.room.y + dy, 2, this.room.maxY);
+      const map = this.currentMap();
+      const nextX = this.world.x + dx;
+      const nextY = this.world.y + dy;
+      if (dx < 0) this.world.dir = 'left';
+      if (dx > 0) this.world.dir = 'right';
+      if (dy < 0) this.world.dir = 'up';
+      if (dy > 0) this.world.dir = 'down';
+      if (nextX < 0 || nextX >= map.width || nextY < 0 || nextY >= map.height) {
+        this.emitSaveState();
+        return;
+      }
+      if (this.isBlocked(map, nextX, nextY)) {
+        this.emitSaveState();
+        return;
+      }
+      this.world.x = nextX;
+      this.world.y = nextY;
+      this.tryWarp();
       this.emitSaveState();
     }
 
+    isBlocked(map, x, y) {
+      return Array.isArray(map.blocked) && map.blocked.includes(`${x},${y}`);
+    }
+
+    tryWarp() {
+      const map = this.currentMap();
+      const warp = (map.warpEvents || []).find((entry) => entry.x === this.world.x && entry.y === this.world.y);
+      if (!warp) return;
+      const destMapId = normalizeMapId(warp.dest_map);
+      const destMap = this.mapsConfig.maps[destMapId];
+      if (!destMap) return;
+      const destWarpIndex = Number(warp.dest_warp_id) || 0;
+      const targetWarp = (destMap.warpEvents || [])[destWarpIndex] || null;
+      this.world.mapId = destMapId;
+      if (targetWarp) {
+        this.world.x = targetWarp.x;
+        this.world.y = targetWarp.y;
+      } else if (destMap.start) {
+        this.world.x = destMap.start.x;
+        this.world.y = destMap.start.y;
+      }
+      this.world.dir = chooseWarpFacing(warp, targetWarp);
+      this.world.lastWarp = {
+        from: map.id,
+        to: destMapId,
+        destWarpId: destWarpIndex
+      };
+    }
+
     saveLocalSnapshot() {
+      const payload = {
+        profile: this.profile,
+        world: this.world,
+        state: 'field'
+      };
       try {
-        localStorage.setItem('frlg_local_profile', JSON.stringify({
-          profile: this.profile,
-          room: this.room,
-          state: this.state
-        }));
-        if (this.hooks.onSaveStateChange) {
-          this.hooks.onSaveStateChange(`saved · ${this.profile.playerName || 'PLAYER'} / ${this.room.mapId}`);
-        }
+        localStorage.setItem('frlg_local_profile', JSON.stringify(payload));
+        this.continueSnapshot = payload;
       } catch (err) {
         // ignore local storage failures in starter mode
       }
+      this.emitSaveState();
+    }
+
+    readLocalSnapshot() {
+      try {
+        const raw = localStorage.getItem('frlg_local_profile');
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || !parsed.profile || !parsed.world) return null;
+        return parsed;
+      } catch (err) {
+        return null;
+      }
+    }
+
+    applySnapshot(snapshot) {
+      this.profile = {
+        gender: snapshot.profile.gender || 'M',
+        playerName: snapshot.profile.playerName || '',
+        rivalName: snapshot.profile.rivalName || ''
+      };
+      const fallbackMap = this.mapsConfig.startMapId;
+      this.world = {
+        mapId: this.mapsConfig.maps[snapshot.world.mapId] ? snapshot.world.mapId : fallbackMap,
+        x: Number.isFinite(snapshot.world.x) ? snapshot.world.x : this.mapsConfig.maps[fallbackMap].start.x,
+        y: Number.isFinite(snapshot.world.y) ? snapshot.world.y : this.mapsConfig.maps[fallbackMap].start.y,
+        dir: snapshot.world.dir || 'down',
+        lastWarp: snapshot.world.lastWarp || null
+      };
     }
 
     handleKeyDown(e) {
@@ -266,11 +353,13 @@ window.FRLG = window.FRLG || {};
     drawMenu() {
       this.drawBg('#102233', '#081018');
       centerText(this.ctx, 'MAIN MENU', 240, 92, 22, 1, '#ffffff');
-      const items = ['NEW GAME', 'CONTINUE (준비중)'];
+      const canContinue = !!this.continueSnapshot;
+      const items = ['NEW GAME', canContinue ? 'CONTINUE (LOCAL)' : 'CONTINUE (없음)'];
       items.forEach((item, idx) => {
         const y = 150 + idx * 40;
-        drawWindow(this.ctx, 144, y - 20, 192, 30, idx === this.menuIndex);
-        centerText(this.ctx, item, 240, y, 16, idx === 1 ? 0.5 : 1, '#ffffff');
+        drawWindow(this.ctx, 132, y - 20, 216, 30, idx === this.menuIndex);
+        const alpha = idx === 1 && !canContinue ? 0.42 : 1;
+        centerText(this.ctx, item, 240, y, 16, alpha, '#ffffff');
       });
       centerText(this.ctx, '방향키 선택 · Enter 확인', 240, 286, 11, 0.8, '#9ccdd7');
     }
@@ -279,7 +368,7 @@ window.FRLG = window.FRLG || {};
       this.drawBg('#e8f1f6', '#b7d1db');
       drawOak(this.ctx, 135, 160);
       drawPokemonBuddy(this.ctx, 355, 188);
-      this.drawDialogue(this.config.oakIntro[this.oakLine]);
+      this.drawDialogue(this.flow.oakIntro[this.oakLine]);
       centerText(this.ctx, 'OAK INTRO', 240, 30, 14, 0.9, '#22313a');
     }
 
@@ -302,7 +391,7 @@ window.FRLG = window.FRLG || {};
       this.drawBg('#edf5fa', '#c8dceb');
       drawOak(this.ctx, 135, 160);
       drawTrainerBust(this.ctx, 355, 170, PLAYER_COLORS[this.profile.gender], 1);
-      this.drawDialogue(this.config.postGender[this.postGenderLine]);
+      this.drawDialogue(this.flow.postGender[this.postGenderLine]);
     }
 
     drawNameEntry(now) {
@@ -314,8 +403,9 @@ window.FRLG = window.FRLG || {};
       centerText(this.ctx, targetValue || '__________', 240, 156, 24, 1, '#ffffff');
       const blink = Math.sin(now / 250) > 0 ? 1 : 0;
       if (targetValue.length < 10) {
-        const width = this.ctx.measureText(targetValue || '').width;
         this.ctx.save();
+        this.ctx.font = '24px Arial';
+        const width = this.ctx.measureText(targetValue || '').width;
         this.ctx.globalAlpha = blink;
         this.ctx.fillStyle = '#d9f9ff';
         this.ctx.fillRect(240 + width / 2 + 6, 136, 10, 22);
@@ -325,43 +415,86 @@ window.FRLG = window.FRLG || {};
       this.drawDialogue(this.nameMode === 'player' ? '너의 이름을 입력해라.' : '이제 라이벌의 이름을 입력해라.');
     }
 
-    drawRoomStart() {
-      this.drawRoomMap();
-      this.drawDialogue(this.config.roomMessage);
-      centerText(this.ctx, `${this.profile.playerName || 'PLAYER'} · ${this.room.mapId}`, 240, 28, 12, 0.9, '#f6fbff');
+    drawField() {
+      const map = this.currentMap();
+      if (map.mapType === 'MAP_TYPE_TOWN') {
+        this.drawTownMap(map);
+      } else {
+        this.drawIndoorMap(map);
+      }
+      const mapNote = `${this.profile.playerName || 'PLAYER'} · ${map.id} · ${this.world.x},${this.world.y}`;
+      centerText(this.ctx, mapNote, 240, 28, 12, 0.92, '#f6fbff');
+      this.drawDialogue(this.flow.roomMessage);
     }
 
-    drawRoomMap() {
+    drawIndoorMap(map) {
       const ctx = this.ctx;
       this.drawBg('#7aa6cc', '#29445e');
-      drawWindow(ctx, 84, 40, 312, 206, false, '#a27551', '#623f26');
-
-      for (let y = 0; y < 6; y++) {
-        for (let x = 0; x < 9; x++) {
-          const px = 114 + x * 28;
-          const py = 70 + y * 24;
+      const tile = fitTileSize(map.width, map.height, 300, 196, 16, 24);
+      const origin = centeredOrigin(this.canvas.width, this.canvas.height, map.width, map.height, tile, 32);
+      drawWindow(ctx, origin.x - 12, origin.y - 12, map.width * tile + 24, map.height * tile + 24, false, '#a27551', '#623f26');
+      for (let y = 0; y < map.height; y++) {
+        for (let x = 0; x < map.width; x++) {
+          const px = origin.x + x * tile;
+          const py = origin.y + y * tile;
           ctx.fillStyle = (x + y) % 2 === 0 ? '#d8c89f' : '#c8b78a';
-          ctx.fillRect(px, py, 28, 24);
+          ctx.fillRect(px, py, tile, tile);
+          if (this.isBlocked(map, x, y)) {
+            ctx.fillStyle = 'rgba(80, 58, 38, 0.22)';
+            ctx.fillRect(px, py, tile, tile);
+          }
         }
       }
+      if (map.structures) {
+        if (map.structures.bed) drawRectTiles(ctx, origin, tile, map.structures.bed, '#6f4b30', '#d05050');
+        if (map.structures.pc) drawRectTiles(ctx, origin, tile, map.structures.pc, '#8fcbc5', '#4a5f7c');
+        if (map.structures.shelf) drawRectTiles(ctx, origin, tile, map.structures.shelf, '#8d6b44', '#8d6b44');
+        if (map.structures.kitchen) drawRectTiles(ctx, origin, tile, map.structures.kitchen, '#7f5f41', '#b7dbe2');
+        if (map.structures.table) drawRectTiles(ctx, origin, tile, map.structures.table, '#6b4d33', '#d9d1af');
+        if (map.structures.tv) drawRectTiles(ctx, origin, tile, map.structures.tv, '#3d4755', '#7f95aa');
+        if (map.structures.stairs) drawStairs(ctx, origin, tile, map.structures.stairs);
+        if (map.structures.door) drawDoor(ctx, origin, tile, map.structures.door);
+      }
+      this.drawMapEvents(map, origin, tile);
+    }
 
-      ctx.fillStyle = '#6f4b30';
-      ctx.fillRect(128, 78, 72, 40); // bed
-      ctx.fillStyle = '#d05050';
-      ctx.fillRect(128, 78, 72, 12);
-      ctx.fillStyle = '#8fcbc5';
-      ctx.fillRect(250, 82, 40, 34); // pc desk
-      ctx.fillStyle = '#4a5f7c';
-      ctx.fillRect(296, 82, 18, 22);
-      ctx.fillStyle = '#8d6b44';
-      ctx.fillRect(320, 160, 42, 54); // stairs area
-      ctx.fillStyle = '#49515a';
-      ctx.fillRect(322, 184, 38, 8);
-      ctx.fillStyle = '#5a3c23';
-      ctx.fillRect(208, 208, 56, 28); // rug
+    drawTownMap(map) {
+      const ctx = this.ctx;
+      this.drawBg('#7db3ec', '#4374a0');
+      const tile = fitTileSize(map.width, map.height, 360, 232, 12, 20);
+      const origin = centeredOrigin(this.canvas.width, this.canvas.height, map.width, map.height, tile, 30);
+      for (let y = 0; y < map.height; y++) {
+        for (let x = 0; x < map.width; x++) {
+          const px = origin.x + x * tile;
+          const py = origin.y + y * tile;
+          ctx.fillStyle = '#5dbb63';
+          ctx.fillRect(px, py, tile, tile);
+        }
+      }
+      const pathRects = (map.structures && map.structures.path) || [];
+      pathRects.forEach((rect) => drawRectTiles(ctx, origin, tile, rect, '#d1bd7a', '#d1bd7a'));
+      if (map.structures) {
+        if (map.structures.playerHouse) drawHouse(ctx, origin, tile, map.structures.playerHouse, '#f1efe8', '#cd5850');
+        if (map.structures.rivalHouse) drawHouse(ctx, origin, tile, map.structures.rivalHouse, '#ececf1', '#6692d0');
+        if (map.structures.oaksLab) drawHouse(ctx, origin, tile, map.structures.oaksLab, '#ede4d0', '#b67c44');
+        if (map.structures.northBlock) drawRectTiles(ctx, origin, tile, map.structures.northBlock, '#4c8f4f', '#4c8f4f');
+      }
+      this.drawMapEvents(map, origin, tile);
+    }
 
-      drawTrainerMini(ctx, 114 + this.room.x * 28, 70 + this.room.y * 24, PLAYER_COLORS[this.profile.gender], this.room.dir);
-      centerText(ctx, '방 시작 / 로컬 이동 테스트', 240, 264, 12, 0.92, '#e7f0f6');
+    drawMapEvents(map, origin, tile) {
+      const ctx = this.ctx;
+      (map.bgEvents || []).forEach((event) => {
+        drawMarker(ctx, origin, tile, event.x, event.y, '#ffe46f', '?');
+      });
+      (map.warpEvents || []).forEach((event) => {
+        drawMarker(ctx, origin, tile, event.x, event.y, '#6fd7ff', 'W');
+      });
+      (map.objectEvents || []).forEach((event) => {
+        if (event.hiddenByFlag) return;
+        drawNpc(ctx, origin, tile, event.x, event.y, event.local_id && event.local_id.includes('MOM') ? '#f58ea8' : '#f4f4f4');
+      });
+      drawTrainerMini(ctx, origin.x + this.world.x * tile, origin.y + this.world.y * tile, PLAYER_COLORS[this.profile.gender], this.world.dir, tile);
     }
 
     drawDialogue(text) {
@@ -395,12 +528,107 @@ window.FRLG = window.FRLG || {};
         this.drawPostGender();
       } else if (this.state === 'name-entry') {
         this.drawNameEntry(now);
-      } else if (this.state === 'room-start') {
-        this.drawRoomStart();
+      } else if (this.state === 'field') {
+        this.drawField();
       }
 
       requestAnimationFrame(this.boundLoop);
     }
+  }
+
+  function normalizeMapId(value) {
+    return String(value || '').replace(/^MAP_/, '').replace(/_RIVALS_HOUSE$/, '_RivalsHouse').replace(/_PROFESSOR_OAKS_LAB$/, '_ProfessorOaksLab');
+  }
+
+  function chooseWarpFacing(sourceWarp, destWarp) {
+    if (!sourceWarp || !destWarp) return 'down';
+    if (destWarp.y > sourceWarp.y) return 'up';
+    if (destWarp.y < sourceWarp.y) return 'down';
+    return 'down';
+  }
+
+  function fitTileSize(width, height, maxWidth, maxHeight, minTile, maxTile) {
+    const byW = Math.floor(maxWidth / width);
+    const byH = Math.floor(maxHeight / height);
+    return clamp(Math.min(byW, byH), minTile, maxTile);
+  }
+
+  function centeredOrigin(canvasWidth, canvasHeight, width, height, tile, topMargin) {
+    const mapWidth = width * tile;
+    const mapHeight = height * tile;
+    return {
+      x: Math.floor((canvasWidth - mapWidth) / 2),
+      y: Math.floor((canvasHeight - mapHeight - topMargin) / 2) + topMargin
+    };
+  }
+
+  function drawRectTiles(ctx, origin, tile, rect, fill, accent) {
+    ctx.fillStyle = fill;
+    ctx.fillRect(origin.x + rect.x * tile, origin.y + rect.y * tile, rect.w * tile, rect.h * tile);
+    if (accent && accent !== fill) {
+      ctx.fillStyle = accent;
+      ctx.fillRect(origin.x + rect.x * tile, origin.y + rect.y * tile, rect.w * tile, Math.max(3, Math.floor(tile * 0.34)));
+    }
+  }
+
+  function drawStairs(ctx, origin, tile, rect) {
+    const x = origin.x + rect.x * tile;
+    const y = origin.y + rect.y * tile;
+    ctx.fillStyle = '#8d6b44';
+    ctx.fillRect(x, y, rect.w * tile, rect.h * tile);
+    ctx.fillStyle = '#49515a';
+    for (let i = 0; i < 3; i++) {
+      ctx.fillRect(x + i * Math.max(3, Math.floor(tile / 4)), y + i * Math.max(3, Math.floor(tile / 5)), rect.w * tile - i * Math.max(4, Math.floor(tile / 3)), 3);
+    }
+  }
+
+  function drawDoor(ctx, origin, tile, rect) {
+    const x = origin.x + rect.x * tile;
+    const y = origin.y + rect.y * tile;
+    ctx.fillStyle = '#754e31';
+    ctx.fillRect(x, y, rect.w * tile, rect.h * tile);
+    ctx.fillStyle = '#d5bf7a';
+    ctx.fillRect(x + 2, y + 2, rect.w * tile - 4, Math.max(4, Math.floor(tile / 3)));
+  }
+
+  function drawHouse(ctx, origin, tile, rect, wallColor, roofColor) {
+    const x = origin.x + rect.x * tile;
+    const y = origin.y + rect.y * tile;
+    ctx.fillStyle = wallColor;
+    ctx.fillRect(x, y + tile, rect.w * tile, rect.h * tile - tile);
+    ctx.fillStyle = roofColor;
+    ctx.fillRect(x, y, rect.w * tile, tile + 3);
+    ctx.fillStyle = '#7f5b3f';
+    ctx.fillRect(x + tile, y + rect.h * tile - tile, tile, tile);
+  }
+
+  function drawMarker(ctx, origin, tile, x, y, color, text) {
+    const px = origin.x + x * tile + tile / 2;
+    const py = origin.y + y * tile + tile / 2;
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(px, py, Math.max(4, tile * 0.22), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#173043';
+    ctx.textAlign = 'center';
+    ctx.font = `${Math.max(8, Math.floor(tile * 0.48))}px Arial`;
+    ctx.fillText(text, px, py + Math.max(3, tile * 0.14));
+    ctx.restore();
+  }
+
+  function drawNpc(ctx, origin, tile, x, y, bodyColor) {
+    const px = origin.x + x * tile;
+    const py = origin.y + y * tile;
+    ctx.save();
+    ctx.fillStyle = '#f1d1bf';
+    ctx.fillRect(px + tile * 0.34, py + tile * 0.10, tile * 0.32, tile * 0.28);
+    ctx.fillStyle = bodyColor;
+    ctx.fillRect(px + tile * 0.25, py + tile * 0.38, tile * 0.50, tile * 0.40);
+    ctx.fillStyle = '#2e3440';
+    ctx.fillRect(px + tile * 0.28, py + tile * 0.78, tile * 0.16, tile * 0.22);
+    ctx.fillRect(px + tile * 0.56, py + tile * 0.78, tile * 0.16, tile * 0.22);
+    ctx.restore();
   }
 
   function clamp(v, min, max) {
@@ -495,21 +723,21 @@ window.FRLG = window.FRLG || {};
     ctx.restore();
   }
 
-  function drawTrainerMini(ctx, x, y, color, dir) {
+  function drawTrainerMini(ctx, x, y, color, dir, tile = 24) {
     ctx.save();
-    ctx.translate(x + 14, y + 12);
+    ctx.translate(x + tile / 2, y + tile / 2);
     ctx.fillStyle = '#f1d1bf';
-    ctx.fillRect(-5, -11, 10, 10);
+    ctx.fillRect(-tile * 0.18, -tile * 0.44, tile * 0.36, tile * 0.34);
     ctx.fillStyle = color;
-    ctx.fillRect(-7, -1, 14, 12);
+    ctx.fillRect(-tile * 0.25, -tile * 0.10, tile * 0.50, tile * 0.44);
     ctx.fillStyle = '#2e3440';
-    ctx.fillRect(-6, 11, 5, 9);
-    ctx.fillRect(1, 11, 5, 9);
+    ctx.fillRect(-tile * 0.22, tile * 0.34, tile * 0.16, tile * 0.30);
+    ctx.fillRect(tile * 0.06, tile * 0.34, tile * 0.16, tile * 0.30);
     ctx.fillStyle = '#ffffff';
-    if (dir === 'left') ctx.fillRect(-10, 0, 4, 7);
-    if (dir === 'right') ctx.fillRect(6, 0, 4, 7);
-    if (dir === 'up') ctx.fillRect(-2, -16, 4, 4);
-    if (dir === 'down') ctx.fillRect(-2, 2, 4, 4);
+    if (dir === 'left') ctx.fillRect(-tile * 0.36, -tile * 0.06, tile * 0.14, tile * 0.24);
+    if (dir === 'right') ctx.fillRect(tile * 0.22, -tile * 0.06, tile * 0.14, tile * 0.24);
+    if (dir === 'up') ctx.fillRect(-tile * 0.07, -tile * 0.58, tile * 0.14, tile * 0.14);
+    if (dir === 'down') ctx.fillRect(-tile * 0.07, tile * 0.02, tile * 0.14, tile * 0.14);
     ctx.restore();
   }
 

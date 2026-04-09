@@ -99,7 +99,7 @@ window.FRLG_FLOW_CONFIG = {
     '좋다! 이제 네 이름을 알려다오.',
     '이어서 네 라이벌의 이름도 정해야 해.'
   ],
-  roomMessage: '방 시작점까지 연결 완료. 다음 단계는 Packege 실제 자산/방 맵 로더로 교체.'
+  roomMessage: 'Packege 맵 json 기준으로 PlayersHouse 2F / 1F / PalletTown 연결 완료. 다음 단계는 실제 자산 추출과 원문 대사 치환.'
 };
 
 function centerText(ctx, text, x, y, size, alpha = 1, color = '#ffffff') {

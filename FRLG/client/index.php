@@ -12,7 +12,7 @@
     <header class="hud">
       <div>
         <div class="title">FRLG Web Client Prototype</div>
-        <div class="subtitle">intro → title → new game → oak → gender → names → room start</div>
+        <div class="subtitle">intro → title → new game → oak → gender → names → PlayersHouse 2F → 1F → PalletTown</div>
       </div>
       <div class="hud-right">
         <div class="mini" id="phaseName">boot</div>
@@ -34,23 +34,24 @@
         <div class="panel-title">현재 단계</div>
         <ul>
           <li>원본처럼 바로 PalletTown 직행하지 않고 시작 순서를 먼저 연결</li>
-          <li>자산 추출 전이라 연출/맵은 placeholder 렌더링</li>
-          <li>이 다음 단계에서 Packege 자산 추출과 실제 방/맵 로더로 교체 예정</li>
+          <li>Packege 맵 json 기준으로 PlayersHouse 2F / 1F / PalletTown 연결</li>
+          <li>자산 추출 전이라 그래픽은 placeholder 렌더링 유지</li>
         </ul>
       </div>
       <div>
         <div class="panel-title">이번 기준</div>
         <ul>
           <li>인트로 scene 러너 유지</li>
-          <li>타이틀 / New Game 분기 추가</li>
-          <li>오박사 대사 / 성별 / 이름 / 라이벌 이름 흐름 추가</li>
-          <li>최종 도착점은 PlayersHouse 2F 시작</li>
+          <li>타이틀 / New Game / Continue(local) 흐름 유지</li>
+          <li>오박사 대사 / 성별 / 이름 / 라이벌 이름 흐름 유지</li>
+          <li>최종 도착점은 PlayersHouse 2F 시작 후 1F / PalletTown 이동 가능</li>
         </ul>
       </div>
     </section>
   </div>
 
   <script src="assets/intro-scenes.js"></script>
+  <script src="assets/map-data.js"></script>
   <script src="assets/intro-engine.js"></script>
   <script src="assets/app.js"></script>
 </body>

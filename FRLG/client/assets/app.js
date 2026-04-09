@@ -6,7 +6,10 @@
 
   const engine = new window.FRLG.IntroEngine(
     canvas,
-    window.FRLG_FLOW_CONFIG,
+    {
+      flow: window.FRLG_FLOW_CONFIG,
+      maps: window.FRLG_MAP_DATA
+    },
     {
       onSceneChange(id) {
         sceneName.textContent = id;
