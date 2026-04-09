@@ -35,10 +35,14 @@ window.FRLG = window.FRLG || {};
       };
       this.progress = {
         starter: null,
+        rivalStarter: null,
         flags: {
-          starterChosen: false
+          starterChosen: false,
+          firstBattleDone: false
         }
       };
+      this.battle = null;
+      this.pendingBattle = null;
       const startMapId = this.mapsConfig.startMapId;
       const startMap = this.mapsConfig.maps[startMapId];
       this.world = {
@@ -87,7 +91,8 @@ window.FRLG = window.FRLG || {};
       if (!this.hooks.onSaveStateChange) return;
       if (this.state === 'field') {
         const starter = this.progress && this.progress.starter ? ` / ${this.progress.starter}` : '';
-        const desc = `${this.profile.playerName || 'PLAYER'} / ${this.world.mapId} / ${this.world.x},${this.world.y}${starter}`;
+        const battle = this.getFlag('firstBattleDone') ? ' / battle1' : '';
+        const desc = `${this.profile.playerName || 'PLAYER'} / ${this.world.mapId} / ${this.world.x},${this.world.y}${starter}${battle}`;
         this.hooks.onSaveStateChange(desc);
         return;
       }
@@ -150,6 +155,9 @@ window.FRLG = window.FRLG || {};
           this.saveLocalSnapshot();
           this.setFieldDialogue([this.flow.saveMessage || 'LOCAL 저장 완료.']);
           break;
+        case 'battle':
+          this.handleBattleAction();
+          break;
       }
     }
 
@@ -204,6 +212,11 @@ window.FRLG = window.FRLG || {};
         case 'field':
           if (this.hasFieldDialogue()) return;
           this.movePlayer(dx, dy);
+          break;
+        case 'battle':
+          if (this.battle && this.battle.phase === 'command') {
+            this.battle.selectedMove = clamp(this.battle.selectedMove + (dy || dx), 0, 1);
+          }
           break;
       }
     }
@@ -301,10 +314,14 @@ window.FRLG = window.FRLG || {};
       };
       this.progress = {
         starter: (snapshot.progress && snapshot.progress.starter) || null,
+        rivalStarter: (snapshot.progress && snapshot.progress.rivalStarter) || null,
         flags: {
-          starterChosen: !!(snapshot.progress && snapshot.progress.flags && snapshot.progress.flags.starterChosen)
+          starterChosen: !!(snapshot.progress && snapshot.progress.flags && snapshot.progress.flags.starterChosen),
+          firstBattleDone: !!(snapshot.progress && snapshot.progress.flags && snapshot.progress.flags.firstBattleDone)
         }
       };
+      this.battle = null;
+      this.pendingBattle = null;
       const fallbackMap = this.mapsConfig.startMapId;
       this.world = {
         mapId: this.mapsConfig.maps[snapshot.world.mapId] ? snapshot.world.mapId : fallbackMap,
@@ -322,10 +339,119 @@ window.FRLG = window.FRLG || {};
 
     setFlag(name, value = true) {
       if (!this.progress) {
-        this.progress = { starter: null, flags: {} };
+        this.progress = { starter: null, rivalStarter: null, flags: {} };
       }
       if (!this.progress.flags) this.progress.flags = {};
       this.progress.flags[name] = !!value;
+    }
+
+    getStarterLabel(id) {
+      const labels = {
+        BULBASAUR: '이상해씨',
+        CHARMANDER: '파이리',
+        SQUIRTLE: '꼬부기'
+      };
+      return labels[id] || id || '포켓몬';
+    }
+
+    getStarterAccent(id) {
+      const accents = {
+        BULBASAUR: '#7dd27d',
+        CHARMANDER: '#ff8b57',
+        SQUIRTLE: '#6bbcff'
+      };
+      return accents[id] || '#ffffff';
+    }
+
+    getRivalStarter(playerStarter) {
+      const table = {
+        BULBASAUR: 'CHARMANDER',
+        CHARMANDER: 'SQUIRTLE',
+        SQUIRTLE: 'BULBASAUR'
+      };
+      return table[playerStarter] || 'CHARMANDER';
+    }
+
+    queueBattleStart(kind) {
+      this.pendingBattle = { kind };
+    }
+
+    startPendingBattleIfNeeded() {
+      if (!this.pendingBattle) return;
+      const pending = this.pendingBattle;
+      this.pendingBattle = null;
+      if (pending.kind === 'starter-rival') {
+        this.startStarterBattle();
+      }
+    }
+
+    startStarterBattle() {
+      const playerStarter = this.progress.starter || 'BULBASAUR';
+      const rivalStarter = this.getRivalStarter(playerStarter);
+      this.progress.rivalStarter = rivalStarter;
+      this.battle = {
+        type: 'starter-rival',
+        phase: 'intro',
+        lineIndex: 0,
+        selectedMove: 0,
+        playerHp: 20,
+        enemyHp: 20,
+        round: 0,
+        playerStarter,
+        rivalStarter,
+        lines: [
+          `${this.profile.rivalName || 'RIVAL'}: 그럼 내가 이 녀석으로 간다!`,
+          `${this.profile.rivalName || 'RIVAL'}의 ${this.getStarterLabel(rivalStarter)}가 승부를 걸어왔다!`,
+          `${this.profile.playerName || 'PLAYER'}! 가라! ${this.getStarterLabel(playerStarter)}!`
+        ]
+      };
+      this.setState('battle');
+    }
+
+    executeBattleTurn() {
+      if (!this.battle) return;
+      const move = this.battle.selectedMove === 0 ? '몸통박치기' : '울음소리';
+      const playerStarter = this.battle.playerStarter;
+      const rivalStarter = this.battle.rivalStarter;
+      const playerLabel = this.getStarterLabel(playerStarter);
+      const rivalLabel = this.getStarterLabel(rivalStarter);
+      const playerDamage = this.battle.selectedMove === 0 ? 11 : 4;
+      const rivalDamage = this.battle.round >= 1 ? 3 : 6;
+      this.battle.enemyHp = Math.max(0, this.battle.enemyHp - playerDamage);
+      const turnLines = [
+        `${playerLabel}의 ${move}!`,
+        `${rivalLabel}에게 ${playerDamage}의 placeholder 데미지!`
+      ];
+      if (this.battle.enemyHp <= 0 || this.battle.round >= 1) {
+        this.battle.phase = 'result';
+        this.battle.lineIndex = 0;
+        this.battle.lines = turnLines.concat([
+          `${rivalLabel}은(는) 더는 싸울 수 없다!`,
+          `${this.profile.rivalName || 'RIVAL'}와의 첫 배틀에서 이겼다!`
+        ]);
+        return;
+      }
+      this.battle.playerHp = Math.max(0, this.battle.playerHp - rivalDamage);
+      this.battle.round += 1;
+      this.battle.phase = 'turn';
+      this.battle.lineIndex = 0;
+      this.battle.lines = turnLines.concat([
+        `${this.profile.rivalName || 'RIVAL'}의 ${rivalLabel}의 반격!`,
+        `${playerLabel}이(가) ${rivalDamage}의 placeholder 데미지를 받았다!`
+      ]);
+    }
+
+    finishBattle() {
+      if (!this.battle) return;
+      this.setFlag('firstBattleDone', true);
+      this.progress.rivalStarter = this.battle.rivalStarter;
+      this.battle = null;
+      this.saveLocalSnapshot();
+      this.setState('field');
+      this.setFieldDialogue((this.flow.events && this.flow.events.rivalBattleWin) || [
+        '첫 배틀 skeleton 완료.',
+        '다음엔 라이벌 퇴장 / 오박사 후속 대사 / 실제 전투 규칙을 붙이면 된다.'
+      ]);
     }
 
     isObjectHidden(entry) {
@@ -372,6 +498,7 @@ window.FRLG = window.FRLG || {};
         this.fieldDialogue.index += 1;
       } else {
         this.clearFieldDialogue();
+        this.startPendingBattleIfNeeded();
       }
       return true;
     }
@@ -408,6 +535,33 @@ window.FRLG = window.FRLG || {};
       return this.setFieldDialogue(lines);
     }
 
+    handleBattleAction() {
+      if (!this.battle) return;
+      if (this.battle.phase === 'intro' || this.battle.phase === 'turn' || this.battle.phase === 'result') {
+        if (this.battle.lineIndex < this.battle.lines.length - 1) {
+          this.battle.lineIndex += 1;
+          return;
+        }
+        if (this.battle.phase === 'intro') {
+          this.battle.phase = 'command';
+          this.battle.lineIndex = 0;
+          return;
+        }
+        if (this.battle.phase === 'turn') {
+          this.battle.phase = 'command';
+          this.battle.lineIndex = 0;
+          return;
+        }
+        if (this.battle.phase === 'result') {
+          this.finishBattle();
+        }
+        return;
+      }
+      if (this.battle.phase === 'command') {
+        this.executeBattleTurn();
+      }
+    }
+
     findInteractionTarget() {
       const map = this.currentMap();
       const pos = this.getFacingPos();
@@ -423,6 +577,18 @@ window.FRLG = window.FRLG || {};
       if (script === 'PalletTown_EventScript_OakStopsYou') {
         return (this.flow.events && this.flow.events.oakStopsYou) || ['오박사: 연구소로 오렴.'];
       }
+      if (script === 'PalletTown_ProfessorOaksLab_EventScript_Rival') {
+        if (!this.getFlag('starterChosen')) {
+          return (this.flow.npcLines && this.flow.npcLines[script]) || ['라이벌: 먼저 골라 보라고.'];
+        }
+        if (!this.getFlag('firstBattleDone')) {
+          this.queueBattleStart('starter-rival');
+          return (this.flow.events && this.flow.events.rivalBattleChallenge) || [
+            `${this.profile.rivalName || 'RIVAL'}: 좋아! 바로 한판 해 보자!`
+          ];
+        }
+        return (this.flow.events && this.flow.events.rivalAfterBattle) || ['라이벌: 흥! 다음엔 안 질 거야!'];
+      }
       const starterMap = {
         PalletTown_ProfessorOaksLab_EventScript_BulbasaurBall: 'BULBASAUR',
         PalletTown_ProfessorOaksLab_EventScript_CharmanderBall: 'CHARMANDER',
@@ -434,13 +600,19 @@ window.FRLG = window.FRLG || {};
           return (this.flow.events && this.flow.events.starterAlreadyChosen) || ['이미 스타터를 골랐다.'];
         }
         this.progress.starter = starterId;
+        this.progress.rivalStarter = this.getRivalStarter(starterId);
         this.setFlag('starterChosen', true);
         this.saveLocalSnapshot();
         if (this.hooks.onSceneChange) this.hooks.onSceneChange(this.world.mapId);
         return (this.flow.events && this.flow.events.starterPick && this.flow.events.starterPick[starterId]) || [`${starterId} 선택 완료.`];
       }
-      if (script === 'PalletTown_ProfessorOaksLab_EventScript_ProfOak' && this.getFlag('starterChosen')) {
-        return (this.flow.events && this.flow.events.oakAfterStarter) || ['오박사: 이제 시작이구나.'];
+      if (script === 'PalletTown_ProfessorOaksLab_EventScript_ProfOak') {
+        if (this.getFlag('firstBattleDone')) {
+          return (this.flow.events && this.flow.events.oakAfterBattle) || ['오박사: 좋아. 이제 진짜 모험의 시작이란다.'];
+        }
+        if (this.getFlag('starterChosen')) {
+          return (this.flow.events && this.flow.events.oakAfterStarter) || ['오박사: 이제 시작이구나.'];
+        }
       }
       return null;
     }
@@ -682,6 +854,33 @@ window.FRLG = window.FRLG || {};
       wrapText(this.ctx, text, 44, 270, 392, 20, '#ffffff', 14);
     }
 
+    drawBattle() {
+      const ctx = this.ctx;
+      const battle = this.battle;
+      if (!battle) return;
+      this.drawBg('#dcecc9', '#6f9664');
+      drawBattleBackdrop(ctx);
+      drawBattleStatus(ctx, 42, 42, `${this.profile.rivalName || 'RIVAL'} · ${this.getStarterLabel(battle.rivalStarter)}`, battle.enemyHp, false);
+      drawBattleStatus(ctx, 248, 188, `${this.profile.playerName || 'PLAYER'} · ${this.getStarterLabel(battle.playerStarter)}`, battle.playerHp, true);
+      drawBattleMon(ctx, 342, 126, this.getStarterAccent(battle.rivalStarter), 1.0, false);
+      drawBattleMon(ctx, 122, 216, this.getStarterAccent(battle.playerStarter), 1.1, true);
+
+      if (battle.phase === 'command') {
+        drawWindow(ctx, 250, 236, 188, 62, false, '#3b3f55', '#21263a');
+        centerText(ctx, '무엇을 할까?', 88, 258, 14, 1, '#1c2430');
+        const moves = ['몸통박치기', '울음소리'];
+        moves.forEach((move, idx) => {
+          const y = 258 + idx * 20;
+          ctx.fillStyle = idx === battle.selectedMove ? '#fff1a4' : '#ffffff';
+          ctx.font = '14px Arial';
+          ctx.fillText(`${idx === battle.selectedMove ? '▶' : ' '} ${move}`, 270, y);
+        });
+      } else {
+        const line = battle.lines[battle.lineIndex] || '배틀 skeleton';
+        this.drawDialogue(line);
+      }
+    }
+
     loop(now) {
       if (!this.running) return;
       this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -710,10 +909,56 @@ window.FRLG = window.FRLG || {};
         this.drawNameEntry(now);
       } else if (this.state === 'field') {
         this.drawField();
+      } else if (this.state === 'battle') {
+        this.drawBattle();
       }
 
       requestAnimationFrame(this.boundLoop);
     }
+  }
+
+  function drawBattleBackdrop(ctx) {
+    ctx.save();
+    ctx.fillStyle = '#a6c98d';
+    ctx.beginPath();
+    ctx.ellipse(114, 225, 84, 28, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#94b377';
+    ctx.beginPath();
+    ctx.ellipse(350, 138, 66, 22, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawBattleStatus(ctx, x, y, label, hp, playerSide) {
+    drawWindow(ctx, x, y, 188, 54, false, playerSide ? '#d8e8ef' : '#eef2d8', '#334250');
+    ctx.fillStyle = '#13202a';
+    ctx.font = '13px Arial';
+    ctx.fillText(label, x + 12, y + 18);
+    ctx.fillText(`HP ${Math.max(0, hp)}/20`, x + 12, y + 38);
+    ctx.fillStyle = '#202e34';
+    ctx.fillRect(x + 86, y + 26, 82, 10);
+    ctx.fillStyle = hp > 10 ? '#61d86f' : (hp > 5 ? '#f6cf62' : '#ef6969');
+    ctx.fillRect(x + 86, y + 26, Math.max(0, Math.min(82, Math.round((hp / 20) * 82))), 10);
+  }
+
+  function drawBattleMon(ctx, x, y, color, scale, back) {
+    ctx.save();
+    ctx.translate(x, y);
+    if (back) ctx.scale(-1, 1);
+    ctx.scale(scale, scale);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(0, -12, 26, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(-34, 10, 68, 18);
+    ctx.fillRect(-26, 24, 14, 18);
+    ctx.fillRect(12, 24, 14, 18);
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.fillRect(-10, -18, 10, 10);
+    ctx.fillStyle = '#142129';
+    ctx.fillRect(-6, -14, 4, 4);
+    ctx.restore();
   }
 
   function normalizeMapId(value) {

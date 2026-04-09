@@ -136,7 +136,7 @@ window.FRLG_MAP_DATA = {
         { local_id: 'LOCALID_BULBASAUR_BALL', graphics_id: 'OBJ_EVENT_GFX_ITEM_BALL', x: 8, y: 4, script: 'PalletTown_ProfessorOaksLab_EventScript_BulbasaurBall', hiddenWhen: 'starterChosen' },
         { local_id: 'LOCALID_SQUIRTLE_BALL', graphics_id: 'OBJ_EVENT_GFX_ITEM_BALL', x: 9, y: 4, script: 'PalletTown_ProfessorOaksLab_EventScript_SquirtleBall', hiddenWhen: 'starterChosen' },
         { local_id: 'LOCALID_CHARMANDER_BALL', graphics_id: 'OBJ_EVENT_GFX_ITEM_BALL', x: 10, y: 4, script: 'PalletTown_ProfessorOaksLab_EventScript_CharmanderBall', hiddenWhen: 'starterChosen' },
-        { local_id: 'LOCALID_OAKS_LAB_RIVAL', graphics_id: 'OBJ_EVENT_GFX_BLUE', x: 5, y: 4, script: 'PalletTown_ProfessorOaksLab_EventScript_Rival' },
+        { local_id: 'LOCALID_OAKS_LAB_RIVAL', graphics_id: 'OBJ_EVENT_GFX_BLUE', x: 5, y: 4, script: 'PalletTown_ProfessorOaksLab_EventScript_Rival', hiddenWhen: 'firstBattleDone' },
         { local_id: 'LOCALID_POKEDEX_1', graphics_id: 'OBJ_EVENT_GFX_POKEDEX', x: 4, y: 1, script: 'PalletTown_ProfessorOaksLab_EventScript_Pokedex' },
         { local_id: 'LOCALID_POKEDEX_2', graphics_id: 'OBJ_EVENT_GFX_POKEDEX', x: 5, y: 1, script: 'PalletTown_ProfessorOaksLab_EventScript_Pokedex' }
       ],

@@ -99,7 +99,7 @@ window.FRLG_FLOW_CONFIG = {
     '좋다! 이제 네 이름을 알려다오.',
     '이어서 네 라이벌의 이름도 정해야 해.'
   ],
-  roomMessage: 'Packege 맵 json skeleton 유지. RivalHouse / OaksLab / starter placeholder 흐름까지 연결 중.',
+  roomMessage: 'Packege 맵 json skeleton 유지. starter 선택 이후 rival 첫 배틀 skeleton까지 연결 중.',
   saveMessage: 'LOCAL 저장 완료.',
   signs: {
     PalletTown_EventScript_OaksLabSign: '오박사의 연구소다. 안에 들어가 볼까?',
@@ -126,7 +126,7 @@ window.FRLG_FLOW_CONFIG = {
     PalletTown_ProfessorOaksLab_EventScript_Aide2: ['조수: 스타터 볼과 이벤트는 아직 구현 전이야.'],
     PalletTown_ProfessorOaksLab_EventScript_Aide3: ['조수: 지금은 원본 흐름 skeleton을 먼저 맞추는 중이야.'],
     PalletTown_ProfessorOaksLab_EventScript_ProfOak: ['오박사: 좋아, 이제 연구소 안까지 왔구나.'],
-    PalletTown_ProfessorOaksLab_EventScript_Rival: ['라이벌: 흥, 먼저 포켓몬을 고를 수 있을까?'],
+    PalletTown_ProfessorOaksLab_EventScript_Rival: ['라이벌: 흥, 먼저 포켓몬을 골라 봐.'],
     PalletTown_ProfessorOaksLab_EventScript_Pokedex: ['도감이다. 아직은 placeholder 장식이다.'],
     PalletTown_ProfessorOaksLab_EventScript_BulbasaurBall: ['이건 이상해보이는 몬스터볼이다.'],
     PalletTown_ProfessorOaksLab_EventScript_SquirtleBall: ['물타입 스타터가 들어 있을 것 같은 볼이다.'],
@@ -137,13 +137,17 @@ window.FRLG_FLOW_CONFIG = {
       '오박사: 잠깐! 아직 혼자 밖으로 나가면 위험하단다.',
       '오박사: 연구소로 오렴. 보여줄 것이 있단다.'
     ],
-    starterAlreadyChosen: ['이미 스타터를 골랐다. 이제 다음 흐름을 붙이면 된다.'],
+    starterAlreadyChosen: ['이미 스타터를 골랐다. 이제 라이벌과 첫 배틀 흐름을 붙이면 된다.'],
     starterPick: {
       BULBASAUR: ['이상해씨를 골랐다!', '스타터 선택 skeleton 완료. 다음엔 전투/라이벌 선택 흐름을 붙이면 된다.'],
       CHARMANDER: ['파이리를 골랐다!', '스타터 선택 skeleton 완료. 다음엔 전투/라이벌 선택 흐름을 붙이면 된다.'],
       SQUIRTLE: ['꼬부기를 골랐다!', '스타터 선택 skeleton 완료. 다음엔 전투/라이벌 선택 흐름을 붙이면 된다.']
     },
-    oakAfterStarter: ['오박사: 좋다. 이제 진짜 원본 이벤트 순서를 차근차근 붙여 보자.']
+    rivalBattleChallenge: ['라이벌: 좋아! 그럼 곧바로 승부다!', '원본처럼 첫 라이벌 배틀 skeleton으로 이어진다.'],
+    rivalBattleWin: ['첫 라이벌 배틀 skeleton 완료.', '다음엔 라이벌 퇴장 / 오박사 후속 대사 / 실제 전투 규칙을 붙이면 된다.'],
+    rivalAfterBattle: ['라이벌: 흥! 다음엔 절대 안 질 거야!'],
+    oakAfterStarter: ['오박사: 스타터를 골랐구나. 이제 서로 실력을 시험해 보렴.'],
+    oakAfterBattle: ['오박사: 훌륭하구나. 이제 본격적으로 모험을 떠날 준비를 하자.']
   }
 };
 
