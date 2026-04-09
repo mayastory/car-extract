@@ -251,6 +251,12 @@ export class Overworld{
     
     this._lastSyncKey="";
     this._syncLatestCtx=null;
+    
+    // rt/get.php returns client_tick/tick. Keep the newest acknowledged/applied tick so
+    // a late same-map server sync cannot snap the player back to an older saved tile.
+    this._lastAckedClientTick = -1;
+    this._lastAppliedServerTick = -1;
+    
     this._syncEpoch=0;
     this._mapAsyncRev=0;
     this._mapLoadTxnSeq=0;
@@ -1724,6 +1730,13 @@ export class Overworld{
   }
   
 
+  _latestLocalStateTick(){
+    const queuedTick = Number.isFinite(this._syncLatest?.tick) ? (this._syncLatest.tick|0) : -1;
+    const ackedTick = Number.isFinite(this._lastAckedClientTick) ? (this._lastAckedClientTick|0) : -1;
+    const appliedTick = Number.isFinite(this._lastAppliedServerTick) ? (this._lastAppliedServerTick|0) : -1;
+    return Math.max(queuedTick, ackedTick, appliedTick);
+  }
+
   _applyServerState(st){
     
     if(!st) return;
@@ -1732,6 +1745,14 @@ export class Overworld{
       
       return false;
       
+    }
+    
+    const incomingTick = Number.isFinite(st?.tick) ? (st.tick|0) : (Number.isFinite(st?.client_tick) ? (st.client_tick|0) : null);
+    if(incomingTick != null){
+      const localTickFloor = this._latestLocalStateTick();
+      if(localTickFloor >= 0 && incomingTick < localTickFloor){
+        return false;
+      }
     }
     
     if(typeof st.x === 'number') this.player.x = st.x|0;
@@ -1763,6 +1784,10 @@ export class Overworld{
     this._lastSyncKey = `${payload.map_id}:${payload.x}:${payload.y}:${payload.dir}`;
     
     this._syncLatest = payload;
+    
+    if(incomingTick != null){
+      this._lastAppliedServerTick = incomingTick;
+    }
     
     return true;
     
@@ -5124,6 +5149,9 @@ if (Number.isFinite(w.dest_x) && Number.isFinite(w.dest_y)) {
           if(r.ok){
             
             this._lastSyncKey = sendKey;
+            if(Number.isFinite(send?.tick)){
+              this._lastAckedClientTick = (send.tick|0);
+            }
             
             this.status("DB 동기화 OK");
             
