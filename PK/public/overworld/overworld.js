@@ -2514,6 +2514,7 @@ export class Overworld{
     const nb=this._neighborCache.get(c.map_id);
     if(!nb) return false;
     const off=(c.offset||0)|0;
+    const txn = this._beginMapLoadTxn(c.map_id);
 
     const ts=this.tileSize;
     let newX=0, newY=0;
@@ -2545,6 +2546,11 @@ export class Overworld{
     newX=Math.max(0,Math.min(nb.map.width-1,newX|0));
     newY=Math.max(0,Math.min(nb.map.height-1,newY|0));
 
+    // Treat seamless connection commit as a real map-state swap.
+    // Without a transient reset/revision bump here, old NPC/item/mob/sync work from the
+    // previous outdoor map can leak into the newly committed neighbor map.
+    this._resetMapTransientState({ clearNeighbors:false, preserveMapLoadInFlight:true });
+
     // Apply new map + tileset instantly (no flash)
     this.map = nb.map;
     this.tilesetCols = nb.tilesetCols||16;
@@ -2555,52 +2561,49 @@ export class Overworld{
 
     // Adjust camera so the screen doesn't "jump" when local coordinates reset.
     this.camera.x += camDx;
-    
     this.camera.y += camDy;
-    
 
     // Snap player into the new map.
     this.player.x=newX;
-     this.player.y=newY;
-    
+    this.player.y=newY;
     this.player.px=newX;
-     this.player.py=newY;
-    
+    this.player.py=newY;
 
     // Done
     this._edgePending=null;
-    
     this._moveSecondsNow=null;
-    
     this._jumping=false;
-    
+
     this.status(`맵 연결: ${c.map_id}`);
-    
     this._log(`Seamless -> ${c.map_id} (${dir}, off=${off})`);
-    
+
+    // The map swap itself is committed at this point. Let fresh map-scoped async work
+    // start from the new async revision only after the local commit finished.
+    this._finishMapLoadTxn(txn);
     this._emitMapChange("connection");
 
-    // Prefetch next neighbors and persist position.
+    // Prefetch next neighbors and persist/fetch new map state only after the commit.
     this._prefetchNeighbors();
-    
-    this._fetchNpcs().catch(()=>{
-      }
-    );
-    
-    // Freeze input until DB sync + first mob fetch completes (pre-seed avoids pop-in)
+
+    // Freeze input until DB sync + first state fetch completes (pre-seed avoids pop-in)
     this._loading=true;
-    
-    this._upsert().then(()=>this._fetchMobs()).catch(()=>{
+
+    (async()=>{
+      try{
+        await this._upsert();
+        await this._fetchMobs();
+        await this._fetchItems();
+        await this._fetchNpcs();
       }
-    ).finally(()=>{
-      
-      this._loading=false;
-      
-    }
-    );
-    
+      catch(e){
+      }
+      finally{
+        this._loading=false;
+      }
+    })();
+
     return true;
-    
+
   }
   
 
