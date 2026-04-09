@@ -1737,7 +1737,7 @@ export class Overworld{
     return Math.max(queuedTick, ackedTick, appliedTick);
   }
 
-  _applyServerState(st){
+  _applyServerState(st, opts={}){
     
     if(!st) return;
     
@@ -1747,8 +1747,9 @@ export class Overworld{
       
     }
     
+    const authoritativeMapChange = !!opts?.authoritativeMapChange;
     const incomingTick = Number.isFinite(st?.tick) ? (st.tick|0) : (Number.isFinite(st?.client_tick) ? (st.client_tick|0) : null);
-    if(incomingTick != null){
+    if(!authoritativeMapChange && incomingTick != null){
       const localTickFloor = this._latestLocalStateTick();
       if(localTickFloor >= 0 && incomingTick < localTickFloor){
         return false;
@@ -1822,6 +1823,7 @@ export class Overworld{
       
       if(!st) return;
       
+      let authoritativeMapChange = false;
       if(st.map_id && (!this.map || this.map.map_id !== st.map_id)){
         
         try{
@@ -1831,6 +1833,7 @@ export class Overworld{
              deferPostLoadSideEffects:true}
            );
            if(loaded === false) return;
+           authoritativeMapChange = true;
            }
         catch(e){
           }
@@ -1838,7 +1841,7 @@ export class Overworld{
       }
       
       if(!this._isServerStateReqCurrent(serverReq)) return;
-      const applied = this._applyServerState(st);
+      const applied = this._applyServerState(st, { authoritativeMapChange });
       if(applied) this._runPostLoadSideEffects("server-sync");
       
     }
@@ -1915,6 +1918,7 @@ export class Overworld{
           const st = j.state;
           
           // If map differs, try to load it (no reload if already loaded)
+          let authoritativeMapChange = false;
           if(st.map_id && (!this.map || this.map.map_id !== st.map_id)){
             
             try{
@@ -1925,6 +1929,7 @@ export class Overworld{
                );
                if(loaded === false) return;
                if(!this._isServerStateReqCurrent(serverReq)) return;
+               authoritativeMapChange = true;
                }
             catch(e){
               }
@@ -1932,7 +1937,7 @@ export class Overworld{
           }
           
           if(!this._isServerStateReqCurrent(serverReq)) return;
-          const applied = this._applyServerState(st);
+          const applied = this._applyServerState(st, { authoritativeMapChange });
           if(applied) this._runPostLoadSideEffects("server-init");
           
         }
