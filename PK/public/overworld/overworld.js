@@ -1210,6 +1210,14 @@ export class Overworld{
   }
 
 
+  _runPostLoadSideEffects(reason="load"){
+    this._prefetchNeighbors();
+    this._fetchNpcs().catch(()=>{});
+    this._emitMapChange(reason);
+    this._log(`로드: ${this.map?.map_id || 'UNKNOWN'} (${this.map?.width||0}x${this.map?.height||0})`);
+  }
+
+
   _emitMapChange(reason="load"){
 
     const mapId = String(this.map?.map_id || "");
@@ -1478,16 +1486,7 @@ export class Overworld{
     const deferPostLoadSideEffects = !!(opts && opts.deferPostLoadSideEffects);
 
     if(!deferPostLoadSideEffects){
-      // Prefetch connected maps (for seamless connection preview)
-      this._prefetchNeighbors();
-
-      this._fetchNpcs().catch(()=>{
-        }
-      );
-
-      this._emitMapChange(meta?.reason || opts?.mapChangeReason || (opts?.transition ? "connection" : "load"));
-
-      this._log(`로드: ${this.map?.map_id || 'UNKNOWN'} (${this.map?.width||0}x${this.map?.height||0})`);
+      this._runPostLoadSideEffects(meta?.reason || opts?.mapChangeReason || (opts?.transition ? "connection" : "load"));
     }
 
     return true;
@@ -1794,7 +1793,8 @@ export class Overworld{
         try{
            const loaded = await this.loadPret(st.map_id, {
              mapChangeReason:"server-sync",
-             preserveServerStateReq:true}
+             preserveServerStateReq:true,
+             deferPostLoadSideEffects:true}
            );
            if(loaded === false) return;
            }
@@ -1804,7 +1804,8 @@ export class Overworld{
       }
       
       if(!this._isServerStateReqCurrent(serverReq)) return;
-      this._applyServerState(st);
+      const applied = this._applyServerState(st);
+      if(applied) this._runPostLoadSideEffects("server-sync");
       
     }
     catch(e){
@@ -1885,7 +1886,8 @@ export class Overworld{
             try{
                const loaded = await this.loadPret(st.map_id, {
                  mapChangeReason:"server-init",
-                 preserveServerStateReq:true}
+                 preserveServerStateReq:true,
+                 deferPostLoadSideEffects:true}
                );
                if(loaded === false) return;
                if(!this._isServerStateReqCurrent(serverReq)) return;
@@ -1896,7 +1898,8 @@ export class Overworld{
           }
           
           if(!this._isServerStateReqCurrent(serverReq)) return;
-          this._applyServerState(st);
+          const applied = this._applyServerState(st);
+          if(applied) this._runPostLoadSideEffects("server-init");
           
         }
         

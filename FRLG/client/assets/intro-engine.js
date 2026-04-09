@@ -74,6 +74,8 @@ window.FRLG = window.FRLG || {};
       this.oakLine = 0;
       this.genderIndex = 0;
       this.postGenderLine = 0;
+      this.controlsGuidePage = 0;
+      this.pikachuIntroPage = 0;
       this.nameMode = 'player';
       this.profile = {
         gender: 'M',
@@ -129,9 +131,13 @@ window.FRLG = window.FRLG || {};
     updateStatus() {
       const current = this.state === 'intro'
         ? this.currentScene().id
-        : (this.state === 'field' || this.state === 'field-menu')
-          ? this.world.mapId
-          : this.state;
+        : this.state === 'controls-guide'
+          ? `controls:${this.controlsGuidePage + 1}`
+          : this.state === 'pikachu-intro'
+            ? `pikachu-intro:${this.pikachuIntroPage + 1}`
+            : (this.state === 'field' || this.state === 'field-menu')
+              ? this.world.mapId
+              : this.state;
       if (this.hooks.onSceneChange) this.hooks.onSceneChange(current);
       if (this.hooks.onPhaseChange) this.hooks.onPhaseChange(this.state);
     }
@@ -151,6 +157,8 @@ window.FRLG = window.FRLG || {};
     setState(nextState) {
       this.state = nextState;
       if (nextState === 'field-menu') this.fieldMenuIndex = 0;
+      if (nextState === 'controls-guide') this.controlsGuidePage = 0;
+      if (nextState === 'pikachu-intro') this.pikachuIntroPage = 0;
       this.sceneStart = performance.now();
       this.updateStatus();
       this.emitSaveState();
@@ -176,6 +184,26 @@ window.FRLG = window.FRLG || {};
           break;
         case 'main-menu':
           this.handleMenuConfirm();
+          break;
+        case 'controls-guide':
+          if (this.controlsGuidePage < 2) {
+            this.controlsGuidePage += 1;
+            this.updateStatus();
+          } else {
+            this.setState('pikachu-intro');
+          }
+          break;
+        case 'pikachu-intro':
+          if (this.pikachuIntroPage < 1) {
+            this.pikachuIntroPage += 1;
+            this.updateStatus();
+          } else if (window.FRLG && typeof window.FRLG.OakSpeech === 'function') {
+            this.oakSpeech = new window.FRLG.OakSpeech(this);
+            this.setState('oak-speech');
+          } else {
+            this.oakLine = 0;
+            this.setState('oak-intro');
+          }
           break;
         case 'oak-speech':
           if (this.oakSpeech && typeof this.oakSpeech.onAction === 'function') {
@@ -222,13 +250,9 @@ window.FRLG = window.FRLG || {};
 
     handleMenuConfirm() {
       if (this.menuIndex === 0) {
-        if (window.FRLG && typeof window.FRLG.OakSpeech === 'function') {
-          this.oakSpeech = new window.FRLG.OakSpeech(this);
-          this.setState('oak-speech');
-        } else {
-          this.oakLine = 0;
-          this.setState('oak-intro');
-        }
+        this.controlsGuidePage = 0;
+        this.pikachuIntroPage = 0;
+        this.setState('controls-guide');
         return;
       }
       if (this.menuIndex === 1 && this.continueSnapshot) {
@@ -920,6 +944,26 @@ window.FRLG = window.FRLG || {};
           this.onAction();
           return;
         case 'b':
+          if (this.state === 'controls-guide') {
+            if (this.controlsGuidePage > 0) {
+              this.controlsGuidePage -= 1;
+              this.updateStatus();
+            } else {
+              this.setState('main-menu');
+            }
+            return;
+          }
+          if (this.state === 'pikachu-intro') {
+            if (this.pikachuIntroPage > 0) {
+              this.pikachuIntroPage -= 1;
+              this.updateStatus();
+            } else {
+              this.setState('controls-guide');
+              this.controlsGuidePage = 2;
+              this.updateStatus();
+            }
+            return;
+          }
           if (this.state === 'oak-speech' && this.oakSpeech && typeof this.oakSpeech.onBackspace === 'function') {
             this.oakSpeech.onBackspace();
             return;
@@ -972,7 +1016,23 @@ window.FRLG = window.FRLG || {};
       }
       if (e.key === 'Backspace') {
         e.preventDefault();
-        if (this.state === 'oak-speech' && this.oakSpeech && typeof this.oakSpeech.onBackspace === 'function') {
+        if (this.state === 'controls-guide') {
+          if (this.controlsGuidePage > 0) {
+            this.controlsGuidePage -= 1;
+            this.updateStatus();
+          } else {
+            this.setState('main-menu');
+          }
+        } else if (this.state === 'pikachu-intro') {
+          if (this.pikachuIntroPage > 0) {
+            this.pikachuIntroPage -= 1;
+            this.updateStatus();
+          } else {
+            this.setState('controls-guide');
+            this.controlsGuidePage = 2;
+            this.updateStatus();
+          }
+        } else if (this.state === 'oak-speech' && this.oakSpeech && typeof this.oakSpeech.onBackspace === 'function') {
           this.oakSpeech.onBackspace();
         } else {
           this.backspaceName();
@@ -1010,27 +1070,78 @@ window.FRLG = window.FRLG || {};
     }
 
     drawTitle(now) {
-      this.drawBg('#1d2312', '#04070a');
-      drawLeafBackdrop(this.ctx, now);
-      centerText(this.ctx, 'POKéMON', 240, 108, 42, 1, '#ffe65d');
-      centerText(this.ctx, 'LEAF GREEN / FIRE RED', 240, 145, 18, 1, '#ffffff');
-      const blink = Math.sin(now / 280) > 0 ? 1 : 0.25;
-      centerText(this.ctx, 'PRESS ENTER', 240, 240, 18, blink, '#dff8ff');
-      centerText(this.ctx, 'starter flow prototype', 240, 274, 11, 0.8, '#9ccdd7');
+      this.drawBg('#000000', '#000000');
+      centerText(this.ctx, 'POKéMON', 240, 114, 40, 1, '#f7f7f7');
+      centerText(this.ctx, 'FIRE RED / LEAF GREEN', 240, 148, 16, 1, '#cfd8de');
+      const blink = Math.sin(now / 260) > 0 ? 1 : 0.2;
+      centerText(this.ctx, 'PRESS START', 240, 246, 18, blink, '#ffffff');
     }
 
     drawMenu() {
-      this.drawBg('#102233', '#081018');
-      centerText(this.ctx, 'MAIN MENU', 240, 92, 22, 1, '#ffffff');
+      this.drawBg('#f2f6f8', '#d8e3ea');
       const canContinue = !!this.continueSnapshot;
-      const items = ['NEW GAME', canContinue ? 'CONTINUE (LOCAL)' : 'CONTINUE (없음)'];
+      const items = ['NEW GAME', 'CONTINUE'];
+      drawWindow(this.ctx, 136, 106, 208, 78, false, '#ffffff', '#7d95a7', 'std');
       items.forEach((item, idx) => {
-        const y = 150 + idx * 40;
-        drawWindow(this.ctx, 132, y - 20, 216, 30, idx === this.menuIndex);
-        const alpha = idx === 1 && !canContinue ? 0.42 : 1;
-        centerText(this.ctx, item, 240, y, 16, alpha, '#ffffff');
+        const y = 134 + idx * 28;
+        if (idx === this.menuIndex) drawMenuArrow(this.ctx, 156, y - 8, '#203040');
+        centerText(this.ctx, item, 242, y, 16, idx === 1 && !canContinue ? 0.42 : 1, '#25323c');
       });
-      centerText(this.ctx, '방향키 선택 · Enter 확인', 240, 286, 11, 0.8, '#9ccdd7');
+    }
+
+    drawControlsGuide() {
+      const ctx = this.ctx;
+      const page = this.controlsGuidePage;
+      drawControlsGuideBackdrop(ctx);
+      drawWindow(ctx, 18, 14, 444, 32, false, '#ffffff', '#4f6b88', 'std');
+      centerText(ctx, page === 0 ? 'CONTROLS' : 'CONTROLS GUIDE', 112, 35, 16, 1, '#23313d');
+      centerText(ctx, page === 0 ? 'A: NEXT' : 'A: NEXT  B: BACK', 388, 35, 12, 1, '#23313d');
+
+      if (page === 0) {
+        drawWindow(ctx, 58, 72, 364, 170, false, '#ffffff', '#7d95a7', 'std');
+        const lines = [
+          ['START', '메뉴를 엽니다.'],
+          ['SELECT', '편리도구를 등록해 사용합니다.'],
+          ['L / R', '도움말을 봅니다.'],
+        ];
+        lines.forEach((row, idx) => {
+          const y = 118 + idx * 50;
+          ctx.save();
+          ctx.fillStyle = '#23313d';
+          ctx.font = 'bold 26px Arial';
+          ctx.fillText(row[0], 82, y);
+          ctx.font = '20px Arial';
+          wrapText(ctx, row[1], 192, y - 6, 190, 24, '#23313d', 20);
+          ctx.restore();
+        });
+      } else {
+        drawWindow(ctx, 40, 64, 400, 178, false, '#ffffff', '#7d95a7', 'std');
+        const pageLines = page === 1
+          ? ['방향키로 커서를 움직입니다.', 'A 버튼으로 결정합니다.', 'B 버튼으로 취소하거나 이전으로 돌아갑니다.']
+          : ['길을 나서기 전에 기본 조작을 다시 확인합니다.', 'A 버튼은 결정, B 버튼은 취소입니다.', '다음 페이지로 넘어가려면 A 버튼을 누르세요.'];
+        pageLines.forEach((line, idx) => {
+          wrapText(ctx, line, 66, 108 + idx * 42, 344, 22, '#23313d', 18);
+        });
+      }
+    }
+
+    drawPikachuIntro(now) {
+      const ctx = this.ctx;
+      drawControlsGuideBackdrop(ctx);
+      drawWindow(ctx, 18, 14, 444, 32, false, '#ffffff', '#4f6b88', 'std');
+      centerText(ctx, 'A: NEXT  B: BACK', 382, 35, 12, 1, '#23313d');
+
+      const body = PACKEGE_OAK_SPEECH_ASSETS.pikachuBody;
+      const ears = PACKEGE_OAK_SPEECH_ASSETS.pikachuEars;
+      const eyes = PACKEGE_OAK_SPEECH_ASSETS.pikachuEyes;
+      const bob = Math.sin(now / 180) * 1.5;
+      drawPikachuIntroSprite(ctx, body, ears, eyes, 240, 138 + bob);
+
+      drawWindow(ctx, 38, 222, 404, 72, false, '#ffffff', '#4f6b88', 'std');
+      const lines = this.pikachuIntroPage === 0
+        ? '포켓몬과 사람은 서로 도우며 함께 살아갑니다.'
+        : '이제 곧 오박사가 너를 포켓몬의 세계로 안내할 것이다.';
+      wrapText(ctx, lines, 60, 248, 360, 20, '#23313d', 15);
     }
 
     drawOakIntro() {
@@ -1355,6 +1466,10 @@ window.FRLG = window.FRLG || {};
         this.drawTitle(now);
       } else if (this.state === 'main-menu') {
         this.drawMenu();
+      } else if (this.state === 'controls-guide') {
+        this.drawControlsGuide();
+      } else if (this.state === 'pikachu-intro') {
+        this.drawPikachuIntro(now);
       } else if (this.state === 'oak-speech') {
         if (this.oakSpeech && typeof this.oakSpeech.draw === 'function') {
           this.oakSpeech.draw(now);
@@ -1544,12 +1659,16 @@ window.FRLG = window.FRLG || {};
       return img;
     };
     return {
+      bgTiles: load(`${PACKEGE_OAK_SPEECH_BASE}/bg_tiles.png`),
       bg: load(`${PACKEGE_OAK_SPEECH_BASE}/oak_speech_bg.png`),
       platform: load(`${PACKEGE_OAK_SPEECH_BASE}/platform.png`),
       oak: load(`${PACKEGE_OAK_SPEECH_BASE}/oak/pic.png`),
       red: load(`${PACKEGE_OAK_SPEECH_BASE}/red/pic.png`),
       leaf: load(`${PACKEGE_OAK_SPEECH_BASE}/leaf/pic.png`),
-      rival: load(`${PACKEGE_OAK_SPEECH_BASE}/rival/pic.png`)
+      rival: load(`${PACKEGE_OAK_SPEECH_BASE}/rival/pic.png`),
+      pikachuBody: load(`${PACKEGE_OAK_SPEECH_BASE}/pikachu_intro/body.png`),
+      pikachuEars: load(`${PACKEGE_OAK_SPEECH_BASE}/pikachu_intro/ears.png`),
+      pikachuEyes: load(`${PACKEGE_OAK_SPEECH_BASE}/pikachu_intro/eyes.png`)
     };
   }
 
@@ -1861,31 +1980,55 @@ window.FRLG = window.FRLG || {};
     return canvas;
   }
 
-  function drawOakSpeechBackdrop(ctx) {
-    const bg = PACKEGE_OAK_SPEECH_ASSETS.bg;
-    const contentHeight = 210;
+  function drawControlsGuideBackdrop(ctx) {
+    const bgTiles = PACKEGE_OAK_SPEECH_ASSETS.bgTiles;
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    if (bgTiles && bgTiles.complete && bgTiles.naturalWidth) {
+      ctx.fillStyle = '#1f84dc';
+      ctx.fillRect(0, 0, 480, 320);
+      const topStrip = Math.floor(bgTiles.naturalHeight * 0.4);
+      ctx.drawImage(bgTiles, 0, 0, bgTiles.naturalWidth, topStrip, 0, 50, 480, 182);
+      ctx.fillStyle = '#0d74bf';
+      ctx.fillRect(0, 0, 480, 50);
+      ctx.fillRect(0, 232, 480, 88);
+    } else {
+      ctx.fillStyle = '#1f84dc';
+      ctx.fillRect(0, 0, 480, 320);
+    }
+    ctx.restore();
+  }
 
-    if (bg && bg.complete && bg.naturalWidth && bg.naturalHeight) {
+  function drawPikachuIntroSprite(ctx, body, ears, eyes, cx, cy) {
+    const parts = [body, ears, eyes].filter(Boolean);
+    if (parts.length && parts.every(img => img.complete && img.naturalWidth)) {
       const scale = 2;
-      const tileW = bg.naturalWidth * scale;
-      const tileH = bg.naturalHeight * scale;
       ctx.save();
       ctx.imageSmoothingEnabled = false;
-      for (let y = 0; y < contentHeight; y += tileH) {
-        for (let x = 0; x < 480; x += tileW) {
-          ctx.drawImage(bg, 0, 0, bg.naturalWidth, bg.naturalHeight, x, y, tileW, tileH);
-        }
-      }
+      const baseW = body.naturalWidth * scale;
+      const baseH = body.naturalHeight * scale;
+      const x = Math.round(cx - baseW / 2);
+      const y = Math.round(cy - baseH / 2);
+      ctx.drawImage(body, x, y, baseW, baseH);
+      ctx.drawImage(ears, x, y, ears.naturalWidth * scale, ears.naturalHeight * scale);
+      ctx.drawImage(eyes, x, y, eyes.naturalWidth * scale, eyes.naturalHeight * scale);
       ctx.restore();
-    } else {
-      const gradient = ctx.createLinearGradient(0, 0, 0, 246);
-      gradient.addColorStop(0, '#edf5fa');
-      gradient.addColorStop(1, '#c8dceb');
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, 480, 246);
+      return true;
     }
 
-    ctx.fillStyle = '#d8e6ef';
+    ctx.save();
+    ctx.fillStyle = '#ffe23a';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 28, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return false;
+  }
+
+  function drawOakSpeechBackdrop(ctx) {
+    ctx.fillStyle = '#edf3f0';
+    ctx.fillRect(0, 0, 480, 210);
+    ctx.fillStyle = '#d6e0e3';
     ctx.fillRect(0, 210, 480, 36);
   }
 
@@ -2054,6 +2197,8 @@ window.FRLG = window.FRLG || {};
     drawUiBanner,
     drawUiGlyph,
     drawUiCell,
+    drawControlsGuideBackdrop,
+    drawPikachuIntroSprite,
     drawOakSpeechBackdrop,
     drawOakSpeechPlatform,
     drawOakSpeechCharacter,
