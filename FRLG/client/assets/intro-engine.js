@@ -884,6 +884,47 @@ window.FRLG = window.FRLG || {};
       return ['아직 연결되지 않은 오브젝트다.'];
     }
 
+    handleVirtualButton(name) {
+      switch (name) {
+        case 'reset':
+          this.restart();
+          return;
+        case 'menu':
+          if (this.state === 'field') {
+            this.openFieldMenu();
+            return;
+          }
+          if (this.state === 'field-menu') {
+            this.closeFieldMenu();
+          }
+          return;
+        case 'a':
+          this.onAction();
+          return;
+        case 'b':
+          if (this.state === 'name-entry') {
+            this.backspaceName();
+            return;
+          }
+          if (this.state === 'field-menu') {
+            this.closeFieldMenu();
+          }
+          return;
+        case 'up':
+          this.moveSelection(0, -1);
+          return;
+        case 'down':
+          this.moveSelection(0, 1);
+          return;
+        case 'left':
+          this.moveSelection(-1, 0);
+          return;
+        case 'right':
+          this.moveSelection(1, 0);
+          return;
+      }
+    }
+
     handleKeyDown(e) {
       if (e.key === 'r' || e.key === 'R') {
         e.preventDefault();
@@ -1633,18 +1674,29 @@ window.FRLG = window.FRLG || {};
 
   function drawWindow(ctx, x, y, w, h, selected = false, fill = '#0e2132', line = '#4ca7db', skin = 'plain') {
     ctx.save();
-    if (skin === 'std' && PACKEGE_UI_ASSETS.windowStd?.complete && PACKEGE_UI_ASSETS.windowStd?.naturalWidth) {
-      tileUiTexture(ctx, PACKEGE_UI_ASSETS.windowStd, x, y, w, h);
-      if (PACKEGE_UI_ASSETS.windowMenuMessage?.complete && PACKEGE_UI_ASSETS.windowMenuMessage?.naturalWidth && h >= 24) {
-        drawUiBanner(ctx, PACKEGE_UI_ASSETS.windowMenuMessage, x + 8, y + 4, Math.max(48, Math.min(w - 16, 96)), 24);
-      }
-    } else {
-      ctx.fillStyle = fill;
-      ctx.fillRect(x, y, w, h);
-    }
-    ctx.strokeStyle = selected ? '#ffffff' : line;
+
+    const outer = skin === 'std' ? '#274764' : line;
+    const innerFill = skin === 'std' ? '#f8fff8' : fill;
+    const shadow = skin === 'std' ? 'rgba(9, 20, 31, 0.45)' : 'rgba(0, 0, 0, 0.18)';
+
+    ctx.fillStyle = shadow;
+    ctx.fillRect(x + 3, y + 3, w, h);
+
+    ctx.fillStyle = outer;
+    ctx.fillRect(x, y, w, h);
+
+    ctx.fillStyle = innerFill;
+    ctx.fillRect(x + 3, y + 3, Math.max(0, w - 6), Math.max(0, h - 6));
+
+    ctx.strokeStyle = selected ? '#ffffff' : outer;
     ctx.lineWidth = selected ? 3 : 2;
     ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+
+    if (skin === 'std' && h >= 20) {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+      ctx.fillRect(x + 5, y + 5, Math.max(0, w - 10), 2);
+    }
+
     ctx.restore();
   }
 
