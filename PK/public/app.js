@@ -540,14 +540,20 @@ async function boot({ forceReload = false } = {}) {
     } else {
       state.ow.playToken = playToken;
     }
-    await loadMap(currentMapId());
     if (!state.ow._started) state.ow.start();
+    setPretStatus("플레이어 상태 불러오는 중...", false);
     if (state.ow._serverInitPromise) {
       try {
         await state.ow._serverInitPromise;
       } catch (_e) {
         // handled by fetch overlay / later validation
       }
+    }
+    if (!state.ow.map) {
+      await loadMap(currentMapId(), { mapChangeReason: "boot-fallback" });
+    } else {
+      updateZoomLabel();
+      updateLocalNameplate();
     }
     if (!(Number(state.ow.playerId) > 0)) {
       redirectToLogin("player_bootstrap_failed");
