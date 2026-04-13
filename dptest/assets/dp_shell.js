@@ -26,6 +26,7 @@
     '/jtgpt': 'jtgpt_view.php',
     '/shipinglist': 'shipinglist_list.php',
     '/rma': 'RMAlist_list.php',
+    '/customer_hold': 'customer_hold_list.php',
     '/oqc': 'oqc_view.php',
     '/oqc_holdinglist': 'oqc_holding_list.php',
     '/ipqc': 'ipqc_view.php'

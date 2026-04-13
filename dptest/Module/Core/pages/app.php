@@ -28,6 +28,7 @@ if ($view === '') {
     if (preg_match('#/jtgpt/?(\?|$)#', $uri)) $view = 'jtgpt';
     elseif (preg_match('#/shipinglist/?(\?|$)#', $uri)) $view = 'shipinglist';
     elseif (preg_match('#/rma/?(\?|$)#', $uri)) $view = 'rma';
+    elseif (preg_match('#/customer_hold/?(\?|$)#', $uri)) $view = 'customer_hold';
     elseif (preg_match('#/oqc/?(\?|$)#', $uri)) $view = 'oqc';
     elseif (preg_match('#/oqc_holdinglist/?(\?|$)#', $uri)) $view = 'oqc_holdinglist';
     elseif (preg_match('#/ipqc/?(\?|$)#', $uri)) $view = 'ipqc';
@@ -38,6 +39,7 @@ $views = [
   'jtgpt'      => ['src' => 'jtgpt_view.php'],
   'shipinglist' => ['src' => 'shipinglist_list.php'],
   'rma'         => ['src' => 'RMAlist_list.php'],
+  'customer_hold' => ['src' => 'customer_hold_list.php'],
   'oqc'             => ['src' => 'oqc_view.php'],
   'oqc_holdinglist' => ['src' => 'oqc_holding_list.php'],
   'ipqc'            => ['src' => 'ipqc_view.php'],
@@ -92,6 +94,7 @@ if (!$unifiedCssV) $unifiedCssV = time();
       jtgpt: 'jtgpt_view.php',
       shipinglist: 'shipinglist_list.php',
       rma: 'RMAlist_list.php',
+      customer_hold: 'customer_hold_list.php',
       oqc: 'oqc_view.php',
       oqc_holdinglist: 'oqc_holding_list.php',
       ipqc: 'ipqc_view.php'

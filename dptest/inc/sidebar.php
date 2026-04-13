@@ -41,6 +41,13 @@ function dp_sidebar_render(string $active = ''): string
 			'icon'  => '🧾',
 		],
 		[
+			'key'   => 'customer_hold',
+			'title' => '고객사 출하 홀딩 내역',
+			'href'  => dp_url('customer_hold'),
+			'nav'   => '/customer_hold',
+			'icon'  => '🚚',
+		],
+		[
 			'key'   => 'oqc',
 			'title' => 'OQC 측정 데이터 조회',
 			'href'  => dp_url('oqc'),          // pretty url (fallback)
