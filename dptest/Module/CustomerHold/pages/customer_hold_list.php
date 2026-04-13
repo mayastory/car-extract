@@ -579,6 +579,7 @@ body{
     border-bottom:1px solid var(--line);
     background:var(--cell);
     vertical-align:middle;
+    text-align:center;
 }
 .sheet thead th{
     position:sticky;
@@ -586,7 +587,7 @@ body{
     z-index:3;
     background:var(--header);
     color:#d1fae5;
-    text-align:left;
+    text-align:center;
     padding:10px 10px;
     font-size:12px;
 }
@@ -647,6 +648,7 @@ body{
     min-height:22px;
     appearance:none;
     -webkit-appearance:none;
+    text-align:center;
     white-space:nowrap;
     overflow:hidden;
     text-overflow:ellipsis;
@@ -673,7 +675,7 @@ body{
     border:none;
     background:transparent;
     color:var(--text);
-    text-align:left;
+    text-align:center;
     font:inherit;
     font-size:12px;
     line-height:1.16;
@@ -727,6 +729,7 @@ body{
     border:none;
     padding:4px 24px 4px 6px;
     font-size:12px;
+    text-align:center;
     line-height:1.2;
     appearance:auto;
     -webkit-appearance:menulist;
@@ -942,6 +945,35 @@ function anyFilled(row, keys){
     });
 }
 
+function toolPrimaryKey(value){
+    const raw = normalizeText(value || '').toUpperCase();
+    if (!raw) return 'ZZZZ';
+    const firstLine = raw.split(/\n+/)[0] || '';
+    const token = firstLine.split(/[\s\/,]+/).map(function(v){ return normalizeText(v); }).filter(Boolean)[0] || firstLine;
+    if (!token) return 'ZZZZ';
+    if (token === 'ALL') return 'ZZZY';
+    return token;
+}
+
+function toolFullKey(value){
+    const raw = normalizeText(value || '').toUpperCase();
+    return raw === '' ? 'ZZZZ' : raw;
+}
+
+function sortToolRowsForModel(rows){
+    return (rows || []).slice().sort(function(a, b){
+        const aTool = normalizeText(a && a.tool_text);
+        const bTool = normalizeText(b && b.tool_text);
+        const aPrimary = toolPrimaryKey(aTool);
+        const bPrimary = toolPrimaryKey(bTool);
+        if (aPrimary !== bPrimary) return aPrimary.localeCompare(bPrimary, 'en', { numeric:true, sensitivity:'base' });
+        const aFull = toolFullKey(aTool);
+        const bFull = toolFullKey(bTool);
+        if (aFull !== bFull) return aFull.localeCompare(bFull, 'en', { numeric:true, sensitivity:'base' });
+        return ((a && Number(a.sort_order)) || 0) - ((b && Number(b.sort_order)) || 0);
+    });
+}
+
 function buildToolGroups(rows){
     const grouped = {};
     state.models.forEach(function(model){ grouped[model] = []; });
@@ -949,6 +981,9 @@ function buildToolGroups(rows){
         const model = String(row.part_name || '').toUpperCase();
         if (!grouped[model]) grouped[model] = [];
         grouped[model].push(row);
+    });
+    Object.keys(grouped).forEach(function(model){
+        grouped[model] = sortToolRowsForModel(grouped[model]);
     });
     return grouped;
 }
@@ -1065,6 +1100,31 @@ function insertToolRowBelow(tr){
     setDirty(true);
 }
 
+function sortToolTbodyRows(tbody){
+    if (!tbody) return;
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    const nonBlank = [];
+    const blanks = [];
+    rows.forEach(function(tr, idx){
+        const data = rowDataFromTr(tr, toolColumns);
+        const entry = { tr: tr, idx: idx, data: data };
+        if (isToolBlankRow(tr)) blanks.push(entry);
+        else nonBlank.push(entry);
+    });
+    nonBlank.sort(function(a, b){
+        const aPrimary = toolPrimaryKey(a.data.tool_text);
+        const bPrimary = toolPrimaryKey(b.data.tool_text);
+        if (aPrimary !== bPrimary) return aPrimary.localeCompare(bPrimary, 'en', { numeric:true, sensitivity:'base' });
+        const aFull = toolFullKey(a.data.tool_text);
+        const bFull = toolFullKey(b.data.tool_text);
+        if (aFull !== bFull) return aFull.localeCompare(bFull, 'en', { numeric:true, sensitivity:'base' });
+        return a.idx - b.idx;
+    });
+    nonBlank.concat(blanks).forEach(function(entry){
+        tbody.appendChild(entry.tr);
+    });
+}
+
 function resetToolRowMerges(tbody){
     if (!tbody) return;
     tbody.querySelectorAll('td[data-field="tool_text"]').forEach(function(td){
@@ -1076,6 +1136,7 @@ function resetToolRowMerges(tbody){
 
 function applyToolRowMerges(tbody){
     if (!tbody) return;
+    sortToolTbodyRows(tbody);
     resetToolRowMerges(tbody);
     const rows = Array.from(tbody.querySelectorAll('tr'));
     let startTd = null;
@@ -1100,6 +1161,7 @@ function applyToolRowMerges(tbody){
         }
         const editor = td.querySelector('.cell-editor');
         const value = normalizeText(editor ? (editor.innerText || editor.textContent || '') : '');
+        const mergeKey = toolPrimaryKey(value);
         const shouldMerge = value !== '' && !tr.classList.contains('blank-row');
         if (!shouldMerge) {
             flush();
@@ -1107,18 +1169,18 @@ function applyToolRowMerges(tbody){
         }
         if (!startTd) {
             startTd = td;
-            startValue = value;
+            startValue = mergeKey;
             span = 1;
             return;
         }
-        if (value === startValue) {
+        if (mergeKey === startValue) {
             td.style.display = 'none';
             span += 1;
             return;
         }
         flush();
         startTd = td;
-        startValue = value;
+        startValue = mergeKey;
         span = 1;
     });
     flush();
