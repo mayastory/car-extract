@@ -755,7 +755,7 @@ const state = {
 };
 
 const toolColumns = [
-    { key: 'item_code', label: 'Item', placeholder: 'A / B / C...' },
+    { key: 'item_code', label: 'Item', placeholder: 'IR-BASE / X-CARRIER / Y-CARRIER...' },
     { key: 'tool_text', label: 'Tool', placeholder: 'A / 1 / All' },
     { key: 'cavity_text', label: 'Cavity', placeholder: '1,2,4 / All' },
     { key: 'affect_lot_text', label: 'Affect Lot', placeholder: '전 Lot / ~2/21 Lot' },
