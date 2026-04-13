@@ -567,7 +567,7 @@ body{
     position:relative;
 }
 .sheet{
-    width:max-content;
+    width:100%;
     min-width:100%;
     border-collapse:separate;
     border-spacing:0;
@@ -1120,6 +1120,50 @@ function getActiveToolSection(){
         || document.querySelector('#toolStatusRoot .model-section');
 }
 
+function toolSheetIntrinsicWidthForCell(cell, idx){
+    if (!cell) return 0;
+    if (idx === 0) return 68;
+
+    const editor = cell.querySelector('.cell-editor');
+    const trigger = cell.querySelector('.vendor-trigger');
+    const statusSel = cell.querySelector('.status-select');
+
+    let text = '';
+    if (statusSel) {
+        text = normalizeText(statusSel.value || statusSel.options[statusSel.selectedIndex]?.text || '');
+    } else if (trigger) {
+        text = normalizeText((trigger.dataset.value || '').replace(/\s*\/\s*/g, ' / '));
+    } else if (editor) {
+        if (editor.tagName === 'TEXTAREA') {
+            const lines = String(editor.value || '').split('
+');
+            text = lines.reduce(function(acc, line){
+                return line.length > acc.length ? line : acc;
+            }, '');
+        } else {
+            text = String(editor.value || '');
+        }
+        text = normalizeText(text);
+    } else {
+        text = normalizeText(cell.textContent || '');
+    }
+
+    const probe = editor || trigger || statusSel || cell;
+    const labelText = text === '' ? ' ' : text;
+    let width = measureEditorText(probe, labelText) + 26;
+
+    if (idx === 1) width = Math.max(92, Math.min(140, width));       // Item
+    else if (idx === 2) width = Math.max(56, Math.min(96, width));   // Tool
+    else if (idx === 3) width = Math.max(72, Math.min(120, width));  // Cavity
+    else if (idx === 4) width = Math.max(88, Math.min(150, width));  // Affect Lot
+    else if (idx === 5) width = Math.max(72, Math.min(110, width));  // Vendor
+    else if (idx === 6) width = Math.max(70, Math.min(110, width));  // Type
+    else if (idx === 7) width = Math.max(120, Math.min(320, width)); // Issue Description
+    else if (idx === 8) width = Math.max(220, width);                // Remark (min only)
+
+    return Math.ceil(width);
+}
+
 function syncToolSheetColumnWidths(target){
     const table = target && target.matches && target.matches('table.tool-sheet')
         ? target
@@ -1131,26 +1175,31 @@ function syncToolSheetColumnWidths(target){
     const colgroup = ensureToolColgroup(table);
     if (!colgroup) return;
 
-    Array.from(colgroup.children).forEach(function(col){
+    const cols = Array.from(colgroup.children);
+    cols.forEach(function(col){
         col.style.width = '';
         col.style.minWidth = '';
     });
 
-    void table.offsetWidth;
-
     const widths = [];
-    const rows = table.querySelectorAll('thead tr, tbody tr');
-    rows.forEach(function(row){
+    const headerCells = table.querySelectorAll('thead tr:first-child > *');
+    Array.from(headerCells).forEach(function(cell, idx){
+        widths[idx] = Math.max(widths[idx] || 0, toolSheetIntrinsicWidthForCell(cell, idx));
+    });
+
+    table.querySelectorAll('tbody tr').forEach(function(row){
         Array.from(row.children).forEach(function(cell, idx){
             if (!cell || cell.style.display === 'none') return;
-            const rect = cell.getBoundingClientRect();
-            const width = Math.ceil(rect.width || 0);
-            if (!width) return;
-            widths[idx] = Math.max(widths[idx] || 0, width);
+            widths[idx] = Math.max(widths[idx] || 0, toolSheetIntrinsicWidthForCell(cell, idx));
         });
     });
 
-    Array.from(colgroup.children).forEach(function(col, idx){
+    cols.forEach(function(col, idx){
+        if (idx === 8) {
+            col.style.minWidth = Math.max(220, widths[idx] || 0) + 'px';
+            col.style.width = '';
+            return;
+        }
         const width = widths[idx] || 0;
         if (width > 0) {
             col.style.width = width + 'px';
