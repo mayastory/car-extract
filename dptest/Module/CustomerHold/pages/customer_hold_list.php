@@ -1083,30 +1083,79 @@ function createStatusSelect(value, editable){
 
 function markDirtyAndEnsureBlank(){
     setDirty(true);
-    renderCurrent();
 }
 
-function updateToolRowField(model, visibleIndex, field, value){
-    const rows = buildToolGroups(state.toolStatusRows)[model] || [];
-    if (visibleIndex >= rows.length) {
-        const newRow = toolBlankRow(model);
-        newRow[field] = value;
-        state.toolStatusRows.push(newRow);
-    } else {
-        rows[visibleIndex][field] = value;
-        if (field === 'tool_text') rows[visibleIndex][field] = normalizeText(value).toUpperCase();
+function focusEditable(el, caretPos){
+    if (!el || typeof el.focus !== 'function') return;
+    try { el.focus({preventScroll:true}); } catch (_e) { try { el.focus(); } catch (_e2) {} }
+    const pos = typeof caretPos === 'number' ? caretPos : (typeof el.value === 'string' ? el.value.length : 0);
+    if (typeof el.setSelectionRange === 'function') {
+        try { el.setSelectionRange(pos, pos); } catch (_e) {}
     }
-    if (field === 'tool_text' || field === 'item_code') {
-        const grouped = buildToolGroups(state.toolStatusRows);
+}
+
+function focusToolField(model, visibleIndex, field, caretPos){
+    requestAnimationFrame(function(){
+        const table = els.toolStatusRoot.querySelector('table.toolsheet');
+        if (!table) return;
+        const row = table.querySelectorAll('tbody tr')[visibleIndex];
+        if (!row) return;
+        const cell = row.querySelector('td[data-field="' + field + '"]');
+        if (!cell) return;
+        const el = cell.querySelector('input, textarea, select, button.vendor-trigger');
+        focusEditable(el, caretPos);
+    });
+}
+
+function focusReleaseField(visibleIndex, field, caretPos){
+    requestAnimationFrame(function(){
+        const row = els.releaseBody.querySelectorAll('tr')[visibleIndex];
+        if (!row) return;
+        const cell = row.querySelectorAll('td')[releaseColumns.findIndex(function(col){ return col.key === field; }) + 1];
+        if (!cell) return;
+        const el = cell.querySelector('input, textarea, select, button.vendor-trigger');
+        focusEditable(el, caretPos);
+    });
+}
+
+function updateToolRowField(model, visibleIndex, field, value, meta){
+    const fields = ['tool_text','cavity_text','affect_lot_text','vendor_text','type_text','issue_description_text','remark_text'];
+    const grouped = buildToolGroups(state.toolStatusRows);
+    const rows = grouped[model] || [];
+    const isNew = visibleIndex >= rows.length;
+    const target = isNew ? toolBlankRow(model) : rows[visibleIndex];
+    const wasBlank = !anyFilled(target, fields);
+    const normalized = field === 'tool_text' ? normalizeText(value).toUpperCase() : value;
+    target[field] = normalized;
+    if (isNew) rows.push(target);
+    grouped[model] = rows;
+    state.toolStatusRows = []
+        .concat(grouped['IR-BASE'] || [])
+        .concat(grouped['Z-CARRIER'] || [])
+        .concat(grouped['X-CARRIER'] || [])
+        .concat(grouped['Y-CARRIER'] || [])
+        .concat(grouped['Z-STOPPER'] || []);
+
+    const needsReorder = field === 'tool_text' || field === 'item_code';
+    const becameFilled = wasBlank && anyFilled(target, fields);
+
+    if (needsReorder) {
+        const regrouped = buildToolGroups(state.toolStatusRows);
         state.toolStatusRows = []
-            .concat(grouped['IR-BASE'] || [])
-            .concat(grouped['Z-CARRIER'] || [])
-            .concat(grouped['X-CARRIER'] || [])
-            .concat(grouped['Y-CARRIER'] || [])
-            .concat(grouped['Z-STOPPER'] || []);
+            .concat(regrouped['IR-BASE'] || [])
+            .concat(regrouped['Z-CARRIER'] || [])
+            .concat(regrouped['X-CARRIER'] || [])
+            .concat(regrouped['Y-CARRIER'] || [])
+            .concat(regrouped['Z-STOPPER'] || []);
     }
+
     renumberToolRows(model);
     markDirtyAndEnsureBlank();
+
+    if (needsReorder || becameFilled || isNew) {
+        renderCurrent();
+        focusToolField(model, visibleIndex, field, meta && typeof meta.caretPos === 'number' ? meta.caretPos : undefined);
+    }
 }
 
 function renumberToolRows(model){
@@ -1158,19 +1207,22 @@ function deleteToolRow(id){
     renderCurrent();
 }
 
-function updateReleaseRowField(visibleIndex, field, value){
+function updateReleaseRowField(visibleIndex, field, value, meta){
+    const fields = ['holding_date_text','vendor_text','parts_name_text','tool_text','cavity_text','affect_lot_text','type_text','issue_description_text','status_text','release_date_text','note_text'];
     const rows = state.releaseDetails.slice().sort(function(a,b){ return ((Number(a.sort_order)||0) - (Number(b.sort_order)||0)); });
-    if (visibleIndex >= rows.length) {
-        const newRow = releaseBlankRow();
-        newRow[field] = value;
-        rows.push(newRow);
-    } else {
-        rows[visibleIndex][field] = value;
-    }
+    const isNew = visibleIndex >= rows.length;
+    const target = isNew ? releaseBlankRow() : rows[visibleIndex];
+    const wasBlank = !anyFilled(target, fields);
+    target[field] = value;
+    if (isNew) rows.push(target);
     rows.forEach(function(row, idx){ row.sort_order = idx + 1; });
     state.releaseDetails = rows;
     setDirty(true);
-    renderReleaseBody();
+    const becameFilled = wasBlank && anyFilled(target, fields);
+    if (becameFilled || isNew) {
+        renderReleaseBody();
+        focusReleaseField(visibleIndex, field, meta && typeof meta.caretPos === 'number' ? meta.caretPos : undefined);
+    }
 }
 
 function insertReleaseRowBelow(visibleIndex){
