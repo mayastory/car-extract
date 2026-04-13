@@ -509,17 +509,16 @@ body{
 .subtab{
     appearance:none;
     border:1px solid rgba(255,255,255,.08);
-    background:#161d26;
+    background:#1a2028;
     color:var(--text);
-    border-radius:10px;
-    padding:8px 12px;
+    border-radius:12px 12px 0 0;
+    padding:10px 16px;
     cursor:pointer;
-    font-size:12px;
-    font-weight:700;
+    font-weight:600;
 }
 .subtab.active{
-    background:#1f3142;
-    border-color:rgba(34,197,94,.32);
+    background:#253040;
+    border-color:rgba(34,197,94,.28);
     color:#dcfce7;
 }
 .model-panel{display:none}
@@ -634,6 +633,97 @@ body{
 .sheet td:focus-within{
     outline:2px solid rgba(34,197,94,.40);
     outline-offset:-2px;
+}
+.multi-select{
+    position:relative;
+    min-height:42px;
+}
+.multi-select-trigger{
+    width:100%;
+    min-height:42px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding:9px 10px;
+    background:#131820;
+    color:var(--text);
+    border:none;
+    cursor:pointer;
+    font-size:13px;
+    text-align:left;
+}
+.multi-select.readonly .multi-select-trigger{cursor:default}
+.multi-select-label{
+    flex:1;
+    white-space:pre-wrap;
+    word-break:break-word;
+    line-height:1.35;
+}
+.multi-select.empty .multi-select-label{color:#6b7280}
+.multi-select-arrow{
+    color:#9ca3af;
+    font-size:11px;
+    flex:none;
+}
+.multi-select-panel{
+    display:none;
+    position:absolute;
+    left:0;
+    top:calc(100% + 6px);
+    z-index:40;
+    min-width:280px;
+    max-width:min(360px, calc(100vw - 80px));
+    padding:12px;
+    border-radius:16px;
+    background:rgba(9,11,14,.96);
+    border:1px solid rgba(255,255,255,.10);
+    box-shadow:0 20px 40px rgba(0,0,0,.36);
+}
+.multi-select.open .multi-select-panel{display:block}
+.multi-select-actions{
+    display:flex;
+    gap:8px;
+    margin-bottom:10px;
+}
+.multi-select-mini{
+    appearance:none;
+    border:1px solid rgba(255,255,255,.10);
+    background:#161d26;
+    color:var(--text);
+    border-radius:999px;
+    padding:6px 10px;
+    cursor:pointer;
+    font-size:12px;
+}
+.multi-select-options{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(72px, 1fr));
+    gap:10px;
+    margin-bottom:10px;
+}
+.multi-select-option{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    min-height:40px;
+    padding:0 12px;
+    border-radius:12px;
+    border:1px solid rgba(255,255,255,.10);
+    background:#11161d;
+}
+.multi-select-option input{accent-color:#22c55e}
+.multi-select-free{display:flex; flex-direction:column; gap:6px;}
+.multi-select-free label{font-size:12px; color:var(--muted);}
+.multi-select-free input{
+    width:100%;
+    min-height:40px;
+    padding:9px 10px;
+    background:#131820;
+    color:var(--text);
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:10px;
+    font-size:13px;
 }
 .status-select{
     width:100%;
@@ -780,11 +870,13 @@ const state = {
     boot: window.CUSTOMER_HOLD_BOOTSTRAP || {}
 };
 
+const vendorOptions = ['자화', 'LGIT'];
+
 const toolColumns = [
     { key: 'tool_text', label: 'Tool', placeholder: 'A / B / C / All' },
     { key: 'cavity_text', label: 'Cavity', placeholder: '1,2,4 / All' },
     { key: 'affect_lot_text', label: 'Affect Lot', placeholder: '전 Lot / ~2/21 Lot' },
-    { key: 'vendor_text', label: 'Vendor', placeholder: '자화 / LGIT' },
+    { key: 'vendor_text', label: 'Vendor', placeholder: '자화 / LGIT', type: 'vendor' },
     { key: 'type_text', label: 'Type', placeholder: '치수 / 외관' },
     { key: 'issue_description_text', label: 'Issue Description', placeholder: '홀딩 사유' },
     { key: 'remark_text', label: 'Remark', placeholder: '비고 / 출하 가능 조건' }
@@ -792,7 +884,7 @@ const toolColumns = [
 
 const releaseColumns = [
     { key: 'holding_date_text', placeholder: '2026-04-13' },
-    { key: 'vendor_text', placeholder: '자화 / LGIT' },
+    { key: 'vendor_text', placeholder: '자화 / LGIT', type: 'vendor' },
     { key: 'parts_name_text', placeholder: 'IR-BASE' },
     { key: 'tool_text', placeholder: 'A / 1 / All' },
     { key: 'cavity_text', placeholder: '1,2,4 / All' },
@@ -900,6 +992,165 @@ function renderToolModelTabs(){
     setActiveToolModel(getActiveToolModel());
 }
 
+function splitMultiTokens(value){
+    return String(value == null ? '' : value)
+        .split(/\s*\/\s*|\s*,\s*|\n+/)
+        .map(function(token){ return token.trim(); })
+        .filter(Boolean);
+}
+
+function uniqTokens(tokens){
+    const out = [];
+    tokens.forEach(function(token){
+        const exists = out.some(function(saved){ return saved.toUpperCase() === token.toUpperCase(); });
+        if (!exists) out.push(token);
+    });
+    return out;
+}
+
+function parseVendorValue(value){
+    const tokens = uniqTokens(splitMultiTokens(value));
+    const selected = [];
+    const custom = [];
+    tokens.forEach(function(token){
+        const found = vendorOptions.find(function(opt){ return opt.toUpperCase() === token.toUpperCase(); });
+        if (found) selected.push(found);
+        else custom.push(token);
+    });
+    return { selected: selected, custom: custom };
+}
+
+function closeAllMultiSelects(except){
+    document.querySelectorAll('.multi-select.open').forEach(function(el){
+        if (except && el === except) return;
+        el.classList.remove('open');
+    });
+}
+
+function createVendorPicker(value, placeholder){
+    const wrap = document.createElement('div');
+    wrap.className = 'multi-select';
+    if (!state.canEdit) wrap.classList.add('readonly');
+
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'multi-select-trigger';
+
+    const label = document.createElement('span');
+    label.className = 'multi-select-label';
+
+    const arrow = document.createElement('span');
+    arrow.className = 'multi-select-arrow';
+    arrow.textContent = '▼';
+
+    trigger.appendChild(label);
+    trigger.appendChild(arrow);
+
+    const panel = document.createElement('div');
+    panel.className = 'multi-select-panel hidden';
+
+    const actions = document.createElement('div');
+    actions.className = 'multi-select-actions';
+
+    const selectAllBtn = document.createElement('button');
+    selectAllBtn.type = 'button';
+    selectAllBtn.className = 'multi-select-mini';
+    selectAllBtn.textContent = '전체';
+
+    const clearBtn = document.createElement('button');
+    clearBtn.type = 'button';
+    clearBtn.className = 'multi-select-mini';
+    clearBtn.textContent = '해제';
+
+    actions.appendChild(selectAllBtn);
+    actions.appendChild(clearBtn);
+
+    const optionsWrap = document.createElement('div');
+    optionsWrap.className = 'multi-select-options';
+
+    const freeWrap = document.createElement('div');
+    freeWrap.className = 'multi-select-free';
+    const freeLabel = document.createElement('label');
+    freeLabel.textContent = '직접 입력';
+    const freeInput = document.createElement('input');
+    freeInput.type = 'text';
+    freeInput.placeholder = '직접 입력 (예: LG / 자화 / 기타)';
+    freeWrap.appendChild(freeLabel);
+    freeWrap.appendChild(freeInput);
+
+    panel.appendChild(actions);
+    panel.appendChild(optionsWrap);
+    panel.appendChild(freeWrap);
+
+    const checkboxes = [];
+    vendorOptions.forEach(function(opt){
+        const optLabel = document.createElement('label');
+        optLabel.className = 'multi-select-option';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = opt;
+        const text = document.createElement('span');
+        text.textContent = opt;
+        optLabel.appendChild(checkbox);
+        optLabel.appendChild(text);
+        optionsWrap.appendChild(optLabel);
+        checkboxes.push(checkbox);
+    });
+
+    function sync(emit){
+        const selected = checkboxes.filter(function(cb){ return cb.checked; }).map(function(cb){ return cb.value; });
+        const custom = splitMultiTokens(freeInput.value);
+        const merged = uniqTokens(selected.concat(custom));
+        const joined = merged.join(' / ');
+        wrap.dataset.value = joined;
+        label.textContent = joined || placeholder || '';
+        wrap.classList.toggle('empty', !joined);
+        if (emit) {
+            wrap.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    }
+
+    const parsed = parseVendorValue(value);
+    checkboxes.forEach(function(cb){
+        cb.checked = parsed.selected.includes(cb.value);
+        cb.disabled = !state.canEdit;
+        cb.addEventListener('change', function(){ sync(true); });
+    });
+    freeInput.value = parsed.custom.join(' / ');
+    freeInput.disabled = !state.canEdit;
+    freeInput.addEventListener('input', function(){ sync(true); });
+
+    selectAllBtn.disabled = !state.canEdit;
+    clearBtn.disabled = !state.canEdit;
+    selectAllBtn.addEventListener('click', function(){
+        checkboxes.forEach(function(cb){ cb.checked = true; });
+        sync(true);
+    });
+    clearBtn.addEventListener('click', function(){
+        checkboxes.forEach(function(cb){ cb.checked = false; });
+        freeInput.value = '';
+        sync(true);
+    });
+
+    trigger.addEventListener('click', function(ev){
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (!state.canEdit) return;
+        const willOpen = !wrap.classList.contains('open');
+        closeAllMultiSelects(wrap);
+        wrap.classList.toggle('open', willOpen);
+        panel.classList.toggle('hidden', !willOpen);
+        if (willOpen) freeInput.focus();
+    });
+
+    panel.addEventListener('click', function(ev){ ev.stopPropagation(); });
+    wrap.appendChild(trigger);
+    wrap.appendChild(panel);
+    sync(false);
+    panel.classList.add('hidden');
+    return wrap;
+}
+
 function createEditor(value, placeholder){
     const div = document.createElement('div');
     div.className = 'cell-editor';
@@ -913,9 +1164,7 @@ function createEditor(value, placeholder){
 
 function createToolRow(model, row){
     row = row || {};
-    if (normalizeText(row.tool_text || '') === '' && normalizeText(row.item_code || '') !== '') {
-        row.tool_text = row.item_code || '';
-    }
+    row.part_name = model;
     const tr = document.createElement('tr');
     tr.dataset.model = model;
     tr.dataset.id = row.id ? String(row.id) : '';
@@ -943,8 +1192,11 @@ function createToolRow(model, row){
     toolColumns.forEach(function(col){
         const td = document.createElement('td');
         td.dataset.field = col.key;
-        const editor = createEditor(row[col.key] || '', col.placeholder || '');
-        td.appendChild(editor);
+        if (col.type === 'vendor') {
+            td.appendChild(createVendorPicker(row[col.key] || '', col.placeholder || ''));
+        } else {
+            td.appendChild(createEditor(row[col.key] || '', col.placeholder || ''));
+        }
         tr.appendChild(td);
     });
     return tr;
@@ -989,6 +1241,8 @@ function createReleaseRow(row){
                 sel.appendChild(option);
             });
             td.appendChild(sel);
+        } else if (col.type === 'vendor') {
+            td.appendChild(createVendorPicker(row[col.key] || '', col.placeholder || ''));
         } else {
             td.appendChild(createEditor(row[col.key] || '', col.placeholder || ''));
         }
@@ -1000,9 +1254,6 @@ function createReleaseRow(row){
 function renderToolStatus(rows){
     els.toolStatusRoot.innerHTML = '';
     const grouped = buildToolGroups(rows || []);
-    if (!state.models.includes(state.activeToolModel)) {
-        state.activeToolModel = state.models[0] || '';
-    }
     state.models.forEach(function(model){
         const panel = document.createElement('div');
         panel.className = 'model-panel';
@@ -1035,7 +1286,9 @@ function renderToolStatus(rows){
         table.dataset.model = model;
 
         const colgroup = document.createElement('colgroup');
-        ['48px','64px','110px','110px','140px','120px','120px','260px','320px'].forEach(function(width){
+        [
+            '48px','64px','110px','110px','140px','150px','120px','220px','260px'
+        ].forEach(function(width){
             const col = document.createElement('col');
             col.style.width = width;
             colgroup.appendChild(col);
@@ -1069,7 +1322,6 @@ function renderToolStatus(rows){
         ensureToolBlankRow(model);
     });
     renderToolModelTabs();
-    setActiveToolModel(getActiveToolModel());
 }
 
 function renderReleaseDetails(rows){
@@ -1098,6 +1350,9 @@ function rowDataFromTr(tr, columns){
         if (col.type === 'status') {
             const sel = td.querySelector('select');
             out[col.key] = sel ? sel.value : 'Ongoing';
+        } else if (col.type === 'vendor') {
+            const picker = td.querySelector('.multi-select');
+            out[col.key] = picker ? normalizeText(picker.dataset.value || '') : '';
         } else {
             const editor = td.querySelector('.cell-editor');
             out[col.key] = editor ? normalizeText(editor.innerText) : '';
@@ -1166,7 +1421,7 @@ function appendBlankReleaseRow(){
 
 function focusFirstEditable(tr){
     if (!tr) return;
-    const target = tr.querySelector('.cell-editor[contenteditable="true"], select:not([disabled])');
+    const target = tr.querySelector('.cell-editor[contenteditable="true"], select:not([disabled]), .multi-select-trigger');
     if (target) target.focus();
 }
 
@@ -1246,7 +1501,6 @@ async function api(action, payload){
 
 function applyPayload(payload){
     state.models = Array.isArray(payload.models) && payload.models.length ? payload.models : ['IR-BASE', 'Z-CARRIER', 'X-CARRIER', 'Y-CARRIER', 'Z-STOPPER'];
-    if (!state.models.includes(state.activeToolModel)) state.activeToolModel = state.models[0] || '';
     state.canEdit = !!payload.can_edit;
     state.userLv = Number(payload.user_lv || 0);
 
@@ -1258,6 +1512,7 @@ function applyPayload(payload){
 
     renderToolStatus(payload.tool_status || []);
     renderReleaseDetails(payload.release_details || []);
+    setActiveToolModel(getActiveToolModel());
     setDirty(false);
     showFatal('');
 }
@@ -1359,8 +1614,17 @@ function bindDelegation(){
     });
 
     document.addEventListener('change', function(e){
+        const tr = e.target.closest('.tool-sheet tbody tr');
+        if (tr) {
+            handleToolInput(tr);
+            return;
+        }
         const relTr = e.target.closest('#releaseBody tr');
         if (relTr) handleReleaseInput(relTr);
+    });
+
+    document.addEventListener('click', function(e){
+        if (!e.target.closest('.multi-select')) closeAllMultiSelects();
     });
 }
 
