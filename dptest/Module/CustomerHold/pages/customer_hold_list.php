@@ -536,11 +536,13 @@ body{
     color:#dcfce7;
 }
 .model-section{
-    margin-bottom:18px;
+    --vendor-extra-space:0px;
+    margin-bottom:calc(18px + var(--vendor-extra-space));
     border:1px solid rgba(255,255,255,.08);
     border-radius:14px;
     overflow:visible;
     background:rgba(255,255,255,.02);
+    transition:margin-bottom .14s ease;
 }
 .model-section.hidden-section{display:none}
 .model-section.vendor-open{position:relative; z-index:40;}
@@ -559,7 +561,8 @@ body{
     letter-spacing:.02em;
 }
 .grid-wrap{
-    overflow:auto;
+    overflow-x:auto;
+    overflow-y:visible;
     max-width:100%;
     background:rgba(0,0,0,.08);
     position:relative;
@@ -681,9 +684,9 @@ body{
 .vendor-trigger.placeholder{color:#6b7280}
 .vendor-trigger[disabled]{cursor:default; opacity:.85}
 .vendor-panel{
-    position:fixed;
+    position:absolute;
     left:0;
-    top:0;
+    top:calc(100% + 6px);
     min-width:120px;
     padding:8px 10px;
     border-radius:10px;
@@ -760,7 +763,8 @@ body{
         <div class="toolbar">
             <div class="title-wrap">
                 <h1>고객사 출하 홀딩 내역</h1>
-                            </div>
+                <div class="desc">엑셀처럼 입력·수정·저장하는 웹 편집기. Tool Status와 홀딩 해제 세부 내역을 같은 화면에서 관리합니다.</div>
+            </div>
             <div class="right">
                 <span class="badge" id="userLvBadge">LV -</span>
                 <span class="badge readonly hidden" id="readonlyBadge">읽기 전용 · 레벨 77 이상만 편집 가능</span>
@@ -798,6 +802,21 @@ body{
                 </div>
                 <div class="grid-wrap">
                     <table class="sheet" id="releaseTable">
+                        <colgroup>
+                            <col style="width:48px">
+                            <col style="width:64px">
+                            <col style="width:120px">
+                            <col style="width:120px">
+                            <col style="width:130px">
+                            <col style="width:100px">
+                            <col style="width:100px">
+                            <col style="width:120px">
+                            <col style="width:110px">
+                            <col style="width:220px">
+                            <col style="width:110px">
+                            <col style="width:120px">
+                            <col style="width:220px">
+                        </colgroup>
                         <thead>
                             <tr>
                                 <th>No</th>
@@ -988,50 +1007,47 @@ function syncVendorDropdown(wrap){
     trigger.classList.toggle('placeholder', !text);
 }
 
-function getOpenVendorWrap(){
-    return document.querySelector('.vendor-check[data-open="1"]');
+function clearVendorSectionSpace(section){
+    if (!section) return;
+    section.style.setProperty('--vendor-extra-space', '0px');
 }
 
-function positionVendorDropdown(wrap){
+function updateVendorSectionSpace(wrap){
     if (!wrap) return;
+    const section = wrap.closest('.model-section');
     const panel = wrap.querySelector('.vendor-panel');
-    const trigger = wrap.querySelector('.vendor-trigger');
-    if (!panel || !trigger) return;
-    const rect = trigger.getBoundingClientRect();
-    panel.style.left = Math.max(8, Math.round(rect.left)) + 'px';
-    panel.style.top = Math.round(rect.bottom + 6) + 'px';
-    panel.style.minWidth = Math.max(120, Math.round(rect.width)) + 'px';
-}
-
-function repositionOpenVendorDropdown(){
-    const wrap = getOpenVendorWrap();
-    if (wrap) positionVendorDropdown(wrap);
+    if (!section || !panel || panel.classList.contains('hidden')) {
+        clearVendorSectionSpace(section);
+        return;
+    }
+    section.style.setProperty('--vendor-extra-space', '0px');
+    requestAnimationFrame(function(){
+        const sectionRect = section.getBoundingClientRect();
+        const panelRect = panel.getBoundingClientRect();
+        const overflow = Math.max(0, Math.ceil(panelRect.bottom - sectionRect.bottom) + 12);
+        section.style.setProperty('--vendor-extra-space', overflow + 'px');
+    });
 }
 
 function toggleVendorDropdown(wrap, open){
-    document.querySelectorAll('.vendor-check').forEach(function(node){
-        if (!wrap || node !== wrap) node.dataset.open = '';
-    });
     document.querySelectorAll('.vendor-panel').forEach(function(panel){
         if (!wrap || panel !== wrap.querySelector('.vendor-panel')) panel.classList.add('hidden');
     });
     document.querySelectorAll('.model-section.vendor-open').forEach(function(section){
         section.classList.remove('vendor-open');
+        clearVendorSectionSpace(section);
     });
     if (!wrap || !state.canEdit) return;
     const panel = wrap.querySelector('.vendor-panel');
     if (!panel) return;
     const shouldOpen = open === undefined ? panel.classList.contains('hidden') : !!open;
     panel.classList.toggle('hidden', !shouldOpen);
-    wrap.dataset.open = shouldOpen ? '1' : '';
+    const section = wrap.closest('.model-section');
     if (shouldOpen) {
-        const section = wrap.closest('.model-section');
         if (section) section.classList.add('vendor-open');
-        positionVendorDropdown(wrap);
+        updateVendorSectionSpace(wrap);
     } else {
-        panel.style.left = '';
-        panel.style.top = '';
-        panel.style.minWidth = '';
+        clearVendorSectionSpace(section);
     }
 }
 
@@ -1282,11 +1298,18 @@ function appendBlankToolRow(model){
     const rows = Array.from(tbody.querySelectorAll('tr'));
     const last = rows.length ? rows[rows.length - 1] : null;
     if (last && isToolBlankRow(last)) {
+        last.dataset.keepBlank = '1';
+        const autoBlank = createToolRow(model, {part_name:model});
+        tbody.appendChild(autoBlank);
+        renumberRows(tbody);
         focusFirstEditable(last);
+        setDirty(true);
         return;
     }
     const blank = createToolRow(model, {part_name:model});
+    blank.dataset.keepBlank = '1';
     tbody.appendChild(blank);
+    ensureToolBlankRow(model);
     renumberRows(tbody);
     focusFirstEditable(blank);
     setDirty(true);
@@ -1296,11 +1319,18 @@ function appendBlankReleaseRow(){
     const rows = Array.from(els.releaseBody.querySelectorAll('tr'));
     const last = rows.length ? rows[rows.length - 1] : null;
     if (last && isReleaseBlankRow(last)) {
+        last.dataset.keepBlank = '1';
+        const autoBlank = createReleaseRow({});
+        els.releaseBody.appendChild(autoBlank);
+        renumberRows(els.releaseBody);
         focusFirstEditable(last);
+        setDirty(true);
         return;
     }
     const blank = createReleaseRow({});
+    blank.dataset.keepBlank = '1';
     els.releaseBody.appendChild(blank);
+    ensureReleaseBlankRow();
     renumberRows(els.releaseBody);
     focusFirstEditable(blank);
     setDirty(true);
@@ -1326,14 +1356,15 @@ function ensureToolBlankRow(model){
     const tbody = document.querySelector('.tool-sheet tbody[data-model="' + CSS.escape(model) + '"]');
     if (!tbody) return;
     const rows = Array.from(tbody.querySelectorAll('tr'));
-    const blanks = rows.filter(isToolBlankRow);
-    if (!rows.length || !isToolBlankRow(rows[rows.length - 1])) {
+    const last = rows.length ? rows[rows.length - 1] : null;
+    if (!rows.length || !isToolBlankRow(last) || last.dataset.keepBlank === '1') {
         tbody.appendChild(createToolRow(model, {part_name:model}));
     }
     const finalRows = Array.from(tbody.querySelectorAll('tr'));
     finalRows.forEach(function(row, idx){
-        row.classList.toggle('blank-row', isToolBlankRow(row));
-        if (idx < finalRows.length - 1 && isToolBlankRow(row) && row.dataset.id === '') {
+        const blank = isToolBlankRow(row);
+        row.classList.toggle('blank-row', blank);
+        if (idx < finalRows.length - 1 && blank && row.dataset.id === '' && row.dataset.keepBlank !== '1') {
             row.remove();
         }
     });
@@ -1342,13 +1373,15 @@ function ensureToolBlankRow(model){
 
 function ensureReleaseBlankRow(){
     const rows = Array.from(els.releaseBody.querySelectorAll('tr'));
-    if (!rows.length || !isReleaseBlankRow(rows[rows.length - 1])) {
+    const last = rows.length ? rows[rows.length - 1] : null;
+    if (!rows.length || !isReleaseBlankRow(last) || last.dataset.keepBlank === '1') {
         els.releaseBody.appendChild(createReleaseRow({}));
     }
     const finalRows = Array.from(els.releaseBody.querySelectorAll('tr'));
     finalRows.forEach(function(row, idx){
-        row.classList.toggle('blank-row', isReleaseBlankRow(row));
-        if (idx < finalRows.length - 1 && isReleaseBlankRow(row) && row.dataset.id === '') {
+        const blank = isReleaseBlankRow(row);
+        row.classList.toggle('blank-row', blank);
+        if (idx < finalRows.length - 1 && blank && row.dataset.id === '' && row.dataset.keepBlank !== '1') {
             row.remove();
         }
     });
@@ -1356,6 +1389,7 @@ function ensureReleaseBlankRow(){
 }
 
 function handleToolInput(tr){
+    if (!isToolBlankRow(tr)) delete tr.dataset.keepBlank;
     tr.classList.toggle('blank-row', isToolBlankRow(tr));
     const tbody = tr.parentElement;
     if (tbody) {
@@ -1366,6 +1400,7 @@ function handleToolInput(tr){
 }
 
 function handleReleaseInput(tr){
+    if (!isReleaseBlankRow(tr)) delete tr.dataset.keepBlank;
     tr.classList.toggle('blank-row', isReleaseBlankRow(tr));
     ensureReleaseBlankRow();
     renumberRows(els.releaseBody);
@@ -1553,8 +1588,17 @@ function initButtons(){
     els.releaseAddRowBtn.addEventListener('click', appendBlankReleaseRow);
 }
 
-window.addEventListener('resize', repositionOpenVendorDropdown);
-window.addEventListener('scroll', repositionOpenVendorDropdown, true);
+window.addEventListener('resize', function(){
+    const openWrap = document.querySelector('.vendor-check .vendor-panel:not(.hidden)');
+    if (!openWrap) return;
+    updateVendorSectionSpace(openWrap.closest('.vendor-check'));
+});
+
+window.addEventListener('scroll', function(){
+    const openWrap = document.querySelector('.vendor-check .vendor-panel:not(.hidden)');
+    if (!openWrap) return;
+    updateVendorSectionSpace(openWrap.closest('.vendor-check'));
+}, true);
 
 window.addEventListener('beforeunload', function(e){
     if (!state.dirty) return;
