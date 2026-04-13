@@ -536,8 +536,7 @@ body{
     color:#dcfce7;
 }
 .model-section{
-    --vendor-extra-space:0px;
-    margin-bottom:calc(18px + var(--vendor-extra-space));
+    margin-bottom:18px;
     border:1px solid rgba(255,255,255,.08);
     border-radius:14px;
     overflow:visible;
@@ -545,7 +544,6 @@ body{
     transition:margin-bottom .14s ease;
 }
 .model-section.hidden-section{display:none}
-.model-section.vendor-open{position:relative; z-index:40;}
 .model-head{
     display:flex;
     align-items:center;
@@ -684,16 +682,16 @@ body{
 .vendor-trigger.placeholder{color:#6b7280}
 .vendor-trigger[disabled]{cursor:default; opacity:.85}
 .vendor-panel{
-    position:absolute;
-    left:0;
-    top:calc(100% + 6px);
+    position:fixed;
+    left:-9999px;
+    top:-9999px;
     min-width:120px;
     padding:8px 10px;
     border-radius:10px;
     background:#0f1720;
     border:1px solid rgba(255,255,255,.10);
     box-shadow:0 14px 28px rgba(0,0,0,.35);
-    z-index:520;
+    z-index:2400;
 }
 .vendor-panel.hidden{display:none !important}
 .vendor-option{
@@ -763,7 +761,6 @@ body{
         <div class="toolbar">
             <div class="title-wrap">
                 <h1>고객사 출하 홀딩 내역</h1>
-                <div class="desc">엑셀처럼 입력·수정·저장하는 웹 편집기. Tool Status와 홀딩 해제 세부 내역을 같은 화면에서 관리합니다.</div>
             </div>
             <div class="right">
                 <span class="badge" id="userLvBadge">LV -</span>
@@ -1007,47 +1004,56 @@ function syncVendorDropdown(wrap){
     trigger.classList.toggle('placeholder', !text);
 }
 
-function clearVendorSectionSpace(section){
-    if (!section) return;
-    section.style.setProperty('--vendor-extra-space', '0px');
-}
-
-function updateVendorSectionSpace(wrap){
+function positionVendorPanel(wrap){
     if (!wrap) return;
-    const section = wrap.closest('.model-section');
     const panel = wrap.querySelector('.vendor-panel');
-    if (!section || !panel || panel.classList.contains('hidden')) {
-        clearVendorSectionSpace(section);
-        return;
+    const trigger = wrap.querySelector('.vendor-trigger');
+    if (!panel || !trigger || panel.classList.contains('hidden')) return;
+
+    panel.style.left = '-9999px';
+    panel.style.top = '-9999px';
+    const triggerRect = trigger.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    const viewportW = window.innerWidth || document.documentElement.clientWidth || 0;
+    const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
+
+    let left = triggerRect.left;
+    let top = triggerRect.bottom + 6;
+
+    if (left + panelRect.width + 12 > viewportW) {
+        left = Math.max(8, viewportW - panelRect.width - 12);
     }
-    section.style.setProperty('--vendor-extra-space', '0px');
-    requestAnimationFrame(function(){
-        const sectionRect = section.getBoundingClientRect();
-        const panelRect = panel.getBoundingClientRect();
-        const overflow = Math.max(0, Math.ceil(panelRect.bottom - sectionRect.bottom) + 12);
-        section.style.setProperty('--vendor-extra-space', overflow + 'px');
-    });
+    if (top + panelRect.height + 12 > viewportH) {
+        const aboveTop = triggerRect.top - panelRect.height - 6;
+        if (aboveTop >= 8) {
+            top = aboveTop;
+        } else {
+            top = Math.max(8, viewportH - panelRect.height - 12);
+        }
+    }
+
+    panel.style.left = Math.round(left) + 'px';
+    panel.style.top = Math.round(top) + 'px';
 }
 
 function toggleVendorDropdown(wrap, open){
     document.querySelectorAll('.vendor-panel').forEach(function(panel){
-        if (!wrap || panel !== wrap.querySelector('.vendor-panel')) panel.classList.add('hidden');
-    });
-    document.querySelectorAll('.model-section.vendor-open').forEach(function(section){
-        section.classList.remove('vendor-open');
-        clearVendorSectionSpace(section);
+        if (!wrap || panel !== wrap.querySelector('.vendor-panel')) {
+            panel.classList.add('hidden');
+            panel.style.left = '-9999px';
+            panel.style.top = '-9999px';
+        }
     });
     if (!wrap || !state.canEdit) return;
     const panel = wrap.querySelector('.vendor-panel');
     if (!panel) return;
     const shouldOpen = open === undefined ? panel.classList.contains('hidden') : !!open;
     panel.classList.toggle('hidden', !shouldOpen);
-    const section = wrap.closest('.model-section');
     if (shouldOpen) {
-        if (section) section.classList.add('vendor-open');
-        updateVendorSectionSpace(wrap);
+        positionVendorPanel(wrap);
     } else {
-        clearVendorSectionSpace(section);
+        panel.style.left = '-9999px';
+        panel.style.top = '-9999px';
     }
 }
 
@@ -1589,15 +1595,15 @@ function initButtons(){
 }
 
 window.addEventListener('resize', function(){
-    const openWrap = document.querySelector('.vendor-check .vendor-panel:not(.hidden)');
-    if (!openWrap) return;
-    updateVendorSectionSpace(openWrap.closest('.vendor-check'));
+    const openPanel = document.querySelector('.vendor-panel:not(.hidden)');
+    if (!openPanel) return;
+    positionVendorPanel(openPanel.closest('.vendor-check'));
 });
 
 window.addEventListener('scroll', function(){
-    const openWrap = document.querySelector('.vendor-check .vendor-panel:not(.hidden)');
-    if (!openWrap) return;
-    updateVendorSectionSpace(openWrap.closest('.vendor-check'));
+    const openPanel = document.querySelector('.vendor-panel:not(.hidden)');
+    if (!openPanel) return;
+    positionVendorPanel(openPanel.closest('.vendor-check'));
 }, true);
 
 window.addEventListener('beforeunload', function(e){
