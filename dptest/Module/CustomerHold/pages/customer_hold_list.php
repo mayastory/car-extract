@@ -1560,6 +1560,7 @@ function renderToolStatus(rows){
         renumberRows(tbody);
         ensureToolBlankRow(model);
         applyToolRowMerges(tbody);
+        autosizeAllRows(section);
     });
 }
 
@@ -1574,6 +1575,10 @@ function setActiveToolModel(model){
     });
     document.querySelectorAll('#toolStatusRoot .model-section').forEach(function(section){
         section.classList.toggle('hidden-section', section.dataset.model !== state.activeToolModel);
+    });
+    requestAnimationFrame(function(){
+        const activeSection = document.querySelector('#toolStatusRoot .model-section[data-model="' + CSS.escape(state.activeToolModel) + '"]');
+        if (activeSection) autosizeAllRows(activeSection);
     });
 }
 
@@ -1911,6 +1916,15 @@ function bindTabs(){
             btn.classList.add('active');
             const panel = document.querySelector('.tab-panel[data-panel="' + btn.dataset.tab + '"]');
             if (panel) panel.classList.add('active');
+            requestAnimationFrame(function(){
+                if (!panel) return;
+                if (btn.dataset.tab === 'toolStatus') {
+                    const activeSection = document.querySelector('#toolStatusRoot .model-section[data-model="' + CSS.escape(state.activeToolModel) + '"]');
+                    if (activeSection) autosizeAllRows(activeSection);
+                    return;
+                }
+                autosizeAllRows(panel);
+            });
         });
     });
 }
