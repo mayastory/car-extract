@@ -813,8 +813,7 @@ body{
                 <div class="grid-wrap">
                     <table class="sheet" id="releaseTable">
                         <colgroup>
-                            <col style="width:48px">
-                            <col style="width:64px">
+                            <col style="width:72px">
                             <col style="width:120px">
                             <col style="width:120px">
                             <col style="width:130px">
@@ -829,7 +828,6 @@ body{
                         </colgroup>
                         <thead>
                             <tr>
-                                <th>No</th>
                                 <th></th>
                                 <th>Holding DATE</th>
                                 <th>Vendor</th>
@@ -1311,12 +1309,23 @@ function createReleaseRow(row){
     tr.dataset.id = row.id ? String(row.id) : '';
     if (!row.id && !anyFilled(row, releaseColumns.map(c => c.key))) tr.classList.add('blank-row');
 
-    const no = document.createElement('td');
-    no.className = 'row-no';
-    tr.appendChild(no);
-
     const actionTd = document.createElement('td');
     actionTd.className = 'actions';
+
+    const actionWrap = document.createElement('div');
+    actionWrap.className = 'action-buttons';
+
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'row-btn add';
+    addBtn.textContent = '+';
+    addBtn.title = '현재 행 아래에 행 추가';
+    addBtn.disabled = !state.canEdit;
+    addBtn.addEventListener('click', function(){
+        insertReleaseRowBelow(tr);
+    });
+    actionWrap.appendChild(addBtn);
+
     const delBtn = document.createElement('button');
     delBtn.type = 'button';
     delBtn.className = 'row-btn delete';
@@ -1326,7 +1335,9 @@ function createReleaseRow(row){
     delBtn.addEventListener('click', function(){
         handleReleaseRowDelete(tr);
     });
-    actionTd.appendChild(delBtn);
+    actionWrap.appendChild(delBtn);
+
+    actionTd.appendChild(actionWrap);
     tr.appendChild(actionTd);
 
     releaseColumns.forEach(function(col){
@@ -1468,12 +1479,14 @@ function rowDataFromTr(tr, columns){
         if (col.type === 'status') {
             const sel = td.querySelector('select');
             out[col.key] = sel ? sel.value : 'Ongoing';
-        } else if (col.key === 'vendor_text' || col.key === 'cavity_text') {
-            const dropdown = td.querySelector('.vendor-check');
-            out[col.key] = dropdown ? normalizeText(dropdown.dataset.value || '') : '';
         } else {
-            const editor = td.querySelector('.cell-editor');
-            out[col.key] = editor ? normalizeText(editor.innerText || editor.textContent || '') : '';
+            const dropdown = td.querySelector('.vendor-check');
+            if (dropdown) {
+                out[col.key] = normalizeText(dropdown.dataset.value || '');
+            } else {
+                const editor = td.querySelector('.cell-editor');
+                out[col.key] = editor ? normalizeText(editor.innerText || editor.textContent || '') : '';
+            }
         }
     });
     return out;
@@ -1550,6 +1563,28 @@ function appendBlankReleaseRow(){
     ensureReleaseBlankRow();
     renumberRows(els.releaseBody);
     focusFirstEditable(blank);
+    setDirty(true);
+}
+
+function insertReleaseRowBelow(tr){
+    const tbody = tr && tr.parentElement;
+    if (!tbody) return;
+    const currentData = rowDataFromTr(tr, releaseColumns);
+    const newRow = createReleaseRow({
+        holding_date_text: normalizeText(currentData.holding_date_text || ''),
+        vendor_text: normalizeText(currentData.vendor_text || ''),
+        parts_name_text: normalizeText(currentData.parts_name_text || ''),
+        tool_text: normalizeText(currentData.tool_text || ''),
+        cavity_text: normalizeText(currentData.cavity_text || ''),
+        affect_lot_text: normalizeText(currentData.affect_lot_text || ''),
+        type_text: normalizeText(currentData.type_text || ''),
+        status_text: normalizeText(currentData.status_text || 'Ongoing') || 'Ongoing'
+    });
+    newRow.dataset.keepBlank = '1';
+    tr.insertAdjacentElement('afterend', newRow);
+    ensureReleaseBlankRow();
+    renumberRows(els.releaseBody);
+    focusFirstEditable(newRow);
     setDirty(true);
 }
 
