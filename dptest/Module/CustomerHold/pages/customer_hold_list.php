@@ -514,11 +514,12 @@ body{
     border-color:rgba(245,158,11,.24);
     color:#fde68a;
 }
-.model-tabs{
+.model-tabs{display:none !important}
+.model-head-tabs{
     display:flex;
     gap:8px;
     flex-wrap:wrap;
-    margin:0 0 12px;
+    align-items:center;
 }
 .model-tab{
     appearance:none;
@@ -546,7 +547,7 @@ body{
 .model-section.hidden-section{display:none}
 .model-head{
     display:flex;
-    align-items:center;
+    align-items:flex-end;
     justify-content:space-between;
     gap:10px;
     padding:10px 12px;
@@ -1382,6 +1383,23 @@ function createReleaseRow(row){
     return tr;
 }
 
+function createModelHeadTabs(){
+    const wrap = document.createElement('div');
+    wrap.className = 'model-head-tabs';
+    state.models.forEach(function(model){
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'model-tab';
+        btn.dataset.model = model;
+        btn.textContent = model;
+        btn.addEventListener('click', function(){
+            setActiveToolModel(model);
+        });
+        wrap.appendChild(btn);
+    });
+    return wrap;
+}
+
 function renderToolStatus(rows){
     els.toolStatusRoot.innerHTML = '';
     const grouped = buildToolGroups(rows || []);
@@ -1392,8 +1410,7 @@ function renderToolStatus(rows){
 
         const head = document.createElement('div');
         head.className = 'model-head';
-        const h2 = document.createElement('h2');
-        h2.textContent = model;
+        head.appendChild(createModelHeadTabs());
         const addBtn = document.createElement('button');
         addBtn.type = 'button';
         addBtn.className = 'btn ghost small';
@@ -1402,7 +1419,6 @@ function renderToolStatus(rows){
         addBtn.addEventListener('click', function(){
             appendBlankToolRow(model);
         });
-        head.appendChild(h2);
         head.appendChild(addBtn);
         section.appendChild(head);
 
@@ -1442,23 +1458,12 @@ function renderToolStatus(rows){
 }
 
 function renderToolModelTabs(){
-    els.toolModelTabs.innerHTML = '';
-    state.models.forEach(function(model){
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'model-tab';
-        btn.dataset.model = model;
-        btn.textContent = model;
-        btn.addEventListener('click', function(){
-            setActiveToolModel(model);
-        });
-        els.toolModelTabs.appendChild(btn);
-    });
+    if (els.toolModelTabs) els.toolModelTabs.innerHTML = '';
 }
 
 function setActiveToolModel(model){
     state.activeToolModel = model || (state.models[0] || '');
-    document.querySelectorAll('#toolModelTabs .model-tab').forEach(function(btn){
+    document.querySelectorAll('#toolStatusRoot .model-tab').forEach(function(btn){
         btn.classList.toggle('active', btn.dataset.model === state.activeToolModel);
     });
     document.querySelectorAll('#toolStatusRoot .model-section').forEach(function(section){
