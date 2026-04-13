@@ -975,11 +975,11 @@ function createCheckboxDropdown(value, mode, editable, onChange){
     });
     if (mode === 'cavity') selected = selected.map(function(v){ return String(v).toUpperCase(); });
 
-    function commit(){
+    function commit(notify){
         const text = formatSelection(selected, mode);
         trigger.textContent = text;
         if (text) trigger.classList.remove('empty'); else trigger.classList.add('empty');
-        if (onChange) onChange(text);
+        if (notify !== false && onChange) onChange(text);
     }
 
     options.forEach(function(opt){
@@ -1006,7 +1006,7 @@ function createCheckboxDropdown(value, mode, editable, onChange){
                 const v = box.getAttribute('data-value');
                 box.checked = selected.includes(v);
             });
-            commit();
+            commit(true);
         });
         check.setAttribute('data-value', opt);
         const span = document.createElement('span');
@@ -1060,7 +1060,7 @@ function createCheckboxDropdown(value, mode, editable, onChange){
 
     wrap.appendChild(trigger);
     document.body.appendChild(panel);
-    commit();
+    commit(false);
     return {wrap:wrap, panel:panel, close:closePanel};
 }
 
