@@ -869,6 +869,7 @@ const state = {
     boot: window.CUSTOMER_HOLD_BOOTSTRAP || {}
 };
 const VENDOR_OPTIONS = ['자화', 'LGIT'];
+const CAVITY_OPTIONS = ['ALL', '1', '2', '3', '4'];
 
 const toolColumns = [
     { key: 'item_code', label: 'Item', placeholder: '' },
@@ -1002,15 +1003,20 @@ function createEditor(value, placeholder, options){
     return el;
 }
 
-function vendorDisplayText(raw){
-    const values = String(raw || '').split(/\n+/).map(function(v){ return normalizeText(v); }).filter(Boolean);
-    return values.length ? values.join(' / ') : '';
+function splitDropdownValues(raw){
+    return String(raw || '').split(/\n+/).map(function(v){ return normalizeText(v); }).filter(Boolean);
 }
 
-function createVendorDropdown(value){
+function joinDropdownValues(values){
+    return (values || []).map(function(v){ return normalizeText(v); }).filter(Boolean).join('\n');
+}
+
+function createCheckDropdown(value, options, placeholder, fieldKey){
     const wrap = document.createElement('div');
     wrap.className = 'vendor-check';
     wrap.dataset.value = normalizeText(value || '');
+    wrap.dataset.field = fieldKey || '';
+    wrap.dataset.placeholder = placeholder || '';
 
     const trigger = document.createElement('button');
     trigger.type = 'button';
@@ -1020,7 +1026,7 @@ function createVendorDropdown(value){
     const panel = document.createElement('div');
     panel.className = 'vendor-panel hidden';
 
-    VENDOR_OPTIONS.forEach(function(opt){
+    (options || []).forEach(function(opt){
         const label = document.createElement('label');
         label.className = 'vendor-option';
         const input = document.createElement('input');
@@ -1034,18 +1040,27 @@ function createVendorDropdown(value){
 
     wrap.appendChild(trigger);
     wrap.appendChild(panel);
-    syncVendorDropdown(wrap);
+    syncCheckDropdown(wrap);
     return wrap;
 }
 
-function syncVendorDropdown(wrap){
-    const values = String(wrap.dataset.value || '').split(/\n+/).map(function(v){ return normalizeText(v); }).filter(Boolean);
+function createVendorDropdown(value){
+    return createCheckDropdown(value, VENDOR_OPTIONS, '자화 / LGIT', 'vendor_text');
+}
+
+function createCavityDropdown(value){
+    return createCheckDropdown(value, CAVITY_OPTIONS, 'ALL / 1 / 2 / 3 / 4', 'cavity_text');
+}
+
+function syncCheckDropdown(wrap){
+    const values = splitDropdownValues(wrap.dataset.value || '');
     wrap.querySelectorAll('input[type="checkbox"]').forEach(function(box){
         box.checked = values.includes(box.value);
     });
     const trigger = wrap.querySelector('.vendor-trigger');
     const text = values.join(' / ');
-    trigger.textContent = text || '자화 / LGIT';
+    const placeholder = wrap.dataset.placeholder || '';
+    trigger.textContent = text || placeholder;
     trigger.classList.toggle('placeholder', !text);
 }
 
@@ -1229,11 +1244,6 @@ function createToolRow(model, row){
     tr.dataset.id = row.id ? String(row.id) : '';
     if (!row.id && !anyFilled(row, toolEditableKeys)) tr.classList.add('blank-row');
 
-    const no = document.createElement('td');
-    no.className = 'row-no';
-    no.textContent = '';
-    tr.appendChild(no);
-
     const actionTd = document.createElement('td');
     actionTd.className = 'actions';
     const actionWrap = document.createElement('div');
@@ -1269,6 +1279,8 @@ function createToolRow(model, row){
         td.dataset.field = col.key;
         if (col.key === 'vendor_text') {
             td.appendChild(createVendorDropdown(row[col.key] || ''));
+        } else if (col.key === 'cavity_text') {
+            td.appendChild(createCavityDropdown(row[col.key] || ''));
         } else if (col.key === 'item_code') {
             const editor = createEditor(model, model, Object.assign({}, col, { readonly: true }));
             td.appendChild(editor);
@@ -1322,6 +1334,8 @@ function createReleaseRow(row){
             td.appendChild(sel);
         } else if (col.key === 'vendor_text') {
             td.appendChild(createVendorDropdown(row[col.key] || ''));
+        } else if (col.key === 'cavity_text') {
+            td.appendChild(createCavityDropdown(row[col.key] || ''));
         } else {
             td.appendChild(createEditor(row[col.key] || '', col.placeholder || '', col));
         }
@@ -1363,7 +1377,7 @@ function renderToolStatus(rows){
 
         const thead = document.createElement('thead');
         const hr = document.createElement('tr');
-        ['No', '', 'Item', 'Tool', 'Cavity', 'Affect Lot', 'Vendor', 'Type', 'Issue Description', 'Remark'].forEach(function(label){
+        ['', 'Item', 'Tool', 'Cavity', 'Affect Lot', 'Vendor', 'Type', 'Issue Description', 'Remark'].forEach(function(label){
             const th = document.createElement('th');
             th.textContent = label;
             hr.appendChild(th);
@@ -1440,9 +1454,9 @@ function rowDataFromTr(tr, columns){
         if (col.type === 'status') {
             const sel = td.querySelector('select');
             out[col.key] = sel ? sel.value : 'Ongoing';
-        } else if (col.key === 'vendor_text') {
-            const vendor = td.querySelector('.vendor-check');
-            out[col.key] = vendor ? normalizeText(vendor.dataset.value || '') : '';
+        } else if (col.key === 'vendor_text' || col.key === 'cavity_text') {
+            const dropdown = td.querySelector('.vendor-check');
+            out[col.key] = dropdown ? normalizeText(dropdown.dataset.value || '') : '';
         } else {
             const editor = td.querySelector('.cell-editor');
             out[col.key] = editor ? normalizeText(editor.innerText || editor.textContent || '') : '';
@@ -1760,12 +1774,27 @@ function bindDelegation(){
         const box = e.target.closest('.vendor-check input[type="checkbox"]');
         if (box) {
             const wrap = box.closest('.vendor-check');
-            const values = Array.from(wrap.querySelectorAll('input[type="checkbox"]:checked')).map(function(input){ return input.value; });
-            wrap.dataset.value = values.join('\n');
-            syncVendorDropdown(wrap);
+            let values = Array.from(wrap.querySelectorAll('input[type="checkbox"]:checked')).map(function(input){ return input.value; });
+            if (wrap.dataset.field === 'cavity_text') {
+                if (box.value === 'ALL' && box.checked) {
+                    values = ['ALL'];
+                    wrap.querySelectorAll('input[type="checkbox"]').forEach(function(input){
+                        input.checked = input.value === 'ALL';
+                    });
+                } else {
+                    values = values.filter(function(v){ return v !== 'ALL'; });
+                    wrap.querySelectorAll('input[type="checkbox"]').forEach(function(input){
+                        if (input.value === 'ALL') input.checked = false;
+                    });
+                }
+                values = CAVITY_OPTIONS.filter(function(opt){ return values.includes(opt); });
+            }
+            wrap.dataset.value = joinDropdownValues(values);
+            syncCheckDropdown(wrap);
+            const changedField = wrap.dataset.field || '';
             const toolTr = wrap.closest('.tool-sheet tbody tr');
             if (toolTr) {
-                handleToolInput(toolTr, 'vendor_text');
+                handleToolInput(toolTr, changedField);
                 return;
             }
             const relTr = wrap.closest('#releaseBody tr');
