@@ -500,29 +500,6 @@ body{
 }
 .tab-panel{display:none; padding:14px 16px 18px;}
 .tab-panel.active{display:block}
-.subtabs{
-    display:flex;
-    gap:8px;
-    flex-wrap:wrap;
-    margin:0 0 12px;
-}
-.subtab{
-    appearance:none;
-    border:1px solid rgba(255,255,255,.08);
-    background:#1a2028;
-    color:var(--text);
-    border-radius:12px 12px 0 0;
-    padding:10px 16px;
-    cursor:pointer;
-    font-weight:600;
-}
-.subtab.active{
-    background:#253040;
-    border-color:rgba(34,197,94,.28);
-    color:#dcfce7;
-}
-.model-panel{display:none}
-.model-panel.active{display:block}
 .notice{
     margin:0 16px 12px;
     padding:12px 14px;
@@ -596,143 +573,77 @@ body{
     text-align:center;
     color:var(--muted);
     font-size:12px;
-    padding:10px 6px;
+    padding:6px 6px;
     background:#11161d !important;
 }
 .sheet td.actions{
     width:64px;
     text-align:center;
-    padding:6px;
+    padding:4px 6px;
     background:#11161d !important;
 }
 .row-btn{
-    width:34px;
-    height:34px;
-    border-radius:10px;
+    width:28px;
+    height:28px;
+    border-radius:8px;
     border:1px solid rgba(255,255,255,.10);
     background:#232a34;
     color:#fff;
     cursor:pointer;
+    line-height:1;
 }
 .row-btn:hover{background:#2b3440}
 .row-btn.delete{color:#fecaca}
 .cell-editor{
-    min-height:42px;
-    padding:9px 10px;
+    width:100%;
+    display:block;
+    margin:0;
+    background:transparent;
+    color:var(--text);
+    border:none;
+    border-radius:0;
     outline:none;
+    box-shadow:none;
+    font:inherit;
+    font-size:12px;
+    line-height:1.22;
+    padding:6px 8px;
+    appearance:none;
+    -webkit-appearance:none;
+}
+input.cell-editor{
+    height:32px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+textarea.cell-editor{
+    min-height:32px;
+    resize:vertical;
     white-space:pre-wrap;
     word-break:break-word;
-    line-height:1.35;
-    font-size:13px;
 }
-.cell-editor[data-placeholder]:empty::before{
-    content:attr(data-placeholder);
+.cell-editor::placeholder{
     color:#6b7280;
+    opacity:1;
 }
 .cell-editor.readonly{cursor:default}
+.cell-editor[readonly]{pointer-events:none}
 .sheet td:focus-within{
     outline:2px solid rgba(34,197,94,.40);
     outline-offset:-2px;
 }
-.multi-select{
-    position:relative;
-    min-height:42px;
-}
-.multi-select-trigger{
-    width:100%;
-    min-height:42px;
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:10px;
-    padding:9px 10px;
-    background:#131820;
-    color:var(--text);
-    border:none;
-    cursor:pointer;
-    font-size:13px;
-    text-align:left;
-}
-.multi-select.readonly .multi-select-trigger{cursor:default}
-.multi-select-label{
-    flex:1;
-    white-space:pre-wrap;
-    word-break:break-word;
-    line-height:1.35;
-}
-.multi-select.empty .multi-select-label{color:#6b7280}
-.multi-select-arrow{
-    color:#9ca3af;
-    font-size:11px;
-    flex:none;
-}
-.multi-select-panel{
-    display:none;
-    position:absolute;
-    left:0;
-    top:calc(100% + 6px);
-    z-index:40;
-    min-width:280px;
-    max-width:min(360px, calc(100vw - 80px));
-    padding:12px;
-    border-radius:16px;
-    background:rgba(9,11,14,.96);
-    border:1px solid rgba(255,255,255,.10);
-    box-shadow:0 20px 40px rgba(0,0,0,.36);
-}
-.multi-select.open .multi-select-panel{display:block}
-.multi-select-actions{
-    display:flex;
-    gap:8px;
-    margin-bottom:10px;
-}
-.multi-select-mini{
-    appearance:none;
-    border:1px solid rgba(255,255,255,.10);
-    background:#161d26;
-    color:var(--text);
-    border-radius:999px;
-    padding:6px 10px;
-    cursor:pointer;
-    font-size:12px;
-}
-.multi-select-options{
-    display:grid;
-    grid-template-columns:repeat(auto-fit, minmax(72px, 1fr));
-    gap:10px;
-    margin-bottom:10px;
-}
-.multi-select-option{
-    display:flex;
-    align-items:center;
-    gap:8px;
-    min-height:40px;
-    padding:0 12px;
-    border-radius:12px;
-    border:1px solid rgba(255,255,255,.10);
-    background:#11161d;
-}
-.multi-select-option input{accent-color:#22c55e}
-.multi-select-free{display:flex; flex-direction:column; gap:6px;}
-.multi-select-free label{font-size:12px; color:var(--muted);}
-.multi-select-free input{
-    width:100%;
-    min-height:40px;
-    padding:9px 10px;
-    background:#131820;
-    color:var(--text);
-    border:1px solid rgba(255,255,255,.08);
-    border-radius:10px;
-    font-size:13px;
-}
 .status-select{
     width:100%;
-    min-height:42px;
+    height:32px;
     background:#131820;
     color:var(--text);
     border:none;
-    padding:9px 10px;
-    font-size:13px;
+    padding:6px 28px 6px 8px;
+    font-size:12px;
+    line-height:1.2;
+    appearance:auto;
+    -webkit-appearance:menulist;
 }
 .status-select:focus{outline:2px solid rgba(34,197,94,.40); outline-offset:-2px}
 .statusbar{
@@ -801,7 +712,6 @@ body{
         <div id="readonlyMessage" class="notice warn hidden">현재 계정은 조회만 가능합니다. 레벨 77 이상부터 입력·수정·삭제·저장이 가능합니다.</div>
 
         <section class="tab-panel active" data-panel="toolStatus">
-            <div class="subtabs" id="toolModelTabs"></div>
             <div id="toolStatusRoot"></div>
         </section>
 
@@ -863,41 +773,38 @@ window.CUSTOMER_HOLD_BOOTSTRAP = <?php echo json_encode($boot, JSON_UNESCAPED_UN
 const endpoint = location.pathname + '?ajax=1';
 const state = {
     models: [],
-    activeToolModel: '',
     canEdit: false,
     userLv: 0,
     dirty: false,
     boot: window.CUSTOMER_HOLD_BOOTSTRAP || {}
 };
 
-const vendorOptions = ['자화', 'LGIT'];
-
 const toolColumns = [
-    { key: 'tool_text', label: 'Tool', placeholder: 'A / B / C / All' },
+    { key: 'item_code', label: 'Item', placeholder: 'A / B / C...' },
+    { key: 'tool_text', label: 'Tool', placeholder: 'A / 1 / All' },
     { key: 'cavity_text', label: 'Cavity', placeholder: '1,2,4 / All' },
     { key: 'affect_lot_text', label: 'Affect Lot', placeholder: '전 Lot / ~2/21 Lot' },
-    { key: 'vendor_text', label: 'Vendor', placeholder: '자화 / LGIT', type: 'vendor' },
+    { key: 'vendor_text', label: 'Vendor', placeholder: '자화 / LGIT' },
     { key: 'type_text', label: 'Type', placeholder: '치수 / 외관' },
-    { key: 'issue_description_text', label: 'Issue Description', placeholder: '홀딩 사유' },
-    { key: 'remark_text', label: 'Remark', placeholder: '비고 / 출하 가능 조건' }
+    { key: 'issue_description_text', label: 'Issue Description', placeholder: '홀딩 사유', multiline: true },
+    { key: 'remark_text', label: 'Remark', placeholder: '비고 / 출하 가능 조건', multiline: true }
 ];
 
 const releaseColumns = [
     { key: 'holding_date_text', placeholder: '2026-04-13' },
-    { key: 'vendor_text', placeholder: '자화 / LGIT', type: 'vendor' },
+    { key: 'vendor_text', placeholder: '자화 / LGIT' },
     { key: 'parts_name_text', placeholder: 'IR-BASE' },
     { key: 'tool_text', placeholder: 'A / 1 / All' },
     { key: 'cavity_text', placeholder: '1,2,4 / All' },
     { key: 'affect_lot_text', placeholder: '전 Lot / 특정 Lot' },
     { key: 'type_text', placeholder: '치수 / 외관' },
-    { key: 'issue_description_text', placeholder: 'Issue Description' },
+    { key: 'issue_description_text', placeholder: 'Issue Description', multiline: true },
     { key: 'status_text', type: 'status' },
     { key: 'release_date_text', placeholder: '해제일' },
-    { key: 'note_text', placeholder: '비고' }
+    { key: 'note_text', placeholder: '비고', multiline: true }
 ];
 
 const els = {
-    toolModelTabs: document.getElementById('toolModelTabs'),
     toolStatusRoot: document.getElementById('toolStatusRoot'),
     releaseBody: document.getElementById('releaseBody'),
     fatalMessage: document.getElementById('fatalMessage'),
@@ -955,216 +862,28 @@ function buildToolGroups(rows){
     return grouped;
 }
 
-function getActiveToolModel(){
-    if (state.activeToolModel && state.models.includes(state.activeToolModel)) return state.activeToolModel;
-    return state.models[0] || '';
-}
-
-function setActiveToolModel(model){
-    if (!model || !state.models.includes(model)) model = state.models[0] || '';
-    state.activeToolModel = model;
-    if (els.toolModelTabs) {
-        els.toolModelTabs.querySelectorAll('.subtab').forEach(function(btn){
-            btn.classList.toggle('active', btn.dataset.model === model);
-        });
+function createEditor(value, placeholder, options){
+    const opts = options || {};
+    const el = document.createElement(opts.multiline ? 'textarea' : 'input');
+    el.className = 'cell-editor';
+    if (!state.canEdit) el.classList.add('readonly');
+    if (opts.multiline) {
+        el.rows = 1;
+    } else {
+        el.type = 'text';
     }
-    if (els.toolStatusRoot) {
-        els.toolStatusRoot.querySelectorAll('.model-panel').forEach(function(panel){
-            panel.classList.toggle('active', panel.dataset.model === model);
-        });
-    }
-}
-
-function renderToolModelTabs(){
-    if (!els.toolModelTabs) return;
-    els.toolModelTabs.innerHTML = '';
-    state.models.forEach(function(model){
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'subtab';
-        btn.dataset.model = model;
-        btn.textContent = model;
-        btn.addEventListener('click', function(){
-            setActiveToolModel(model);
-        });
-        els.toolModelTabs.appendChild(btn);
-    });
-    setActiveToolModel(getActiveToolModel());
-}
-
-function splitMultiTokens(value){
-    return String(value == null ? '' : value)
-        .split(/\s*\/\s*|\s*,\s*|\n+/)
-        .map(function(token){ return token.trim(); })
-        .filter(Boolean);
-}
-
-function uniqTokens(tokens){
-    const out = [];
-    tokens.forEach(function(token){
-        const exists = out.some(function(saved){ return saved.toUpperCase() === token.toUpperCase(); });
-        if (!exists) out.push(token);
-    });
-    return out;
-}
-
-function parseVendorValue(value){
-    const tokens = uniqTokens(splitMultiTokens(value));
-    const selected = [];
-    const custom = [];
-    tokens.forEach(function(token){
-        const found = vendorOptions.find(function(opt){ return opt.toUpperCase() === token.toUpperCase(); });
-        if (found) selected.push(found);
-        else custom.push(token);
-    });
-    return { selected: selected, custom: custom };
-}
-
-function closeAllMultiSelects(except){
-    document.querySelectorAll('.multi-select.open').forEach(function(el){
-        if (except && el === except) return;
-        el.classList.remove('open');
-    });
-}
-
-function createVendorPicker(value, placeholder){
-    const wrap = document.createElement('div');
-    wrap.className = 'multi-select';
-    if (!state.canEdit) wrap.classList.add('readonly');
-
-    const trigger = document.createElement('button');
-    trigger.type = 'button';
-    trigger.className = 'multi-select-trigger';
-
-    const label = document.createElement('span');
-    label.className = 'multi-select-label';
-
-    const arrow = document.createElement('span');
-    arrow.className = 'multi-select-arrow';
-    arrow.textContent = '▼';
-
-    trigger.appendChild(label);
-    trigger.appendChild(arrow);
-
-    const panel = document.createElement('div');
-    panel.className = 'multi-select-panel hidden';
-
-    const actions = document.createElement('div');
-    actions.className = 'multi-select-actions';
-
-    const selectAllBtn = document.createElement('button');
-    selectAllBtn.type = 'button';
-    selectAllBtn.className = 'multi-select-mini';
-    selectAllBtn.textContent = '전체';
-
-    const clearBtn = document.createElement('button');
-    clearBtn.type = 'button';
-    clearBtn.className = 'multi-select-mini';
-    clearBtn.textContent = '해제';
-
-    actions.appendChild(selectAllBtn);
-    actions.appendChild(clearBtn);
-
-    const optionsWrap = document.createElement('div');
-    optionsWrap.className = 'multi-select-options';
-
-    const freeWrap = document.createElement('div');
-    freeWrap.className = 'multi-select-free';
-    const freeLabel = document.createElement('label');
-    freeLabel.textContent = '직접 입력';
-    const freeInput = document.createElement('input');
-    freeInput.type = 'text';
-    freeInput.placeholder = '직접 입력 (예: LG / 자화 / 기타)';
-    freeWrap.appendChild(freeLabel);
-    freeWrap.appendChild(freeInput);
-
-    panel.appendChild(actions);
-    panel.appendChild(optionsWrap);
-    panel.appendChild(freeWrap);
-
-    const checkboxes = [];
-    vendorOptions.forEach(function(opt){
-        const optLabel = document.createElement('label');
-        optLabel.className = 'multi-select-option';
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.value = opt;
-        const text = document.createElement('span');
-        text.textContent = opt;
-        optLabel.appendChild(checkbox);
-        optLabel.appendChild(text);
-        optionsWrap.appendChild(optLabel);
-        checkboxes.push(checkbox);
-    });
-
-    function sync(emit){
-        const selected = checkboxes.filter(function(cb){ return cb.checked; }).map(function(cb){ return cb.value; });
-        const custom = splitMultiTokens(freeInput.value);
-        const merged = uniqTokens(selected.concat(custom));
-        const joined = merged.join(' / ');
-        wrap.dataset.value = joined;
-        label.textContent = joined || placeholder || '';
-        wrap.classList.toggle('empty', !joined);
-        if (emit) {
-            wrap.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-    }
-
-    const parsed = parseVendorValue(value);
-    checkboxes.forEach(function(cb){
-        cb.checked = parsed.selected.includes(cb.value);
-        cb.disabled = !state.canEdit;
-        cb.addEventListener('change', function(){ sync(true); });
-    });
-    freeInput.value = parsed.custom.join(' / ');
-    freeInput.disabled = !state.canEdit;
-    freeInput.addEventListener('input', function(){ sync(true); });
-
-    selectAllBtn.disabled = !state.canEdit;
-    clearBtn.disabled = !state.canEdit;
-    selectAllBtn.addEventListener('click', function(){
-        checkboxes.forEach(function(cb){ cb.checked = true; });
-        sync(true);
-    });
-    clearBtn.addEventListener('click', function(){
-        checkboxes.forEach(function(cb){ cb.checked = false; });
-        freeInput.value = '';
-        sync(true);
-    });
-
-    trigger.addEventListener('click', function(ev){
-        ev.preventDefault();
-        ev.stopPropagation();
-        if (!state.canEdit) return;
-        const willOpen = !wrap.classList.contains('open');
-        closeAllMultiSelects(wrap);
-        wrap.classList.toggle('open', willOpen);
-        panel.classList.toggle('hidden', !willOpen);
-        if (willOpen) freeInput.focus();
-    });
-
-    panel.addEventListener('click', function(ev){ ev.stopPropagation(); });
-    wrap.appendChild(trigger);
-    wrap.appendChild(panel);
-    sync(false);
-    panel.classList.add('hidden');
-    return wrap;
-}
-
-function createEditor(value, placeholder){
-    const div = document.createElement('div');
-    div.className = 'cell-editor';
-    if (!state.canEdit) div.classList.add('readonly');
-    div.contentEditable = state.canEdit ? 'true' : 'false';
-    div.spellcheck = false;
-    div.dataset.placeholder = placeholder || '';
-    div.textContent = value || '';
-    return div;
+    el.spellcheck = false;
+    el.autocomplete = 'off';
+    el.autocorrect = 'off';
+    el.autocapitalize = 'off';
+    el.placeholder = placeholder || '';
+    el.value = value || '';
+    el.readOnly = !state.canEdit;
+    return el;
 }
 
 function createToolRow(model, row){
     row = row || {};
-    row.part_name = model;
     const tr = document.createElement('tr');
     tr.dataset.model = model;
     tr.dataset.id = row.id ? String(row.id) : '';
@@ -1192,11 +911,8 @@ function createToolRow(model, row){
     toolColumns.forEach(function(col){
         const td = document.createElement('td');
         td.dataset.field = col.key;
-        if (col.type === 'vendor') {
-            td.appendChild(createVendorPicker(row[col.key] || '', col.placeholder || ''));
-        } else {
-            td.appendChild(createEditor(row[col.key] || '', col.placeholder || ''));
-        }
+        const editor = createEditor(row[col.key] || '', col.placeholder || '', col);
+        td.appendChild(editor);
         tr.appendChild(td);
     });
     return tr;
@@ -1241,10 +957,8 @@ function createReleaseRow(row){
                 sel.appendChild(option);
             });
             td.appendChild(sel);
-        } else if (col.type === 'vendor') {
-            td.appendChild(createVendorPicker(row[col.key] || '', col.placeholder || ''));
         } else {
-            td.appendChild(createEditor(row[col.key] || '', col.placeholder || ''));
+            td.appendChild(createEditor(row[col.key] || '', col.placeholder || '', col));
         }
         tr.appendChild(td);
     });
@@ -1255,12 +969,9 @@ function renderToolStatus(rows){
     els.toolStatusRoot.innerHTML = '';
     const grouped = buildToolGroups(rows || []);
     state.models.forEach(function(model){
-        const panel = document.createElement('div');
-        panel.className = 'model-panel';
-        panel.dataset.model = model;
-
         const section = document.createElement('div');
         section.className = 'model-section';
+        section.dataset.model = model;
 
         const head = document.createElement('div');
         head.className = 'model-head';
@@ -1287,7 +998,7 @@ function renderToolStatus(rows){
 
         const colgroup = document.createElement('colgroup');
         [
-            '48px','64px','110px','110px','140px','150px','120px','220px','260px'
+            '48px','64px','90px','90px','90px','120px','120px','110px','220px','260px'
         ].forEach(function(width){
             const col = document.createElement('col');
             col.style.width = width;
@@ -1297,7 +1008,7 @@ function renderToolStatus(rows){
 
         const thead = document.createElement('thead');
         const hr = document.createElement('tr');
-        ['No', '', 'Tool', 'Cavity', 'Affect Lot', 'Vendor', 'Type', 'Issue Description', 'Remark'].forEach(function(label){
+        ['No', '', 'Item', 'Tool', 'Cavity', 'Affect Lot', 'Vendor', 'Type', 'Issue Description', 'Remark'].forEach(function(label){
             const th = document.createElement('th');
             th.textContent = label;
             hr.appendChild(th);
@@ -1315,13 +1026,11 @@ function renderToolStatus(rows){
 
         wrap.appendChild(table);
         section.appendChild(wrap);
-        panel.appendChild(section);
-        els.toolStatusRoot.appendChild(panel);
+        els.toolStatusRoot.appendChild(section);
 
         renumberRows(tbody);
         ensureToolBlankRow(model);
     });
-    renderToolModelTabs();
 }
 
 function renderReleaseDetails(rows){
@@ -1350,12 +1059,9 @@ function rowDataFromTr(tr, columns){
         if (col.type === 'status') {
             const sel = td.querySelector('select');
             out[col.key] = sel ? sel.value : 'Ongoing';
-        } else if (col.type === 'vendor') {
-            const picker = td.querySelector('.multi-select');
-            out[col.key] = picker ? normalizeText(picker.dataset.value || '') : '';
         } else {
             const editor = td.querySelector('.cell-editor');
-            out[col.key] = editor ? normalizeText(editor.innerText) : '';
+            out[col.key] = editor ? normalizeText(editor.value) : '';
         }
     });
     return out;
@@ -1421,7 +1127,7 @@ function appendBlankReleaseRow(){
 
 function focusFirstEditable(tr){
     if (!tr) return;
-    const target = tr.querySelector('.cell-editor[contenteditable="true"], select:not([disabled]), .multi-select-trigger');
+    const target = tr.querySelector('.cell-editor:not([readonly]), select:not([disabled])');
     if (target) target.focus();
 }
 
@@ -1512,7 +1218,6 @@ function applyPayload(payload){
 
     renderToolStatus(payload.tool_status || []);
     renderReleaseDetails(payload.release_details || []);
-    setActiveToolModel(getActiveToolModel());
     setDirty(false);
     showFatal('');
 }
@@ -1614,17 +1319,8 @@ function bindDelegation(){
     });
 
     document.addEventListener('change', function(e){
-        const tr = e.target.closest('.tool-sheet tbody tr');
-        if (tr) {
-            handleToolInput(tr);
-            return;
-        }
         const relTr = e.target.closest('#releaseBody tr');
         if (relTr) handleReleaseInput(relTr);
-    });
-
-    document.addEventListener('click', function(e){
-        if (!e.target.closest('.multi-select')) closeAllMultiSelects();
     });
 }
 
