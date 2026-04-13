@@ -431,7 +431,7 @@ body{
     border:1px solid rgba(255,255,255,.08);
     border-radius:16px;
     box-shadow:var(--shadow);
-    overflow:hidden;
+    overflow:visible;
 }
 .toolbar{
     position:sticky;
@@ -498,7 +498,7 @@ body{
     border-color:rgba(34,197,94,.28);
     color:#dcfce7;
 }
-.tab-panel{display:none; padding:14px 16px 18px;}
+.tab-panel{display:none; padding:14px 16px 28px; overflow:visible;}
 .tab-panel.active{display:block}
 .notice{
     margin:0 16px 12px;
@@ -543,6 +543,7 @@ body{
     background:rgba(255,255,255,.02);
 }
 .model-section.hidden-section{display:none}
+.model-section.vendor-open{position:relative; z-index:40; padding-bottom:132px;}
 .model-head{
     display:flex;
     align-items:center;
@@ -649,6 +650,7 @@ body{
     color:#6b7280;
 }
 .cell-editor.readonly{cursor:default}
+.cell-editor.auto-filled{color:#dbeafe; opacity:.95}
 .cell-editor[contenteditable="false"]{pointer-events:none}
 .vendor-check{
     position:relative;
@@ -689,7 +691,7 @@ body{
     background:#0f1720;
     border:1px solid rgba(255,255,255,.10);
     box-shadow:0 14px 28px rgba(0,0,0,.35);
-    z-index:50;
+    z-index:520;
 }
 .vendor-panel.hidden{display:none !important}
 .vendor-option{
@@ -857,7 +859,7 @@ const state = {
 const VENDOR_OPTIONS = ['자화', 'LGIT'];
 
 const toolColumns = [
-    { key: 'item_code', label: 'Item', placeholder: 'A / B / C...' },
+    { key: 'item_code', label: 'Item', placeholder: '' },
     { key: 'tool_text', label: 'Tool', placeholder: 'A / 1 / All' },
     { key: 'cavity_text', label: 'Cavity', placeholder: '1,2,4 / All' },
     { key: 'affect_lot_text', label: 'Affect Lot', placeholder: '전 Lot / ~2/21 Lot' },
@@ -866,6 +868,8 @@ const toolColumns = [
     { key: 'issue_description_text', label: 'Issue Description', placeholder: '홀딩 사유', multiline: true },
     { key: 'remark_text', label: 'Remark', placeholder: '비고 / 출하 가능 조건', multiline: true }
 ];
+
+const toolEditableKeys = toolColumns.filter(function(col){ return col.key !== 'item_code'; }).map(function(col){ return col.key; });
 
 const releaseColumns = [
     { key: 'holding_date_text', placeholder: '2026-04-13' },
@@ -944,8 +948,10 @@ function createEditor(value, placeholder, options){
     const opts = options || {};
     const el = document.createElement('div');
     el.className = 'cell-editor' + (opts.multiline ? ' multiline' : '');
-    if (!state.canEdit) el.classList.add('readonly');
-    el.contentEditable = state.canEdit ? 'true' : 'false';
+    const editable = state.canEdit && !opts.readonly;
+    if (!editable) el.classList.add('readonly');
+    if (opts.readonly) el.classList.add('auto-filled');
+    el.contentEditable = editable ? 'true' : 'false';
     el.spellcheck = false;
     el.dataset.placeholder = placeholder || '';
     el.textContent = value || '';
@@ -1003,17 +1009,27 @@ function toggleVendorDropdown(wrap, open){
     document.querySelectorAll('.vendor-panel').forEach(function(panel){
         if (!wrap || panel !== wrap.querySelector('.vendor-panel')) panel.classList.add('hidden');
     });
+    document.querySelectorAll('.model-section.vendor-open').forEach(function(section){
+        section.classList.remove('vendor-open');
+    });
     if (!wrap || !state.canEdit) return;
     const panel = wrap.querySelector('.vendor-panel');
-    if (panel) panel.classList.toggle('hidden', open === undefined ? !panel.classList.contains('hidden') : !open);
+    if (!panel) return;
+    const shouldOpen = open === undefined ? panel.classList.contains('hidden') : !!open;
+    panel.classList.toggle('hidden', !shouldOpen);
+    if (shouldOpen) {
+        const section = wrap.closest('.model-section');
+        if (section) section.classList.add('vendor-open');
+    }
 }
 
 function createToolRow(model, row){
     row = row || {};
+    if (!normalizeText(row.item_code)) row.item_code = model;
     const tr = document.createElement('tr');
     tr.dataset.model = model;
     tr.dataset.id = row.id ? String(row.id) : '';
-    if (!row.id && !anyFilled(row, toolColumns.map(c => c.key))) tr.classList.add('blank-row');
+    if (!row.id && !anyFilled(row, toolEditableKeys)) tr.classList.add('blank-row');
 
     const no = document.createElement('td');
     no.className = 'row-no';
@@ -1039,6 +1055,9 @@ function createToolRow(model, row){
         td.dataset.field = col.key;
         if (col.key === 'vendor_text') {
             td.appendChild(createVendorDropdown(row[col.key] || ''));
+        } else if (col.key === 'item_code') {
+            const editor = createEditor(model, model, Object.assign({}, col, { readonly: true }));
+            td.appendChild(editor);
         } else {
             const editor = createEditor(row[col.key] || '', col.placeholder || '', col);
             td.appendChild(editor);
@@ -1235,7 +1254,7 @@ function collectToolStatusRows(){
             const data = rowDataFromTr(tr, toolColumns);
             data.part_name = model;
             data.sort_order = idx + 1;
-            if (data.id || anyFilled(data, toolColumns.map(c => c.key))) {
+            if (data.id || anyFilled(data, toolEditableKeys)) {
                 rows.push(data);
             }
         });
@@ -1293,7 +1312,7 @@ function focusFirstEditable(tr){
 
 function isToolBlankRow(tr){
     const data = rowDataFromTr(tr, toolColumns);
-    return !anyFilled(data, toolColumns.map(c => c.key));
+    return !anyFilled(data, toolEditableKeys);
 }
 
 function isReleaseBlankRow(tr){
