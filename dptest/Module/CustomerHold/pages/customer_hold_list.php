@@ -1115,72 +1115,55 @@ function ensureToolColgroup(table){
     return colgroup;
 }
 
-function syncToolSheetColumnWidths(){
-    const sections = Array.from(document.querySelectorAll('#toolStatusRoot .model-section'));
-    if (!sections.length) return;
-    const hiddenSections = [];
-    sections.forEach(function(section){
-        if (section.classList.contains('hidden-section')) {
-            hiddenSections.push(section);
-            section.classList.remove('hidden-section');
-        }
-    });
-
-    const tables = sections.map(function(section){
-        return section.querySelector('table.tool-sheet');
-    }).filter(Boolean);
-
-    if (!tables.length) {
-        hiddenSections.forEach(function(section){ section.classList.add('hidden-section'); });
-        return;
-    }
-
-    tables.forEach(function(table){
-        const colgroup = ensureToolColgroup(table);
-        if (!colgroup) return;
-        Array.from(colgroup.children).forEach(function(col){
-            col.style.width = '';
-            col.style.minWidth = '';
-        });
-    });
-
-    // force layout after widths reset
-    tables.forEach(function(table){ void table.offsetWidth; });
-
-    const widths = [];
-    tables.forEach(function(table){
-        const rows = table.querySelectorAll('thead tr, tbody tr');
-        rows.forEach(function(row){
-            Array.from(row.children).forEach(function(cell, idx){
-                if (!cell || cell.style.display === 'none') return;
-                const rect = cell.getBoundingClientRect();
-                const width = Math.ceil(rect.width || 0);
-                if (!width) return;
-                widths[idx] = Math.max(widths[idx] || 0, width);
-            });
-        });
-    });
-
-    tables.forEach(function(table){
-        const colgroup = ensureToolColgroup(table);
-        if (!colgroup) return;
-        Array.from(colgroup.children).forEach(function(col, idx){
-            const width = widths[idx] || 0;
-            if (width > 0) {
-                col.style.width = width + 'px';
-                col.style.minWidth = width + 'px';
-            }
-        });
-    });
-
-    hiddenSections.forEach(function(section){ section.classList.add('hidden-section'); });
+function getActiveToolSection(){
+    return document.querySelector('#toolStatusRoot .model-section:not(.hidden-section)')
+        || document.querySelector('#toolStatusRoot .model-section');
 }
 
-function scheduleToolSheetColumnWidthSync(){
+function syncToolSheetColumnWidths(target){
+    const table = target && target.matches && target.matches('table.tool-sheet')
+        ? target
+        : (target && target.closest ? target.closest('table.tool-sheet') : null)
+            || (target && target.querySelector ? target.querySelector('table.tool-sheet') : null)
+            || (getActiveToolSection() ? getActiveToolSection().querySelector('table.tool-sheet') : null);
+    if (!table) return;
+
+    const colgroup = ensureToolColgroup(table);
+    if (!colgroup) return;
+
+    Array.from(colgroup.children).forEach(function(col){
+        col.style.width = '';
+        col.style.minWidth = '';
+    });
+
+    void table.offsetWidth;
+
+    const widths = [];
+    const rows = table.querySelectorAll('thead tr, tbody tr');
+    rows.forEach(function(row){
+        Array.from(row.children).forEach(function(cell, idx){
+            if (!cell || cell.style.display === 'none') return;
+            const rect = cell.getBoundingClientRect();
+            const width = Math.ceil(rect.width || 0);
+            if (!width) return;
+            widths[idx] = Math.max(widths[idx] || 0, width);
+        });
+    });
+
+    Array.from(colgroup.children).forEach(function(col, idx){
+        const width = widths[idx] || 0;
+        if (width > 0) {
+            col.style.width = width + 'px';
+            col.style.minWidth = width + 'px';
+        }
+    });
+}
+
+function scheduleToolSheetColumnWidthSync(target){
     if (__toolWidthSyncRaf) cancelAnimationFrame(__toolWidthSyncRaf);
     __toolWidthSyncRaf = requestAnimationFrame(function(){
         __toolWidthSyncRaf = 0;
-        syncToolSheetColumnWidths();
+        syncToolSheetColumnWidths(target);
     });
 }
 
@@ -1654,7 +1637,7 @@ function renderToolStatus(rows){
         applyToolRowMerges(tbody);
         autosizeAllRows(section);
     });
-    scheduleToolSheetColumnWidthSync();
+    scheduleToolSheetColumnWidthSync(getActiveToolSection());
 }
 
 function renderToolModelTabs(){
@@ -1672,7 +1655,7 @@ function setActiveToolModel(model){
     requestAnimationFrame(function(){
         const activeSection = document.querySelector('#toolStatusRoot .model-section[data-model="' + CSS.escape(state.activeToolModel) + '"]');
         if (activeSection) autosizeAllRows(activeSection);
-        scheduleToolSheetColumnWidthSync();
+        scheduleToolSheetColumnWidthSync(activeSection);
     });
 }
 
@@ -1754,7 +1737,7 @@ function appendBlankToolRow(model){
         tbody.appendChild(autoBlank);
         renumberRows(tbody);
         applyToolRowMerges(tbody);
-        requestAnimationFrame(function(){ autosizeAllRows(tbody); scheduleToolSheetColumnWidthSync(); });
+        requestAnimationFrame(function(){ autosizeAllRows(tbody); scheduleToolSheetColumnWidthSync(tbody); });
         focusFirstEditable(last);
         setDirty(true);
         return;
@@ -1765,7 +1748,7 @@ function appendBlankToolRow(model){
     ensureToolBlankRow(model);
     renumberRows(tbody);
     applyToolRowMerges(tbody);
-    requestAnimationFrame(function(){ autosizeRow(blank); scheduleToolSheetColumnWidthSync(); });
+    requestAnimationFrame(function(){ autosizeRow(blank); scheduleToolSheetColumnWidthSync(blank); });
     focusFirstEditable(blank);
     setDirty(true);
 }
@@ -1883,7 +1866,7 @@ function handleToolInput(tr, changedField){
         applyToolRowMerges(tbody);
         renumberRows(tbody);
     }
-    requestAnimationFrame(function(){ autosizeRow(tr); scheduleToolSheetColumnWidthSync(); });
+    requestAnimationFrame(function(){ autosizeRow(tr); scheduleToolSheetColumnWidthSync(tr); });
     setDirty(true);
 }
 
@@ -1892,7 +1875,7 @@ function handleReleaseInput(tr){
     tr.classList.toggle('blank-row', isReleaseBlankRow(tr));
     ensureReleaseBlankRow();
     renumberRows(els.releaseBody);
-    requestAnimationFrame(function(){ autosizeRow(tr); scheduleToolSheetColumnWidthSync(); });
+    requestAnimationFrame(function(){ autosizeRow(tr); scheduleToolSheetColumnWidthSync(tr); });
     setDirty(true);
 }
 
@@ -1925,7 +1908,7 @@ function applyPayload(payload){
     renderToolModelTabs();
     setActiveToolModel(state.models.includes(state.activeToolModel) ? state.activeToolModel : (state.models[0] || ''));
     renderReleaseDetails(payload.release_details || []);
-    requestAnimationFrame(function(){ autosizeAllRows(document); scheduleToolSheetColumnWidthSync(); });
+    requestAnimationFrame(function(){ autosizeAllRows(document); scheduleToolSheetColumnWidthSync(getActiveToolSection()); });
     setDirty(false);
     showFatal('');
 }
@@ -1979,7 +1962,7 @@ async function handleToolRowDelete(tr){
     ensureToolBlankRow(tbody.dataset.model);
     applyToolRowMerges(tbody);
     renumberRows(tbody);
-    scheduleToolSheetColumnWidthSync();
+    scheduleToolSheetColumnWidthSync(tbody);
     setDirty(true);
 }
 
