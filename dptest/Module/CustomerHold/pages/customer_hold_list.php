@@ -550,7 +550,7 @@ body{
     align-items:flex-end;
     justify-content:space-between;
     gap:10px;
-    padding:10px 12px;
+    padding:8px 12px 2px;
     background:rgba(255,255,255,.04);
     border-bottom:1px solid rgba(255,255,255,.08);
 }
@@ -661,18 +661,24 @@ body{
     white-space:nowrap;
     overflow:hidden;
     text-overflow:ellipsis;
+    resize:none;
 }
-.cell-editor.multiline{
+input.cell-editor{height:22px}
+textarea.cell-editor{
+    min-height:22px;
     white-space:pre-wrap;
     word-break:break-word;
+    overflow:auto;
 }
-.cell-editor:empty:before{
-    content:attr(data-placeholder);
+.cell-editor::placeholder{
     color:#6b7280;
+    opacity:1;
 }
-.cell-editor.readonly{cursor:default}
+.cell-editor.readonly{
+    cursor:default;
+    pointer-events:none;
+}
 .cell-editor.auto-filled{color:#dbeafe; opacity:.95}
-.cell-editor[contenteditable="false"]{pointer-events:none}
 .vendor-check{
     position:relative;
     min-width:96px;
@@ -1000,15 +1006,24 @@ function buildToolGroups(rows){
 
 function createEditor(value, placeholder, options){
     const opts = options || {};
-    const el = document.createElement('div');
-    el.className = 'cell-editor' + (opts.multiline ? ' multiline' : '');
+    const multiline = !!opts.multiline;
+    const el = document.createElement(multiline ? 'textarea' : 'input');
+    if (!multiline) el.type = 'text';
+    el.className = 'cell-editor' + (multiline ? ' multiline' : '');
     const editable = state.canEdit && !opts.readonly;
-    if (!editable) el.classList.add('readonly');
+    if (!editable) {
+        el.classList.add('readonly');
+        el.readOnly = true;
+        el.tabIndex = -1;
+    }
     if (opts.readonly) el.classList.add('auto-filled');
-    el.contentEditable = editable ? 'true' : 'false';
     el.spellcheck = false;
-    el.dataset.placeholder = placeholder || '';
-    el.textContent = value || '';
+    el.placeholder = placeholder || '';
+    el.value = value || '';
+    if (multiline) {
+        el.rows = 1;
+        el.wrap = 'soft';
+    }
     return el;
 }
 
@@ -1054,19 +1069,19 @@ function createCheckDropdown(value, options, placeholder, fieldKey){
 }
 
 function createVendorDropdown(value){
-    return createCheckDropdown(value, VENDOR_OPTIONS, '자화 / LGIT', 'vendor_text');
+    return createCheckDropdown(value, VENDOR_OPTIONS, '', 'vendor_text');
 }
 
 function createCavityDropdown(value){
-    return createCheckDropdown(value, CAVITY_OPTIONS, 'ALL / 1 / 2 / 3 / 4', 'cavity_text');
+    return createCheckDropdown(value, CAVITY_OPTIONS, '', 'cavity_text');
 }
 
 function createTypeDropdownTool(value){
-    return createCheckDropdown(value, TOOL_TYPE_OPTIONS, '치수 / 외관', 'type_text');
+    return createCheckDropdown(value, TOOL_TYPE_OPTIONS, '', 'type_text');
 }
 
 function createTypeDropdownRelease(value){
-    return createCheckDropdown(value, RELEASE_TYPE_OPTIONS, 'Cosmetic / Dimension', 'type_text');
+    return createCheckDropdown(value, RELEASE_TYPE_OPTIONS, '', 'type_text');
 }
 
 function syncCheckDropdown(wrap){
@@ -1077,7 +1092,7 @@ function syncCheckDropdown(wrap){
     const trigger = wrap.querySelector('.vendor-trigger');
     const text = values.join(' / ');
     const placeholder = wrap.dataset.placeholder || '';
-    trigger.textContent = text || placeholder;
+    trigger.textContent = text || placeholder || '\u00A0';
     trigger.classList.toggle('placeholder', !text);
 }
 
@@ -1192,7 +1207,7 @@ function applyToolRowMerges(tbody){
             return;
         }
         const editor = td.querySelector('.cell-editor');
-        const value = normalizeText(editor ? (editor.innerText || editor.textContent || '') : '');
+        const value = normalizeText(editor ? (editor.value || '') : '');
         const mergeKey = toolPrimaryKey(value);
         const shouldMerge = value !== '' && !tr.classList.contains('blank-row');
         if (!shouldMerge) {
@@ -1221,14 +1236,14 @@ function applyToolRowMerges(tbody){
 function syncMergedToolGroup(td){
     if (!td || td.dataset.field !== 'tool_text' || td.style.display === 'none' || td.rowSpan <= 1) return;
     const editor = td.querySelector('.cell-editor');
-    const value = editor ? (editor.innerText || editor.textContent || '') : '';
+    const value = editor ? (editor.value || '') : '';
     let tr = td.parentElement;
     for (let i = 1; i < td.rowSpan; i += 1) {
         tr = tr && tr.nextElementSibling;
         if (!tr) break;
         const dupTd = tr.querySelector('td[data-field="tool_text"]');
         const dupEditor = dupTd ? dupTd.querySelector('.cell-editor') : null;
-        if (dupEditor) dupEditor.textContent = value;
+        if (dupEditor) dupEditor.value = value;
     }
 }
 
@@ -1503,7 +1518,7 @@ function rowDataFromTr(tr, columns){
                 out[col.key] = normalizeText(dropdown.dataset.value || '');
             } else {
                 const editor = td.querySelector('.cell-editor');
-                out[col.key] = editor ? normalizeText(editor.innerText || editor.textContent || '') : '';
+                out[col.key] = editor ? normalizeText(editor.value || '') : '';
             }
         }
     });
@@ -1608,7 +1623,7 @@ function insertReleaseRowBelow(tr){
 
 function focusFirstEditable(tr){
     if (!tr) return;
-    const candidates = Array.from(tr.querySelectorAll('.cell-editor[contenteditable="true"], .vendor-trigger:not([disabled]), select:not([disabled])'));
+    const candidates = Array.from(tr.querySelectorAll('.cell-editor:not([readonly]):not([disabled]), .vendor-trigger:not([disabled]), select:not([disabled])'));
     const target = candidates.find(function(el){
         return el.offsetParent !== null && el.getClientRects().length > 0;
     }) || candidates[0];
@@ -1805,7 +1820,7 @@ function bindTabs(){
 
 function bindDelegation(){
     document.addEventListener('input', function(e){
-        if (e.target.matches('.cell-editor[contenteditable="true"]')) {
+        if (e.target.matches('.cell-editor:not([readonly])')) {
             const tr = e.target.closest('.tool-sheet tbody tr');
             if (tr) {
                 const td = e.target.closest('td[data-field]');
@@ -1818,7 +1833,7 @@ function bindDelegation(){
     });
 
     document.addEventListener('keydown', function(e){
-        const editor = e.target.closest('.cell-editor[contenteditable="true"]');
+        const editor = e.target.closest('.cell-editor:not([readonly])');
         if (!editor) return;
         if (!editor.classList.contains('multiline') && e.key === 'Enter') {
             e.preventDefault();
