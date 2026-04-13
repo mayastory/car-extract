@@ -870,6 +870,8 @@ const state = {
 };
 const VENDOR_OPTIONS = ['자화', 'LGIT'];
 const CAVITY_OPTIONS = ['ALL', '1', '2', '3', '4'];
+const TOOL_TYPE_OPTIONS = ['치수', '외관'];
+const RELEASE_TYPE_OPTIONS = ['Cosmetic', 'Dimension'];
 
 const toolColumns = [
     { key: 'item_code', label: 'Item', placeholder: '' },
@@ -891,7 +893,7 @@ const releaseColumns = [
     { key: 'tool_text', placeholder: 'A / 1 / All' },
     { key: 'cavity_text', placeholder: '1,2,4 / All' },
     { key: 'affect_lot_text', placeholder: '전 Lot / 특정 Lot' },
-    { key: 'type_text', placeholder: '치수 / 외관' },
+    { key: 'type_text', placeholder: 'Cosmetic / Dimension' },
     { key: 'issue_description_text', placeholder: 'Issue Description', multiline: true },
     { key: 'status_text', type: 'status' },
     { key: 'release_date_text', placeholder: '해제일' },
@@ -1050,6 +1052,14 @@ function createVendorDropdown(value){
 
 function createCavityDropdown(value){
     return createCheckDropdown(value, CAVITY_OPTIONS, 'ALL / 1 / 2 / 3 / 4', 'cavity_text');
+}
+
+function createTypeDropdownTool(value){
+    return createCheckDropdown(value, TOOL_TYPE_OPTIONS, '치수 / 외관', 'type_text');
+}
+
+function createTypeDropdownRelease(value){
+    return createCheckDropdown(value, RELEASE_TYPE_OPTIONS, 'Cosmetic / Dimension', 'type_text');
 }
 
 function syncCheckDropdown(wrap){
@@ -1281,6 +1291,8 @@ function createToolRow(model, row){
             td.appendChild(createVendorDropdown(row[col.key] || ''));
         } else if (col.key === 'cavity_text') {
             td.appendChild(createCavityDropdown(row[col.key] || ''));
+        } else if (col.key === 'type_text') {
+            td.appendChild(createTypeDropdownTool(row[col.key] || ''));
         } else if (col.key === 'item_code') {
             const editor = createEditor(model, model, Object.assign({}, col, { readonly: true }));
             td.appendChild(editor);
@@ -1336,6 +1348,8 @@ function createReleaseRow(row){
             td.appendChild(createVendorDropdown(row[col.key] || ''));
         } else if (col.key === 'cavity_text') {
             td.appendChild(createCavityDropdown(row[col.key] || ''));
+        } else if (col.key === 'type_text') {
+            td.appendChild(createTypeDropdownRelease(row[col.key] || ''));
         } else {
             td.appendChild(createEditor(row[col.key] || '', col.placeholder || '', col));
         }
