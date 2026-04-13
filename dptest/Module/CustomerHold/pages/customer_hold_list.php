@@ -543,7 +543,7 @@ body{
     background:rgba(255,255,255,.02);
 }
 .model-section.hidden-section{display:none}
-.model-section.vendor-open{position:relative; z-index:40; padding-bottom:132px;}
+.model-section.vendor-open{position:relative; z-index:40;}
 .model-head{
     display:flex;
     align-items:center;
@@ -559,18 +559,17 @@ body{
     letter-spacing:.02em;
 }
 .grid-wrap{
-    overflow-x:auto;
-    overflow-y:visible;
+    overflow:auto;
     max-width:100%;
     background:rgba(0,0,0,.08);
     position:relative;
 }
 .sheet{
-    width:100%;
-    min-width:1080px;
+    width:max-content;
+    min-width:100%;
     border-collapse:separate;
     border-spacing:0;
-    table-layout:fixed;
+    table-layout:auto;
 }
 .sheet th,
 .sheet td{
@@ -682,9 +681,9 @@ body{
 .vendor-trigger.placeholder{color:#6b7280}
 .vendor-trigger[disabled]{cursor:default; opacity:.85}
 .vendor-panel{
-    position:absolute;
+    position:fixed;
     left:0;
-    top:calc(100% + 6px);
+    top:0;
     min-width:120px;
     padding:8px 10px;
     border-radius:10px;
@@ -761,7 +760,7 @@ body{
         <div class="toolbar">
             <div class="title-wrap">
                 <h1>고객사 출하 홀딩 내역</h1>
-            </div>
+                            </div>
             <div class="right">
                 <span class="badge" id="userLvBadge">LV -</span>
                 <span class="badge readonly hidden" id="readonlyBadge">읽기 전용 · 레벨 77 이상만 편집 가능</span>
@@ -799,21 +798,6 @@ body{
                 </div>
                 <div class="grid-wrap">
                     <table class="sheet" id="releaseTable">
-                        <colgroup>
-                            <col style="width:48px">
-                            <col style="width:64px">
-                            <col style="width:120px">
-                            <col style="width:120px">
-                            <col style="width:130px">
-                            <col style="width:100px">
-                            <col style="width:100px">
-                            <col style="width:120px">
-                            <col style="width:110px">
-                            <col style="width:220px">
-                            <col style="width:110px">
-                            <col style="width:120px">
-                            <col style="width:220px">
-                        </colgroup>
                         <thead>
                             <tr>
                                 <th>No</th>
@@ -1004,7 +988,30 @@ function syncVendorDropdown(wrap){
     trigger.classList.toggle('placeholder', !text);
 }
 
+function getOpenVendorWrap(){
+    return document.querySelector('.vendor-check[data-open="1"]');
+}
+
+function positionVendorDropdown(wrap){
+    if (!wrap) return;
+    const panel = wrap.querySelector('.vendor-panel');
+    const trigger = wrap.querySelector('.vendor-trigger');
+    if (!panel || !trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    panel.style.left = Math.max(8, Math.round(rect.left)) + 'px';
+    panel.style.top = Math.round(rect.bottom + 6) + 'px';
+    panel.style.minWidth = Math.max(120, Math.round(rect.width)) + 'px';
+}
+
+function repositionOpenVendorDropdown(){
+    const wrap = getOpenVendorWrap();
+    if (wrap) positionVendorDropdown(wrap);
+}
+
 function toggleVendorDropdown(wrap, open){
+    document.querySelectorAll('.vendor-check').forEach(function(node){
+        if (!wrap || node !== wrap) node.dataset.open = '';
+    });
     document.querySelectorAll('.vendor-panel').forEach(function(panel){
         if (!wrap || panel !== wrap.querySelector('.vendor-panel')) panel.classList.add('hidden');
     });
@@ -1016,9 +1023,15 @@ function toggleVendorDropdown(wrap, open){
     if (!panel) return;
     const shouldOpen = open === undefined ? panel.classList.contains('hidden') : !!open;
     panel.classList.toggle('hidden', !shouldOpen);
+    wrap.dataset.open = shouldOpen ? '1' : '';
     if (shouldOpen) {
         const section = wrap.closest('.model-section');
         if (section) section.classList.add('vendor-open');
+        positionVendorDropdown(wrap);
+    } else {
+        panel.style.left = '';
+        panel.style.top = '';
+        panel.style.minWidth = '';
     }
 }
 
@@ -1145,16 +1158,6 @@ function renderToolStatus(rows){
         const table = document.createElement('table');
         table.className = 'sheet tool-sheet';
         table.dataset.model = model;
-
-        const colgroup = document.createElement('colgroup');
-        [
-            '48px','64px','90px','90px','90px','120px','120px','110px','220px','260px'
-        ].forEach(function(width){
-            const col = document.createElement('col');
-            col.style.width = width;
-            colgroup.appendChild(col);
-        });
-        table.appendChild(colgroup);
 
         const thead = document.createElement('thead');
         const hr = document.createElement('tr');
@@ -1549,6 +1552,9 @@ function initButtons(){
     });
     els.releaseAddRowBtn.addEventListener('click', appendBlankReleaseRow);
 }
+
+window.addEventListener('resize', repositionOpenVendorDropdown);
+window.addEventListener('scroll', repositionOpenVendorDropdown, true);
 
 window.addEventListener('beforeunload', function(e){
     if (!state.dirty) return;
