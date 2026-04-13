@@ -873,7 +873,7 @@ const RELEASE_TYPE_OPTIONS = ['Cosmetic', 'Dimension'];
 
 const toolColumns = [
     { key: 'item_code', label: 'Item', placeholder: '' },
-    { key: 'tool_text', label: 'Tool', placeholder: 'A / 1 / All' },
+    { key: 'tool_text', label: 'Tool', placeholder: 'A / B / C' },
     { key: 'cavity_text', label: 'Cavity', placeholder: '1,2,4 / All' },
     { key: 'affect_lot_text', label: 'Affect Lot', placeholder: '전 Lot / ~2/21 Lot' },
     { key: 'vendor_text', label: 'Vendor', placeholder: '자화 / LGIT' },
@@ -888,7 +888,7 @@ const releaseColumns = [
     { key: 'holding_date_text', placeholder: '2026-04-13' },
     { key: 'vendor_text', placeholder: '자화 / LGIT' },
     { key: 'parts_name_text', placeholder: 'IR-BASE' },
-    { key: 'tool_text', placeholder: 'A / 1 / All' },
+    { key: 'tool_text', placeholder: 'A / B / C' },
     { key: 'cavity_text', placeholder: '1,2,4 / All' },
     { key: 'affect_lot_text', placeholder: '전 Lot / 특정 Lot' },
     { key: 'type_text', placeholder: 'Cosmetic / Dimension' },
@@ -1347,11 +1347,16 @@ function createReleaseRow(row){
             const sel = document.createElement('select');
             sel.className = 'status-select';
             sel.disabled = !state.canEdit;
-            ['Ongoing', 'Close'].forEach(function(opt){
+            const currentStatus = normalizeText(row[col.key] || '');
+            [
+                { value: '', text: '' },
+                { value: 'Ongoing', text: 'Ongoing' },
+                { value: 'Close', text: 'Close' }
+            ].forEach(function(opt){
                 const option = document.createElement('option');
-                option.value = opt;
-                option.textContent = opt;
-                if ((row[col.key] || 'Ongoing') === opt) option.selected = true;
+                option.value = opt.value;
+                option.textContent = opt.text;
+                if (currentStatus === opt.value) option.selected = true;
                 sel.appendChild(option);
             });
             td.appendChild(sel);
@@ -1478,7 +1483,7 @@ function rowDataFromTr(tr, columns){
         if (!td) return;
         if (col.type === 'status') {
             const sel = td.querySelector('select');
-            out[col.key] = sel ? sel.value : 'Ongoing';
+            out[col.key] = sel ? normalizeText(sel.value || '') : '';
         } else {
             const dropdown = td.querySelector('.vendor-check');
             if (dropdown) {
@@ -1578,7 +1583,7 @@ function insertReleaseRowBelow(tr){
         cavity_text: normalizeText(currentData.cavity_text || ''),
         affect_lot_text: normalizeText(currentData.affect_lot_text || ''),
         type_text: normalizeText(currentData.type_text || ''),
-        status_text: normalizeText(currentData.status_text || 'Ongoing') || 'Ongoing'
+        status_text: ''
     });
     newRow.dataset.keepBlank = '1';
     tr.insertAdjacentElement('afterend', newRow);
