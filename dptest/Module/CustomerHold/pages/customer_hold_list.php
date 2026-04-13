@@ -506,6 +506,12 @@ body{
 .sheet tr:first-child td:first-child{border-left:1px solid var(--line)}
 .sheet tbody tr:nth-child(even) td{background:#141a23}
 .sheet tbody tr:hover td{background:#162131}
+.sheet td.dirty-cell{background:#FFC7CE !important;color:#111827 !important}
+.sheet tbody tr:hover td.dirty-cell{background:#FFC7CE !important}
+.sheet td.dirty-cell .cell-input,.sheet td.dirty-cell .cell-textarea,.sheet td.dirty-cell .status-select,.sheet td.dirty-cell .vendor-trigger{color:#111827 !important}
+.sheet td.dirty-cell .vendor-trigger::after,.sheet td.dirty-cell .select-wrap::after{color:#111827 !important}
+.tool-tab-inline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:0}
+.tool-tab-inline .model-tab{margin:0}
 .sheet td.actions{
  width:74px;
  min-width:74px;
@@ -726,7 +732,10 @@ const state = {
     activeToolModel: '',
     boot: window.CUSTOMER_HOLD_BOOTSTRAP || {},
     toolStatusRows: [],
-    releaseDetails: []
+    releaseDetails: [],
+    dirtyToolCells: new Set(),
+    dirtyReleaseCells: new Set(),
+    nextCid: 1
 };
 
 const MODELS = ['IR-BASE','Z-CARRIER','X-CARRIER','Y-CARRIER','Z-STOPPER'];
@@ -785,6 +794,17 @@ function setDirty(flag){
     state.dirty = !!flag;
     setStatus(flag ? '저장되지 않은 변경사항이 있습니다.' : '저장 완료된 최신 상태입니다.', false);
 }
+
+function nextCid(){ return 'cid_' + (state.nextCid++); }
+function ensureCid(row){ if (row && !row._cid) row._cid = nextCid(); return row; }
+function toolRowIdentity(row){ row = ensureCid(row || {}); return (Number(row.id) > 0 ? 'id:' + Number(row.id) : row._cid); }
+function releaseRowIdentity(row){ row = ensureCid(row || {}); return (Number(row.id) > 0 ? 'id:' + Number(row.id) : row._cid); }
+function toolDirtyKey(row, field){ return toolRowIdentity(row) + '|' + field; }
+function releaseDirtyKey(row, field){ return releaseRowIdentity(row) + '|' + field; }
+function markToolDirty(row, field){ state.dirtyToolCells.add(toolDirtyKey(row, field)); }
+function markReleaseDirty(row, field){ state.dirtyReleaseCells.add(releaseDirtyKey(row, field)); }
+function isToolDirty(row, field){ return state.dirtyToolCells.has(toolDirtyKey(row, field)); }
+function isReleaseDirty(row, field){ return state.dirtyReleaseCells.has(releaseDirtyKey(row, field)); }
 
 function normalizeText(value){
     return String(value == null ? '' : value).replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
@@ -1179,9 +1199,12 @@ function updateToolRowField(model, visibleIndex, field, value, meta){
     const rows = grouped[model] || [];
     const isNew = visibleIndex >= rows.length;
     const target = isNew ? toolBlankRow(model) : rows[visibleIndex];
+    ensureCid(target);
     const wasBlank = !anyFilled(target, fields);
+    const previous = target[field] || '';
     const normalized = field === 'tool_text' ? normalizeText(value).toUpperCase() : value;
     target[field] = normalized;
+    if (previous !== normalized) markToolDirty(target, field);
     if (isNew) rows.push(target);
     grouped[model] = rows;
     state.toolStatusRows = []
@@ -1229,7 +1252,7 @@ function insertToolRowBelow(model, visibleIndex){
     const grouped = buildToolGroups(state.toolStatusRows);
     const rows = grouped[model] || [];
     const base = rows[visibleIndex] || toolBlankRow(model);
-    const next = {
+    const next = ensureCid({
         id: 0,
         part_name: model,
         item_code: model,
@@ -1241,7 +1264,7 @@ function insertToolRowBelow(model, visibleIndex){
         issue_description_text: '',
         remark_text: '',
         sort_order: (visibleIndex + 1.5)
-    };
+    });
     rows.splice(Math.min(visibleIndex + 1, rows.length), 0, next);
     rows.forEach(function(row, idx){ row.sort_order = idx + 1; });
     grouped[model] = rows;
@@ -1266,9 +1289,11 @@ function updateReleaseRowField(visibleIndex, field, value, meta){
     const fields = ['holding_date_text','vendor_text','parts_name_text','tool_text','cavity_text','affect_lot_text','type_text','issue_description_text','status_text','release_date_text','note_text'];
     const rows = state.releaseDetails.slice().sort(function(a,b){ return ((Number(a.sort_order)||0) - (Number(b.sort_order)||0)); });
     const isNew = visibleIndex >= rows.length;
-    const target = isNew ? releaseBlankRow() : rows[visibleIndex];
+    const target = ensureCid(isNew ? releaseBlankRow() : rows[visibleIndex]);
     const wasBlank = !anyFilled(target, fields);
+    const previous = target[field] || '';
     target[field] = value;
+    if (previous !== value) markReleaseDirty(target, field);
     if (isNew) rows.push(target);
     rows.forEach(function(row, idx){ row.sort_order = idx + 1; });
     state.releaseDetails = rows;
@@ -1283,7 +1308,7 @@ function updateReleaseRowField(visibleIndex, field, value, meta){
 function insertReleaseRowBelow(visibleIndex){
     const rows = state.releaseDetails.slice().sort(function(a,b){ return ((Number(a.sort_order)||0) - (Number(b.sort_order)||0)); });
     const base = rows[visibleIndex] || releaseBlankRow();
-    const next = {
+    const next = ensureCid({
         id: 0,
         holding_date_text: base.holding_date_text || '',
         vendor_text: base.vendor_text || '',
@@ -1297,7 +1322,7 @@ function insertReleaseRowBelow(visibleIndex){
         release_date_text: '',
         note_text: '',
         sort_order: visibleIndex + 1.5
-    };
+    });
     rows.splice(Math.min(visibleIndex + 1, rows.length), 0, next);
     rows.forEach(function(row, idx){ row.sort_order = idx + 1; });
     state.releaseDetails = rows;
@@ -1331,8 +1356,10 @@ function buildToolRowspans(rows){
     return {spans, hidden};
 }
 
-function renderToolModelTabs(){
-    els.toolModelTabs.innerHTML = '';
+function renderToolModelTabs(target){
+    const host = target || els.toolModelTabs;
+    if (!host) return;
+    host.innerHTML = '';
     state.models.forEach(function(model){
         const btn = document.createElement('button');
         btn.type = 'button';
@@ -1342,7 +1369,7 @@ function renderToolModelTabs(){
             state.activeToolModel = model;
             renderToolStatus();
         });
-        els.toolModelTabs.appendChild(btn);
+        host.appendChild(btn);
     });
 }
 
@@ -1397,17 +1424,22 @@ function measureToolTable(table){
 }
 
 function renderToolStatus(){
-    renderToolModelTabs();
     els.toolStatusRoot.innerHTML = '';
     const model = state.activeToolModel || state.models[0] || MODELS[0];
+    const head = els.toolTab.querySelector('.sheet-head');
+    if (head) {
+        head.innerHTML = '';
+        const inlineTabs = document.createElement('div');
+        inlineTabs.className = 'sheet-title tool-tab-inline';
+        renderToolModelTabs(inlineTabs);
+        head.appendChild(inlineTabs);
+        head.appendChild(els.toolAddRowBtn);
+    }
+    if (els.toolModelTabs) els.toolModelTabs.innerHTML = '';
     const rows = buildToolRowsForRender(model);
     const merge = buildToolRowspans(rows);
     const section = document.createElement('div');
     section.className = 'model-section';
-    const title = document.createElement('div');
-    title.className = 'sheet-title';
-    title.textContent = model;
-    section.appendChild(title);
 
     const wrap = document.createElement('div');
     wrap.className = 'grid-wrap';
@@ -1471,6 +1503,7 @@ function renderToolStatus(){
             td.setAttribute('data-field', col.key);
             const currentValue = col.key === 'item_code' ? (row.item_code || model) : (row[col.key] || '');
             td.setAttribute('data-measure', currentValue);
+            if (isToolDirty(row, col.key)) td.classList.add('dirty-cell');
             if (col.key === 'tool_text' && merge.spans[visibleIndex] > 1) {
                 td.rowSpan = merge.spans[visibleIndex];
                 td.classList.add('merged-master');
@@ -1554,6 +1587,7 @@ function renderReleaseBody(){
         releaseColumns.forEach(function(col){
             const td = document.createElement('td');
             const currentValue = row[col.key] || '';
+            if (isReleaseDirty(row, col.key)) td.classList.add('dirty-cell');
             if (col.checkbox === 'vendor') {
                 const dd = createCheckboxDropdown(currentValue, 'vendor', state.canEdit, function(text){
                     updateReleaseRowField(visibleIndex, col.key, text);
@@ -1628,9 +1662,11 @@ function applyPayload(data){
     state.userLv = Number(data.user_lv || 0);
     state.canEdit = !!data.can_edit;
     state.toolStatusRows = Array.isArray(data.tool_status) ? data.tool_status.map(function(row){
-        return Object.assign({}, row, { part_name: String(row.part_name || '').toUpperCase(), item_code: String(row.item_code || row.part_name || '').toUpperCase() });
+        return ensureCid(Object.assign({}, row, { part_name: String(row.part_name || '').toUpperCase(), item_code: String(row.item_code || row.part_name || '').toUpperCase() }));
     }) : [];
-    state.releaseDetails = Array.isArray(data.release_details) ? data.release_details.slice() : [];
+    state.releaseDetails = Array.isArray(data.release_details) ? data.release_details.map(function(row){ return ensureCid(Object.assign({}, row)); }) : [];
+    state.dirtyToolCells.clear();
+    state.dirtyReleaseCells.clear();
     if (!state.activeToolModel || !state.models.includes(state.activeToolModel)) state.activeToolModel = state.models[0] || MODELS[0];
     setDirty(false);
     renderCurrent();
