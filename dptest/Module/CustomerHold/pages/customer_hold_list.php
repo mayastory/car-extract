@@ -500,6 +500,30 @@ body{
 }
 .tab-panel{display:none; padding:14px 16px 18px;}
 .tab-panel.active{display:block}
+.subtabs{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    margin:0 0 12px;
+}
+.subtab{
+    appearance:none;
+    border:1px solid rgba(255,255,255,.08);
+    background:#161d26;
+    color:var(--text);
+    border-radius:10px;
+    padding:8px 12px;
+    cursor:pointer;
+    font-size:12px;
+    font-weight:700;
+}
+.subtab.active{
+    background:#1f3142;
+    border-color:rgba(34,197,94,.32);
+    color:#dcfce7;
+}
+.model-panel{display:none}
+.model-panel.active{display:block}
 .notice{
     margin:0 16px 12px;
     padding:12px 14px;
@@ -687,6 +711,7 @@ body{
         <div id="readonlyMessage" class="notice warn hidden">현재 계정은 조회만 가능합니다. 레벨 77 이상부터 입력·수정·삭제·저장이 가능합니다.</div>
 
         <section class="tab-panel active" data-panel="toolStatus">
+            <div class="subtabs" id="toolModelTabs"></div>
             <div id="toolStatusRoot"></div>
         </section>
 
@@ -748,6 +773,7 @@ window.CUSTOMER_HOLD_BOOTSTRAP = <?php echo json_encode($boot, JSON_UNESCAPED_UN
 const endpoint = location.pathname + '?ajax=1';
 const state = {
     models: [],
+    activeToolModel: '',
     canEdit: false,
     userLv: 0,
     dirty: false,
@@ -755,8 +781,7 @@ const state = {
 };
 
 const toolColumns = [
-    { key: 'item_code', label: 'Item', placeholder: 'IR-BASE / X-CARRIER / Y-CARRIER...' },
-    { key: 'tool_text', label: 'Tool', placeholder: 'A / 1 / All' },
+    { key: 'tool_text', label: 'Tool', placeholder: 'A / B / C / All' },
     { key: 'cavity_text', label: 'Cavity', placeholder: '1,2,4 / All' },
     { key: 'affect_lot_text', label: 'Affect Lot', placeholder: '전 Lot / ~2/21 Lot' },
     { key: 'vendor_text', label: 'Vendor', placeholder: '자화 / LGIT' },
@@ -780,6 +805,7 @@ const releaseColumns = [
 ];
 
 const els = {
+    toolModelTabs: document.getElementById('toolModelTabs'),
     toolStatusRoot: document.getElementById('toolStatusRoot'),
     releaseBody: document.getElementById('releaseBody'),
     fatalMessage: document.getElementById('fatalMessage'),
@@ -837,6 +863,43 @@ function buildToolGroups(rows){
     return grouped;
 }
 
+function getActiveToolModel(){
+    if (state.activeToolModel && state.models.includes(state.activeToolModel)) return state.activeToolModel;
+    return state.models[0] || '';
+}
+
+function setActiveToolModel(model){
+    if (!model || !state.models.includes(model)) model = state.models[0] || '';
+    state.activeToolModel = model;
+    if (els.toolModelTabs) {
+        els.toolModelTabs.querySelectorAll('.subtab').forEach(function(btn){
+            btn.classList.toggle('active', btn.dataset.model === model);
+        });
+    }
+    if (els.toolStatusRoot) {
+        els.toolStatusRoot.querySelectorAll('.model-panel').forEach(function(panel){
+            panel.classList.toggle('active', panel.dataset.model === model);
+        });
+    }
+}
+
+function renderToolModelTabs(){
+    if (!els.toolModelTabs) return;
+    els.toolModelTabs.innerHTML = '';
+    state.models.forEach(function(model){
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'subtab';
+        btn.dataset.model = model;
+        btn.textContent = model;
+        btn.addEventListener('click', function(){
+            setActiveToolModel(model);
+        });
+        els.toolModelTabs.appendChild(btn);
+    });
+    setActiveToolModel(getActiveToolModel());
+}
+
 function createEditor(value, placeholder){
     const div = document.createElement('div');
     div.className = 'cell-editor';
@@ -850,6 +913,9 @@ function createEditor(value, placeholder){
 
 function createToolRow(model, row){
     row = row || {};
+    if (normalizeText(row.tool_text || '') === '' && normalizeText(row.item_code || '') !== '') {
+        row.tool_text = row.item_code || '';
+    }
     const tr = document.createElement('tr');
     tr.dataset.model = model;
     tr.dataset.id = row.id ? String(row.id) : '';
@@ -934,10 +1000,16 @@ function createReleaseRow(row){
 function renderToolStatus(rows){
     els.toolStatusRoot.innerHTML = '';
     const grouped = buildToolGroups(rows || []);
+    if (!state.models.includes(state.activeToolModel)) {
+        state.activeToolModel = state.models[0] || '';
+    }
     state.models.forEach(function(model){
+        const panel = document.createElement('div');
+        panel.className = 'model-panel';
+        panel.dataset.model = model;
+
         const section = document.createElement('div');
         section.className = 'model-section';
-        section.dataset.model = model;
 
         const head = document.createElement('div');
         head.className = 'model-head';
@@ -963,9 +1035,7 @@ function renderToolStatus(rows){
         table.dataset.model = model;
 
         const colgroup = document.createElement('colgroup');
-        [
-            '48px','64px','90px','90px','90px','120px','120px','110px','220px','260px'
-        ].forEach(function(width){
+        ['48px','64px','110px','110px','140px','120px','120px','260px','320px'].forEach(function(width){
             const col = document.createElement('col');
             col.style.width = width;
             colgroup.appendChild(col);
@@ -974,7 +1044,7 @@ function renderToolStatus(rows){
 
         const thead = document.createElement('thead');
         const hr = document.createElement('tr');
-        ['No', '', 'Item', 'Tool', 'Cavity', 'Affect Lot', 'Vendor', 'Type', 'Issue Description', 'Remark'].forEach(function(label){
+        ['No', '', 'Tool', 'Cavity', 'Affect Lot', 'Vendor', 'Type', 'Issue Description', 'Remark'].forEach(function(label){
             const th = document.createElement('th');
             th.textContent = label;
             hr.appendChild(th);
@@ -992,11 +1062,14 @@ function renderToolStatus(rows){
 
         wrap.appendChild(table);
         section.appendChild(wrap);
-        els.toolStatusRoot.appendChild(section);
+        panel.appendChild(section);
+        els.toolStatusRoot.appendChild(panel);
 
         renumberRows(tbody);
         ensureToolBlankRow(model);
     });
+    renderToolModelTabs();
+    setActiveToolModel(getActiveToolModel());
 }
 
 function renderReleaseDetails(rows){
@@ -1173,6 +1246,7 @@ async function api(action, payload){
 
 function applyPayload(payload){
     state.models = Array.isArray(payload.models) && payload.models.length ? payload.models : ['IR-BASE', 'Z-CARRIER', 'X-CARRIER', 'Y-CARRIER', 'Z-STOPPER'];
+    if (!state.models.includes(state.activeToolModel)) state.activeToolModel = state.models[0] || '';
     state.canEdit = !!payload.can_edit;
     state.userLv = Number(payload.user_lv || 0);
 
