@@ -830,16 +830,30 @@ function seedReleaseOriginals(row){
 function refreshDirtyFlag(){
     setDirty(state.dirtyToolCells.size > 0 || state.dirtyReleaseCells.size > 0);
 }
+function syncToolCellDirtyDom(row, field, isDirty){
+    const rowId = toolRowIdentity(row);
+    document.querySelectorAll('td[data-rowid="' + rowId + '"][data-field="' + field + '"]').forEach(function(td){
+        td.classList.toggle('dirty-cell', !!isDirty);
+    });
+}
+function syncReleaseCellDirtyDom(row, field, isDirty){
+    const rowId = releaseRowIdentity(row);
+    document.querySelectorAll('td[data-rowid="' + rowId + '"][data-field="' + field + '"]').forEach(function(td){
+        td.classList.toggle('dirty-cell', !!isDirty);
+    });
+}
 function setToolFieldDirtyState(row, field, value, cell){
     const isDirty = normalizeText(value) !== getToolOriginal(row, field);
     if (isDirty) markToolDirty(row, field); else clearToolDirty(row, field);
     if (cell) cell.classList.toggle('dirty-cell', isDirty);
+    syncToolCellDirtyDom(row, field, isDirty);
     refreshDirtyFlag();
 }
 function setReleaseFieldDirtyState(row, field, value, cell){
     const isDirty = normalizeText(value) !== getReleaseOriginal(row, field);
     if (isDirty) markReleaseDirty(row, field); else clearReleaseDirty(row, field);
     if (cell) cell.classList.toggle('dirty-cell', isDirty);
+    syncReleaseCellDirtyDom(row, field, isDirty);
     refreshDirtyFlag();
 }
 
@@ -1521,6 +1535,7 @@ function renderToolStatus(){
 
     rows.forEach(function(row, visibleIndex){
         const tr = document.createElement('tr');
+        tr.setAttribute('data-rowid', toolRowIdentity(row));
         const isBlank = visibleIndex === rows.length - 1 && !anyFilled(row, ['tool_text','cavity_text','affect_lot_text','vendor_text','type_text','issue_description_text','remark_text']);
         if (isBlank) tr.classList.add('blank-row');
 
@@ -1546,6 +1561,7 @@ function renderToolStatus(){
             if (col.key === 'tool_text' && merge.hidden.has(visibleIndex)) return;
             const td = document.createElement('td');
             td.setAttribute('data-field', col.key);
+            td.setAttribute('data-rowid', toolRowIdentity(row));
             const currentValue = col.key === 'item_code' ? (row.item_code || model) : (row[col.key] || '');
             td.setAttribute('data-measure', currentValue);
             if (isToolDirty(row, col.key)) td.classList.add('dirty-cell');
@@ -1609,6 +1625,7 @@ function renderReleaseBody(){
     const rows = buildReleaseRowsForRender();
     rows.forEach(function(row, visibleIndex){
         const tr = document.createElement('tr');
+        tr.setAttribute('data-rowid', toolRowIdentity(row));
         const isBlank = visibleIndex === rows.length - 1 && !anyFilled(row, ['holding_date_text','vendor_text','parts_name_text','tool_text','cavity_text','affect_lot_text','type_text','issue_description_text','status_text','release_date_text','note_text']);
         if (isBlank) tr.classList.add('blank-row');
 
@@ -1631,6 +1648,8 @@ function renderReleaseBody(){
 
         releaseColumns.forEach(function(col){
             const td = document.createElement('td');
+            td.setAttribute('data-field', col.key);
+            td.setAttribute('data-rowid', releaseRowIdentity(row));
             const currentValue = row[col.key] || '';
             if (isReleaseDirty(row, col.key)) td.classList.add('dirty-cell');
             if (col.checkbox === 'vendor') {
