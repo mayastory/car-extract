@@ -761,7 +761,6 @@ body{
         <div class="toolbar">
             <div class="title-wrap">
                 <h1>고객사 출하 홀딩 내역</h1>
-                <div class="desc">엑셀처럼 입력·수정·저장하는 웹 편집기. Tool Status와 홀딩 해제 세부 내역을 같은 화면에서 관리합니다.</div>
             </div>
             <div class="right">
                 <span class="badge" id="userLvBadge">LV -</span>
