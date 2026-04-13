@@ -1120,6 +1120,17 @@ function getActiveToolSection(){
         || document.querySelector('#toolStatusRoot .model-section');
 }
 
+const TOOL_SHEET_FIELD_INDEX = {
+    item_code: 1,
+    tool_text: 2,
+    cavity_text: 3,
+    affect_lot_text: 4,
+    vendor_text: 5,
+    type_text: 6,
+    issue_description_text: 7,
+    remark_text: 8
+};
+
 function toolSheetIntrinsicWidthForCell(cell, idx){
     if (!cell) return 0;
     if (idx === 0) return 68;
@@ -1181,31 +1192,56 @@ function syncToolSheetColumnWidths(target){
         col.style.minWidth = '';
     });
 
-    const widths = [];
+    const widths = new Array(cols.length).fill(0);
     const headerCells = table.querySelectorAll('thead tr:first-child > *');
     Array.from(headerCells).forEach(function(cell, idx){
         widths[idx] = Math.max(widths[idx] || 0, toolSheetIntrinsicWidthForCell(cell, idx));
     });
 
     table.querySelectorAll('tbody tr').forEach(function(row){
-        Array.from(row.children).forEach(function(cell, idx){
+        Array.from(row.querySelectorAll('td')).forEach(function(cell){
             if (!cell || cell.style.display === 'none') return;
+            let idx = null;
+            if (cell.classList.contains('actions')) {
+                idx = 0;
+            } else if (cell.dataset && cell.dataset.field && Object.prototype.hasOwnProperty.call(TOOL_SHEET_FIELD_INDEX, cell.dataset.field)) {
+                idx = TOOL_SHEET_FIELD_INDEX[cell.dataset.field];
+            }
+            if (idx === null || idx >= widths.length) return;
             widths[idx] = Math.max(widths[idx] || 0, toolSheetIntrinsicWidthForCell(cell, idx));
         });
     });
 
+    widths[1] = Math.max(92, widths[1] || 0);   // Item
+    widths[2] = Math.max(56, widths[2] || 0);   // Tool
+    widths[3] = Math.max(72, widths[3] || 0);   // Cavity
+    widths[4] = Math.max(88, widths[4] || 0);   // Affect Lot
+    widths[5] = Math.max(72, widths[5] || 0);   // Vendor
+    widths[6] = Math.max(70, widths[6] || 0);   // Type
+    widths[7] = Math.max(120, widths[7] || 0);  // Issue Description
+    widths[8] = Math.max(220, widths[8] || 0);  // Remark
+
+    const wrap = table.closest('.grid-wrap');
+    const wrapWidth = wrap ? Math.max(0, wrap.clientWidth - 2) : 0;
+    const totalBase = widths.reduce(function(sum, width){ return sum + (width || 0); }, 0);
+    if (wrapWidth > totalBase && widths.length > 8) {
+        widths[8] += (wrapWidth - totalBase);
+    }
+
+    let totalWidth = 0;
     cols.forEach(function(col, idx){
-        if (idx === 8) {
-            col.style.minWidth = Math.max(220, widths[idx] || 0) + 'px';
-            col.style.width = '';
-            return;
-        }
-        const width = widths[idx] || 0;
+        const width = Math.max(0, Math.ceil(widths[idx] || 0));
+        totalWidth += width;
         if (width > 0) {
             col.style.width = width + 'px';
             col.style.minWidth = width + 'px';
         }
     });
+
+    if (totalWidth > 0) {
+        table.style.width = totalWidth + 'px';
+        table.style.minWidth = totalWidth + 'px';
+    }
 }
 
 function scheduleToolSheetColumnWidthSync(target){
