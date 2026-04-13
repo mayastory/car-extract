@@ -1204,7 +1204,10 @@ function updateToolRowField(model, visibleIndex, field, value, meta){
     const previous = target[field] || '';
     const normalized = field === 'tool_text' ? normalizeText(value).toUpperCase() : value;
     target[field] = normalized;
-    if (previous !== normalized) markToolDirty(target, field);
+    if (previous !== normalized) {
+        markToolDirty(target, field);
+        if (meta && meta.cell) meta.cell.classList.add('dirty-cell');
+    }
     if (isNew) rows.push(target);
     grouped[model] = rows;
     state.toolStatusRows = []
@@ -1293,7 +1296,10 @@ function updateReleaseRowField(visibleIndex, field, value, meta){
     const wasBlank = !anyFilled(target, fields);
     const previous = target[field] || '';
     target[field] = value;
-    if (previous !== value) markReleaseDirty(target, field);
+    if (previous !== value) {
+        markReleaseDirty(target, field);
+        if (meta && meta.cell) meta.cell.classList.add('dirty-cell');
+    }
     if (isNew) rows.push(target);
     rows.forEach(function(row, idx){ row.sort_order = idx + 1; });
     state.releaseDetails = rows;
@@ -1515,35 +1521,35 @@ function renderToolStatus(){
                 td.appendChild(inputEl);
             } else if (col.checkbox === 'vendor') {
                 const dd = createCheckboxDropdown(currentValue, 'vendor', state.canEdit, function(text){
-                    updateToolRowField(model, visibleIndex, col.key, text);
+                    updateToolRowField(model, visibleIndex, col.key, text, {cell: td});
                 });
                 td.appendChild(dd.wrap);
             } else if (col.checkbox === 'cavity') {
                 const dd = createCheckboxDropdown(currentValue, 'cavity', state.canEdit, function(text){
-                    updateToolRowField(model, visibleIndex, col.key, text);
+                    updateToolRowField(model, visibleIndex, col.key, text, {cell: td});
                 });
                 td.appendChild(dd.wrap);
             } else if (col.checkbox === 'toolType') {
                 const dd = createCheckboxDropdown(currentValue, 'toolType', state.canEdit, function(text){
-                    updateToolRowField(model, visibleIndex, col.key, text);
+                    updateToolRowField(model, visibleIndex, col.key, text, {cell: td});
                 });
                 td.appendChild(dd.wrap);
             } else if (col.multiline) {
                 inputEl = createTextarea(currentValue, {readonly:!state.canEdit});
                 inputEl.addEventListener('input', function(){
-                    updateToolRowField(model, visibleIndex, col.key, inputEl.value);
+                    updateToolRowField(model, visibleIndex, col.key, inputEl.value, {cell: td});
                 });
                 attachEscCancel(inputEl, function(){ return inputEl.value; }, function(next){ inputEl.value = next; autoResizeTextarea(inputEl); }, function(original){
-                    updateToolRowField(model, visibleIndex, col.key, original);
+                    updateToolRowField(model, visibleIndex, col.key, original, {cell: td});
                 });
                 td.appendChild(inputEl);
             } else {
                 inputEl = createInput(currentValue, {readonly:!state.canEdit});
                 inputEl.addEventListener('input', function(){
-                    updateToolRowField(model, visibleIndex, col.key, inputEl.value);
+                    updateToolRowField(model, visibleIndex, col.key, inputEl.value, {cell: td});
                 });
                 attachEscCancel(inputEl, function(){ return inputEl.value; }, function(next){ inputEl.value = next; }, function(original){
-                    updateToolRowField(model, visibleIndex, col.key, original);
+                    updateToolRowField(model, visibleIndex, col.key, original, {cell: td});
                 });
                 td.appendChild(inputEl);
             }
@@ -1590,44 +1596,44 @@ function renderReleaseBody(){
             if (isReleaseDirty(row, col.key)) td.classList.add('dirty-cell');
             if (col.checkbox === 'vendor') {
                 const dd = createCheckboxDropdown(currentValue, 'vendor', state.canEdit, function(text){
-                    updateReleaseRowField(visibleIndex, col.key, text);
+                    updateReleaseRowField(visibleIndex, col.key, text, {cell: td});
                 });
                 td.appendChild(dd.wrap);
             } else if (col.checkbox === 'cavity') {
                 const dd = createCheckboxDropdown(currentValue, 'cavity', state.canEdit, function(text){
-                    updateReleaseRowField(visibleIndex, col.key, text);
+                    updateReleaseRowField(visibleIndex, col.key, text, {cell: td});
                 });
                 td.appendChild(dd.wrap);
             } else if (col.checkbox === 'releaseType') {
                 const dd = createCheckboxDropdown(currentValue, 'releaseType', state.canEdit, function(text){
-                    updateReleaseRowField(visibleIndex, col.key, text);
+                    updateReleaseRowField(visibleIndex, col.key, text, {cell: td});
                 });
                 td.appendChild(dd.wrap);
             } else if (col.status) {
                 const status = createStatusSelect(currentValue, state.canEdit);
                 status.input.addEventListener('change', function(){
-                    updateReleaseRowField(visibleIndex, col.key, status.input.value);
+                    updateReleaseRowField(visibleIndex, col.key, status.input.value, {cell: td});
                 });
                 attachEscCancel(status.input, function(){ return status.input.value; }, function(next){ status.input.value = next; }, function(original){
-                    updateReleaseRowField(visibleIndex, col.key, original);
+                    updateReleaseRowField(visibleIndex, col.key, original, {cell: td});
                 });
                 td.appendChild(status.wrap);
             } else if (col.multiline) {
                 const ta = createTextarea(currentValue, {readonly:!state.canEdit});
                 ta.addEventListener('input', function(){
-                    updateReleaseRowField(visibleIndex, col.key, ta.value);
+                    updateReleaseRowField(visibleIndex, col.key, ta.value, {cell: td});
                 });
                 attachEscCancel(ta, function(){ return ta.value; }, function(next){ ta.value = next; autoResizeTextarea(ta); }, function(original){
-                    updateReleaseRowField(visibleIndex, col.key, original);
+                    updateReleaseRowField(visibleIndex, col.key, original, {cell: td});
                 });
                 td.appendChild(ta);
             } else {
                 const input = createInput(currentValue, {readonly:!state.canEdit});
                 input.addEventListener('input', function(){
-                    updateReleaseRowField(visibleIndex, col.key, input.value);
+                    updateReleaseRowField(visibleIndex, col.key, input.value, {cell: td});
                 });
                 attachEscCancel(input, function(){ return input.value; }, function(next){ input.value = next; }, function(original){
-                    updateReleaseRowField(visibleIndex, col.key, original);
+                    updateReleaseRowField(visibleIndex, col.key, original, {cell: td});
                 });
                 td.appendChild(input);
             }
