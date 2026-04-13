@@ -514,13 +514,35 @@ body{
     border-color:rgba(245,158,11,.24);
     color:#fde68a;
 }
+.model-tabs{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    margin:0 0 12px;
+}
+.model-tab{
+    appearance:none;
+    border:1px solid rgba(255,255,255,.08);
+    background:#1a2028;
+    color:var(--text);
+    border-radius:10px 10px 0 0;
+    padding:8px 14px;
+    cursor:pointer;
+    font-weight:700;
+}
+.model-tab.active{
+    background:#253040;
+    border-color:rgba(34,197,94,.28);
+    color:#dcfce7;
+}
 .model-section{
     margin-bottom:18px;
     border:1px solid rgba(255,255,255,.08);
     border-radius:14px;
-    overflow:hidden;
+    overflow:visible;
     background:rgba(255,255,255,.02);
 }
+.model-section.hidden-section{display:none}
 .model-head{
     display:flex;
     align-items:center;
@@ -536,9 +558,11 @@ body{
     letter-spacing:.02em;
 }
 .grid-wrap{
-    overflow:auto;
+    overflow-x:auto;
+    overflow-y:visible;
     max-width:100%;
     background:rgba(0,0,0,.08);
+    position:relative;
 }
 .sheet{
     width:100%;
@@ -549,10 +573,11 @@ body{
 }
 .sheet th,
 .sheet td{
+    position:relative;
     border-right:1px solid var(--line);
     border-bottom:1px solid var(--line);
     background:var(--cell);
-    vertical-align:top;
+    vertical-align:middle;
 }
 .sheet thead th{
     position:sticky;
@@ -573,18 +598,18 @@ body{
     text-align:center;
     color:var(--muted);
     font-size:12px;
-    padding:6px 6px;
+    padding:4px 6px;
     background:#11161d !important;
 }
 .sheet td.actions{
     width:64px;
     text-align:center;
-    padding:4px 6px;
+    padding:3px 6px;
     background:#11161d !important;
 }
 .row-btn{
-    width:28px;
-    height:28px;
+    width:24px;
+    height:24px;
     border-radius:8px;
     border:1px solid rgba(255,255,255,.10);
     background:#232a34;
@@ -606,40 +631,89 @@ body{
     box-shadow:none;
     font:inherit;
     font-size:12px;
-    line-height:1.22;
-    padding:6px 8px;
+    line-height:1.16;
+    padding:4px 6px;
+    min-height:22px;
     appearance:none;
     -webkit-appearance:none;
-}
-input.cell-editor{
-    height:32px;
     white-space:nowrap;
     overflow:hidden;
     text-overflow:ellipsis;
 }
-textarea.cell-editor{
-    min-height:32px;
-    resize:vertical;
+.cell-editor.multiline{
     white-space:pre-wrap;
     word-break:break-word;
 }
-.cell-editor::placeholder{
+.cell-editor:empty:before{
+    content:attr(data-placeholder);
     color:#6b7280;
-    opacity:1;
 }
 .cell-editor.readonly{cursor:default}
-.cell-editor[readonly]{pointer-events:none}
+.cell-editor[contenteditable="false"]{pointer-events:none}
+.vendor-check{
+    position:relative;
+    min-width:96px;
+}
+.vendor-trigger{
+    width:100%;
+    min-height:22px;
+    padding:4px 24px 4px 6px;
+    border:none;
+    background:transparent;
+    color:var(--text);
+    text-align:left;
+    font:inherit;
+    font-size:12px;
+    line-height:1.16;
+    cursor:pointer;
+    position:relative;
+}
+.vendor-trigger::after{
+    content:'▾';
+    position:absolute;
+    right:8px;
+    top:50%;
+    transform:translateY(-50%);
+    color:#93c5fd;
+    font-size:11px;
+}
+.vendor-trigger.placeholder{color:#6b7280}
+.vendor-trigger[disabled]{cursor:default; opacity:.85}
+.vendor-panel{
+    position:absolute;
+    left:0;
+    top:calc(100% + 6px);
+    min-width:120px;
+    padding:8px 10px;
+    border-radius:10px;
+    background:#0f1720;
+    border:1px solid rgba(255,255,255,.10);
+    box-shadow:0 14px 28px rgba(0,0,0,.35);
+    z-index:50;
+}
+.vendor-panel.hidden{display:none !important}
+.vendor-option{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:12px;
+    color:var(--text);
+    padding:3px 0;
+    cursor:pointer;
+    user-select:none;
+}
+.vendor-option input{margin:0}
 .sheet td:focus-within{
     outline:2px solid rgba(34,197,94,.40);
     outline-offset:-2px;
 }
 .status-select{
     width:100%;
-    height:32px;
+    height:28px;
     background:#131820;
     color:var(--text);
     border:none;
-    padding:6px 28px 6px 8px;
+    padding:4px 24px 4px 6px;
     font-size:12px;
     line-height:1.2;
     appearance:auto;
@@ -712,6 +786,7 @@ textarea.cell-editor{
         <div id="readonlyMessage" class="notice warn hidden">현재 계정은 조회만 가능합니다. 레벨 77 이상부터 입력·수정·삭제·저장이 가능합니다.</div>
 
         <section class="tab-panel active" data-panel="toolStatus">
+            <div class="model-tabs" id="toolModelTabs"></div>
             <div id="toolStatusRoot"></div>
         </section>
 
@@ -776,8 +851,10 @@ const state = {
     canEdit: false,
     userLv: 0,
     dirty: false,
+    activeToolModel: '',
     boot: window.CUSTOMER_HOLD_BOOTSTRAP || {}
 };
+const VENDOR_OPTIONS = ['자화', 'LGIT'];
 
 const toolColumns = [
     { key: 'item_code', label: 'Item', placeholder: 'A / B / C...' },
@@ -805,6 +882,7 @@ const releaseColumns = [
 ];
 
 const els = {
+    toolModelTabs: document.getElementById('toolModelTabs'),
     toolStatusRoot: document.getElementById('toolStatusRoot'),
     releaseBody: document.getElementById('releaseBody'),
     fatalMessage: document.getElementById('fatalMessage'),
@@ -864,22 +942,70 @@ function buildToolGroups(rows){
 
 function createEditor(value, placeholder, options){
     const opts = options || {};
-    const el = document.createElement(opts.multiline ? 'textarea' : 'input');
-    el.className = 'cell-editor';
+    const el = document.createElement('div');
+    el.className = 'cell-editor' + (opts.multiline ? ' multiline' : '');
     if (!state.canEdit) el.classList.add('readonly');
-    if (opts.multiline) {
-        el.rows = 1;
-    } else {
-        el.type = 'text';
-    }
+    el.contentEditable = state.canEdit ? 'true' : 'false';
     el.spellcheck = false;
-    el.autocomplete = 'off';
-    el.autocorrect = 'off';
-    el.autocapitalize = 'off';
-    el.placeholder = placeholder || '';
-    el.value = value || '';
-    el.readOnly = !state.canEdit;
+    el.dataset.placeholder = placeholder || '';
+    el.textContent = value || '';
     return el;
+}
+
+function vendorDisplayText(raw){
+    const values = String(raw || '').split(/\n+/).map(function(v){ return normalizeText(v); }).filter(Boolean);
+    return values.length ? values.join(' / ') : '';
+}
+
+function createVendorDropdown(value){
+    const wrap = document.createElement('div');
+    wrap.className = 'vendor-check';
+    wrap.dataset.value = normalizeText(value || '');
+
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'vendor-trigger';
+    trigger.disabled = !state.canEdit;
+
+    const panel = document.createElement('div');
+    panel.className = 'vendor-panel hidden';
+
+    VENDOR_OPTIONS.forEach(function(opt){
+        const label = document.createElement('label');
+        label.className = 'vendor-option';
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.value = opt;
+        input.disabled = !state.canEdit;
+        label.appendChild(input);
+        label.appendChild(document.createTextNode(opt));
+        panel.appendChild(label);
+    });
+
+    wrap.appendChild(trigger);
+    wrap.appendChild(panel);
+    syncVendorDropdown(wrap);
+    return wrap;
+}
+
+function syncVendorDropdown(wrap){
+    const values = String(wrap.dataset.value || '').split(/\n+/).map(function(v){ return normalizeText(v); }).filter(Boolean);
+    wrap.querySelectorAll('input[type="checkbox"]').forEach(function(box){
+        box.checked = values.includes(box.value);
+    });
+    const trigger = wrap.querySelector('.vendor-trigger');
+    const text = values.join(' / ');
+    trigger.textContent = text || '자화 / LGIT';
+    trigger.classList.toggle('placeholder', !text);
+}
+
+function toggleVendorDropdown(wrap, open){
+    document.querySelectorAll('.vendor-panel').forEach(function(panel){
+        if (!wrap || panel !== wrap.querySelector('.vendor-panel')) panel.classList.add('hidden');
+    });
+    if (!wrap || !state.canEdit) return;
+    const panel = wrap.querySelector('.vendor-panel');
+    if (panel) panel.classList.toggle('hidden', open === undefined ? !panel.classList.contains('hidden') : !open);
 }
 
 function createToolRow(model, row){
@@ -911,8 +1037,12 @@ function createToolRow(model, row){
     toolColumns.forEach(function(col){
         const td = document.createElement('td');
         td.dataset.field = col.key;
-        const editor = createEditor(row[col.key] || '', col.placeholder || '', col);
-        td.appendChild(editor);
+        if (col.key === 'vendor_text') {
+            td.appendChild(createVendorDropdown(row[col.key] || ''));
+        } else {
+            const editor = createEditor(row[col.key] || '', col.placeholder || '', col);
+            td.appendChild(editor);
+        }
         tr.appendChild(td);
     });
     return tr;
@@ -957,6 +1087,8 @@ function createReleaseRow(row){
                 sel.appendChild(option);
             });
             td.appendChild(sel);
+        } else if (col.key === 'vendor_text') {
+            td.appendChild(createVendorDropdown(row[col.key] || ''));
         } else {
             td.appendChild(createEditor(row[col.key] || '', col.placeholder || '', col));
         }
@@ -1033,6 +1165,31 @@ function renderToolStatus(rows){
     });
 }
 
+function renderToolModelTabs(){
+    els.toolModelTabs.innerHTML = '';
+    state.models.forEach(function(model){
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'model-tab';
+        btn.dataset.model = model;
+        btn.textContent = model;
+        btn.addEventListener('click', function(){
+            setActiveToolModel(model);
+        });
+        els.toolModelTabs.appendChild(btn);
+    });
+}
+
+function setActiveToolModel(model){
+    state.activeToolModel = model || (state.models[0] || '');
+    document.querySelectorAll('#toolModelTabs .model-tab').forEach(function(btn){
+        btn.classList.toggle('active', btn.dataset.model === state.activeToolModel);
+    });
+    document.querySelectorAll('#toolStatusRoot .model-section').forEach(function(section){
+        section.classList.toggle('hidden-section', section.dataset.model !== state.activeToolModel);
+    });
+}
+
 function renderReleaseDetails(rows){
     els.releaseBody.innerHTML = '';
     (rows || []).forEach(function(row){
@@ -1059,9 +1216,12 @@ function rowDataFromTr(tr, columns){
         if (col.type === 'status') {
             const sel = td.querySelector('select');
             out[col.key] = sel ? sel.value : 'Ongoing';
+        } else if (col.key === 'vendor_text') {
+            const vendor = td.querySelector('.vendor-check');
+            out[col.key] = vendor ? normalizeText(vendor.dataset.value || '') : '';
         } else {
             const editor = td.querySelector('.cell-editor');
-            out[col.key] = editor ? normalizeText(editor.value) : '';
+            out[col.key] = editor ? normalizeText(editor.innerText || editor.textContent || '') : '';
         }
     });
     return out;
@@ -1127,7 +1287,7 @@ function appendBlankReleaseRow(){
 
 function focusFirstEditable(tr){
     if (!tr) return;
-    const target = tr.querySelector('.cell-editor:not([readonly]), select:not([disabled])');
+    const target = tr.querySelector('.cell-editor[contenteditable="true"], .vendor-trigger:not([disabled]), select:not([disabled])');
     if (target) target.focus();
 }
 
@@ -1217,6 +1377,8 @@ function applyPayload(payload){
     els.releaseAddRowBtn.disabled = !state.canEdit;
 
     renderToolStatus(payload.tool_status || []);
+    renderToolModelTabs();
+    setActiveToolModel(state.models.includes(state.activeToolModel) ? state.activeToolModel : (state.models[0] || ''));
     renderReleaseDetails(payload.release_details || []);
     setDirty(false);
     showFatal('');
@@ -1307,18 +1469,55 @@ function bindTabs(){
 
 function bindDelegation(){
     document.addEventListener('input', function(e){
-        const tr = e.target.closest('.tool-sheet tbody tr');
-        if (tr) {
-            handleToolInput(tr);
+        if (e.target.matches('.cell-editor[contenteditable="true"]')) {
+            const tr = e.target.closest('.tool-sheet tbody tr');
+            if (tr) {
+                handleToolInput(tr);
+                return;
+            }
+            const relTr = e.target.closest('#releaseBody tr');
+            if (relTr) handleReleaseInput(relTr);
+        }
+    });
+
+    document.addEventListener('keydown', function(e){
+        const editor = e.target.closest('.cell-editor[contenteditable="true"]');
+        if (!editor) return;
+        if (!editor.classList.contains('multiline') && e.key === 'Enter') {
+            e.preventDefault();
+        }
+    });
+
+    document.addEventListener('click', function(e){
+        const trigger = e.target.closest('.vendor-trigger');
+        if (trigger) {
+            const wrap = trigger.closest('.vendor-check');
+            toggleVendorDropdown(wrap);
             return;
         }
-        const relTr = e.target.closest('#releaseBody tr');
-        if (relTr) {
-            handleReleaseInput(relTr);
+        if (!e.target.closest('.vendor-check')) {
+            toggleVendorDropdown(null, false);
         }
     });
 
     document.addEventListener('change', function(e){
+        const box = e.target.closest('.vendor-check input[type="checkbox"]');
+        if (box) {
+            const wrap = box.closest('.vendor-check');
+            const values = Array.from(wrap.querySelectorAll('input[type="checkbox"]:checked')).map(function(input){ return input.value; });
+            wrap.dataset.value = values.join('\n');
+            syncVendorDropdown(wrap);
+            const toolTr = wrap.closest('.tool-sheet tbody tr');
+            if (toolTr) {
+                handleToolInput(toolTr);
+                return;
+            }
+            const relTr = wrap.closest('#releaseBody tr');
+            if (relTr) {
+                handleReleaseInput(relTr);
+                return;
+            }
+        }
         const relTr = e.target.closest('#releaseBody tr');
         if (relTr) handleReleaseInput(relTr);
     });
