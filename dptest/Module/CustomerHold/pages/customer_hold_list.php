@@ -631,6 +631,14 @@ body{
 .sheet td[data-field="tool_text"].merged-master{
     vertical-align:middle;
 }
+.sheet tbody tr:hover td{
+    background:rgba(59,130,246,.12) !important;
+}
+.sheet tbody tr:hover td .cell-editor,
+.sheet tbody tr:hover td .vendor-trigger,
+.sheet tbody tr:hover td .status-select{
+    color:#eef6ff;
+}
 .cell-editor{
     width:100%;
     display:block;
@@ -873,29 +881,29 @@ const RELEASE_TYPE_OPTIONS = ['Cosmetic', 'Dimension'];
 
 const toolColumns = [
     { key: 'item_code', label: 'Item', placeholder: '' },
-    { key: 'tool_text', label: 'Tool', placeholder: 'A / B / C' },
-    { key: 'cavity_text', label: 'Cavity', placeholder: '1,2,4 / All' },
-    { key: 'affect_lot_text', label: 'Affect Lot', placeholder: '전 Lot / ~2/21 Lot' },
-    { key: 'vendor_text', label: 'Vendor', placeholder: '자화 / LGIT' },
-    { key: 'type_text', label: 'Type', placeholder: '치수 / 외관' },
-    { key: 'issue_description_text', label: 'Issue Description', placeholder: '홀딩 사유', multiline: true },
-    { key: 'remark_text', label: 'Remark', placeholder: '비고 / 출하 가능 조건', multiline: true }
+    { key: 'tool_text', label: 'Tool', placeholder: '' },
+    { key: 'cavity_text', label: 'Cavity', placeholder: '' },
+    { key: 'affect_lot_text', label: 'Affect Lot', placeholder: '' },
+    { key: 'vendor_text', label: 'Vendor', placeholder: '' },
+    { key: 'type_text', label: 'Type', placeholder: '' },
+    { key: 'issue_description_text', label: 'Issue Description', placeholder: '', multiline: true },
+    { key: 'remark_text', label: 'Remark', placeholder: '', multiline: true }
 ];
 
 const toolEditableKeys = toolColumns.filter(function(col){ return col.key !== 'item_code'; }).map(function(col){ return col.key; });
 
 const releaseColumns = [
-    { key: 'holding_date_text', placeholder: '2026-04-13' },
-    { key: 'vendor_text', placeholder: '자화 / LGIT' },
-    { key: 'parts_name_text', placeholder: 'IR-BASE' },
-    { key: 'tool_text', placeholder: 'A / B / C' },
-    { key: 'cavity_text', placeholder: '1,2,4 / All' },
-    { key: 'affect_lot_text', placeholder: '전 Lot / 특정 Lot' },
-    { key: 'type_text', placeholder: 'Cosmetic / Dimension' },
-    { key: 'issue_description_text', placeholder: 'Issue Description', multiline: true },
+    { key: 'holding_date_text', placeholder: '' },
+    { key: 'vendor_text', placeholder: '' },
+    { key: 'parts_name_text', placeholder: '' },
+    { key: 'tool_text', placeholder: '' },
+    { key: 'cavity_text', placeholder: '' },
+    { key: 'affect_lot_text', placeholder: '' },
+    { key: 'type_text', placeholder: '' },
+    { key: 'issue_description_text', placeholder: '', multiline: true },
     { key: 'status_text', type: 'status' },
-    { key: 'release_date_text', placeholder: '해제일' },
-    { key: 'note_text', placeholder: '비고', multiline: true }
+    { key: 'release_date_text', placeholder: '' },
+    { key: 'note_text', placeholder: '', multiline: true }
 ];
 
 const els = {
