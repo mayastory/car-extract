@@ -735,6 +735,8 @@ const state = {
     releaseDetails: [],
     dirtyToolCells: new Set(),
     dirtyReleaseCells: new Set(),
+    originalToolValues: new Map(),
+    originalReleaseValues: new Map(),
     nextCid: 1
 };
 
@@ -803,8 +805,43 @@ function toolDirtyKey(row, field){ return toolRowIdentity(row) + '|' + field; }
 function releaseDirtyKey(row, field){ return releaseRowIdentity(row) + '|' + field; }
 function markToolDirty(row, field){ state.dirtyToolCells.add(toolDirtyKey(row, field)); }
 function markReleaseDirty(row, field){ state.dirtyReleaseCells.add(releaseDirtyKey(row, field)); }
+function clearToolDirty(row, field){ state.dirtyToolCells.delete(toolDirtyKey(row, field)); }
+function clearReleaseDirty(row, field){ state.dirtyReleaseCells.delete(releaseDirtyKey(row, field)); }
 function isToolDirty(row, field){ return state.dirtyToolCells.has(toolDirtyKey(row, field)); }
 function isReleaseDirty(row, field){ return state.dirtyReleaseCells.has(releaseDirtyKey(row, field)); }
+function toolOriginalKey(row, field){ return toolRowIdentity(row) + '|' + field; }
+function releaseOriginalKey(row, field){ return releaseRowIdentity(row) + '|' + field; }
+function setToolOriginal(row, field, value){ state.originalToolValues.set(toolOriginalKey(row, field), normalizeText(value)); }
+function setReleaseOriginal(row, field, value){ state.originalReleaseValues.set(releaseOriginalKey(row, field), normalizeText(value)); }
+function getToolOriginal(row, field){ return state.originalToolValues.has(toolOriginalKey(row, field)) ? state.originalToolValues.get(toolOriginalKey(row, field)) : ''; }
+function getReleaseOriginal(row, field){ return state.originalReleaseValues.has(releaseOriginalKey(row, field)) ? state.originalReleaseValues.get(releaseOriginalKey(row, field)) : ''; }
+function seedToolOriginals(row){
+    ensureCid(row || {});
+    ['item_code','tool_text','cavity_text','affect_lot_text','vendor_text','type_text','issue_description_text','remark_text'].forEach(function(field){
+        if (!state.originalToolValues.has(toolOriginalKey(row, field))) setToolOriginal(row, field, row[field] || '');
+    });
+}
+function seedReleaseOriginals(row){
+    ensureCid(row || {});
+    ['holding_date_text','vendor_text','parts_name_text','tool_text','cavity_text','affect_lot_text','type_text','issue_description_text','status_text','release_date_text','note_text'].forEach(function(field){
+        if (!state.originalReleaseValues.has(releaseOriginalKey(row, field))) setReleaseOriginal(row, field, row[field] || '');
+    });
+}
+function refreshDirtyFlag(){
+    setDirty(state.dirtyToolCells.size > 0 || state.dirtyReleaseCells.size > 0);
+}
+function setToolFieldDirtyState(row, field, value, cell){
+    const isDirty = normalizeText(value) !== getToolOriginal(row, field);
+    if (isDirty) markToolDirty(row, field); else clearToolDirty(row, field);
+    if (cell) cell.classList.toggle('dirty-cell', isDirty);
+    refreshDirtyFlag();
+}
+function setReleaseFieldDirtyState(row, field, value, cell){
+    const isDirty = normalizeText(value) !== getReleaseOriginal(row, field);
+    if (isDirty) markReleaseDirty(row, field); else clearReleaseDirty(row, field);
+    if (cell) cell.classList.toggle('dirty-cell', isDirty);
+    refreshDirtyFlag();
+}
 
 function normalizeText(value){
     return String(value == null ? '' : value).replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
@@ -1200,13 +1237,13 @@ function updateToolRowField(model, visibleIndex, field, value, meta){
     const isNew = visibleIndex >= rows.length;
     const target = isNew ? toolBlankRow(model) : rows[visibleIndex];
     ensureCid(target);
+    seedToolOriginals(target);
     const wasBlank = !anyFilled(target, fields);
     const previous = target[field] || '';
     const normalized = field === 'tool_text' ? normalizeText(value).toUpperCase() : value;
     target[field] = normalized;
     if (previous !== normalized) {
-        markToolDirty(target, field);
-        if (meta && meta.cell) meta.cell.classList.add('dirty-cell');
+        setToolFieldDirtyState(target, field, normalized, meta && meta.cell ? meta.cell : null);
     }
     if (isNew) rows.push(target);
     grouped[model] = rows;
@@ -1231,7 +1268,7 @@ function updateToolRowField(model, visibleIndex, field, value, meta){
     }
 
     renumberToolRows(model);
-    markDirtyAndEnsureBlank();
+    refreshDirtyFlag();
 
     if (needsReorder || becameFilled || isNew) {
         renderCurrent();
@@ -1268,6 +1305,8 @@ function insertToolRowBelow(model, visibleIndex){
         remark_text: '',
         sort_order: (visibleIndex + 1.5)
     });
+    seedToolOriginals(next);
+    seedReleaseOriginals(next);
     rows.splice(Math.min(visibleIndex + 1, rows.length), 0, next);
     rows.forEach(function(row, idx){ row.sort_order = idx + 1; });
     grouped[model] = rows;
@@ -1277,14 +1316,14 @@ function insertToolRowBelow(model, visibleIndex){
         .concat(grouped['X-CARRIER'] || [])
         .concat(grouped['Y-CARRIER'] || [])
         .concat(grouped['Z-STOPPER'] || []);
-    setDirty(true);
+    refreshDirtyFlag();
     renderCurrent();
 }
 
 function deleteToolRow(id){
     if (!id) return;
     state.toolStatusRows = state.toolStatusRows.filter(function(row){ return Number(row.id) !== Number(id); });
-    setDirty(true);
+    refreshDirtyFlag();
     renderCurrent();
 }
 
@@ -1293,17 +1332,17 @@ function updateReleaseRowField(visibleIndex, field, value, meta){
     const rows = state.releaseDetails.slice().sort(function(a,b){ return ((Number(a.sort_order)||0) - (Number(b.sort_order)||0)); });
     const isNew = visibleIndex >= rows.length;
     const target = ensureCid(isNew ? releaseBlankRow() : rows[visibleIndex]);
+    seedReleaseOriginals(target);
     const wasBlank = !anyFilled(target, fields);
     const previous = target[field] || '';
     target[field] = value;
     if (previous !== value) {
-        markReleaseDirty(target, field);
-        if (meta && meta.cell) meta.cell.classList.add('dirty-cell');
+        setReleaseFieldDirtyState(target, field, value, meta && meta.cell ? meta.cell : null);
     }
     if (isNew) rows.push(target);
     rows.forEach(function(row, idx){ row.sort_order = idx + 1; });
     state.releaseDetails = rows;
-    setDirty(true);
+    refreshDirtyFlag();
     const becameFilled = wasBlank && anyFilled(target, fields);
     if (becameFilled || isNew) {
         renderReleaseBody();
@@ -1332,7 +1371,7 @@ function insertReleaseRowBelow(visibleIndex){
     rows.splice(Math.min(visibleIndex + 1, rows.length), 0, next);
     rows.forEach(function(row, idx){ row.sort_order = idx + 1; });
     state.releaseDetails = rows;
-    setDirty(true);
+    refreshDirtyFlag();
     renderReleaseBody();
 }
 
@@ -1668,11 +1707,16 @@ function applyPayload(data){
     state.userLv = Number(data.user_lv || 0);
     state.canEdit = !!data.can_edit;
     state.toolStatusRows = Array.isArray(data.tool_status) ? data.tool_status.map(function(row){
-        return ensureCid(Object.assign({}, row, { part_name: String(row.part_name || '').toUpperCase(), item_code: String(row.item_code || row.part_name || '').toUpperCase() }));
+        const next = ensureCid(Object.assign({}, row, { part_name: String(row.part_name || '').toUpperCase(), item_code: String(row.item_code || row.part_name || '').toUpperCase() }));
+        return next;
     }) : [];
     state.releaseDetails = Array.isArray(data.release_details) ? data.release_details.map(function(row){ return ensureCid(Object.assign({}, row)); }) : [];
     state.dirtyToolCells.clear();
     state.dirtyReleaseCells.clear();
+    state.originalToolValues.clear();
+    state.originalReleaseValues.clear();
+    state.toolStatusRows.forEach(seedToolOriginals);
+    state.releaseDetails.forEach(seedReleaseOriginals);
     if (!state.activeToolModel || !state.models.includes(state.activeToolModel)) state.activeToolModel = state.models[0] || MODELS[0];
     setDirty(false);
     renderCurrent();
