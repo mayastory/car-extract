@@ -603,10 +603,16 @@ body{
     background:#11161d !important;
 }
 .sheet td.actions{
-    width:64px;
+    width:82px;
     text-align:center;
     padding:3px 6px;
     background:#11161d !important;
+}
+.action-buttons{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
 }
 .row-btn{
     width:24px;
@@ -619,7 +625,11 @@ body{
     line-height:1;
 }
 .row-btn:hover{background:#2b3440}
+.row-btn.add{color:#bbf7d0}
 .row-btn.delete{color:#fecaca}
+.sheet td[data-field="tool_text"].merged-master{
+    vertical-align:middle;
+}
 .cell-editor{
     width:100%;
     display:block;
@@ -1036,6 +1046,98 @@ function positionVendorPanel(wrap){
     panel.style.top = Math.round(top) + 'px';
 }
 
+function insertToolRowBelow(tr){
+    const tbody = tr && tr.parentElement;
+    if (!tbody) return;
+    const model = tbody.dataset.model || '';
+    const currentData = rowDataFromTr(tr, toolColumns);
+    const newRow = createToolRow(model, {
+        part_name: model,
+        item_code: model,
+        tool_text: normalizeText(currentData.tool_text || '')
+    });
+    newRow.dataset.keepBlank = '1';
+    tr.insertAdjacentElement('afterend', newRow);
+    ensureToolBlankRow(model);
+    applyToolRowMerges(tbody);
+    renumberRows(tbody);
+    focusFirstEditable(newRow);
+    setDirty(true);
+}
+
+function resetToolRowMerges(tbody){
+    if (!tbody) return;
+    tbody.querySelectorAll('td[data-field="tool_text"]').forEach(function(td){
+        td.style.display = '';
+        td.rowSpan = 1;
+        td.classList.remove('merged-master');
+    });
+}
+
+function applyToolRowMerges(tbody){
+    if (!tbody) return;
+    resetToolRowMerges(tbody);
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    let startTd = null;
+    let startValue = '';
+    let span = 0;
+
+    function flush(){
+        if (startTd && span > 1) {
+            startTd.rowSpan = span;
+            startTd.classList.add('merged-master');
+        }
+        startTd = null;
+        startValue = '';
+        span = 0;
+    }
+
+    rows.forEach(function(tr){
+        const td = tr.querySelector('td[data-field="tool_text"]');
+        if (!td) {
+            flush();
+            return;
+        }
+        const editor = td.querySelector('.cell-editor');
+        const value = normalizeText(editor ? (editor.innerText || editor.textContent || '') : '');
+        const shouldMerge = value !== '' && !tr.classList.contains('blank-row');
+        if (!shouldMerge) {
+            flush();
+            return;
+        }
+        if (!startTd) {
+            startTd = td;
+            startValue = value;
+            span = 1;
+            return;
+        }
+        if (value === startValue) {
+            td.style.display = 'none';
+            span += 1;
+            return;
+        }
+        flush();
+        startTd = td;
+        startValue = value;
+        span = 1;
+    });
+    flush();
+}
+
+function syncMergedToolGroup(td){
+    if (!td || td.dataset.field !== 'tool_text' || td.style.display === 'none' || td.rowSpan <= 1) return;
+    const editor = td.querySelector('.cell-editor');
+    const value = editor ? (editor.innerText || editor.textContent || '') : '';
+    let tr = td.parentElement;
+    for (let i = 1; i < td.rowSpan; i += 1) {
+        tr = tr && tr.nextElementSibling;
+        if (!tr) break;
+        const dupTd = tr.querySelector('td[data-field="tool_text"]');
+        const dupEditor = dupTd ? dupTd.querySelector('.cell-editor') : null;
+        if (dupEditor) dupEditor.textContent = value;
+    }
+}
+
 function toggleVendorDropdown(wrap, open){
     document.querySelectorAll('.vendor-panel').forEach(function(panel){
         if (!wrap || panel !== wrap.querySelector('.vendor-panel')) {
@@ -1072,6 +1174,20 @@ function createToolRow(model, row){
 
     const actionTd = document.createElement('td');
     actionTd.className = 'actions';
+    const actionWrap = document.createElement('div');
+    actionWrap.className = 'action-buttons';
+
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'row-btn add';
+    addBtn.textContent = '+';
+    addBtn.title = '현재 행 아래에 행 추가';
+    addBtn.disabled = !state.canEdit;
+    addBtn.addEventListener('click', function(){
+        insertToolRowBelow(tr);
+    });
+    actionWrap.appendChild(addBtn);
+
     const delBtn = document.createElement('button');
     delBtn.type = 'button';
     delBtn.className = 'row-btn delete';
@@ -1081,7 +1197,9 @@ function createToolRow(model, row){
     delBtn.addEventListener('click', function(){
         handleToolRowDelete(tr);
     });
-    actionTd.appendChild(delBtn);
+    actionWrap.appendChild(delBtn);
+
+    actionTd.appendChild(actionWrap);
     tr.appendChild(actionTd);
 
     toolColumns.forEach(function(col){
@@ -1205,6 +1323,7 @@ function renderToolStatus(rows){
 
         renumberRows(tbody);
         ensureToolBlankRow(model);
+        applyToolRowMerges(tbody);
     });
 }
 
@@ -1308,6 +1427,7 @@ function appendBlankToolRow(model){
         const autoBlank = createToolRow(model, {part_name:model});
         tbody.appendChild(autoBlank);
         renumberRows(tbody);
+        applyToolRowMerges(tbody);
         focusFirstEditable(last);
         setDirty(true);
         return;
@@ -1317,6 +1437,7 @@ function appendBlankToolRow(model){
     tbody.appendChild(blank);
     ensureToolBlankRow(model);
     renumberRows(tbody);
+    applyToolRowMerges(tbody);
     focusFirstEditable(blank);
     setDirty(true);
 }
@@ -1344,7 +1465,10 @@ function appendBlankReleaseRow(){
 
 function focusFirstEditable(tr){
     if (!tr) return;
-    const target = tr.querySelector('.cell-editor[contenteditable="true"], .vendor-trigger:not([disabled]), select:not([disabled])');
+    const candidates = Array.from(tr.querySelectorAll('.cell-editor[contenteditable="true"], .vendor-trigger:not([disabled]), select:not([disabled])'));
+    const target = candidates.find(function(el){
+        return el.offsetParent !== null && el.getClientRects().length > 0;
+    }) || candidates[0];
     if (target) target.focus();
 }
 
@@ -1374,6 +1498,7 @@ function ensureToolBlankRow(model){
             row.remove();
         }
     });
+    applyToolRowMerges(tbody);
     renumberRows(tbody);
 }
 
@@ -1394,12 +1519,17 @@ function ensureReleaseBlankRow(){
     renumberRows(els.releaseBody);
 }
 
-function handleToolInput(tr){
+function handleToolInput(tr, changedField){
     if (!isToolBlankRow(tr)) delete tr.dataset.keepBlank;
     tr.classList.toggle('blank-row', isToolBlankRow(tr));
     const tbody = tr.parentElement;
     if (tbody) {
+        if (changedField === 'tool_text') {
+            const td = tr.querySelector('td[data-field="tool_text"]');
+            syncMergedToolGroup(td);
+        }
         ensureToolBlankRow(tbody.dataset.model);
+        applyToolRowMerges(tbody);
         renumberRows(tbody);
     }
     setDirty(true);
@@ -1493,6 +1623,7 @@ async function handleToolRowDelete(tr){
     const tbody = tr.parentElement;
     tr.remove();
     ensureToolBlankRow(tbody.dataset.model);
+    applyToolRowMerges(tbody);
     renumberRows(tbody);
     setDirty(true);
 }
@@ -1534,7 +1665,8 @@ function bindDelegation(){
         if (e.target.matches('.cell-editor[contenteditable="true"]')) {
             const tr = e.target.closest('.tool-sheet tbody tr');
             if (tr) {
-                handleToolInput(tr);
+                const td = e.target.closest('td[data-field]');
+                handleToolInput(tr, td ? td.dataset.field : '');
                 return;
             }
             const relTr = e.target.closest('#releaseBody tr');
@@ -1571,7 +1703,7 @@ function bindDelegation(){
             syncVendorDropdown(wrap);
             const toolTr = wrap.closest('.tool-sheet tbody tr');
             if (toolTr) {
-                handleToolInput(toolTr);
+                handleToolInput(toolTr, 'vendor_text');
                 return;
             }
             const relTr = wrap.closest('#releaseBody tr');
