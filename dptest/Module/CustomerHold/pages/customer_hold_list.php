@@ -641,7 +641,9 @@ body{
     color:#eef6ff;
 }
 .cell-editor{
-    width:100%;
+    width:auto;
+    min-width:100%;
+    box-sizing:border-box;
     display:block;
     margin:0;
     background:transparent;
@@ -668,7 +670,7 @@ textarea.cell-editor{
     min-height:22px;
     white-space:pre-wrap;
     word-break:break-word;
-    overflow:auto;
+    overflow:hidden;
 }
 .cell-editor::placeholder{
     color:#6b7280;
@@ -684,7 +686,9 @@ textarea.cell-editor{
     min-width:96px;
 }
 .vendor-trigger{
-    width:100%;
+    width:auto;
+    min-width:100%;
+    box-sizing:border-box;
     min-height:22px;
     padding:4px 24px 4px 6px;
     border:none;
@@ -737,7 +741,9 @@ textarea.cell-editor{
     outline-offset:-2px;
 }
 .status-select{
-    width:100%;
+    width:auto;
+    min-width:100%;
+    box-sizing:border-box;
     height:28px;
     background:#131820;
     color:var(--text);
@@ -1004,6 +1010,88 @@ function buildToolGroups(rows){
     return grouped;
 }
 
+let __chMeasureEl = null;
+function getMeasureEl(){
+    if (__chMeasureEl && document.body.contains(__chMeasureEl)) return __chMeasureEl;
+    __chMeasureEl = document.createElement('span');
+    __chMeasureEl.style.position = 'absolute';
+    __chMeasureEl.style.left = '-99999px';
+    __chMeasureEl.style.top = '-99999px';
+    __chMeasureEl.style.visibility = 'hidden';
+    __chMeasureEl.style.whiteSpace = 'pre';
+    __chMeasureEl.style.pointerEvents = 'none';
+    document.body.appendChild(__chMeasureEl);
+    return __chMeasureEl;
+}
+
+function measureEditorText(el, text){
+    const probe = getMeasureEl();
+    const cs = window.getComputedStyle(el);
+    probe.style.fontFamily = cs.fontFamily;
+    probe.style.fontSize = cs.fontSize;
+    probe.style.fontWeight = cs.fontWeight;
+    probe.style.fontStyle = cs.fontStyle;
+    probe.style.letterSpacing = cs.letterSpacing;
+    probe.style.textTransform = cs.textTransform;
+    probe.style.lineHeight = cs.lineHeight;
+    probe.textContent = String(text || '') || '\u00A0';
+    return Math.ceil(probe.getBoundingClientRect().width);
+}
+
+function autosizeEditor(el){
+    if (!el) return;
+    const td = el.closest('td');
+    if (el.tagName === 'TEXTAREA') {
+        el.style.height = 'auto';
+        const lines = String(el.value || '').split('\n');
+        const longestLine = lines.reduce(function(acc, line){
+            return line.length > acc.length ? line : acc;
+        }, '');
+        const minWidth = td ? Math.max(120, td.clientWidth - 12) : 120;
+        const targetWidth = Math.max(minWidth, measureEditorText(el, longestLine) + 18);
+        el.style.width = Math.min(960, targetWidth) + 'px';
+        el.style.height = Math.max(22, el.scrollHeight) + 'px';
+    } else {
+        const raw = String(el.value || '');
+        const text = raw === '' ? '\u00A0' : raw;
+        const minWidth = td ? Math.max(42, td.clientWidth - 12) : 42;
+        const targetWidth = Math.max(minWidth, measureEditorText(el, text) + 18);
+        el.style.width = Math.min(420, targetWidth) + 'px';
+    }
+}
+
+function autosizeDropdown(wrap){
+    if (!wrap) return;
+    const trigger = wrap.querySelector('.vendor-trigger');
+    if (!trigger) return;
+    const text = splitDropdownValues(wrap.dataset.value || '').join(' / ');
+    const td = wrap.closest('td');
+    const minWidth = td ? Math.max(72, td.clientWidth - 12) : 72;
+    const targetWidth = Math.max(minWidth, measureEditorText(trigger, text || '\u00A0') + 30);
+    trigger.style.width = Math.min(280, targetWidth) + 'px';
+}
+
+function autosizeStatusSelect(sel){
+    if (!sel) return;
+    const text = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].textContent : '';
+    const td = sel.closest('td');
+    const minWidth = td ? Math.max(78, td.clientWidth - 12) : 78;
+    const targetWidth = Math.max(minWidth, measureEditorText(sel, text || '\u00A0') + 30);
+    sel.style.width = Math.min(180, targetWidth) + 'px';
+}
+
+function autosizeRow(tr){
+    if (!tr) return;
+    tr.querySelectorAll('.cell-editor').forEach(autosizeEditor);
+    tr.querySelectorAll('.vendor-check').forEach(autosizeDropdown);
+    tr.querySelectorAll('.status-select').forEach(autosizeStatusSelect);
+}
+
+function autosizeAllRows(root){
+    const scope = root || document;
+    scope.querySelectorAll('tbody tr').forEach(autosizeRow);
+}
+
 function createEditor(value, placeholder, options){
     const opts = options || {};
     const multiline = !!opts.multiline;
@@ -1143,6 +1231,7 @@ function insertToolRowBelow(tr){
     ensureToolBlankRow(model);
     applyToolRowMerges(tbody);
     renumberRows(tbody);
+    requestAnimationFrame(function(){ autosizeRow(newRow); });
     focusFirstEditable(newRow);
     setDirty(true);
 }
@@ -1324,6 +1413,7 @@ function createToolRow(model, row){
         }
         tr.appendChild(td);
     });
+    requestAnimationFrame(function(){ autosizeRow(tr); });
     return tr;
 }
 
@@ -1395,6 +1485,7 @@ function createReleaseRow(row){
         }
         tr.appendChild(td);
     });
+    requestAnimationFrame(function(){ autosizeRow(tr); });
     return tr;
 }
 
@@ -1564,6 +1655,7 @@ function appendBlankToolRow(model){
         tbody.appendChild(autoBlank);
         renumberRows(tbody);
         applyToolRowMerges(tbody);
+        requestAnimationFrame(function(){ autosizeAllRows(tbody); });
         focusFirstEditable(last);
         setDirty(true);
         return;
@@ -1574,6 +1666,7 @@ function appendBlankToolRow(model){
     ensureToolBlankRow(model);
     renumberRows(tbody);
     applyToolRowMerges(tbody);
+    requestAnimationFrame(function(){ autosizeRow(blank); });
     focusFirstEditable(blank);
     setDirty(true);
 }
@@ -1586,6 +1679,7 @@ function appendBlankReleaseRow(){
         const autoBlank = createReleaseRow({});
         els.releaseBody.appendChild(autoBlank);
         renumberRows(els.releaseBody);
+        requestAnimationFrame(function(){ autosizeAllRows(els.releaseBody); });
         focusFirstEditable(last);
         setDirty(true);
         return;
@@ -1690,6 +1784,7 @@ function handleToolInput(tr, changedField){
         applyToolRowMerges(tbody);
         renumberRows(tbody);
     }
+    requestAnimationFrame(function(){ autosizeRow(tr); });
     setDirty(true);
 }
 
@@ -1698,6 +1793,7 @@ function handleReleaseInput(tr){
     tr.classList.toggle('blank-row', isReleaseBlankRow(tr));
     ensureReleaseBlankRow();
     renumberRows(els.releaseBody);
+    requestAnimationFrame(function(){ autosizeRow(tr); });
     setDirty(true);
 }
 
@@ -1730,6 +1826,7 @@ function applyPayload(payload){
     renderToolModelTabs();
     setActiveToolModel(state.models.includes(state.activeToolModel) ? state.activeToolModel : (state.models[0] || ''));
     renderReleaseDetails(payload.release_details || []);
+    requestAnimationFrame(function(){ autosizeAllRows(document); });
     setDirty(false);
     showFatal('');
 }
@@ -1821,6 +1918,7 @@ function bindTabs(){
 function bindDelegation(){
     document.addEventListener('input', function(e){
         if (e.target.matches('.cell-editor:not([readonly])')) {
+            autosizeEditor(e.target);
             const tr = e.target.closest('.tool-sheet tbody tr');
             if (tr) {
                 const td = e.target.closest('td[data-field]');
@@ -1873,6 +1971,7 @@ function bindDelegation(){
             }
             wrap.dataset.value = joinDropdownValues(values);
             syncCheckDropdown(wrap);
+            autosizeDropdown(wrap);
             const changedField = wrap.dataset.field || '';
             const toolTr = wrap.closest('.tool-sheet tbody tr');
             if (toolTr) {
@@ -1885,10 +1984,13 @@ function bindDelegation(){
                 return;
             }
         }
+        const statusSelect = e.target.closest('.status-select');
+        if (statusSelect) autosizeStatusSelect(statusSelect);
         const relTr = e.target.closest('#releaseBody tr');
         if (relTr) handleReleaseInput(relTr);
     });
 }
+
 
 function initButtons(){
     els.saveBtn.addEventListener('click', saveCurrentTab);
