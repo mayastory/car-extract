@@ -45,7 +45,7 @@ function dp_sidebar_render(string $active = ''): string
 			'title' => '고객사 출하 홀딩 내역',
 			'href'  => dp_url('customer_hold'),
 			'nav'   => '/customer_hold',
-			'icon'  => '🚚',
+			'icon'  => '❗',
 		],
 		[
 			'key'   => 'oqc',
