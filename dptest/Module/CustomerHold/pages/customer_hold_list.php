@@ -896,6 +896,37 @@ function createInput(value, opts){
     return input;
 }
 
+function rememberEditorValue(el, getter){
+    if (!el) return;
+    const read = typeof getter === 'function' ? getter : function(){ return typeof el.value === 'string' ? el.value : ''; };
+    if (!el.dataset) return;
+    el.dataset.escapeOriginal = read() || '';
+}
+
+function attachEscCancel(el, getter, setter, onRevert){
+    if (!el) return;
+    const read = typeof getter === 'function' ? getter : function(){ return typeof el.value === 'string' ? el.value : ''; };
+    const write = typeof setter === 'function' ? setter : function(next){ if (typeof el.value === 'string') el.value = next; };
+    el.addEventListener('focus', function(){
+        rememberEditorValue(el, read);
+    });
+    el.addEventListener('keydown', function(e){
+        if (e.key !== 'Escape') return;
+        e.preventDefault();
+        e.stopPropagation();
+        const original = (el.dataset && typeof el.dataset.escapeOriginal === 'string') ? el.dataset.escapeOriginal : '';
+        const current = read() || '';
+        if (current !== original) {
+            write(original);
+            if (typeof onRevert === 'function') onRevert(original);
+        }
+        try { el.blur(); } catch (_e) {}
+    });
+    el.addEventListener('blur', function(){
+        rememberEditorValue(el, read);
+    });
+}
+
 function autoResizeTextarea(el){
     if (!el) return;
     el.style.height = 'auto';
@@ -974,6 +1005,14 @@ function createCheckboxDropdown(value, mode, editable, onChange){
         return t === 'cosmetic' ? 'Cosmetic' : (t === 'dimension' ? 'Dimension' : v);
     });
     if (mode === 'cavity') selected = selected.map(function(v){ return String(v).toUpperCase(); });
+    let selectedSnapshot = selected.slice();
+
+    function syncPanelChecks(){
+        Array.from(panel.querySelectorAll('input[type="checkbox"]')).forEach(function(box){
+            const v = box.getAttribute('data-value');
+            box.checked = selected.includes(v);
+        });
+    }
 
     function commit(notify){
         const text = formatSelection(selected, mode);
@@ -1002,10 +1041,7 @@ function createCheckboxDropdown(value, mode, editable, onChange){
                 else next = next.filter(function(v){ return v !== opt; });
             }
             selected = Array.from(new Set(next));
-            Array.from(panel.querySelectorAll('input[type="checkbox"]')).forEach(function(box){
-                const v = box.getAttribute('data-value');
-                box.checked = selected.includes(v);
-            });
+            syncPanelChecks();
             commit(true);
         });
         check.setAttribute('data-value', opt);
@@ -1040,6 +1076,12 @@ function createCheckboxDropdown(value, mode, editable, onChange){
         panel.style.top = '-9999px';
     }
 
+    function revertToSnapshot(){
+        selected = selectedSnapshot.slice();
+        syncPanelChecks();
+        commit(true);
+    }
+
     if (editable) {
         trigger.addEventListener('click', function(e){
             e.preventDefault();
@@ -1048,7 +1090,20 @@ function createCheckboxDropdown(value, mode, editable, onChange){
                 p.classList.add('hidden');
                 p.style.left='-9999px'; p.style.top='-9999px';
             });
-            if (open) positionPanel();
+            if (open) {
+                selectedSnapshot = selected.slice();
+                positionPanel();
+            }
+        });
+        [trigger, panel].forEach(function(node){
+            node.addEventListener('keydown', function(e){
+                if (e.key !== 'Escape') return;
+                e.preventDefault();
+                e.stopPropagation();
+                revertToSnapshot();
+                closePanel();
+                try { trigger.focus({preventScroll:true}); } catch (_e) { try { trigger.focus(); } catch (_e2) {} }
+            });
         });
     }
 
@@ -1445,11 +1500,17 @@ function renderToolStatus(){
                 inputEl.addEventListener('input', function(){
                     updateToolRowField(model, visibleIndex, col.key, inputEl.value);
                 });
+                attachEscCancel(inputEl, function(){ return inputEl.value; }, function(next){ inputEl.value = next; autoResizeTextarea(inputEl); }, function(original){
+                    updateToolRowField(model, visibleIndex, col.key, original);
+                });
                 td.appendChild(inputEl);
             } else {
                 inputEl = createInput(currentValue, {readonly:!state.canEdit});
                 inputEl.addEventListener('input', function(){
                     updateToolRowField(model, visibleIndex, col.key, inputEl.value);
+                });
+                attachEscCancel(inputEl, function(){ return inputEl.value; }, function(next){ inputEl.value = next; }, function(original){
+                    updateToolRowField(model, visibleIndex, col.key, original);
                 });
                 td.appendChild(inputEl);
             }
@@ -1513,17 +1574,26 @@ function renderReleaseBody(){
                 status.input.addEventListener('change', function(){
                     updateReleaseRowField(visibleIndex, col.key, status.input.value);
                 });
+                attachEscCancel(status.input, function(){ return status.input.value; }, function(next){ status.input.value = next; }, function(original){
+                    updateReleaseRowField(visibleIndex, col.key, original);
+                });
                 td.appendChild(status.wrap);
             } else if (col.multiline) {
                 const ta = createTextarea(currentValue, {readonly:!state.canEdit});
                 ta.addEventListener('input', function(){
                     updateReleaseRowField(visibleIndex, col.key, ta.value);
                 });
+                attachEscCancel(ta, function(){ return ta.value; }, function(next){ ta.value = next; autoResizeTextarea(ta); }, function(original){
+                    updateReleaseRowField(visibleIndex, col.key, original);
+                });
                 td.appendChild(ta);
             } else {
                 const input = createInput(currentValue, {readonly:!state.canEdit});
                 input.addEventListener('input', function(){
                     updateReleaseRowField(visibleIndex, col.key, input.value);
+                });
+                attachEscCancel(input, function(){ return input.value; }, function(next){ input.value = next; }, function(original){
+                    updateReleaseRowField(visibleIndex, col.key, original);
                 });
                 td.appendChild(input);
             }
