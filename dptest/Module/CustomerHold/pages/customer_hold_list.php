@@ -1092,6 +1092,98 @@ function autosizeAllRows(root){
     scope.querySelectorAll('tbody tr').forEach(autosizeRow);
 }
 
+let __toolWidthSyncRaf = 0;
+function ensureToolColgroup(table){
+    if (!table) return null;
+    let colgroup = table.querySelector('colgroup.tool-colgroup');
+    const count = table.querySelectorAll('thead tr:first-child > *').length;
+    if (!colgroup) {
+        colgroup = document.createElement('colgroup');
+        colgroup.className = 'tool-colgroup';
+        for (let i = 0; i < count; i += 1) {
+            colgroup.appendChild(document.createElement('col'));
+        }
+        table.insertBefore(colgroup, table.firstChild);
+    } else {
+        while (colgroup.children.length < count) {
+            colgroup.appendChild(document.createElement('col'));
+        }
+        while (colgroup.children.length > count) {
+            colgroup.removeChild(colgroup.lastChild);
+        }
+    }
+    return colgroup;
+}
+
+function syncToolSheetColumnWidths(){
+    const sections = Array.from(document.querySelectorAll('#toolStatusRoot .model-section'));
+    if (!sections.length) return;
+    const hiddenSections = [];
+    sections.forEach(function(section){
+        if (section.classList.contains('hidden-section')) {
+            hiddenSections.push(section);
+            section.classList.remove('hidden-section');
+        }
+    });
+
+    const tables = sections.map(function(section){
+        return section.querySelector('table.tool-sheet');
+    }).filter(Boolean);
+
+    if (!tables.length) {
+        hiddenSections.forEach(function(section){ section.classList.add('hidden-section'); });
+        return;
+    }
+
+    tables.forEach(function(table){
+        const colgroup = ensureToolColgroup(table);
+        if (!colgroup) return;
+        Array.from(colgroup.children).forEach(function(col){
+            col.style.width = '';
+            col.style.minWidth = '';
+        });
+    });
+
+    // force layout after widths reset
+    tables.forEach(function(table){ void table.offsetWidth; });
+
+    const widths = [];
+    tables.forEach(function(table){
+        const rows = table.querySelectorAll('thead tr, tbody tr');
+        rows.forEach(function(row){
+            Array.from(row.children).forEach(function(cell, idx){
+                if (!cell || cell.style.display === 'none') return;
+                const rect = cell.getBoundingClientRect();
+                const width = Math.ceil(rect.width || 0);
+                if (!width) return;
+                widths[idx] = Math.max(widths[idx] || 0, width);
+            });
+        });
+    });
+
+    tables.forEach(function(table){
+        const colgroup = ensureToolColgroup(table);
+        if (!colgroup) return;
+        Array.from(colgroup.children).forEach(function(col, idx){
+            const width = widths[idx] || 0;
+            if (width > 0) {
+                col.style.width = width + 'px';
+                col.style.minWidth = width + 'px';
+            }
+        });
+    });
+
+    hiddenSections.forEach(function(section){ section.classList.add('hidden-section'); });
+}
+
+function scheduleToolSheetColumnWidthSync(){
+    if (__toolWidthSyncRaf) cancelAnimationFrame(__toolWidthSyncRaf);
+    __toolWidthSyncRaf = requestAnimationFrame(function(){
+        __toolWidthSyncRaf = 0;
+        syncToolSheetColumnWidths();
+    });
+}
+
 function createEditor(value, placeholder, options){
     const opts = options || {};
     const multiline = !!opts.multiline;
@@ -1562,6 +1654,7 @@ function renderToolStatus(rows){
         applyToolRowMerges(tbody);
         autosizeAllRows(section);
     });
+    scheduleToolSheetColumnWidthSync();
 }
 
 function renderToolModelTabs(){
@@ -1579,6 +1672,7 @@ function setActiveToolModel(model){
     requestAnimationFrame(function(){
         const activeSection = document.querySelector('#toolStatusRoot .model-section[data-model="' + CSS.escape(state.activeToolModel) + '"]');
         if (activeSection) autosizeAllRows(activeSection);
+        scheduleToolSheetColumnWidthSync();
     });
 }
 
@@ -1660,7 +1754,7 @@ function appendBlankToolRow(model){
         tbody.appendChild(autoBlank);
         renumberRows(tbody);
         applyToolRowMerges(tbody);
-        requestAnimationFrame(function(){ autosizeAllRows(tbody); });
+        requestAnimationFrame(function(){ autosizeAllRows(tbody); scheduleToolSheetColumnWidthSync(); });
         focusFirstEditable(last);
         setDirty(true);
         return;
@@ -1671,7 +1765,7 @@ function appendBlankToolRow(model){
     ensureToolBlankRow(model);
     renumberRows(tbody);
     applyToolRowMerges(tbody);
-    requestAnimationFrame(function(){ autosizeRow(blank); });
+    requestAnimationFrame(function(){ autosizeRow(blank); scheduleToolSheetColumnWidthSync(); });
     focusFirstEditable(blank);
     setDirty(true);
 }
@@ -1789,7 +1883,7 @@ function handleToolInput(tr, changedField){
         applyToolRowMerges(tbody);
         renumberRows(tbody);
     }
-    requestAnimationFrame(function(){ autosizeRow(tr); });
+    requestAnimationFrame(function(){ autosizeRow(tr); scheduleToolSheetColumnWidthSync(); });
     setDirty(true);
 }
 
@@ -1798,7 +1892,7 @@ function handleReleaseInput(tr){
     tr.classList.toggle('blank-row', isReleaseBlankRow(tr));
     ensureReleaseBlankRow();
     renumberRows(els.releaseBody);
-    requestAnimationFrame(function(){ autosizeRow(tr); });
+    requestAnimationFrame(function(){ autosizeRow(tr); scheduleToolSheetColumnWidthSync(); });
     setDirty(true);
 }
 
@@ -1831,7 +1925,7 @@ function applyPayload(payload){
     renderToolModelTabs();
     setActiveToolModel(state.models.includes(state.activeToolModel) ? state.activeToolModel : (state.models[0] || ''));
     renderReleaseDetails(payload.release_details || []);
-    requestAnimationFrame(function(){ autosizeAllRows(document); });
+    requestAnimationFrame(function(){ autosizeAllRows(document); scheduleToolSheetColumnWidthSync(); });
     setDirty(false);
     showFatal('');
 }
@@ -1885,6 +1979,7 @@ async function handleToolRowDelete(tr){
     ensureToolBlankRow(tbody.dataset.model);
     applyToolRowMerges(tbody);
     renumberRows(tbody);
+    scheduleToolSheetColumnWidthSync();
     setDirty(true);
 }
 
