@@ -830,6 +830,16 @@ function seedReleaseOriginals(row){
 function refreshDirtyFlag(){
     setDirty(state.dirtyToolCells.size > 0 || state.dirtyReleaseCells.size > 0);
 }
+function purgeToolRowState(row){
+    const prefix = toolRowIdentity(row) + '|';
+    Array.from(state.dirtyToolCells).forEach(function(key){ if (key.indexOf(prefix) === 0) state.dirtyToolCells.delete(key); });
+    Array.from(state.originalToolValues.keys()).forEach(function(key){ if (key.indexOf(prefix) === 0) state.originalToolValues.delete(key); });
+}
+function purgeReleaseRowState(row){
+    const prefix = releaseRowIdentity(row) + '|';
+    Array.from(state.dirtyReleaseCells).forEach(function(key){ if (key.indexOf(prefix) === 0) state.dirtyReleaseCells.delete(key); });
+    Array.from(state.originalReleaseValues.keys()).forEach(function(key){ if (key.indexOf(prefix) === 0) state.originalReleaseValues.delete(key); });
+}
 function syncToolCellDirtyDom(row, field, isDirty){
     const rowId = toolRowIdentity(row);
     document.querySelectorAll('td[data-rowid="' + rowId + '"][data-field="' + field + '"]').forEach(function(td){
@@ -1358,9 +1368,15 @@ function insertToolRowBelow(model, visibleIndex){
     renderCurrent();
 }
 
-function deleteToolRow(id){
-    if (!id) return;
-    state.toolStatusRows = state.toolStatusRows.filter(function(row){ return Number(row.id) !== Number(id); });
+async function deleteToolRow(row){
+    if (!row) return;
+    const rowId = toolRowIdentity(row);
+    if (Number(row.id) > 0) {
+        setStatus('삭제 중...', false);
+        await request('delete_tool_status', {id: Number(row.id)});
+    }
+    purgeToolRowState(row);
+    state.toolStatusRows = state.toolStatusRows.filter(function(item){ return toolRowIdentity(item) !== rowId; });
     refreshDirtyFlag();
     renderCurrent();
 }
@@ -1413,10 +1429,16 @@ function insertReleaseRowBelow(visibleIndex){
     renderReleaseBody();
 }
 
-function deleteReleaseRow(id){
-    if (!id) return;
-    state.releaseDetails = state.releaseDetails.filter(function(row){ return Number(row.id) !== Number(id); });
-    setDirty(true);
+async function deleteReleaseRow(row){
+    if (!row) return;
+    const rowId = releaseRowIdentity(row);
+    if (Number(row.id) > 0) {
+        setStatus('삭제 중...', false);
+        await request('delete_release_detail', {id: Number(row.id)});
+    }
+    purgeReleaseRowState(row);
+    state.releaseDetails = state.releaseDetails.filter(function(item){ return releaseRowIdentity(item) !== rowId; });
+    refreshDirtyFlag();
     renderReleaseBody();
 }
 
@@ -1602,8 +1624,8 @@ function renderToolStatus(){
         addBtn.addEventListener('click', function(){ insertToolRowBelow(model, visibleIndex); });
         const delBtn = document.createElement('button');
         delBtn.type = 'button'; delBtn.className = 'row-btn delete'; delBtn.textContent = '×';
-        delBtn.disabled = !state.canEdit || !row.id;
-        delBtn.addEventListener('click', function(){ if (row.id) deleteToolRow(row.id); });
+        delBtn.disabled = !state.canEdit;
+        delBtn.addEventListener('click', function(){ deleteToolRow(row).catch(function(err){ setStatus(err.message || '행 삭제 실패', true); }); });
         btnWrap.appendChild(addBtn);
         btnWrap.appendChild(delBtn);
         actionTd.appendChild(btnWrap);
@@ -1694,8 +1716,8 @@ function renderReleaseBody(){
         addBtn.addEventListener('click', function(){ insertReleaseRowBelow(visibleIndex); });
         const delBtn = document.createElement('button');
         delBtn.type = 'button'; delBtn.className = 'row-btn delete'; delBtn.textContent = '×';
-        delBtn.disabled = !state.canEdit || !row.id;
-        delBtn.addEventListener('click', function(){ if (row.id) deleteReleaseRow(row.id); });
+        delBtn.disabled = !state.canEdit;
+        delBtn.addEventListener('click', function(){ deleteReleaseRow(row).catch(function(err){ setStatus(err.message || '행 삭제 실패', true); }); });
         btnWrap.appendChild(addBtn);
         btnWrap.appendChild(delBtn);
         actionTd.appendChild(btnWrap);
