@@ -776,11 +776,13 @@ const state = {
     toolSuppressClickSelection: false,
     toolManualMerges: {},
     toolMergeMenu: null,
+    toolEditCell: null,
     releaseSelection: null,
     releaseSelectionDrag: null,
     releaseSuppressClickSelection: false,
     releaseManualMerges: {},
-    releaseMergeMenu: null
+    releaseMergeMenu: null,
+    releaseEditCell: null
 };
 
 const MODELS = ['IR-BASE','Z-CARRIER','X-CARRIER','Y-CARRIER','Z-STOPPER'];
@@ -835,6 +837,14 @@ function setStatus(text, isError){
     els.statusText.style.color = isError ? '#fecaca' : '';
 }
 
+function isToolSelectableField(field){
+    return toolColumns.some(function(col){ return col.key === String(field || ''); });
+}
+
+function isReleaseSelectableField(field){
+    return releaseColumns.some(function(col){ return col.key === String(field || ''); });
+}
+
 function isToolManualMergeField(field){
     return ['item_code','tool_text','affect_lot_text','issue_description_text','remark_text'].includes(String(field || ''));
 }
@@ -887,6 +897,7 @@ function getToolManualState(model, field){
 
 function clearToolSelection(){
     state.toolSelection = null;
+    state.toolEditCell = null;
     applyToolSelectionDom();
     hideToolMergeMenu();
 }
@@ -909,7 +920,7 @@ function clearToolManualState(model){
 }
 
 function setToolSelection(model, field, startRow, endRow){
-    if (!isToolManualMergeField(field)) return;
+    if (!isToolSelectableField(field)) return;
     state.toolSelection = {
         model: String(model || '').toUpperCase(),
         field: String(field || ''),
@@ -1200,9 +1211,8 @@ function getToolCellMeta(target){
     const td = target && target.closest ? target.closest('.toolsheet td[data-field]') : null;
     if (!td) return null;
     const tr = td.parentElement;
-    if (tr && tr.classList.contains('blank-row')) return null;
     const field = String(td.getAttribute('data-field') || '');
-    if (!isToolManualMergeField(field)) return null;
+    if (!isToolSelectableField(field)) return null;
     const rowIndex = Number(td.getAttribute('data-row-index') || 0);
     if (!Number.isFinite(rowIndex)) return null;
     return {
@@ -1210,7 +1220,8 @@ function getToolCellMeta(target){
         field: field,
         rowIndex: rowIndex,
         rowSpan: Number(td.getAttribute('data-row-span') || 1),
-        model: String(state.activeToolModel || '').toUpperCase()
+        model: String(state.activeToolModel || '').toUpperCase(),
+        isBlankRow: !!(tr && tr.classList.contains('blank-row'))
     };
 }
 
@@ -1322,6 +1333,7 @@ function refreshReleaseStructureDirtyAll(){
 
 function clearReleaseSelection(){
     state.releaseSelection = null;
+    state.releaseEditCell = null;
     applyReleaseSelectionDom();
     hideReleaseMergeMenu();
 }
@@ -1335,7 +1347,7 @@ function clearReleaseManualState(){
 }
 
 function setReleaseSelection(field, startRow, endRow){
-    if (!isReleaseManualMergeField(field)) return;
+    if (!isReleaseSelectableField(field)) return;
     state.releaseSelection = {
         field: String(field || ''),
         startRow: Math.min(Number(startRow) || 0, Number(endRow) || 0),
@@ -1520,17 +1532,78 @@ function getReleaseCellMeta(target){
     const td = target && target.closest ? target.closest('.release-table td[data-field]') : null;
     if (!td) return null;
     const tr = td.parentElement;
-    if (tr && tr.classList.contains('blank-row')) return null;
     const field = String(td.getAttribute('data-field') || '');
-    if (!isReleaseManualMergeField(field)) return null;
+    if (!isReleaseSelectableField(field)) return null;
     const rowIndex = Number(td.getAttribute('data-row-index') || 0);
     if (!Number.isFinite(rowIndex)) return null;
     return {
         td: td,
         field: field,
         rowIndex: rowIndex,
-        rowSpan: Number(td.getAttribute('data-row-span') || 1)
+        rowSpan: Number(td.getAttribute('data-row-span') || 1),
+        isBlankRow: !!(tr && tr.classList.contains('blank-row'))
     };
+}
+
+function setToolEditCell(model, field, rowIndex){
+    state.toolEditCell = {
+        model: String(model || '').toUpperCase(),
+        field: String(field || ''),
+        rowIndex: Number(rowIndex) || 0
+    };
+}
+
+function setReleaseEditCell(field, rowIndex){
+    state.releaseEditCell = {
+        field: String(field || ''),
+        rowIndex: Number(rowIndex) || 0
+    };
+}
+
+function clearToolEditCell(){
+    state.toolEditCell = null;
+}
+
+function clearReleaseEditCell(){
+    state.releaseEditCell = null;
+}
+
+function isToolEditingMeta(meta){
+    return !!(meta && state.toolEditCell && String(state.toolEditCell.model || '').toUpperCase() === String(meta.model || '').toUpperCase() && String(state.toolEditCell.field || '') === String(meta.field || '') && Number(state.toolEditCell.rowIndex || 0) === Number(meta.rowIndex || 0));
+}
+
+function isReleaseEditingMeta(meta){
+    return !!(meta && state.releaseEditCell && String(state.releaseEditCell.field || '') === String(meta.field || '') && Number(state.releaseEditCell.rowIndex || 0) === Number(meta.rowIndex || 0));
+}
+
+function isEditorTarget(target){
+    return !!(target && target.closest && target.closest('.cell-input, .cell-textarea, .status-select, .vendor-trigger'));
+}
+
+function isEditableToolField(field){
+    return state.canEdit && isToolSelectableField(field) && String(field || '') !== 'item_code';
+}
+
+function isEditableReleaseField(field){
+    return state.canEdit && isReleaseSelectableField(field);
+}
+
+function beginToolCellEdit(meta, caretPos){
+    if (!meta || !isEditableToolField(meta.field)) return;
+    hideToolMergeMenu();
+    setToolSelection(meta.model, meta.field, meta.rowIndex, meta.rowIndex);
+    clearReleaseEditCell();
+    setToolEditCell(meta.model, meta.field, meta.rowIndex);
+    focusToolField(meta.model, meta.rowIndex, meta.field, caretPos);
+}
+
+function beginReleaseCellEdit(meta, caretPos){
+    if (!meta || !isEditableReleaseField(meta.field)) return;
+    hideReleaseMergeMenu();
+    setReleaseSelection(meta.field, meta.rowIndex, meta.rowIndex);
+    clearToolEditCell();
+    setReleaseEditCell(meta.field, meta.rowIndex);
+    focusReleaseField(meta.rowIndex, meta.field, caretPos);
 }
 
 function setDirty(flag){
@@ -1953,7 +2026,7 @@ function createCheckboxDropdown(value, mode, editable, onChange){
     wrap.appendChild(trigger);
     document.body.appendChild(panel);
     commit(false);
-    return {wrap:wrap, panel:panel, close:closePanel};
+    return {wrap:wrap, panel:panel, close:closePanel, input:trigger};
 }
 
 function createStatusSelect(value, editable){
@@ -2008,6 +2081,125 @@ function focusReleaseField(visibleIndex, field, caretPos){
         const el = cell.querySelector('input, textarea, select, button.vendor-trigger');
         focusEditable(el, caretPos);
     });
+}
+
+function wireEditorControl(control, sheet, meta, options){
+    if (!control) return;
+    control.tabIndex = -1;
+    const keepFocusWithin = options && typeof options.keepFocusWithin === 'function' ? options.keepFocusWithin : null;
+    control.addEventListener('focus', function(){
+        const allowed = sheet === 'tool' ? isToolEditingMeta(meta) : isReleaseEditingMeta(meta);
+        if (allowed) return;
+        setTimeout(function(){
+            if (document.activeElement === control) {
+                try { control.blur(); } catch (_e) {}
+            }
+        }, 0);
+    });
+    control.addEventListener('blur', function(){
+        setTimeout(function(){
+            const active = document.activeElement;
+            if (keepFocusWithin && keepFocusWithin(active)) return;
+            if (sheet === 'tool' && isToolEditingMeta(meta)) clearToolEditCell();
+            if (sheet === 'release' && isReleaseEditingMeta(meta)) clearReleaseEditCell();
+        }, 0);
+    });
+}
+
+function findToolCellElement(model, field, rowIndex){
+    const table = els.toolStatusRoot ? els.toolStatusRoot.querySelector('table.toolsheet') : null;
+    if (!table) return null;
+    const exact = table.querySelector('tbody td[data-field="' + field + '"][data-row-index="' + rowIndex + '"]');
+    if (exact) return exact;
+    return Array.from(table.querySelectorAll('tbody td[data-field="' + field + '"][data-row-index]')).find(function(td){
+        const start = Number(td.getAttribute('data-row-index') || 0);
+        const span = Math.max(1, Number(td.getAttribute('data-row-span') || 1));
+        const end = start + span - 1;
+        return Number(rowIndex) >= start && Number(rowIndex) <= end;
+    }) || null;
+}
+
+function findReleaseCellElement(field, rowIndex){
+    const table = els.releaseBody ? els.releaseBody.closest('table.release-table') : null;
+    if (!table) return null;
+    const exact = table.querySelector('tbody td[data-field="' + field + '"][data-row-index="' + rowIndex + '"]');
+    if (exact) return exact;
+    return Array.from(table.querySelectorAll('tbody td[data-field="' + field + '"][data-row-index]')).find(function(td){
+        const start = Number(td.getAttribute('data-row-index') || 0);
+        const span = Math.max(1, Number(td.getAttribute('data-row-span') || 1));
+        const end = start + span - 1;
+        return Number(rowIndex) >= start && Number(rowIndex) <= end;
+    }) || null;
+}
+
+function revealSelectedCell(td){
+    if (!td || typeof td.scrollIntoView !== 'function') return;
+    try { td.scrollIntoView({block:'nearest', inline:'nearest'}); } catch (_e) {}
+}
+
+function getActiveSingleToolSelection(){
+    const sel = getToolSelection();
+    if (!sel || sel.startRow !== sel.endRow) return null;
+    if (String(state.activeToolModel || '').toUpperCase() !== String(sel.model || '').toUpperCase()) return null;
+    return sel;
+}
+
+function getActiveSingleReleaseSelection(){
+    const sel = getReleaseSelection();
+    if (!sel || sel.startRow !== sel.endRow) return null;
+    return sel;
+}
+
+function moveToolSelection(direction){
+    const sel = getActiveSingleToolSelection();
+    if (!sel) return false;
+    const currentCell = findToolCellElement(sel.model, sel.field, sel.startRow);
+    if (!currentCell) return false;
+    let nextCell = null;
+    if (direction === 'left' || direction === 'right') {
+        const rowCells = Array.from(currentCell.parentElement.querySelectorAll('td[data-field]'));
+        const index = rowCells.indexOf(currentCell);
+        if (index < 0) return false;
+        nextCell = rowCells[index + (direction === 'right' ? 1 : -1)] || null;
+    } else {
+        const fieldCells = Array.from(currentCell.closest('table').querySelectorAll('tbody td[data-field="' + sel.field + '"]'));
+        const index = fieldCells.indexOf(currentCell);
+        if (index < 0) return false;
+        nextCell = fieldCells[index + (direction === 'down' ? 1 : -1)] || null;
+    }
+    if (!nextCell) return false;
+    const meta = getToolCellMeta(nextCell);
+    if (!meta) return false;
+    clearToolEditCell();
+    setToolSelection(meta.model, meta.field, meta.rowIndex, meta.rowIndex);
+    revealSelectedCell(nextCell);
+    return true;
+}
+
+function moveReleaseSelection(direction){
+    const sel = getActiveSingleReleaseSelection();
+    if (!sel) return false;
+    const currentCell = findReleaseCellElement(sel.field, sel.startRow);
+    if (!currentCell) return false;
+    let nextCell = null;
+    if (direction === 'left' || direction === 'right') {
+        const rowCells = Array.from(currentCell.parentElement.querySelectorAll('td[data-field]'));
+        const index = rowCells.indexOf(currentCell);
+        if (index < 0) return false;
+        nextCell = rowCells[index + (direction === 'right' ? 1 : -1)] || null;
+    } else {
+        const fieldCells = Array.from(currentCell.closest('table').querySelectorAll('tbody td[data-field="' + sel.field + '"]'));
+        const index = fieldCells.indexOf(currentCell);
+        if (index < 0) return false;
+        nextCell = fieldCells[index + (direction === 'down' ? 1 : -1)] || null;
+    }
+    if (!nextCell) return false;
+    const meta = getReleaseCellMeta(nextCell);
+    if (!meta) return false;
+    clearReleaseEditCell();
+    setReleaseSelection(meta.field, meta.rowIndex, meta.rowIndex);
+    revealSelectedCell(nextCell);
+    return true;
 }
 
 function updateToolRowField(model, visibleIndex, field, value, meta){
@@ -2529,16 +2721,19 @@ function renderToolStatus(){
                 const dd = createCheckboxDropdown(currentValue, 'vendor', state.canEdit, function(text){
                     updateToolRowField(model, visibleIndex, col.key, text, {cell: td, span: mergeSpan});
                 });
+                wireEditorControl(dd.input, 'tool', {model:model, field:col.key, rowIndex:visibleIndex}, {keepFocusWithin:function(active){ return !!(dd.wrap.contains(active) || dd.panel.contains(active)); }});
                 td.appendChild(dd.wrap);
             } else if (col.checkbox === 'cavity') {
                 const dd = createCheckboxDropdown(currentValue, 'cavity', state.canEdit, function(text){
                     updateToolRowField(model, visibleIndex, col.key, text, {cell: td, span: mergeSpan});
                 });
+                wireEditorControl(dd.input, 'tool', {model:model, field:col.key, rowIndex:visibleIndex}, {keepFocusWithin:function(active){ return !!(dd.wrap.contains(active) || dd.panel.contains(active)); }});
                 td.appendChild(dd.wrap);
             } else if (col.checkbox === 'toolType') {
                 const dd = createCheckboxDropdown(currentValue, 'toolType', state.canEdit, function(text){
                     updateToolRowField(model, visibleIndex, col.key, text, {cell: td, span: mergeSpan});
                 });
+                wireEditorControl(dd.input, 'tool', {model:model, field:col.key, rowIndex:visibleIndex}, {keepFocusWithin:function(active){ return !!(dd.wrap.contains(active) || dd.panel.contains(active)); }});
                 td.appendChild(dd.wrap);
             } else if (col.multiline) {
                 inputEl = createTextarea(currentValue, {readonly:!state.canEdit});
@@ -2548,6 +2743,7 @@ function renderToolStatus(){
                 attachEscCancel(inputEl, function(){ return inputEl.value; }, function(next){ inputEl.value = next; autoResizeTextarea(inputEl); }, function(original){
                     updateToolRowField(model, visibleIndex, col.key, original, {cell: td, span: mergeSpan});
                 });
+                wireEditorControl(inputEl, 'tool', {model:model, field:col.key, rowIndex:visibleIndex});
                 td.appendChild(inputEl);
             } else {
                 inputEl = createInput(currentValue, {readonly:!state.canEdit});
@@ -2557,6 +2753,7 @@ function renderToolStatus(){
                 attachEscCancel(inputEl, function(){ return inputEl.value; }, function(next){ inputEl.value = next; }, function(original){
                     updateToolRowField(model, visibleIndex, col.key, original, {cell: td, span: mergeSpan});
                 });
+                wireEditorControl(inputEl, 'tool', {model:model, field:col.key, rowIndex:visibleIndex});
                 td.appendChild(inputEl);
             }
             tr.appendChild(td);
@@ -2621,7 +2818,7 @@ document.addEventListener('mouseup', function(ev){
 
 document.addEventListener('contextmenu', function(ev){
     const meta = getToolCellMeta(ev.target);
-    if (!meta || !state.canEdit) {
+    if (!meta || !state.canEdit || meta.isBlankRow || !isToolManualMergeField(meta.field)) {
         hideToolMergeMenu();
         return;
     }
@@ -2646,6 +2843,7 @@ document.addEventListener('click', function(ev){
     }
     const meta = getToolCellMeta(ev.target);
     if (meta && state.canEdit) {
+        if (!(isToolEditingMeta(meta) && isEditorTarget(ev.target))) clearToolEditCell();
         const sel = getToolSelection();
         if (!sel || sel.model !== meta.model || sel.field !== meta.field || sel.startRow !== meta.rowIndex || sel.endRow !== meta.rowIndex) {
             setToolSelection(meta.model, meta.field, meta.rowIndex, meta.rowIndex);
@@ -2654,6 +2852,7 @@ document.addEventListener('click', function(ev){
         return;
     }
     hideToolMergeMenu();
+    clearToolEditCell();
     if (!(ev.target.closest && ev.target.closest('.toolsheet'))) {
         clearToolSelection();
     }
@@ -2711,7 +2910,7 @@ document.addEventListener('mouseup', function(ev){
 
 document.addEventListener('contextmenu', function(ev){
     const meta = getReleaseCellMeta(ev.target);
-    if (!meta || !state.canEdit) {
+    if (!meta || !state.canEdit || meta.isBlankRow) {
         hideReleaseMergeMenu();
         return;
     }
@@ -2736,6 +2935,7 @@ document.addEventListener('click', function(ev){
     }
     const meta = getReleaseCellMeta(ev.target);
     if (meta && state.canEdit) {
+        if (!(isReleaseEditingMeta(meta) && isEditorTarget(ev.target))) clearReleaseEditCell();
         const sel = getReleaseSelection();
         if (!sel || sel.field !== meta.field || sel.startRow !== meta.rowIndex || sel.endRow !== meta.rowIndex) {
             setReleaseSelection(meta.field, meta.rowIndex, meta.rowIndex);
@@ -2744,11 +2944,89 @@ document.addEventListener('click', function(ev){
         return;
     }
     hideReleaseMergeMenu();
+    clearReleaseEditCell();
     if (!(ev.target.closest && ev.target.closest('.release-table'))) clearReleaseSelection();
 });
 
 document.addEventListener('keydown', function(ev){
     if (ev.key === 'Escape') hideReleaseMergeMenu();
+});
+
+document.addEventListener('mousedown', function(ev){
+    if (ev.button !== 0 || !state.canEdit) return;
+    const toolMeta = getToolCellMeta(ev.target);
+    if (toolMeta && isEditorTarget(ev.target) && !isToolEditingMeta(toolMeta)) {
+        ev.preventDefault();
+        return;
+    }
+    const releaseMeta = getReleaseCellMeta(ev.target);
+    if (releaseMeta && isEditorTarget(ev.target) && !isReleaseEditingMeta(releaseMeta)) {
+        ev.preventDefault();
+    }
+}, true);
+
+document.addEventListener('dblclick', function(ev){
+    const toolMeta = getToolCellMeta(ev.target);
+    if (toolMeta && state.canEdit) {
+        ev.preventDefault();
+        beginToolCellEdit(toolMeta);
+        return;
+    }
+    const releaseMeta = getReleaseCellMeta(ev.target);
+    if (releaseMeta && state.canEdit) {
+        ev.preventDefault();
+        beginReleaseCellEdit(releaseMeta);
+    }
+});
+
+document.addEventListener('keydown', function(ev){
+    if (ev.defaultPrevented || ev.altKey || ev.ctrlKey || ev.metaKey) return;
+    const activeSheet = els.releaseTab && !els.releaseTab.classList.contains('hidden') ? 'release' : 'tool';
+
+    if (ev.key === 'F2') {
+        if (activeSheet === 'tool') {
+            const sel = getActiveSingleToolSelection();
+            if (sel) {
+                const meta = getToolCellMeta(findToolCellElement(sel.model, sel.field, sel.startRow));
+                if (meta && isEditableToolField(meta.field)) {
+                    ev.preventDefault();
+                    beginToolCellEdit(meta);
+                }
+            }
+        } else {
+            const sel = getActiveSingleReleaseSelection();
+            if (sel) {
+                const meta = getReleaseCellMeta(findReleaseCellElement(sel.field, sel.startRow));
+                if (meta && isEditableReleaseField(meta.field)) {
+                    ev.preventDefault();
+                    beginReleaseCellEdit(meta);
+                }
+            }
+        }
+        return;
+    }
+
+    if (state.toolEditCell || state.releaseEditCell) return;
+
+    let moved = false;
+    if (activeSheet === 'tool') {
+        if (!getActiveSingleToolSelection()) return;
+        if (ev.key === 'ArrowLeft') moved = moveToolSelection('left');
+        else if (ev.key === 'ArrowRight') moved = moveToolSelection('right');
+        else if (ev.key === 'ArrowUp') moved = moveToolSelection('up');
+        else if (ev.key === 'ArrowDown') moved = moveToolSelection('down');
+        else if (ev.key === 'Enter') moved = moveToolSelection(ev.shiftKey ? 'up' : 'down');
+        else if (ev.key === 'Tab') moved = moveToolSelection(ev.shiftKey ? 'left' : 'right');
+    } else {
+        if (!getActiveSingleReleaseSelection()) return;
+        if (ev.key === 'ArrowLeft') moved = moveReleaseSelection('left');
+        else if (ev.key === 'ArrowRight') moved = moveReleaseSelection('right');
+        else if (ev.key === 'ArrowUp') moved = moveReleaseSelection('up');
+        else if (ev.key === 'ArrowDown') moved = moveReleaseSelection('down');
+        else if (ev.key === 'Enter') moved = moveReleaseSelection(ev.shiftKey ? 'up' : 'down');
+        else if (ev.key === 'Tab') moved = moveReleaseSelection(ev.shiftKey ? 'left' : 'right');
+    }
+    if (moved) ev.preventDefault();
 });
 
 function renderReleaseBody(){
@@ -2804,16 +3082,19 @@ function renderReleaseBody(){
                 const dd = createCheckboxDropdown(currentValue, 'vendor', state.canEdit, function(text){
                     updateReleaseRowField(visibleIndex, col.key, text, {cell: td, span: mergeSpan});
                 });
+                wireEditorControl(dd.input, 'release', {field:col.key, rowIndex:visibleIndex}, {keepFocusWithin:function(active){ return !!(dd.wrap.contains(active) || dd.panel.contains(active)); }});
                 td.appendChild(dd.wrap);
             } else if (col.checkbox === 'cavity') {
                 const dd = createCheckboxDropdown(currentValue, 'cavity', state.canEdit, function(text){
                     updateReleaseRowField(visibleIndex, col.key, text, {cell: td, span: mergeSpan});
                 });
+                wireEditorControl(dd.input, 'release', {field:col.key, rowIndex:visibleIndex}, {keepFocusWithin:function(active){ return !!(dd.wrap.contains(active) || dd.panel.contains(active)); }});
                 td.appendChild(dd.wrap);
             } else if (col.checkbox === 'releaseType') {
                 const dd = createCheckboxDropdown(currentValue, 'releaseType', state.canEdit, function(text){
                     updateReleaseRowField(visibleIndex, col.key, text, {cell: td, span: mergeSpan});
                 });
+                wireEditorControl(dd.input, 'release', {field:col.key, rowIndex:visibleIndex}, {keepFocusWithin:function(active){ return !!(dd.wrap.contains(active) || dd.panel.contains(active)); }});
                 td.appendChild(dd.wrap);
             } else if (col.status) {
                 const status = createStatusSelect(currentValue, state.canEdit);
@@ -2823,6 +3104,7 @@ function renderReleaseBody(){
                 attachEscCancel(status.input, function(){ return status.input.value; }, function(next){ status.input.value = next; }, function(original){
                     updateReleaseRowField(visibleIndex, col.key, original, {cell: td, span: mergeSpan});
                 });
+                wireEditorControl(status.input, 'release', {field:col.key, rowIndex:visibleIndex});
                 td.appendChild(status.wrap);
             } else if (col.multiline) {
                 const ta = createTextarea(currentValue, {readonly:!state.canEdit});
@@ -2832,6 +3114,7 @@ function renderReleaseBody(){
                 attachEscCancel(ta, function(){ return ta.value; }, function(next){ ta.value = next; autoResizeTextarea(ta); }, function(original){
                     updateReleaseRowField(visibleIndex, col.key, original, {cell: td, span: mergeSpan});
                 });
+                wireEditorControl(ta, 'release', {field:col.key, rowIndex:visibleIndex});
                 td.appendChild(ta);
             } else {
                 const input = createInput(currentValue, {readonly:!state.canEdit});
@@ -2841,6 +3124,7 @@ function renderReleaseBody(){
                 attachEscCancel(input, function(){ return input.value; }, function(next){ input.value = next; }, function(original){
                     updateReleaseRowField(visibleIndex, col.key, original, {cell: td, span: mergeSpan});
                 });
+                wireEditorControl(input, 'release', {field:col.key, rowIndex:visibleIndex});
                 td.appendChild(input);
             }
             tr.appendChild(td);
@@ -2890,6 +3174,8 @@ function applyPayload(data){
     state.releaseManualMerges = {};
     state.toolSelection = null;
     state.releaseSelection = null;
+    state.toolEditCell = null;
+    state.releaseEditCell = null;
     state.toolStatusRows.forEach(seedToolOriginals);
     state.releaseDetails.forEach(seedReleaseOriginals);
     captureOriginalToolStructure();
