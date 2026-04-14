@@ -537,6 +537,9 @@ body{
 .sheet td.selected-range.selection-top::after,.sheet td.selected-range.selection-single::after{border-top:2px solid #22c55e}
 .sheet td.selected-range.selection-bottom::after,.sheet td.selected-range.selection-single::after{border-bottom:2px solid #22c55e}
 .sheet td.selected-range .cell-input,.sheet td.selected-range .cell-textarea,.sheet td.selected-range .vendor-trigger,.sheet td.selected-range .status-select{position:relative;z-index:4}
+.sheet td.copied-range{position:relative}
+.sheet td.copied-range::before{content:'';position:absolute;left:-1px;right:-1px;top:-1px;bottom:-1px;pointer-events:none;z-index:6;background:linear-gradient(90deg,#f8fafc 50%,transparent 0) repeat-x top/8px 2px,linear-gradient(90deg,#f8fafc 50%,transparent 0) repeat-x bottom/8px 2px,linear-gradient(0deg,#f8fafc 50%,transparent 0) repeat-y left/2px 8px,linear-gradient(0deg,#f8fafc 50%,transparent 0) repeat-y right/2px 8px;animation:copy-ants .45s linear infinite}
+@keyframes copy-ants{to{background-position:8px 0,-8px 100%,0 -8px,100% 8px}}
 .sheet td[data-field]:focus,.release-table td[data-field]:focus{outline:none}
 body.cell-selecting,body.cell-selecting *{user-select:none !important}
 .tool-merge-menu{position:fixed;left:-9999px;top:-9999px;min-width:140px;padding:6px;border-radius:10px;background:#0f1720;border:1px solid rgba(255,255,255,.12);box-shadow:0 16px 30px rgba(0,0,0,.38);z-index:2600}
@@ -783,7 +786,9 @@ const state = {
     releaseSuppressClickSelection: false,
     releaseManualMerges: {},
     releaseMergeMenu: null,
-    releaseEditCell: null
+    releaseEditCell: null,
+    clipboard: null,
+    copiedSelection: null
 };
 
 const MODELS = ['IR-BASE','Z-CARRIER','X-CARRIER','Y-CARRIER','Z-STOPPER'];
@@ -938,6 +943,31 @@ function getToolSelection(){
         startRow: state.toolSelection.startRow,
         endRow: state.toolSelection.endRow
     } : null;
+}
+
+function getCopiedSelection(){
+    return state.copiedSelection ? Object.assign({}, state.copiedSelection) : null;
+}
+
+function setCopiedSelection(payload){
+    state.copiedSelection = payload ? Object.assign({}, payload) : null;
+    applyToolCopyDom();
+    applyReleaseCopyDom();
+}
+
+function clearClipboardCopyState(){
+    state.clipboard = null;
+    setCopiedSelection(null);
+}
+
+function buildClipboardText(values){
+    return (Array.isArray(values) ? values : []).map(function(v){ return String(v == null ? '' : v); }).join('\n');
+}
+
+function writeNativeClipboard(text){
+    try {
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') navigator.clipboard.writeText(String(text || '')).catch(function(){});
+    } catch (_e) {}
 }
 
 function getToolRowsForModel(model){
@@ -1113,20 +1143,39 @@ function applyToolSelectionDom(){
     table.querySelectorAll('td.selected-range').forEach(function(td){
         td.classList.remove('selected-range','selection-top','selection-bottom','selection-single');
     });
-    if (!sel || sel.model !== String(state.activeToolModel || '').toUpperCase()) return;
+    if (sel && sel.model === String(state.activeToolModel || '').toUpperCase()) {
+        table.querySelectorAll('tbody td[data-field][data-row-index]').forEach(function(td){
+            const field = td.getAttribute('data-field');
+            if (field !== sel.field) return;
+            const start = Number(td.getAttribute('data-row-index') || 0);
+            const span = Number(td.getAttribute('data-row-span') || 1);
+            const end = start + Math.max(1, span) - 1;
+            if (end < sel.startRow || start > sel.endRow) return;
+            td.classList.add('selected-range');
+            const touchesTop = sel.startRow >= start && sel.startRow <= end;
+            const touchesBottom = sel.endRow >= start && sel.endRow <= end;
+            if (touchesTop) td.classList.add('selection-top');
+            if (touchesBottom) td.classList.add('selection-bottom');
+            if (touchesTop && touchesBottom) td.classList.add('selection-single');
+        });
+    }
+    applyToolCopyDom();
+}
+
+function applyToolCopyDom(){
+    const table = els.toolStatusRoot ? els.toolStatusRoot.querySelector('table.toolsheet') : null;
+    if (!table) return;
+    const copied = getCopiedSelection();
+    table.querySelectorAll('td.copied-range').forEach(function(td){ td.classList.remove('copied-range'); });
+    if (!copied || copied.sheet !== 'tool' || copied.model !== String(state.activeToolModel || '').toUpperCase()) return;
     table.querySelectorAll('tbody td[data-field][data-row-index]').forEach(function(td){
         const field = td.getAttribute('data-field');
-        if (field !== sel.field) return;
+        if (field !== copied.field) return;
         const start = Number(td.getAttribute('data-row-index') || 0);
         const span = Number(td.getAttribute('data-row-span') || 1);
         const end = start + Math.max(1, span) - 1;
-        if (end < sel.startRow || start > sel.endRow) return;
-        td.classList.add('selected-range');
-        const touchesTop = sel.startRow >= start && sel.startRow <= end;
-        const touchesBottom = sel.endRow >= start && sel.endRow <= end;
-        if (touchesTop) td.classList.add('selection-top');
-        if (touchesBottom) td.classList.add('selection-bottom');
-        if (touchesTop && touchesBottom) td.classList.add('selection-single');
+        if (end < copied.startRow || start > copied.endRow) return;
+        td.classList.add('copied-range');
     });
 }
 
@@ -1436,20 +1485,39 @@ function applyReleaseSelectionDom(){
     table.querySelectorAll('td.selected-range').forEach(function(td){
         td.classList.remove('selected-range','selection-top','selection-bottom','selection-single');
     });
-    if (!sel) return;
+    if (sel) {
+        table.querySelectorAll('tbody td[data-field][data-row-index]').forEach(function(td){
+            const field = td.getAttribute('data-field');
+            if (field !== sel.field) return;
+            const start = Number(td.getAttribute('data-row-index') || 0);
+            const span = Number(td.getAttribute('data-row-span') || 1);
+            const end = start + Math.max(1, span) - 1;
+            if (end < sel.startRow || start > sel.endRow) return;
+            td.classList.add('selected-range');
+            const touchesTop = sel.startRow >= start && sel.startRow <= end;
+            const touchesBottom = sel.endRow >= start && sel.endRow <= end;
+            if (touchesTop) td.classList.add('selection-top');
+            if (touchesBottom) td.classList.add('selection-bottom');
+            if (touchesTop && touchesBottom) td.classList.add('selection-single');
+        });
+    }
+    applyReleaseCopyDom();
+}
+
+function applyReleaseCopyDom(){
+    const table = els.releaseBody ? els.releaseBody.closest('table.release-table') : null;
+    if (!table) return;
+    const copied = getCopiedSelection();
+    table.querySelectorAll('td.copied-range').forEach(function(td){ td.classList.remove('copied-range'); });
+    if (!copied || copied.sheet !== 'release') return;
     table.querySelectorAll('tbody td[data-field][data-row-index]').forEach(function(td){
         const field = td.getAttribute('data-field');
-        if (field !== sel.field) return;
+        if (field !== copied.field) return;
         const start = Number(td.getAttribute('data-row-index') || 0);
         const span = Number(td.getAttribute('data-row-span') || 1);
         const end = start + Math.max(1, span) - 1;
-        if (end < sel.startRow || start > sel.endRow) return;
-        td.classList.add('selected-range');
-        const touchesTop = sel.startRow >= start && sel.startRow <= end;
-        const touchesBottom = sel.endRow >= start && sel.endRow <= end;
-        if (touchesTop) td.classList.add('selection-top');
-        if (touchesBottom) td.classList.add('selection-bottom');
-        if (touchesTop && touchesBottom) td.classList.add('selection-single');
+        if (end < copied.startRow || start > copied.endRow) return;
+        td.classList.add('copied-range');
     });
 }
 
@@ -3002,6 +3070,26 @@ document.addEventListener('mousedown', function(ev){
     }
 }, true);
 
+document.addEventListener('keydown', function(ev){
+    if (ev.defaultPrevented || ev.altKey) return;
+    const key = String(ev.key || '').toLowerCase();
+    if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey && key === 'c') {
+        if (handleGridCopy()) {
+            ev.preventDefault();
+        }
+        return;
+    }
+    if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey && key === 'v') {
+        if (handleGridPaste()) {
+            ev.preventDefault();
+        }
+        return;
+    }
+    if (ev.key === 'Escape' && state.copiedSelection) {
+        clearClipboardCopyState();
+    }
+});
+
 document.addEventListener('dblclick', function(ev){
     const toolMeta = getToolCellMeta(ev.target);
     if (toolMeta && state.canEdit) {
@@ -3068,6 +3156,119 @@ document.addEventListener('keydown', function(ev){
     }
     if (moved) ev.preventDefault();
 });
+
+function getActiveSheetName(){
+    return (els.releaseTab && !els.releaseTab.classList.contains('hidden')) ? 'release' : 'tool';
+}
+
+function copyToolSelectionToClipboard(){
+    const sel = getToolSelection();
+    if (!sel) return false;
+    const rows = getToolRowsForModel(sel.model);
+    if (!rows.length || sel.endRow >= rows.length) return false;
+    const values = [];
+    for (let idx = sel.startRow; idx <= sel.endRow; idx++) values.push(String((rows[idx] && rows[idx][sel.field]) || ''));
+    state.clipboard = {values: values.slice(), source: {sheet:'tool', model:sel.model, field:sel.field, startRow:sel.startRow, endRow:sel.endRow}};
+    setCopiedSelection({sheet:'tool', model:sel.model, field:sel.field, startRow:sel.startRow, endRow:sel.endRow});
+    writeNativeClipboard(buildClipboardText(values));
+    setStatus('복사되었습니다.', false);
+    return true;
+}
+
+function copyReleaseSelectionToClipboard(){
+    const sel = getReleaseSelection();
+    if (!sel) return false;
+    const rows = getReleaseRowsSorted();
+    if (!rows.length || sel.endRow >= rows.length) return false;
+    const values = [];
+    for (let idx = sel.startRow; idx <= sel.endRow; idx++) values.push(String((rows[idx] && rows[idx][sel.field]) || ''));
+    state.clipboard = {values: values.slice(), source: {sheet:'release', field:sel.field, startRow:sel.startRow, endRow:sel.endRow}};
+    setCopiedSelection({sheet:'release', field:sel.field, startRow:sel.startRow, endRow:sel.endRow});
+    writeNativeClipboard(buildClipboardText(values));
+    setStatus('복사되었습니다.', false);
+    return true;
+}
+
+function pasteClipboardToTool(){
+    const sel = getToolSelection();
+    if (!sel || !state.clipboard || !Array.isArray(state.clipboard.values) || !state.clipboard.values.length) return false;
+    if (!isEditableToolField(sel.field)) return false;
+    const model = String(sel.model || '').toUpperCase();
+    const grouped = buildToolGroups(state.toolStatusRows);
+    const rows = grouped[model] ? grouped[model].slice() : [];
+    const fields = ['tool_text','cavity_text','affect_lot_text','vendor_text','type_text','issue_description_text','remark_text'];
+    const endRow = sel.startRow + state.clipboard.values.length - 1;
+    while (rows.length <= endRow) {
+        const next = ensureCid(toolBlankRow(model));
+        seedToolOriginals(next);
+        rows.push(next);
+    }
+    state.clipboard.values.forEach(function(raw, offset){
+        const idx = sel.startRow + offset;
+        const row = ensureCid(rows[idx]);
+        seedToolOriginals(row);
+        const value = sel.field === 'tool_text' ? normalizeText(raw).toUpperCase() : String(raw == null ? '' : raw);
+        row[sel.field] = value;
+        setToolFieldDirtyState(row, sel.field, value, null);
+    });
+    grouped[model] = rows;
+    state.toolStatusRows = []
+        .concat(grouped['IR-BASE'] || [])
+        .concat(grouped['Z-CARRIER'] || [])
+        .concat(grouped['X-CARRIER'] || [])
+        .concat(grouped['Y-CARRIER'] || [])
+        .concat(grouped['Z-STOPPER'] || []);
+    renumberToolRows(model);
+    refreshDirtyFlag();
+    renderCurrent();
+    setToolSelection(model, sel.field, sel.startRow, endRow);
+    const cell = findToolCellElement(model, sel.field, sel.startRow);
+    if (cell) { revealSelectedCell(cell); focusGridCell(cell); }
+    setStatus('붙여넣기 완료', false);
+    return true;
+}
+
+function pasteClipboardToRelease(){
+    const sel = getReleaseSelection();
+    if (!sel || !state.clipboard || !Array.isArray(state.clipboard.values) || !state.clipboard.values.length) return false;
+    if (!isEditableReleaseField(sel.field)) return false;
+    const rows = getReleaseRowsSorted().slice();
+    const fields = ['holding_date_text','vendor_text','parts_name_text','tool_text','cavity_text','affect_lot_text','type_text','issue_description_text','status_text','release_date_text','note_text'];
+    const endRow = sel.startRow + state.clipboard.values.length - 1;
+    while (rows.length <= endRow) {
+        const next = ensureCid(releaseBlankRow());
+        seedReleaseOriginals(next);
+        rows.push(next);
+    }
+    state.clipboard.values.forEach(function(raw, offset){
+        const idx = sel.startRow + offset;
+        const row = ensureCid(rows[idx]);
+        seedReleaseOriginals(row);
+        let value = String(raw == null ? '' : raw);
+        if (sel.field === 'status_text' && value && !['Ongoing','Close'].includes(value)) value = '';
+        row[sel.field] = value;
+        setReleaseFieldDirtyState(row, sel.field, value, null);
+    });
+    rows.forEach(function(row, idx){ row.sort_order = idx + 1; });
+    state.releaseDetails = rows;
+    refreshDirtyFlag();
+    renderReleaseBody();
+    setReleaseSelection(sel.field, sel.startRow, endRow);
+    const cell = findReleaseCellElement(sel.field, sel.startRow);
+    if (cell) { revealSelectedCell(cell); focusGridCell(cell); }
+    setStatus('붙여넣기 완료', false);
+    return true;
+}
+
+function handleGridCopy(){
+    if (state.toolEditCell || state.releaseEditCell) return false;
+    return getActiveSheetName() === 'release' ? copyReleaseSelectionToClipboard() : copyToolSelectionToClipboard();
+}
+
+function handleGridPaste(){
+    if (state.toolEditCell || state.releaseEditCell) return false;
+    return getActiveSheetName() === 'release' ? pasteClipboardToRelease() : pasteClipboardToTool();
+}
 
 function renderReleaseBody(){
     els.releaseBody.innerHTML = '';
@@ -3210,6 +3411,8 @@ function applyPayload(data){
     state.dirtyReleaseStructureCells.clear();
     state.originalToolValues.clear();
     state.originalReleaseValues.clear();
+    state.clipboard = null;
+    state.copiedSelection = null;
     state.toolManualMerges = {};
     state.releaseManualMerges = {};
     state.toolSelection = null;
