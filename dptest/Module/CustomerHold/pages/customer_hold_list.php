@@ -632,18 +632,27 @@ body.cell-selecting,body.cell-selecting *{user-select:none !important}
 .toolsheet col.col-issue{width:180px}
 .toolsheet col.col-remark{width:auto}
 .release-table col.col-actions{width:74px}
-.release-table col.col-date{width:1%}
-.release-table col.col-vendor{width:1%}
-.release-table col.col-parts{width:1%}
-.release-table col.col-tool{width:1%}
-.release-table col.col-cavity{width:1%}
-.release-table col.col-affect{width:1%}
-.release-table col.col-type{width:1%}
+.release-table col.col-date{width:112px}
+.release-table col.col-vendor{width:84px}
+.release-table col.col-parts{width:108px}
+.release-table col.col-tool{width:54px}
+.release-table col.col-cavity{width:84px}
+.release-table col.col-affect{width:108px}
+.release-table col.col-type{width:98px}
 .release-table col.col-issue{width:220px}
-.release-table col.col-status{width:1%}
-.release-table col.col-release-date{width:1%}
+.release-table col.col-status{width:88px}
+.release-table col.col-release-date{width:112px}
 .release-table col.col-note{width:auto}
+.release-table th:nth-child(2),.release-table td[data-field="holding_date_text"]{min-width:112px}
+.release-table th:nth-child(3),.release-table td[data-field="vendor_text"]{min-width:84px}
+.release-table th:nth-child(4),.release-table td[data-field="parts_name_text"]{min-width:108px}
+.release-table th:nth-child(5),.release-table td[data-field="tool_text"]{min-width:54px}
+.release-table th:nth-child(6),.release-table td[data-field="cavity_text"]{min-width:84px}
+.release-table th:nth-child(7),.release-table td[data-field="affect_lot_text"]{min-width:108px}
+.release-table th:nth-child(8),.release-table td[data-field="type_text"]{min-width:98px}
 .release-table th:nth-child(9),.release-table td[data-field="issue_description_text"]{min-width:220px}
+.release-table th:nth-child(10),.release-table td[data-field="status_text"]{min-width:88px}
+.release-table th:nth-child(11),.release-table td[data-field="release_date_text"]{min-width:112px}
 .release-table th:nth-child(12),.release-table td[data-field="note_text"]{min-width:420px}
 .release-table td[data-field="issue_description_text"],.release-table td[data-field="note_text"]{vertical-align:top}
 @media (max-width:1200px){
