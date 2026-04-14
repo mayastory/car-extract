@@ -528,6 +528,9 @@ body{
 .row-btn.delete{color:#fecaca}
 .sheet td[data-field="tool_text"].merged-master{vertical-align:middle}
 .sheet td.selected-range{position:relative;background:rgba(34,197,94,.12) !important}
+.sheet td.selected-range.dirty-cell,.sheet tbody tr:hover td.selected-range.dirty-cell{background:#FFC7CE !important;color:#111827 !important}
+.sheet td.selected-range.dirty-cell .cell-input,.sheet td.selected-range.dirty-cell .cell-textarea,.sheet td.selected-range.dirty-cell .vendor-trigger,.sheet td.selected-range.dirty-cell .status-select{color:#111827 !important}
+.sheet td.selected-range.dirty-cell .vendor-trigger::after,.sheet td.selected-range.dirty-cell .select-wrap::after{color:#111827 !important}
 .sheet td.selected-range::after{content:'';position:absolute;left:-1px;right:-1px;top:-1px;bottom:-1px;border-left:2px solid #22c55e;border-right:2px solid #22c55e;pointer-events:none;z-index:3}
 .sheet td.selected-range.selection-top::after,.sheet td.selected-range.selection-single::after{border-top:2px solid #22c55e}
 .sheet td.selected-range.selection-bottom::after,.sheet td.selected-range.selection-single::after{border-bottom:2px solid #22c55e}
