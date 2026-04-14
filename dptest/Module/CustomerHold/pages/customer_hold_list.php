@@ -749,6 +749,7 @@ const state = {
     toolStatusRows: [],
     releaseDetails: [],
     dirtyToolCells: new Set(),
+    dirtyToolStructureCells: new Set(),
     dirtyReleaseCells: new Set(),
     originalToolValues: new Map(),
     originalReleaseValues: new Map(),
@@ -961,6 +962,27 @@ function fillToolSelectionValue(sel){
     }
 }
 
+function setToolStructureRangeDirty(model, field, startRow, endRow, dirty){
+    if (!isToolManualMergeField(field)) return;
+    const rows = getToolRowsForModel(model);
+    if (!rows.length) {
+        refreshDirtyFlag();
+        return;
+    }
+    const start = Math.max(0, Number(startRow) || 0);
+    const end = Math.min(rows.length - 1, Math.max(start, Number(endRow) || 0));
+    for (let idx = start; idx <= end; idx++) {
+        const row = rows[idx];
+        if (!row) continue;
+        ensureCid(row);
+        seedToolOriginals(row);
+        if (dirty) markToolStructureDirty(row, field);
+        else clearToolStructureDirty(row, field);
+        syncToolCellDirtyDom(row, field, isToolDirty(row, field));
+    }
+    refreshDirtyFlag();
+}
+
 function addToolMergeRange(model, field, startRow, endRow){
     const target = normalizeRange({start:startRow, end:endRow});
     const bucket = getToolManualState(model, field);
@@ -1037,6 +1059,7 @@ function ensureToolMergeMenu(){
             }
             fillToolSelectionValue(sel);
             addToolMergeRange(sel.model, sel.field, sel.startRow, sel.endRow);
+            setToolStructureRangeDirty(sel.model, sel.field, sel.startRow, sel.endRow, true);
             renderToolStatus();
             setToolSelection(sel.model, sel.field, sel.startRow, sel.endRow);
             setStatus('선택 영역을 병합했습니다.', false);
@@ -1049,6 +1072,7 @@ function ensureToolMergeMenu(){
             }
             ranges.forEach(function(range){
                 addToolSplitRange(sel.model, sel.field, range.start, range.end);
+                setToolStructureRangeDirty(sel.model, sel.field, range.start, range.end, true);
             });
             renderToolStatus();
             const first = ranges[0];
@@ -1113,10 +1137,12 @@ function releaseRowIdentity(row){ row = ensureCid(row || {}); return (Number(row
 function toolDirtyKey(row, field){ return toolRowIdentity(row) + '|' + field; }
 function releaseDirtyKey(row, field){ return releaseRowIdentity(row) + '|' + field; }
 function markToolDirty(row, field){ state.dirtyToolCells.add(toolDirtyKey(row, field)); }
+function markToolStructureDirty(row, field){ state.dirtyToolStructureCells.add(toolDirtyKey(row, field)); }
 function markReleaseDirty(row, field){ state.dirtyReleaseCells.add(releaseDirtyKey(row, field)); }
 function clearToolDirty(row, field){ state.dirtyToolCells.delete(toolDirtyKey(row, field)); }
+function clearToolStructureDirty(row, field){ state.dirtyToolStructureCells.delete(toolDirtyKey(row, field)); }
 function clearReleaseDirty(row, field){ state.dirtyReleaseCells.delete(releaseDirtyKey(row, field)); }
-function isToolDirty(row, field){ return state.dirtyToolCells.has(toolDirtyKey(row, field)); }
+function isToolDirty(row, field){ return state.dirtyToolCells.has(toolDirtyKey(row, field)) || state.dirtyToolStructureCells.has(toolDirtyKey(row, field)); }
 function isReleaseDirty(row, field){ return state.dirtyReleaseCells.has(releaseDirtyKey(row, field)); }
 function toolOriginalKey(row, field){ return toolRowIdentity(row) + '|' + field; }
 function releaseOriginalKey(row, field){ return releaseRowIdentity(row) + '|' + field; }
@@ -1137,11 +1163,12 @@ function seedReleaseOriginals(row){
     });
 }
 function refreshDirtyFlag(){
-    setDirty(state.dirtyToolCells.size > 0 || state.dirtyReleaseCells.size > 0);
+    setDirty(state.dirtyToolCells.size > 0 || state.dirtyToolStructureCells.size > 0 || state.dirtyReleaseCells.size > 0);
 }
 function purgeToolRowState(row){
     const prefix = toolRowIdentity(row) + '|';
     Array.from(state.dirtyToolCells).forEach(function(key){ if (key.indexOf(prefix) === 0) state.dirtyToolCells.delete(key); });
+    Array.from(state.dirtyToolStructureCells).forEach(function(key){ if (key.indexOf(prefix) === 0) state.dirtyToolStructureCells.delete(key); });
     Array.from(state.originalToolValues.keys()).forEach(function(key){ if (key.indexOf(prefix) === 0) state.originalToolValues.delete(key); });
 }
 function purgeReleaseRowState(row){
@@ -1164,8 +1191,9 @@ function syncReleaseCellDirtyDom(row, field, isDirty){
 function setToolFieldDirtyState(row, field, value, cell){
     const isDirty = normalizeText(value) !== getToolOriginal(row, field);
     if (isDirty) markToolDirty(row, field); else clearToolDirty(row, field);
-    if (cell) cell.classList.toggle('dirty-cell', isDirty);
-    syncToolCellDirtyDom(row, field, isDirty);
+    const finalDirty = isToolDirty(row, field);
+    if (cell) cell.classList.toggle('dirty-cell', finalDirty);
+    syncToolCellDirtyDom(row, field, finalDirty);
     refreshDirtyFlag();
 }
 function setReleaseFieldDirtyState(row, field, value, cell){
@@ -2259,6 +2287,7 @@ function applyPayload(data){
     }) : [];
     state.releaseDetails = Array.isArray(data.release_details) ? data.release_details.map(function(row){ return ensureCid(Object.assign({}, row)); }) : [];
     state.dirtyToolCells.clear();
+    state.dirtyToolStructureCells.clear();
     state.dirtyReleaseCells.clear();
     state.originalToolValues.clear();
     state.originalReleaseValues.clear();
