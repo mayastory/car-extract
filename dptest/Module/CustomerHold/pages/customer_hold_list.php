@@ -1115,12 +1115,16 @@ function snapshotToolStructureForRows(rows, model){
     fields.forEach(function(field){
         const spans = merge.spans[field] || [];
         const hidden = merge.hidden[field] || new Set();
-        out[field] = rows.map(function(_row, idx){
-            return {
+        const byRow = {};
+        rows.forEach(function(row, idx){
+            if (!row) return;
+            ensureCid(row);
+            byRow[toolRowIdentity(row)] = {
                 span: Number(spans[idx] || 1),
                 hidden: hidden.has(idx)
             };
         });
+        out[field] = byRow;
     });
     return out;
 }
@@ -1143,8 +1147,8 @@ function refreshToolStructureDirtyForRange(model, field, startRow, endRow){
     }
     const current = snapshotToolStructureForRows(rows, key);
     const originalByModel = state.originalToolStructure[key] || {};
-    const original = originalByModel[field] || [];
-    const currentField = current[field] || [];
+    const original = originalByModel[field] || {};
+    const currentField = current[field] || {};
     const start = Math.max(0, Number(startRow) || 0);
     const end = Math.min(rows.length - 1, Math.max(start, Number(endRow) || 0));
     for (let idx = start; idx <= end; idx++) {
@@ -1152,8 +1156,9 @@ function refreshToolStructureDirtyForRange(model, field, startRow, endRow){
         if (!row) continue;
         ensureCid(row);
         seedToolOriginals(row);
-        const base = original[idx] || {span:1, hidden:false};
-        const now = currentField[idx] || {span:1, hidden:false};
+        const rowKey = toolRowIdentity(row);
+        const base = original[rowKey] || {span:1, hidden:false};
+        const now = currentField[rowKey] || {span:1, hidden:false};
         const changed = Number(base.span || 1) !== Number(now.span || 1) || !!base.hidden !== !!now.hidden;
         if (changed) markToolStructureDirty(row, field); else clearToolStructureDirty(row, field);
         syncToolCellDirtyDom(row, field, isToolDirty(row, field));
@@ -1944,6 +1949,12 @@ function buildToolGroups(rows){
         grouped[model] = sortToolRowsForModel(grouped[model]);
     });
     return grouped;
+}
+
+function shouldBreakToolAutoMerge(row, field){
+    if (!row) return true;
+    if (Number(row.id || 0) <= 0) return true;
+    return !!(field && isToolDirty(row, field));
 }
 
 function toolBlankRow(model){
@@ -2744,6 +2755,7 @@ function buildToolRowspans(rows, modelName){
             let end = idx + 1;
             while (end < rows.length) {
                 if (findRangeStarting(manual.merge, end) || rangeContains(manual.split, end)) break;
+                if (shouldBreakToolAutoMerge(rows[end - 1], field) || shouldBreakToolAutoMerge(rows[end], field)) break;
                 if (normalizeText(valueGetter(rows[end], end)) !== value) break;
                 end += 1;
             }
@@ -2783,6 +2795,7 @@ function buildToolRowspans(rows, modelName){
             let end = start + 1;
             while (end < rows.length) {
                 if (findRangeStarting(manual.merge, end) || rangeContains(manual.split, end)) break;
+                if (shouldBreakToolAutoMerge(rows[end - 1], field) || shouldBreakToolAutoMerge(rows[end], field)) break;
                 if (normalizeText(rows[end].tool_text || '') !== toolKey) break;
                 if (normalizeText(rows[end][field] || '') !== value) break;
                 end += 1;
