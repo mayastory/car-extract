@@ -513,8 +513,8 @@ body{
 .tool-tab-inline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:0}
 .tool-tab-inline .model-tab{margin:0}
 .sheet td.actions{
- width:74px;
- min-width:74px;
+ width:106px;
+ min-width:106px;
  padding:4px 6px;
  background:#11161d !important;
 }
@@ -526,6 +526,7 @@ body{
 .row-btn:hover{background:#2b3440}
 .row-btn.add{color:#bbf7d0}
 .row-btn.delete{color:#fecaca}
+.row-btn.clear{font-size:13px}
 .sheet td[data-field="tool_text"].merged-master{vertical-align:middle}
 .sheet td.selected-range{position:relative;background:rgba(34,197,94,.12) !important}
 .sheet td.selected-range.dirty-cell,.sheet tbody tr:hover td.selected-range.dirty-cell{background:#FFC7CE !important;color:#111827 !important}
@@ -1809,6 +1810,24 @@ async function deleteToolRow(row){
     renderCurrent();
 }
 
+function clearToolRow(model, visibleIndex){
+    const fields = ['tool_text','cavity_text','affect_lot_text','vendor_text','type_text','issue_description_text','remark_text'];
+    const grouped = buildToolGroups(state.toolStatusRows);
+    const rows = grouped[model] || [];
+    const target = rows[visibleIndex];
+    if (!target) return;
+    clearToolManualState(model);
+    ensureCid(target);
+    seedToolOriginals(target);
+    fields.forEach(function(field){
+        target[field] = '';
+        setToolFieldDirtyState(target, field, '', null);
+    });
+    renumberToolRows(model);
+    refreshDirtyFlag();
+    renderCurrent();
+}
+
 function updateReleaseRowField(visibleIndex, field, value, meta){
     const fields = ['holding_date_text','vendor_text','parts_name_text','tool_text','cavity_text','affect_lot_text','type_text','issue_description_text','status_text','release_date_text','note_text'];
     const rows = state.releaseDetails.slice().sort(function(a,b){ return ((Number(a.sort_order)||0) - (Number(b.sort_order)||0)); });
@@ -1866,6 +1885,23 @@ async function deleteReleaseRow(row){
     }
     purgeReleaseRowState(row);
     state.releaseDetails = state.releaseDetails.filter(function(item){ return releaseRowIdentity(item) !== rowId; });
+    refreshDirtyFlag();
+    renderReleaseBody();
+}
+
+function clearReleaseRow(visibleIndex){
+    const fields = ['holding_date_text','vendor_text','parts_name_text','tool_text','cavity_text','affect_lot_text','type_text','issue_description_text','status_text','release_date_text','note_text'];
+    const rows = state.releaseDetails.slice().sort(function(a,b){ return ((Number(a.sort_order)||0) - (Number(b.sort_order)||0)); });
+    const target = rows[visibleIndex];
+    if (!target) return;
+    ensureCid(target);
+    seedReleaseOriginals(target);
+    fields.forEach(function(field){
+        target[field] = '';
+        setReleaseFieldDirtyState(target, field, '', null);
+    });
+    rows.forEach(function(row, idx){ row.sort_order = idx + 1; });
+    state.releaseDetails = rows;
     refreshDirtyFlag();
     renderReleaseBody();
 }
@@ -2094,10 +2130,17 @@ function renderToolStatus(){
         addBtn.addEventListener('click', function(){ insertToolRowBelow(model, visibleIndex); });
         const delBtn = document.createElement('button');
         delBtn.type = 'button'; delBtn.className = 'row-btn delete'; delBtn.textContent = '×';
+        delBtn.title = '행 삭제';
         delBtn.disabled = !state.canEdit;
         delBtn.addEventListener('click', function(){ deleteToolRow(row).catch(function(err){ setStatus(err.message || '행 삭제 실패', true); }); });
+        const clearBtn = document.createElement('button');
+        clearBtn.type = 'button'; clearBtn.className = 'row-btn clear'; clearBtn.textContent = '🗑️';
+        clearBtn.title = '행 비우기';
+        clearBtn.disabled = !state.canEdit;
+        clearBtn.addEventListener('click', function(){ clearToolRow(model, visibleIndex); });
         btnWrap.appendChild(addBtn);
         btnWrap.appendChild(delBtn);
+        btnWrap.appendChild(clearBtn);
         actionTd.appendChild(btnWrap);
         tr.appendChild(actionTd);
 
@@ -2280,10 +2323,17 @@ function renderReleaseBody(){
         addBtn.addEventListener('click', function(){ insertReleaseRowBelow(visibleIndex); });
         const delBtn = document.createElement('button');
         delBtn.type = 'button'; delBtn.className = 'row-btn delete'; delBtn.textContent = '×';
+        delBtn.title = '행 삭제';
         delBtn.disabled = !state.canEdit;
         delBtn.addEventListener('click', function(){ deleteReleaseRow(row).catch(function(err){ setStatus(err.message || '행 삭제 실패', true); }); });
+        const clearBtn = document.createElement('button');
+        clearBtn.type = 'button'; clearBtn.className = 'row-btn clear'; clearBtn.textContent = '🗑️';
+        clearBtn.title = '행 비우기';
+        clearBtn.disabled = !state.canEdit;
+        clearBtn.addEventListener('click', function(){ clearReleaseRow(visibleIndex); });
         btnWrap.appendChild(addBtn);
         btnWrap.appendChild(delBtn);
+        btnWrap.appendChild(clearBtn);
         actionTd.appendChild(btnWrap);
         tr.appendChild(actionTd);
 
