@@ -1249,16 +1249,40 @@ function updateToolRowField(model, visibleIndex, field, value, meta){
     const grouped = buildToolGroups(state.toolStatusRows);
     const rows = grouped[model] || [];
     const isNew = visibleIndex >= rows.length;
-    const target = isNew ? toolBlankRow(model) : rows[visibleIndex];
+    const normalized = field === 'tool_text' ? normalizeText(value).toUpperCase() : value;
+    const mergeableSharedFields = ['issue_description_text','remark_text'];
+    const mergeSpan = (!isNew && meta && meta.span > 1 && mergeableSharedFields.includes(field)) ? meta.span : 1;
+
+    let target = isNew ? toolBlankRow(model) : rows[visibleIndex];
     ensureCid(target);
     seedToolOriginals(target);
     const wasBlank = !anyFilled(target, fields);
     const previous = target[field] || '';
-    const normalized = field === 'tool_text' ? normalizeText(value).toUpperCase() : value;
-    target[field] = normalized;
-    if (previous !== normalized) {
-        setToolFieldDirtyState(target, field, normalized, meta && meta.cell ? meta.cell : null);
+
+    if (mergeSpan > 1) {
+        const affectedRows = [];
+        for (let idx = visibleIndex; idx < Math.min(visibleIndex + mergeSpan, rows.length); idx++) {
+            const sharedRow = rows[idx];
+            ensureCid(sharedRow);
+            seedToolOriginals(sharedRow);
+            sharedRow[field] = normalized;
+            setToolFieldDirtyState(sharedRow, field, normalized, null);
+            affectedRows.push(sharedRow);
+        }
+        if (meta && meta.cell) {
+            const hasDirty = affectedRows.some(function(sharedRow){ return isToolDirty(sharedRow, field); });
+            meta.cell.classList.toggle('dirty-cell', hasDirty);
+            meta.cell.setAttribute('data-measure', normalized);
+        }
+        target = affectedRows[0] || target;
+    } else {
+        target[field] = normalized;
+        if (previous !== normalized) {
+            setToolFieldDirtyState(target, field, normalized, meta && meta.cell ? meta.cell : null);
+        }
+        if (meta && meta.cell) meta.cell.setAttribute('data-measure', normalized);
     }
+
     if (isNew) rows.push(target);
     grouped[model] = rows;
     state.toolStatusRows = []
@@ -1397,21 +1421,49 @@ function deleteReleaseRow(id){
 }
 
 function buildToolRowspans(rows){
-    const spans = new Array(rows.length).fill(1);
-    const hidden = new Set();
+    const mergeFields = ['tool_text','issue_description_text','remark_text'];
+    const spans = {};
+    const hidden = {};
+    mergeFields.forEach(function(field){
+        spans[field] = new Array(rows.length).fill(1);
+        hidden[field] = new Set();
+    });
+
     let i = 0;
     while (i < rows.length) {
-        const key = normalizeText(rows[i].tool_text);
-        if (!key) { i += 1; continue; }
+        const toolKey = normalizeText(rows[i].tool_text);
+        if (!toolKey) { i += 1; continue; }
+
         let j = i + 1;
-        while (j < rows.length && normalizeText(rows[j].tool_text) === key) j += 1;
-        const count = j - i;
-        if (count > 1) {
-            spans[i] = count;
-            for (let k = i + 1; k < j; k++) hidden.add(k);
+        while (j < rows.length && normalizeText(rows[j].tool_text) === toolKey) j += 1;
+
+        const toolCount = j - i;
+        if (toolCount > 1) {
+            spans.tool_text[i] = toolCount;
+            for (let k = i + 1; k < j; k++) hidden.tool_text.add(k);
         }
+
+        ['issue_description_text','remark_text'].forEach(function(field){
+            let start = i;
+            while (start < j) {
+                const value = normalizeText(rows[start][field] || '');
+                if (!value) { start += 1; continue; }
+
+                let end = start + 1;
+                while (end < j && normalizeText(rows[end][field] || '') === value) end += 1;
+
+                const count = end - start;
+                if (count > 1) {
+                    spans[field][start] = count;
+                    for (let k = start + 1; k < end; k++) hidden[field].add(k);
+                }
+                start = end;
+            }
+        });
+
         i = j;
     }
+
     return {spans, hidden};
 }
 
@@ -1558,15 +1610,18 @@ function renderToolStatus(){
         tr.appendChild(actionTd);
 
         toolColumns.forEach(function(col){
-            if (col.key === 'tool_text' && merge.hidden.has(visibleIndex)) return;
+            const fieldHidden = merge.hidden[col.key];
+            if (fieldHidden && fieldHidden.has(visibleIndex)) return;
+
             const td = document.createElement('td');
             td.setAttribute('data-field', col.key);
             td.setAttribute('data-rowid', toolRowIdentity(row));
             const currentValue = col.key === 'item_code' ? (row.item_code || model) : (row[col.key] || '');
+            const mergeSpan = merge.spans[col.key] ? merge.spans[col.key][visibleIndex] : 1;
             td.setAttribute('data-measure', currentValue);
             if (isToolDirty(row, col.key)) td.classList.add('dirty-cell');
-            if (col.key === 'tool_text' && merge.spans[visibleIndex] > 1) {
-                td.rowSpan = merge.spans[visibleIndex];
+            if (mergeSpan > 1) {
+                td.rowSpan = mergeSpan;
                 td.classList.add('merged-master');
             }
             let inputEl;
@@ -1576,35 +1631,35 @@ function renderToolStatus(){
                 td.appendChild(inputEl);
             } else if (col.checkbox === 'vendor') {
                 const dd = createCheckboxDropdown(currentValue, 'vendor', state.canEdit, function(text){
-                    updateToolRowField(model, visibleIndex, col.key, text, {cell: td});
+                    updateToolRowField(model, visibleIndex, col.key, text, {cell: td, span: mergeSpan});
                 });
                 td.appendChild(dd.wrap);
             } else if (col.checkbox === 'cavity') {
                 const dd = createCheckboxDropdown(currentValue, 'cavity', state.canEdit, function(text){
-                    updateToolRowField(model, visibleIndex, col.key, text, {cell: td});
+                    updateToolRowField(model, visibleIndex, col.key, text, {cell: td, span: mergeSpan});
                 });
                 td.appendChild(dd.wrap);
             } else if (col.checkbox === 'toolType') {
                 const dd = createCheckboxDropdown(currentValue, 'toolType', state.canEdit, function(text){
-                    updateToolRowField(model, visibleIndex, col.key, text, {cell: td});
+                    updateToolRowField(model, visibleIndex, col.key, text, {cell: td, span: mergeSpan});
                 });
                 td.appendChild(dd.wrap);
             } else if (col.multiline) {
                 inputEl = createTextarea(currentValue, {readonly:!state.canEdit});
                 inputEl.addEventListener('input', function(){
-                    updateToolRowField(model, visibleIndex, col.key, inputEl.value, {cell: td});
+                    updateToolRowField(model, visibleIndex, col.key, inputEl.value, {cell: td, span: mergeSpan});
                 });
                 attachEscCancel(inputEl, function(){ return inputEl.value; }, function(next){ inputEl.value = next; autoResizeTextarea(inputEl); }, function(original){
-                    updateToolRowField(model, visibleIndex, col.key, original, {cell: td});
+                    updateToolRowField(model, visibleIndex, col.key, original, {cell: td, span: mergeSpan});
                 });
                 td.appendChild(inputEl);
             } else {
                 inputEl = createInput(currentValue, {readonly:!state.canEdit});
                 inputEl.addEventListener('input', function(){
-                    updateToolRowField(model, visibleIndex, col.key, inputEl.value, {cell: td});
+                    updateToolRowField(model, visibleIndex, col.key, inputEl.value, {cell: td, span: mergeSpan});
                 });
                 attachEscCancel(inputEl, function(){ return inputEl.value; }, function(next){ inputEl.value = next; }, function(original){
-                    updateToolRowField(model, visibleIndex, col.key, original, {cell: td});
+                    updateToolRowField(model, visibleIndex, col.key, original, {cell: td, span: mergeSpan});
                 });
                 td.appendChild(inputEl);
             }
