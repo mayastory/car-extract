@@ -1443,13 +1443,29 @@ async function deleteReleaseRow(row){
 }
 
 function buildToolRowspans(rows){
-    const mergeFields = ['tool_text','issue_description_text','remark_text'];
+    const mergeFields = ['item_code','tool_text','issue_description_text','remark_text'];
     const spans = {};
     const hidden = {};
     mergeFields.forEach(function(field){
         spans[field] = new Array(rows.length).fill(1);
         hidden[field] = new Set();
     });
+
+    let itemStart = 0;
+    while (itemStart < rows.length) {
+        const itemValue = normalizeText(rows[itemStart].item_code || '');
+        if (!itemValue) { itemStart += 1; continue; }
+
+        let itemEnd = itemStart + 1;
+        while (itemEnd < rows.length && normalizeText(rows[itemEnd].item_code || '') === itemValue) itemEnd += 1;
+
+        const itemCount = itemEnd - itemStart;
+        if (itemCount > 1) {
+            spans.item_code[itemStart] = itemCount;
+            for (let k = itemStart + 1; k < itemEnd; k++) hidden.item_code.add(k);
+        }
+        itemStart = itemEnd;
+    }
 
     let i = 0;
     while (i < rows.length) {
