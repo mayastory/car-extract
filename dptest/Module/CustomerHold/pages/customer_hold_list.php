@@ -752,6 +752,7 @@ const state = {
     nextCid: 1,
     toolSelection: null,
     toolSelectionDrag: null,
+    toolSuppressClickSelection: false,
     toolManualMerges: {},
     toolMergeMenu: null
 };
@@ -917,19 +918,44 @@ function isToolMergeSelectionValid(sel){
     return !!(rows && rows.length);
 }
 
-function selectionIntersectsAnyToolMerge(sel){
-    if (!sel || !isToolManualMergeField(sel.field)) return false;
+function getToolMergedRangesForSelection(sel){
+    if (!sel || !isToolManualMergeField(sel.field)) return [];
     const rows = getToolRowsForModel(sel.model);
-    if (!rows.length || sel.endRow >= rows.length) return false;
+    if (!rows.length || sel.endRow >= rows.length) return [];
     const merge = buildToolRowspans(rows, sel.model);
     const spans = merge.spans[sel.field] || [];
+    const ranges = [];
     for (let i = 0; i < spans.length; i++) {
         const span = Number(spans[i] || 1);
         if (span <= 1) continue;
         const end = i + span - 1;
-        if (!(end < sel.startRow || i > sel.endRow)) return true;
+        if (!(end < sel.startRow || i > sel.endRow)) {
+            ranges.push({start:i, end:end});
+        }
     }
-    return false;
+    return normalizeRanges(ranges);
+}
+
+function selectionIntersectsAnyToolMerge(sel){
+    return getToolMergedRangesForSelection(sel).length > 0;
+}
+
+function fillToolSelectionValue(sel){
+    if (!sel || !isToolManualMergeField(sel.field)) return;
+    const rows = getToolRowsForModel(sel.model);
+    if (!rows.length || sel.startRow < 0 || sel.endRow >= rows.length) return;
+    const baseRow = rows[sel.startRow];
+    if (!baseRow) return;
+    let nextValue = baseRow[sel.field] || '';
+    if (sel.field === 'tool_text') nextValue = normalizeText(nextValue).toUpperCase();
+    for (let idx = sel.startRow; idx <= sel.endRow; idx++) {
+        const row = rows[idx];
+        if (!row) continue;
+        ensureCid(row);
+        seedToolOriginals(row);
+        row[sel.field] = nextValue;
+        setToolFieldDirtyState(row, sel.field, nextValue, null);
+    }
 }
 
 function addToolMergeRange(model, field, startRow, endRow){
@@ -1003,12 +1029,25 @@ function ensureToolMergeMenu(){
                 hideToolMergeMenu();
                 return;
             }
+            fillToolSelectionValue(sel);
             addToolMergeRange(sel.model, sel.field, sel.startRow, sel.endRow);
             renderToolStatus();
+            setToolSelection(sel.model, sel.field, sel.startRow, sel.endRow);
             setStatus('선택 영역을 병합했습니다.', false);
         } else {
-            addToolSplitRange(sel.model, sel.field, sel.startRow, sel.endRow);
+            const ranges = getToolMergedRangesForSelection(sel);
+            if (!ranges.length) {
+                setStatus('해제할 병합 영역이 없습니다.', true);
+                hideToolMergeMenu();
+                return;
+            }
+            ranges.forEach(function(range){
+                addToolSplitRange(sel.model, sel.field, range.start, range.end);
+            });
             renderToolStatus();
+            const first = ranges[0];
+            const last = ranges[ranges.length - 1];
+            setToolSelection(sel.model, sel.field, first.start, last.end);
             setStatus('선택 영역 병합을 해제했습니다.', false);
         }
         hideToolMergeMenu();
@@ -2048,6 +2087,7 @@ document.addEventListener('mouseup', function(ev){
     state.toolSelectionDrag = null;
     document.body.classList.remove('cell-selecting');
     if (drag.active) {
+        state.toolSuppressClickSelection = true;
         ev.preventDefault();
         return;
     }
@@ -2073,8 +2113,24 @@ document.addEventListener('contextmenu', function(ev){
 
 document.addEventListener('click', function(ev){
     if (ev.target.closest && ev.target.closest('.tool-merge-menu')) return;
-    if (ev.target.closest && ev.target.closest('.toolsheet td[data-field]')) return;
+    if (state.toolSuppressClickSelection) {
+        state.toolSuppressClickSelection = false;
+        hideToolMergeMenu();
+        return;
+    }
+    const meta = getToolCellMeta(ev.target);
+    if (meta && state.canEdit) {
+        const sel = getToolSelection();
+        if (!sel || sel.model !== meta.model || sel.field !== meta.field || sel.startRow !== meta.rowIndex || sel.endRow !== meta.rowIndex) {
+            setToolSelection(meta.model, meta.field, meta.rowIndex, meta.rowIndex);
+        }
+        hideToolMergeMenu();
+        return;
+    }
     hideToolMergeMenu();
+    if (!(ev.target.closest && ev.target.closest('.toolsheet'))) {
+        clearToolSelection();
+    }
 });
 
 document.addEventListener('keydown', function(ev){
