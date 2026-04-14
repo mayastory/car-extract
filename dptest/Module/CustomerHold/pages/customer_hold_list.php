@@ -753,6 +753,7 @@ const state = {
     dirtyReleaseCells: new Set(),
     originalToolValues: new Map(),
     originalReleaseValues: new Map(),
+    originalToolStructure: {},
     nextCid: 1,
     toolSelection: null,
     toolSelectionDrag: null,
@@ -866,10 +867,17 @@ function clearToolSelection(){
 }
 
 function clearToolManualState(model){
-    if (model) delete state.toolManualMerges[String(model || '').toUpperCase()];
-    else state.toolManualMerges = {};
-    if (state.toolSelection && (!model || String(state.toolSelection.model || '').toUpperCase() === String(model || '').toUpperCase())) {
+    if (model) {
+        const key = String(model || '').toUpperCase();
+        delete state.toolManualMerges[key];
+        if (state.toolSelection && String(state.toolSelection.model || '').toUpperCase() === key) {
+            state.toolSelection = null;
+        }
+        refreshToolStructureDirtyForModel(key);
+    } else {
+        state.toolManualMerges = {};
         state.toolSelection = null;
+        state.models.forEach(function(name){ refreshToolStructureDirtyForModel(name); });
     }
     applyToolSelectionDom();
     hideToolMergeMenu();
@@ -898,6 +906,79 @@ function getToolSelection(){
 function getToolRowsForModel(model){
     const grouped = buildToolGroups(state.toolStatusRows);
     return grouped[String(model || '').toUpperCase()] || [];
+}
+
+function snapshotToolStructureForRows(rows, model){
+    const fields = ['item_code','tool_text','affect_lot_text','issue_description_text','remark_text'];
+    const merge = buildToolRowspans(rows, model);
+    const out = {};
+    fields.forEach(function(field){
+        const spans = merge.spans[field] || [];
+        const hidden = merge.hidden[field] || new Set();
+        out[field] = rows.map(function(_row, idx){
+            return {
+                span: Number(spans[idx] || 1),
+                hidden: hidden.has(idx)
+            };
+        });
+    });
+    return out;
+}
+
+function captureOriginalToolStructure(){
+    state.originalToolStructure = {};
+    state.models.forEach(function(model){
+        const rows = getToolRowsForModel(model);
+        state.originalToolStructure[String(model || '').toUpperCase()] = snapshotToolStructureForRows(rows, model);
+    });
+}
+
+function refreshToolStructureDirtyForRange(model, field, startRow, endRow){
+    if (!isToolManualMergeField(field)) return;
+    const key = String(model || '').toUpperCase();
+    const rows = getToolRowsForModel(key);
+    if (!rows.length) {
+        refreshDirtyFlag();
+        return;
+    }
+    const current = snapshotToolStructureForRows(rows, key);
+    const originalByModel = state.originalToolStructure[key] || {};
+    const original = originalByModel[field] || [];
+    const currentField = current[field] || [];
+    const start = Math.max(0, Number(startRow) || 0);
+    const end = Math.min(rows.length - 1, Math.max(start, Number(endRow) || 0));
+    for (let idx = start; idx <= end; idx++) {
+        const row = rows[idx];
+        if (!row) continue;
+        ensureCid(row);
+        seedToolOriginals(row);
+        const base = original[idx] || {span:1, hidden:false};
+        const now = currentField[idx] || {span:1, hidden:false};
+        const changed = Number(base.span || 1) !== Number(now.span || 1) || !!base.hidden !== !!now.hidden;
+        if (changed) markToolStructureDirty(row, field); else clearToolStructureDirty(row, field);
+        syncToolCellDirtyDom(row, field, isToolDirty(row, field));
+    }
+    refreshDirtyFlag();
+}
+
+function refreshToolStructureDirtyForModel(model){
+    const key = String(model || '').toUpperCase();
+    const fields = ['item_code','tool_text','affect_lot_text','issue_description_text','remark_text'];
+    state.toolStatusRows.forEach(function(row){
+        if (String(row.part_name || '').toUpperCase() !== key) return;
+        fields.forEach(function(field){
+            clearToolStructureDirty(row, field);
+            syncToolCellDirtyDom(row, field, isToolDirty(row, field));
+        });
+    });
+    const rows = getToolRowsForModel(key);
+    if (rows.length) {
+        fields.forEach(function(field){
+            refreshToolStructureDirtyForRange(key, field, 0, rows.length - 1);
+        });
+    } else {
+        refreshDirtyFlag();
+    }
 }
 
 function getToolSelectionRows(sel){
@@ -962,25 +1043,8 @@ function fillToolSelectionValue(sel){
     }
 }
 
-function setToolStructureRangeDirty(model, field, startRow, endRow, dirty){
-    if (!isToolManualMergeField(field)) return;
-    const rows = getToolRowsForModel(model);
-    if (!rows.length) {
-        refreshDirtyFlag();
-        return;
-    }
-    const start = Math.max(0, Number(startRow) || 0);
-    const end = Math.min(rows.length - 1, Math.max(start, Number(endRow) || 0));
-    for (let idx = start; idx <= end; idx++) {
-        const row = rows[idx];
-        if (!row) continue;
-        ensureCid(row);
-        seedToolOriginals(row);
-        if (dirty) markToolStructureDirty(row, field);
-        else clearToolStructureDirty(row, field);
-        syncToolCellDirtyDom(row, field, isToolDirty(row, field));
-    }
-    refreshDirtyFlag();
+function setToolStructureRangeDirty(model, field, startRow, endRow){
+    refreshToolStructureDirtyForRange(model, field, startRow, endRow);
 }
 
 function addToolMergeRange(model, field, startRow, endRow){
@@ -2291,8 +2355,11 @@ function applyPayload(data){
     state.dirtyReleaseCells.clear();
     state.originalToolValues.clear();
     state.originalReleaseValues.clear();
+    state.toolManualMerges = {};
+    state.toolSelection = null;
     state.toolStatusRows.forEach(seedToolOriginals);
     state.releaseDetails.forEach(seedReleaseOriginals);
+    captureOriginalToolStructure();
     if (!state.activeToolModel || !state.models.includes(state.activeToolModel)) state.activeToolModel = state.models[0] || MODELS[0];
     setDirty(false);
     renderCurrent();
