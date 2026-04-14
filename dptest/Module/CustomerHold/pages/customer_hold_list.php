@@ -629,14 +629,21 @@ body.cell-selecting,body.cell-selecting *{user-select:none !important}
  font-size:13px;
 }
 .toolsheet col.col-actions{width:74px}
-.toolsheet col.col-item{width:1%}
-.toolsheet col.col-tool{width:1%}
-.toolsheet col.col-cavity{width:1%}
-.toolsheet col.col-affect{width:1%}
-.toolsheet col.col-vendor{width:1%}
-.toolsheet col.col-type{width:1%}
+.toolsheet col.col-item{width:96px}
+.toolsheet col.col-tool{width:58px}
+.toolsheet col.col-cavity{width:92px}
+.toolsheet col.col-affect{width:120px}
+.toolsheet col.col-vendor{width:90px}
+.toolsheet col.col-type{width:84px}
 .toolsheet col.col-issue{width:180px}
 .toolsheet col.col-remark{width:auto}
+.toolsheet th:nth-child(2),.toolsheet td[data-field="item_code"]{min-width:96px}
+.toolsheet th:nth-child(3),.toolsheet td[data-field="tool_text"]{min-width:58px}
+.toolsheet th:nth-child(4),.toolsheet td[data-field="cavity_text"]{min-width:92px}
+.toolsheet th:nth-child(5),.toolsheet td[data-field="affect_lot_text"]{min-width:120px}
+.toolsheet th:nth-child(6),.toolsheet td[data-field="vendor_text"]{min-width:90px}
+.toolsheet th:nth-child(7),.toolsheet td[data-field="type_text"]{min-width:84px}
+.toolsheet th:nth-child(8),.toolsheet td[data-field="issue_description_text"]{min-width:180px}
 .release-table col.col-actions{width:74px}
 .release-table col.col-date{width:112px}
 .release-table col.col-vendor{width:84px}
