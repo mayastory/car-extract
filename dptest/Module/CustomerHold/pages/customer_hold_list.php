@@ -1953,6 +1953,7 @@ function buildToolGroups(rows){
 
 function shouldBreakToolAutoMerge(row, field){
     if (!row) return true;
+    if (field === 'item_code') return false;
     if (Number(row.id || 0) <= 0) return true;
     return !!(field && isToolDirty(row, field));
 }
