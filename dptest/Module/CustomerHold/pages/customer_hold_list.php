@@ -639,10 +639,13 @@ body.cell-selecting,body.cell-selecting *{user-select:none !important}
 .release-table col.col-cavity{width:1%}
 .release-table col.col-affect{width:1%}
 .release-table col.col-type{width:1%}
-.release-table col.col-issue{width:180px}
+.release-table col.col-issue{width:220px}
 .release-table col.col-status{width:1%}
 .release-table col.col-release-date{width:1%}
 .release-table col.col-note{width:auto}
+.release-table th:nth-child(9),.release-table td[data-field="issue_description_text"]{min-width:220px}
+.release-table th:nth-child(12),.release-table td[data-field="note_text"]{min-width:420px}
+.release-table td[data-field="issue_description_text"],.release-table td[data-field="note_text"]{vertical-align:top}
 @media (max-width:1200px){
  .panel-head{flex-wrap:wrap}
  .status-strip{flex-direction:column;align-items:flex-start}
@@ -1413,6 +1416,15 @@ function autoResizeTextarea(el){
     if (!el) return;
     el.style.height = 'auto';
     el.style.height = Math.max(32, el.scrollHeight) + 'px';
+}
+
+function refreshReleaseTextareaHeights(){
+    if (!els || !els.releaseBody) return;
+    requestAnimationFrame(function(){
+        Array.from(els.releaseBody.querySelectorAll('.cell-textarea')).forEach(function(el){
+            autoResizeTextarea(el);
+        });
+    });
 }
 
 function createTextarea(value, opts){
@@ -2319,6 +2331,7 @@ function renderReleaseBody(){
         });
         els.releaseBody.appendChild(tr);
     });
+    refreshReleaseTextareaHeights();
 }
 
 function renderCurrent(){
@@ -2426,7 +2439,12 @@ els.topTabs.forEach(function(btn){
         els.topTabs.forEach(function(x){ x.classList.toggle('active', x === btn); });
         els.toolTab.classList.toggle('hidden', tab !== 'tool');
         els.releaseTab.classList.toggle('hidden', tab !== 'release');
+        if (tab === 'release') refreshReleaseTextareaHeights();
     });
+});
+
+window.addEventListener('resize', function(){
+    if (!els.releaseTab.classList.contains('hidden')) refreshReleaseTextareaHeights();
 });
 
 els.reloadBtn.addEventListener('click', function(){ loadAll().catch(function(err){ setStatus(err.message || '불러오기 실패', true); }); });
