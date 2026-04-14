@@ -527,6 +527,8 @@ body{
 .row-btn.add{color:#bbf7d0}
 .row-btn.delete{color:#fecaca}
 .sheet td[data-field="tool_text"].merged-master{vertical-align:middle}
+.sheet td[data-field="item_code"].merged-master{vertical-align:middle;padding:0 8px}
+.sheet td[data-field="item_code"].merged-master .cell-input{padding:0;min-height:0;line-height:1.35;box-sizing:border-box;text-align:center}
 .cell-editor,.cell-input,.cell-textarea,.status-select,.vendor-trigger{
  width:100%;
  display:block;
