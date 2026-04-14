@@ -537,6 +537,7 @@ body{
 .sheet td.selected-range.selection-top::after,.sheet td.selected-range.selection-single::after{border-top:2px solid #22c55e}
 .sheet td.selected-range.selection-bottom::after,.sheet td.selected-range.selection-single::after{border-bottom:2px solid #22c55e}
 .sheet td.selected-range .cell-input,.sheet td.selected-range .cell-textarea,.sheet td.selected-range .vendor-trigger,.sheet td.selected-range .status-select{position:relative;z-index:4}
+.sheet td[data-field]:focus,.release-table td[data-field]:focus{outline:none}
 body.cell-selecting,body.cell-selecting *{user-select:none !important}
 .tool-merge-menu{position:fixed;left:-9999px;top:-9999px;min-width:140px;padding:6px;border-radius:10px;background:#0f1720;border:1px solid rgba(255,255,255,.12);box-shadow:0 16px 30px rgba(0,0,0,.38);z-index:2600}
 .tool-merge-menu.hidden{display:none !important}
@@ -2059,6 +2060,18 @@ function focusEditable(el, caretPos){
     }
 }
 
+function blurGridEditorFocus(){
+    const active = document.activeElement;
+    if (!active || !isEditorTarget(active)) return;
+    try { active.blur(); } catch (_e) {}
+}
+
+function focusGridCell(td){
+    if (!td || typeof td.focus !== 'function') return;
+    if (!td.hasAttribute('tabindex')) td.tabIndex = -1;
+    try { td.focus({preventScroll:true}); } catch (_e) { try { td.focus(); } catch (_e2) {} }
+}
+
 function focusToolField(model, visibleIndex, field, caretPos){
     requestAnimationFrame(function(){
         const table = els.toolStatusRoot.querySelector('table.toolsheet');
@@ -2171,8 +2184,11 @@ function moveToolSelection(direction){
     const meta = getToolCellMeta(nextCell);
     if (!meta) return false;
     clearToolEditCell();
+    clearReleaseEditCell();
+    blurGridEditorFocus();
     setToolSelection(meta.model, meta.field, meta.rowIndex, meta.rowIndex);
     revealSelectedCell(nextCell);
+    focusGridCell(nextCell);
     return true;
 }
 
@@ -2197,8 +2213,11 @@ function moveReleaseSelection(direction){
     const meta = getReleaseCellMeta(nextCell);
     if (!meta) return false;
     clearReleaseEditCell();
+    clearToolEditCell();
+    blurGridEditorFocus();
     setReleaseSelection(meta.field, meta.rowIndex, meta.rowIndex);
     revealSelectedCell(nextCell);
+    focusGridCell(nextCell);
     return true;
 }
 
@@ -2812,7 +2831,11 @@ document.addEventListener('mouseup', function(ev){
     }
     const meta = getToolCellMeta(ev.target);
     if (meta && meta.model === drag.model && meta.field === drag.field) {
+        clearToolEditCell();
+        clearReleaseEditCell();
+        blurGridEditorFocus();
         setToolSelection(meta.model, meta.field, meta.rowIndex, meta.rowIndex);
+        focusGridCell(meta.td);
     }
 });
 
@@ -2843,11 +2866,16 @@ document.addEventListener('click', function(ev){
     }
     const meta = getToolCellMeta(ev.target);
     if (meta && state.canEdit) {
-        if (!(isToolEditingMeta(meta) && isEditorTarget(ev.target))) clearToolEditCell();
+        if (!(isToolEditingMeta(meta) && isEditorTarget(ev.target))) {
+            clearToolEditCell();
+            clearReleaseEditCell();
+            blurGridEditorFocus();
+        }
         const sel = getToolSelection();
         if (!sel || sel.model !== meta.model || sel.field !== meta.field || sel.startRow !== meta.rowIndex || sel.endRow !== meta.rowIndex) {
             setToolSelection(meta.model, meta.field, meta.rowIndex, meta.rowIndex);
         }
+        focusGridCell(meta.td);
         hideToolMergeMenu();
         return;
     }
@@ -2904,7 +2932,11 @@ document.addEventListener('mouseup', function(ev){
     }
     const meta = getReleaseCellMeta(ev.target);
     if (meta && meta.field === drag.field) {
+        clearReleaseEditCell();
+        clearToolEditCell();
+        blurGridEditorFocus();
         setReleaseSelection(meta.field, meta.rowIndex, meta.rowIndex);
+        focusGridCell(meta.td);
     }
 });
 
@@ -2935,11 +2967,16 @@ document.addEventListener('click', function(ev){
     }
     const meta = getReleaseCellMeta(ev.target);
     if (meta && state.canEdit) {
-        if (!(isReleaseEditingMeta(meta) && isEditorTarget(ev.target))) clearReleaseEditCell();
+        if (!(isReleaseEditingMeta(meta) && isEditorTarget(ev.target))) {
+            clearReleaseEditCell();
+            clearToolEditCell();
+            blurGridEditorFocus();
+        }
         const sel = getReleaseSelection();
         if (!sel || sel.field !== meta.field || sel.startRow !== meta.rowIndex || sel.endRow !== meta.rowIndex) {
             setReleaseSelection(meta.field, meta.rowIndex, meta.rowIndex);
         }
+        focusGridCell(meta.td);
         hideReleaseMergeMenu();
         return;
     }
@@ -2981,6 +3018,9 @@ document.addEventListener('dblclick', function(ev){
 
 document.addEventListener('keydown', function(ev){
     if (ev.defaultPrevented || ev.altKey || ev.ctrlKey || ev.metaKey) return;
+    if (!state.toolEditCell && !state.releaseEditCell && ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Enter','Tab','F2'].includes(ev.key)) {
+        blurGridEditorFocus();
+    }
     const activeSheet = els.releaseTab && !els.releaseTab.classList.contains('hidden') ? 'release' : 'tool';
 
     if (ev.key === 'F2') {
