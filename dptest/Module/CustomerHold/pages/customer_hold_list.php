@@ -522,11 +522,12 @@ body{
 .row-btn{
  width:24px;height:24px;border-radius:8px;border:1px solid rgba(255,255,255,.10);
  background:#232a34;color:#fff;cursor:pointer;line-height:1;
+ display:inline-flex;align-items:center;justify-content:center;padding:0;vertical-align:middle;
 }
 .row-btn:hover{background:#2b3440}
 .row-btn.add{color:#bbf7d0}
 .row-btn.delete{color:#fecaca}
-.row-btn.clear{font-size:13px}
+.row-btn.clear{font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0}
 .sheet td[data-field="tool_text"].merged-master{vertical-align:middle}
 .sheet td.selected-range{position:relative;background:rgba(34,197,94,.12) !important}
 .sheet td.selected-range.dirty-cell,.sheet tbody tr:hover td.selected-range.dirty-cell{background:#FFC7CE !important;color:#111827 !important}
@@ -764,15 +765,22 @@ const state = {
     dirtyToolCells: new Set(),
     dirtyToolStructureCells: new Set(),
     dirtyReleaseCells: new Set(),
+    dirtyReleaseStructureCells: new Set(),
     originalToolValues: new Map(),
     originalReleaseValues: new Map(),
     originalToolStructure: {},
+    originalReleaseStructure: {},
     nextCid: 1,
     toolSelection: null,
     toolSelectionDrag: null,
     toolSuppressClickSelection: false,
     toolManualMerges: {},
-    toolMergeMenu: null
+    toolMergeMenu: null,
+    releaseSelection: null,
+    releaseSelectionDrag: null,
+    releaseSuppressClickSelection: false,
+    releaseManualMerges: {},
+    releaseMergeMenu: null
 };
 
 const MODELS = ['IR-BASE','Z-CARRIER','X-CARRIER','Y-CARRIER','Z-STOPPER'];
@@ -829,6 +837,10 @@ function setStatus(text, isError){
 
 function isToolManualMergeField(field){
     return ['item_code','tool_text','affect_lot_text','issue_description_text','remark_text'].includes(String(field || ''));
+}
+
+function isReleaseManualMergeField(field){
+    return releaseColumns.some(function(col){ return col.key === String(field || ''); });
 }
 
 function normalizeRange(range){
@@ -1202,6 +1214,325 @@ function getToolCellMeta(target){
     };
 }
 
+function peekReleaseManualState(field){
+    return state.releaseManualMerges[String(field || '')] || null;
+}
+
+function getReleaseManualState(field){
+    const key = String(field || '');
+    if (!state.releaseManualMerges[key]) state.releaseManualMerges[key] = {merge:[], split:[]};
+    return state.releaseManualMerges[key];
+}
+
+function getReleaseRowsSorted(){
+    return (state.releaseDetails || []).slice().sort(function(a,b){
+        return ((Number(a.sort_order)||0) - (Number(b.sort_order)||0));
+    });
+}
+
+function buildReleaseRowspans(rows){
+    const mergeFields = releaseColumns.map(function(col){ return col.key; });
+    const spans = {};
+    const hidden = {};
+    mergeFields.forEach(function(field){
+        spans[field] = new Array(rows.length).fill(1);
+        hidden[field] = new Set();
+        const manual = peekReleaseManualState(field) || {merge:[], split:[]};
+        (manual.merge || []).forEach(function(range){
+            const normalized = normalizeRange(range);
+            if (!normalized) return;
+            const start = Math.max(0, normalized.start);
+            const end = Math.min(rows.length - 1, normalized.end);
+            if (end <= start) return;
+            if (rangeContains(manual.split, start)) return;
+            spans[field][start] = end - start + 1;
+            for (let idx = start + 1; idx <= end; idx++) hidden[field].add(idx);
+        });
+    });
+    return {spans, hidden};
+}
+
+function snapshotReleaseStructureForRows(rows){
+    const merge = buildReleaseRowspans(rows);
+    const out = {};
+    releaseColumns.forEach(function(col){
+        const field = col.key;
+        const spans = merge.spans[field] || [];
+        const hidden = merge.hidden[field] || new Set();
+        out[field] = rows.map(function(_row, idx){
+            return {
+                span: Number(spans[idx] || 1),
+                hidden: hidden.has(idx)
+            };
+        });
+    });
+    return out;
+}
+
+function captureOriginalReleaseStructure(){
+    const rows = getReleaseRowsSorted();
+    state.originalReleaseStructure = snapshotReleaseStructureForRows(rows);
+}
+
+function markReleaseStructureDirty(row, field){ state.dirtyReleaseStructureCells.add(releaseDirtyKey(row, field)); }
+function clearReleaseStructureDirty(row, field){ state.dirtyReleaseStructureCells.delete(releaseDirtyKey(row, field)); }
+
+function refreshReleaseStructureDirtyForRange(field, startRow, endRow){
+    if (!isReleaseManualMergeField(field)) return;
+    const rows = getReleaseRowsSorted();
+    if (!rows.length) {
+        refreshDirtyFlag();
+        return;
+    }
+    const current = snapshotReleaseStructureForRows(rows);
+    const original = state.originalReleaseStructure[field] || [];
+    const currentField = current[field] || [];
+    const start = Math.max(0, Number(startRow) || 0);
+    const end = Math.min(rows.length - 1, Math.max(start, Number(endRow) || 0));
+    for (let idx = start; idx <= end; idx++) {
+        const row = rows[idx];
+        if (!row) continue;
+        ensureCid(row);
+        seedReleaseOriginals(row);
+        const base = original[idx] || {span:1, hidden:false};
+        const now = currentField[idx] || {span:1, hidden:false};
+        const changed = Number(base.span || 1) !== Number(now.span || 1) || !!base.hidden !== !!now.hidden;
+        if (changed) markReleaseStructureDirty(row, field); else clearReleaseStructureDirty(row, field);
+        syncReleaseCellDirtyDom(row, field, isReleaseDirty(row, field));
+    }
+    refreshDirtyFlag();
+}
+
+function refreshReleaseStructureDirtyAll(){
+    state.releaseDetails.forEach(function(row){
+        releaseColumns.forEach(function(col){
+            clearReleaseStructureDirty(row, col.key);
+            syncReleaseCellDirtyDom(row, col.key, isReleaseDirty(row, col.key));
+        });
+    });
+    const rows = getReleaseRowsSorted();
+    if (!rows.length) {
+        refreshDirtyFlag();
+        return;
+    }
+    releaseColumns.forEach(function(col){
+        refreshReleaseStructureDirtyForRange(col.key, 0, rows.length - 1);
+    });
+}
+
+function clearReleaseSelection(){
+    state.releaseSelection = null;
+    applyReleaseSelectionDom();
+    hideReleaseMergeMenu();
+}
+
+function clearReleaseManualState(){
+    state.releaseManualMerges = {};
+    state.releaseSelection = null;
+    refreshReleaseStructureDirtyAll();
+    applyReleaseSelectionDom();
+    hideReleaseMergeMenu();
+}
+
+function setReleaseSelection(field, startRow, endRow){
+    if (!isReleaseManualMergeField(field)) return;
+    state.releaseSelection = {
+        field: String(field || ''),
+        startRow: Math.min(Number(startRow) || 0, Number(endRow) || 0),
+        endRow: Math.max(Number(startRow) || 0, Number(endRow) || 0)
+    };
+    applyReleaseSelectionDom();
+}
+
+function getReleaseSelection(){
+    return state.releaseSelection ? {
+        field: state.releaseSelection.field,
+        startRow: state.releaseSelection.startRow,
+        endRow: state.releaseSelection.endRow
+    } : null;
+}
+
+function getReleaseSelectionRows(sel){
+    if (!sel) return null;
+    const rows = getReleaseRowsSorted();
+    if (sel.startRow < 0 || sel.endRow >= rows.length) return null;
+    return rows.slice(sel.startRow, sel.endRow + 1);
+}
+
+function isReleaseMergeSelectionValid(sel){
+    if (!sel || !isReleaseManualMergeField(sel.field) || sel.endRow <= sel.startRow) return false;
+    const rows = getReleaseSelectionRows(sel);
+    return !!(rows && rows.length);
+}
+
+function getReleaseMergedRangesForSelection(sel){
+    if (!sel || !isReleaseManualMergeField(sel.field)) return [];
+    const rows = getReleaseRowsSorted();
+    if (!rows.length || sel.endRow >= rows.length) return [];
+    const merge = buildReleaseRowspans(rows);
+    const spans = merge.spans[sel.field] || [];
+    const ranges = [];
+    for (let i = 0; i < spans.length; i++) {
+        const span = Number(spans[i] || 1);
+        if (span <= 1) continue;
+        const end = i + span - 1;
+        if (!(end < sel.startRow || i > sel.endRow)) ranges.push({start:i, end:end});
+    }
+    return normalizeRanges(ranges);
+}
+
+function selectionIntersectsAnyReleaseMerge(sel){
+    return getReleaseMergedRangesForSelection(sel).length > 0;
+}
+
+function fillReleaseSelectionValue(sel){
+    if (!sel || !isReleaseManualMergeField(sel.field)) return;
+    const rows = getReleaseRowsSorted();
+    if (!rows.length || sel.startRow < 0 || sel.endRow >= rows.length) return;
+    const baseRow = rows[sel.startRow];
+    if (!baseRow) return;
+    const nextValue = baseRow[sel.field] || '';
+    for (let idx = sel.startRow; idx <= sel.endRow; idx++) {
+        const row = rows[idx];
+        if (!row) continue;
+        ensureCid(row);
+        seedReleaseOriginals(row);
+        row[sel.field] = nextValue;
+        setReleaseFieldDirtyState(row, sel.field, nextValue, null);
+    }
+}
+
+function addReleaseMergeRange(field, startRow, endRow){
+    const target = normalizeRange({start:startRow, end:endRow});
+    const bucket = getReleaseManualState(field);
+    bucket.merge = normalizeRanges(bucket.merge.filter(function(range){ return !rangesOverlap(range, target); }).concat([target]));
+    bucket.split = normalizeRanges(bucket.split.filter(function(range){ return !rangesOverlap(range, target); }));
+}
+
+function addReleaseSplitRange(field, startRow, endRow){
+    const target = normalizeRange({start:startRow, end:endRow});
+    const bucket = getReleaseManualState(field);
+    bucket.merge = normalizeRanges(bucket.merge.filter(function(range){ return !rangesOverlap(range, target); }));
+    bucket.split = normalizeRanges(bucket.split.concat([target]));
+}
+
+function applyReleaseSelectionDom(){
+    const table = els.releaseBody ? els.releaseBody.closest('table.release-table') : null;
+    if (!table) return;
+    const sel = getReleaseSelection();
+    table.querySelectorAll('td.selected-range').forEach(function(td){
+        td.classList.remove('selected-range','selection-top','selection-bottom','selection-single');
+    });
+    if (!sel) return;
+    table.querySelectorAll('tbody td[data-field][data-row-index]').forEach(function(td){
+        const field = td.getAttribute('data-field');
+        if (field !== sel.field) return;
+        const start = Number(td.getAttribute('data-row-index') || 0);
+        const span = Number(td.getAttribute('data-row-span') || 1);
+        const end = start + Math.max(1, span) - 1;
+        if (end < sel.startRow || start > sel.endRow) return;
+        td.classList.add('selected-range');
+        const touchesTop = sel.startRow >= start && sel.startRow <= end;
+        const touchesBottom = sel.endRow >= start && sel.endRow <= end;
+        if (touchesTop) td.classList.add('selection-top');
+        if (touchesBottom) td.classList.add('selection-bottom');
+        if (touchesTop && touchesBottom) td.classList.add('selection-single');
+    });
+}
+
+function ensureReleaseMergeMenu(){
+    if (state.releaseMergeMenu) return state.releaseMergeMenu;
+    const menu = document.createElement('div');
+    menu.className = 'tool-merge-menu hidden';
+    const mergeBtn = document.createElement('button');
+    mergeBtn.type = 'button';
+    mergeBtn.setAttribute('data-action', 'merge');
+    mergeBtn.textContent = '병합';
+    const unmergeBtn = document.createElement('button');
+    unmergeBtn.type = 'button';
+    unmergeBtn.setAttribute('data-action', 'unmerge');
+    unmergeBtn.textContent = '병합 해제';
+    menu.appendChild(mergeBtn);
+    menu.appendChild(unmergeBtn);
+    menu.addEventListener('mousedown', function(ev){ ev.stopPropagation(); });
+    menu.addEventListener('click', function(ev){
+        const btn = ev.target.closest('button[data-action]');
+        if (!btn || btn.disabled) return;
+        const sel = getReleaseSelection();
+        if (!sel) return;
+        if (btn.getAttribute('data-action') === 'merge') {
+            if (!isReleaseMergeSelectionValid(sel)) {
+                setStatus('같은 열의 연속 영역만 병합할 수 있습니다.', true);
+                hideReleaseMergeMenu();
+                return;
+            }
+            fillReleaseSelectionValue(sel);
+            addReleaseMergeRange(sel.field, sel.startRow, sel.endRow);
+            refreshReleaseStructureDirtyForRange(sel.field, sel.startRow, sel.endRow);
+            renderReleaseBody();
+            setReleaseSelection(sel.field, sel.startRow, sel.endRow);
+            setStatus('선택 영역을 병합했습니다.', false);
+        } else {
+            const ranges = getReleaseMergedRangesForSelection(sel);
+            if (!ranges.length) {
+                setStatus('해제할 병합 영역이 없습니다.', true);
+                hideReleaseMergeMenu();
+                return;
+            }
+            ranges.forEach(function(range){
+                addReleaseSplitRange(sel.field, range.start, range.end);
+                refreshReleaseStructureDirtyForRange(sel.field, range.start, range.end);
+            });
+            renderReleaseBody();
+            const first = ranges[0];
+            const last = ranges[ranges.length - 1];
+            setReleaseSelection(sel.field, first.start, last.end);
+            setStatus('선택 영역 병합을 해제했습니다.', false);
+        }
+        hideReleaseMergeMenu();
+    });
+    document.body.appendChild(menu);
+    state.releaseMergeMenu = menu;
+    return menu;
+}
+
+function hideReleaseMergeMenu(){
+    const menu = ensureReleaseMergeMenu();
+    menu.classList.add('hidden');
+    menu.style.left = '-9999px';
+    menu.style.top = '-9999px';
+}
+
+function showReleaseMergeMenu(x, y){
+    const sel = getReleaseSelection();
+    if (!sel || !state.canEdit) return;
+    const menu = ensureReleaseMergeMenu();
+    const canMerge = isReleaseMergeSelectionValid(sel);
+    const canUnmerge = selectionIntersectsAnyReleaseMerge(sel);
+    menu.querySelector('[data-action="merge"]').disabled = !canMerge;
+    menu.querySelector('[data-action="unmerge"]').disabled = !canUnmerge;
+    menu.classList.remove('hidden');
+    menu.style.left = Math.max(8, x) + 'px';
+    menu.style.top = Math.max(8, y) + 'px';
+}
+
+function getReleaseCellMeta(target){
+    const td = target && target.closest ? target.closest('.release-table td[data-field]') : null;
+    if (!td) return null;
+    const tr = td.parentElement;
+    if (tr && tr.classList.contains('blank-row')) return null;
+    const field = String(td.getAttribute('data-field') || '');
+    if (!isReleaseManualMergeField(field)) return null;
+    const rowIndex = Number(td.getAttribute('data-row-index') || 0);
+    if (!Number.isFinite(rowIndex)) return null;
+    return {
+        td: td,
+        field: field,
+        rowIndex: rowIndex,
+        rowSpan: Number(td.getAttribute('data-row-span') || 1)
+    };
+}
+
 function setDirty(flag){
     state.dirty = !!flag;
     setStatus(flag ? '저장되지 않은 변경사항이 있습니다.' : '저장 완료된 최신 상태입니다.', false);
@@ -1220,7 +1551,7 @@ function clearToolDirty(row, field){ state.dirtyToolCells.delete(toolDirtyKey(ro
 function clearToolStructureDirty(row, field){ state.dirtyToolStructureCells.delete(toolDirtyKey(row, field)); }
 function clearReleaseDirty(row, field){ state.dirtyReleaseCells.delete(releaseDirtyKey(row, field)); }
 function isToolDirty(row, field){ return state.dirtyToolCells.has(toolDirtyKey(row, field)) || state.dirtyToolStructureCells.has(toolDirtyKey(row, field)); }
-function isReleaseDirty(row, field){ return state.dirtyReleaseCells.has(releaseDirtyKey(row, field)); }
+function isReleaseDirty(row, field){ return state.dirtyReleaseCells.has(releaseDirtyKey(row, field)) || state.dirtyReleaseStructureCells.has(releaseDirtyKey(row, field)); }
 function toolOriginalKey(row, field){ return toolRowIdentity(row) + '|' + field; }
 function releaseOriginalKey(row, field){ return releaseRowIdentity(row) + '|' + field; }
 function setToolOriginal(row, field, value){ state.originalToolValues.set(toolOriginalKey(row, field), normalizeText(value)); }
@@ -1240,7 +1571,7 @@ function seedReleaseOriginals(row){
     });
 }
 function refreshDirtyFlag(){
-    setDirty(state.dirtyToolCells.size > 0 || state.dirtyToolStructureCells.size > 0 || state.dirtyReleaseCells.size > 0);
+    setDirty(state.dirtyToolCells.size > 0 || state.dirtyToolStructureCells.size > 0 || state.dirtyReleaseCells.size > 0 || state.dirtyReleaseStructureCells.size > 0);
 }
 function purgeToolRowState(row){
     const prefix = toolRowIdentity(row) + '|';
@@ -1251,6 +1582,7 @@ function purgeToolRowState(row){
 function purgeReleaseRowState(row){
     const prefix = releaseRowIdentity(row) + '|';
     Array.from(state.dirtyReleaseCells).forEach(function(key){ if (key.indexOf(prefix) === 0) state.dirtyReleaseCells.delete(key); });
+    Array.from(state.dirtyReleaseStructureCells).forEach(function(key){ if (key.indexOf(prefix) === 0) state.dirtyReleaseStructureCells.delete(key); });
     Array.from(state.originalReleaseValues.keys()).forEach(function(key){ if (key.indexOf(prefix) === 0) state.originalReleaseValues.delete(key); });
 }
 function syncToolCellDirtyDom(row, field, isDirty){
@@ -1274,10 +1606,11 @@ function setToolFieldDirtyState(row, field, value, cell){
     refreshDirtyFlag();
 }
 function setReleaseFieldDirtyState(row, field, value, cell){
-    const isDirty = normalizeText(value) !== getReleaseOriginal(row, field);
-    if (isDirty) markReleaseDirty(row, field); else clearReleaseDirty(row, field);
-    if (cell) cell.classList.toggle('dirty-cell', isDirty);
-    syncReleaseCellDirtyDom(row, field, isDirty);
+    const valueDirty = normalizeText(value) !== getReleaseOriginal(row, field);
+    if (valueDirty) markReleaseDirty(row, field); else clearReleaseDirty(row, field);
+    const finalDirty = isReleaseDirty(row, field);
+    if (cell) cell.classList.toggle('dirty-cell', finalDirty);
+    syncReleaseCellDirtyDom(row, field, finalDirty);
     refreshDirtyFlag();
 }
 
@@ -1832,26 +2165,50 @@ function updateReleaseRowField(visibleIndex, field, value, meta){
     const fields = ['holding_date_text','vendor_text','parts_name_text','tool_text','cavity_text','affect_lot_text','type_text','issue_description_text','status_text','release_date_text','note_text'];
     const rows = state.releaseDetails.slice().sort(function(a,b){ return ((Number(a.sort_order)||0) - (Number(b.sort_order)||0)); });
     const isNew = visibleIndex >= rows.length;
-    const target = ensureCid(isNew ? releaseBlankRow() : rows[visibleIndex]);
+    const mergeSpan = (!isNew && meta && meta.span > 1 && isReleaseManualMergeField(field)) ? meta.span : 1;
+    let target = ensureCid(isNew ? releaseBlankRow() : rows[visibleIndex]);
     seedReleaseOriginals(target);
     const wasBlank = !anyFilled(target, fields);
     const previous = target[field] || '';
-    target[field] = value;
-    if (previous !== value) {
-        setReleaseFieldDirtyState(target, field, value, meta && meta.cell ? meta.cell : null);
+    if (mergeSpan > 1) {
+        const affectedRows = [];
+        for (let idx = visibleIndex; idx < Math.min(visibleIndex + mergeSpan, rows.length); idx++) {
+            const sharedRow = rows[idx];
+            ensureCid(sharedRow);
+            seedReleaseOriginals(sharedRow);
+            sharedRow[field] = value;
+            setReleaseFieldDirtyState(sharedRow, field, value, null);
+            affectedRows.push(sharedRow);
+        }
+        if (meta && meta.cell) {
+            const hasDirty = affectedRows.some(function(sharedRow){ return isReleaseDirty(sharedRow, field); });
+            meta.cell.classList.toggle('dirty-cell', hasDirty);
+            meta.cell.setAttribute('data-measure', value);
+        }
+        target = affectedRows[0] || target;
+    } else {
+        target[field] = value;
+        if (previous !== value) {
+            setReleaseFieldDirtyState(target, field, value, meta && meta.cell ? meta.cell : null);
+        }
+        if (meta && meta.cell) meta.cell.setAttribute('data-measure', value);
     }
     if (isNew) rows.push(target);
     rows.forEach(function(row, idx){ row.sort_order = idx + 1; });
     state.releaseDetails = rows;
     refreshDirtyFlag();
     const becameFilled = wasBlank && anyFilled(target, fields);
+    if (becameFilled || isNew) clearReleaseManualState();
     if (becameFilled || isNew) {
         renderReleaseBody();
         focusReleaseField(visibleIndex, field, meta && typeof meta.caretPos === 'number' ? meta.caretPos : undefined);
+    } else {
+        applyReleaseSelectionDom();
     }
 }
 
 function insertReleaseRowBelow(visibleIndex){
+    clearReleaseManualState();
     const rows = state.releaseDetails.slice().sort(function(a,b){ return ((Number(a.sort_order)||0) - (Number(b.sort_order)||0)); });
     const base = rows[visibleIndex] || releaseBlankRow();
     const next = ensureCid({
@@ -1878,6 +2235,7 @@ function insertReleaseRowBelow(visibleIndex){
 
 async function deleteReleaseRow(row){
     if (!row) return;
+    clearReleaseManualState();
     const rowId = releaseRowIdentity(row);
     if (Number(row.id) > 0) {
         setStatus('삭제 중...', false);
@@ -1890,6 +2248,7 @@ async function deleteReleaseRow(row){
 }
 
 function clearReleaseRow(visibleIndex){
+    clearReleaseManualState();
     const fields = ['holding_date_text','vendor_text','parts_name_text','tool_text','cavity_text','affect_lot_text','type_text','issue_description_text','status_text','release_date_text','note_text'];
     const rows = state.releaseDetails.slice().sort(function(a,b){ return ((Number(a.sort_order)||0) - (Number(b.sort_order)||0)); });
     const target = rows[visibleIndex];
@@ -2304,12 +2663,101 @@ document.addEventListener('keydown', function(ev){
     if (ev.key === 'Escape') hideToolMergeMenu();
 });
 
+document.addEventListener('mousedown', function(ev){
+    if (ev.button !== 0) return;
+    if (ev.target.closest && ev.target.closest('.tool-merge-menu')) return;
+    hideReleaseMergeMenu();
+    const meta = getReleaseCellMeta(ev.target);
+    if (!meta || !state.canEdit) return;
+    state.releaseSelectionDrag = {
+        field: meta.field,
+        anchorRow: meta.rowIndex,
+        startX: ev.clientX,
+        startY: ev.clientY,
+        active: false
+    };
+});
+
+document.addEventListener('mousemove', function(ev){
+    const drag = state.releaseSelectionDrag;
+    if (!drag) return;
+    const moved = Math.abs(ev.clientX - drag.startX) > 3 || Math.abs(ev.clientY - drag.startY) > 3;
+    if (!drag.active && moved) {
+        drag.active = true;
+        document.body.classList.add('cell-selecting');
+        setReleaseSelection(drag.field, drag.anchorRow, drag.anchorRow);
+    }
+    if (!drag.active) return;
+    const meta = getReleaseCellMeta(ev.target);
+    if (!meta || meta.field !== drag.field) return;
+    setReleaseSelection(drag.field, drag.anchorRow, meta.rowIndex);
+});
+
+document.addEventListener('mouseup', function(ev){
+    const drag = state.releaseSelectionDrag;
+    if (!drag) return;
+    state.releaseSelectionDrag = null;
+    document.body.classList.remove('cell-selecting');
+    if (drag.active) {
+        state.releaseSuppressClickSelection = {x:ev.clientX, y:ev.clientY, at:Date.now()};
+        ev.preventDefault();
+        return;
+    }
+    const meta = getReleaseCellMeta(ev.target);
+    if (meta && meta.field === drag.field) {
+        setReleaseSelection(meta.field, meta.rowIndex, meta.rowIndex);
+    }
+});
+
+document.addEventListener('contextmenu', function(ev){
+    const meta = getReleaseCellMeta(ev.target);
+    if (!meta || !state.canEdit) {
+        hideReleaseMergeMenu();
+        return;
+    }
+    ev.preventDefault();
+    const sel = getReleaseSelection();
+    if (!sel || sel.field !== meta.field || meta.rowIndex < sel.startRow || meta.rowIndex > sel.endRow) {
+        setReleaseSelection(meta.field, meta.rowIndex, meta.rowIndex);
+    }
+    showReleaseMergeMenu(ev.clientX, ev.clientY);
+});
+
+document.addEventListener('click', function(ev){
+    if (ev.target.closest && ev.target.closest('.tool-merge-menu')) return;
+    if (state.releaseSuppressClickSelection) {
+        const suppress = state.releaseSuppressClickSelection;
+        state.releaseSuppressClickSelection = false;
+        const sameClick = (suppress === true) || (suppress && Math.abs((Number(suppress.x) || 0) - ev.clientX) <= 4 && Math.abs((Number(suppress.y) || 0) - ev.clientY) <= 4 && (Date.now() - (Number(suppress.at) || 0)) < 600);
+        if (sameClick) {
+            hideReleaseMergeMenu();
+            return;
+        }
+    }
+    const meta = getReleaseCellMeta(ev.target);
+    if (meta && state.canEdit) {
+        const sel = getReleaseSelection();
+        if (!sel || sel.field !== meta.field || sel.startRow !== meta.rowIndex || sel.endRow !== meta.rowIndex) {
+            setReleaseSelection(meta.field, meta.rowIndex, meta.rowIndex);
+        }
+        hideReleaseMergeMenu();
+        return;
+    }
+    hideReleaseMergeMenu();
+    if (!(ev.target.closest && ev.target.closest('.release-table'))) clearReleaseSelection();
+});
+
+document.addEventListener('keydown', function(ev){
+    if (ev.key === 'Escape') hideReleaseMergeMenu();
+});
+
 function renderReleaseBody(){
     els.releaseBody.innerHTML = '';
     const rows = buildReleaseRowsForRender();
+    const merge = buildReleaseRowspans(rows);
     rows.forEach(function(row, visibleIndex){
         const tr = document.createElement('tr');
-        tr.setAttribute('data-rowid', toolRowIdentity(row));
+        tr.setAttribute('data-rowid', releaseRowIdentity(row));
         const isBlank = visibleIndex === rows.length - 1 && !anyFilled(row, ['holding_date_text','vendor_text','parts_name_text','tool_text','cavity_text','affect_lot_text','type_text','issue_description_text','status_text','release_date_text','note_text']);
         if (isBlank) tr.classList.add('blank-row');
 
@@ -2338,51 +2786,60 @@ function renderReleaseBody(){
         tr.appendChild(actionTd);
 
         releaseColumns.forEach(function(col){
+            const fieldHidden = merge.hidden[col.key];
+            if (fieldHidden && fieldHidden.has(visibleIndex)) return;
             const td = document.createElement('td');
             td.setAttribute('data-field', col.key);
             td.setAttribute('data-rowid', releaseRowIdentity(row));
+            td.setAttribute('data-row-index', visibleIndex);
+            const mergeSpan = merge.spans[col.key] ? merge.spans[col.key][visibleIndex] : 1;
+            td.setAttribute('data-row-span', mergeSpan);
             const currentValue = row[col.key] || '';
+            if (mergeSpan > 1) {
+                td.rowSpan = mergeSpan;
+                td.classList.add('merged-master');
+            }
             if (isReleaseDirty(row, col.key)) td.classList.add('dirty-cell');
             if (col.checkbox === 'vendor') {
                 const dd = createCheckboxDropdown(currentValue, 'vendor', state.canEdit, function(text){
-                    updateReleaseRowField(visibleIndex, col.key, text, {cell: td});
+                    updateReleaseRowField(visibleIndex, col.key, text, {cell: td, span: mergeSpan});
                 });
                 td.appendChild(dd.wrap);
             } else if (col.checkbox === 'cavity') {
                 const dd = createCheckboxDropdown(currentValue, 'cavity', state.canEdit, function(text){
-                    updateReleaseRowField(visibleIndex, col.key, text, {cell: td});
+                    updateReleaseRowField(visibleIndex, col.key, text, {cell: td, span: mergeSpan});
                 });
                 td.appendChild(dd.wrap);
             } else if (col.checkbox === 'releaseType') {
                 const dd = createCheckboxDropdown(currentValue, 'releaseType', state.canEdit, function(text){
-                    updateReleaseRowField(visibleIndex, col.key, text, {cell: td});
+                    updateReleaseRowField(visibleIndex, col.key, text, {cell: td, span: mergeSpan});
                 });
                 td.appendChild(dd.wrap);
             } else if (col.status) {
                 const status = createStatusSelect(currentValue, state.canEdit);
                 status.input.addEventListener('change', function(){
-                    updateReleaseRowField(visibleIndex, col.key, status.input.value, {cell: td});
+                    updateReleaseRowField(visibleIndex, col.key, status.input.value, {cell: td, span: mergeSpan});
                 });
                 attachEscCancel(status.input, function(){ return status.input.value; }, function(next){ status.input.value = next; }, function(original){
-                    updateReleaseRowField(visibleIndex, col.key, original, {cell: td});
+                    updateReleaseRowField(visibleIndex, col.key, original, {cell: td, span: mergeSpan});
                 });
                 td.appendChild(status.wrap);
             } else if (col.multiline) {
                 const ta = createTextarea(currentValue, {readonly:!state.canEdit});
                 ta.addEventListener('input', function(){
-                    updateReleaseRowField(visibleIndex, col.key, ta.value, {cell: td});
+                    updateReleaseRowField(visibleIndex, col.key, ta.value, {cell: td, span: mergeSpan});
                 });
                 attachEscCancel(ta, function(){ return ta.value; }, function(next){ ta.value = next; autoResizeTextarea(ta); }, function(original){
-                    updateReleaseRowField(visibleIndex, col.key, original, {cell: td});
+                    updateReleaseRowField(visibleIndex, col.key, original, {cell: td, span: mergeSpan});
                 });
                 td.appendChild(ta);
             } else {
                 const input = createInput(currentValue, {readonly:!state.canEdit});
                 input.addEventListener('input', function(){
-                    updateReleaseRowField(visibleIndex, col.key, input.value, {cell: td});
+                    updateReleaseRowField(visibleIndex, col.key, input.value, {cell: td, span: mergeSpan});
                 });
                 attachEscCancel(input, function(){ return input.value; }, function(next){ input.value = next; }, function(original){
-                    updateReleaseRowField(visibleIndex, col.key, original, {cell: td});
+                    updateReleaseRowField(visibleIndex, col.key, original, {cell: td, span: mergeSpan});
                 });
                 td.appendChild(input);
             }
@@ -2391,6 +2848,7 @@ function renderReleaseBody(){
         els.releaseBody.appendChild(tr);
     });
     refreshReleaseTextareaHeights();
+    applyReleaseSelectionDom();
 }
 
 function renderCurrent(){
@@ -2425,13 +2883,17 @@ function applyPayload(data){
     state.dirtyToolCells.clear();
     state.dirtyToolStructureCells.clear();
     state.dirtyReleaseCells.clear();
+    state.dirtyReleaseStructureCells.clear();
     state.originalToolValues.clear();
     state.originalReleaseValues.clear();
     state.toolManualMerges = {};
+    state.releaseManualMerges = {};
     state.toolSelection = null;
+    state.releaseSelection = null;
     state.toolStatusRows.forEach(seedToolOriginals);
     state.releaseDetails.forEach(seedReleaseOriginals);
     captureOriginalToolStructure();
+    captureOriginalReleaseStructure();
     if (!state.activeToolModel || !state.models.includes(state.activeToolModel)) state.activeToolModel = state.models[0] || MODELS[0];
     setDirty(false);
     renderCurrent();
