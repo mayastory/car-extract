@@ -1018,6 +1018,9 @@ function ensureToolMergeMenu(){
     unmergeBtn.textContent = '병합 해제';
     menu.appendChild(mergeBtn);
     menu.appendChild(unmergeBtn);
+    menu.addEventListener('mousedown', function(ev){
+        ev.stopPropagation();
+    });
     menu.addEventListener('click', function(ev){
         const btn = ev.target.closest('button[data-action]');
         if (!btn || btn.disabled) return;
@@ -2053,6 +2056,7 @@ function renderToolStatus(){
 
 document.addEventListener('mousedown', function(ev){
     if (ev.button !== 0) return;
+    if (ev.target.closest && ev.target.closest('.tool-merge-menu')) return;
     hideToolMergeMenu();
     const meta = getToolCellMeta(ev.target);
     if (!meta || !state.canEdit) return;
@@ -2087,7 +2091,7 @@ document.addEventListener('mouseup', function(ev){
     state.toolSelectionDrag = null;
     document.body.classList.remove('cell-selecting');
     if (drag.active) {
-        state.toolSuppressClickSelection = true;
+        state.toolSuppressClickSelection = {x:ev.clientX, y:ev.clientY, at:Date.now()};
         ev.preventDefault();
         return;
     }
@@ -2114,9 +2118,13 @@ document.addEventListener('contextmenu', function(ev){
 document.addEventListener('click', function(ev){
     if (ev.target.closest && ev.target.closest('.tool-merge-menu')) return;
     if (state.toolSuppressClickSelection) {
+        const suppress = state.toolSuppressClickSelection;
         state.toolSuppressClickSelection = false;
-        hideToolMergeMenu();
-        return;
+        const sameClick = (suppress === true) || (suppress && Math.abs((Number(suppress.x) || 0) - ev.clientX) <= 4 && Math.abs((Number(suppress.y) || 0) - ev.clientY) <= 4 && (Date.now() - (Number(suppress.at) || 0)) < 600);
+        if (sameClick) {
+            hideToolMergeMenu();
+            return;
+        }
     }
     const meta = getToolCellMeta(ev.target);
     if (meta && state.canEdit) {
