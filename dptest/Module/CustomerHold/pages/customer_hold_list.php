@@ -527,8 +527,18 @@ body{
 .row-btn.add{color:#bbf7d0}
 .row-btn.delete{color:#fecaca}
 .sheet td[data-field="tool_text"].merged-master{vertical-align:middle}
-.sheet td[data-field="item_code"].merged-master{vertical-align:middle;padding:0 8px}
-.sheet td[data-field="item_code"].merged-master .cell-input{padding:0;min-height:0;line-height:1.35;box-sizing:border-box;text-align:center}
+.sheet td.selected-range{position:relative;background:rgba(34,197,94,.12) !important}
+.sheet td.selected-range::after{content:'';position:absolute;left:-1px;right:-1px;top:-1px;bottom:-1px;border-left:2px solid #22c55e;border-right:2px solid #22c55e;pointer-events:none;z-index:3}
+.sheet td.selected-range.selection-top::after,.sheet td.selected-range.selection-single::after{border-top:2px solid #22c55e}
+.sheet td.selected-range.selection-bottom::after,.sheet td.selected-range.selection-single::after{border-bottom:2px solid #22c55e}
+.sheet td.selected-range .cell-input,.sheet td.selected-range .cell-textarea,.sheet td.selected-range .vendor-trigger,.sheet td.selected-range .status-select{position:relative;z-index:4}
+body.cell-selecting,body.cell-selecting *{user-select:none !important}
+.tool-merge-menu{position:fixed;left:-9999px;top:-9999px;min-width:140px;padding:6px;border-radius:10px;background:#0f1720;border:1px solid rgba(255,255,255,.12);box-shadow:0 16px 30px rgba(0,0,0,.38);z-index:2600}
+.tool-merge-menu.hidden{display:none !important}
+.tool-merge-menu button{display:block;width:100%;border:none;background:transparent;color:var(--text);text-align:left;padding:8px 10px;border-radius:8px;font:inherit;font-size:13px;cursor:pointer}
+.tool-merge-menu button:hover{background:rgba(255,255,255,.08)}
+.tool-merge-menu button[disabled]{opacity:.45;cursor:default}
+.tool-merge-menu button[disabled]:hover{background:transparent}
 .cell-editor,.cell-input,.cell-textarea,.status-select,.vendor-trigger{
  width:100%;
  display:block;
@@ -739,7 +749,11 @@ const state = {
     dirtyReleaseCells: new Set(),
     originalToolValues: new Map(),
     originalReleaseValues: new Map(),
-    nextCid: 1
+    nextCid: 1,
+    toolSelection: null,
+    toolSelectionDrag: null,
+    toolManualMerges: {},
+    toolMergeMenu: null
 };
 
 const MODELS = ['IR-BASE','Z-CARRIER','X-CARRIER','Y-CARRIER','Z-STOPPER'];
@@ -792,6 +806,261 @@ const els = {
 function setStatus(text, isError){
     els.statusText.textContent = text || '';
     els.statusText.style.color = isError ? '#fecaca' : '';
+}
+
+function isToolManualMergeField(field){
+    return ['item_code','tool_text','affect_lot_text','issue_description_text','remark_text'].includes(String(field || ''));
+}
+
+function normalizeRange(range){
+    if (!range) return null;
+    const start = Math.max(0, Number(range.start) || 0);
+    const end = Math.max(start, Number(range.end) || 0);
+    return {start:start, end:end};
+}
+
+function normalizeRanges(ranges){
+    const list = (Array.isArray(ranges) ? ranges : []).map(normalizeRange).filter(Boolean).sort(function(a, b){
+        return a.start - b.start || a.end - b.end;
+    });
+    const out = [];
+    list.forEach(function(range){
+        const last = out[out.length - 1];
+        if (last && range.start <= last.end + 1) {
+            last.end = Math.max(last.end, range.end);
+        } else {
+            out.push({start:range.start, end:range.end});
+        }
+    });
+    return out;
+}
+
+function rangesOverlap(a, b){
+    return !!a && !!b && a.start <= b.end && b.start <= a.end;
+}
+
+function peekToolManualState(model, field){
+    const byModel = state.toolManualMerges[String(model || '').toUpperCase()];
+    if (!byModel) return null;
+    return byModel[String(field || '')] || null;
+}
+
+function getToolManualState(model, field){
+    const key = String(model || '').toUpperCase();
+    if (!state.toolManualMerges[key]) state.toolManualMerges[key] = {};
+    if (!state.toolManualMerges[key][field]) {
+        state.toolManualMerges[key][field] = {merge:[], split:[]};
+    }
+    return state.toolManualMerges[key][field];
+}
+
+function clearToolSelection(){
+    state.toolSelection = null;
+    applyToolSelectionDom();
+    hideToolMergeMenu();
+}
+
+function clearToolManualState(model){
+    if (model) delete state.toolManualMerges[String(model || '').toUpperCase()];
+    else state.toolManualMerges = {};
+    if (state.toolSelection && (!model || String(state.toolSelection.model || '').toUpperCase() === String(model || '').toUpperCase())) {
+        state.toolSelection = null;
+    }
+    applyToolSelectionDom();
+    hideToolMergeMenu();
+}
+
+function setToolSelection(model, field, startRow, endRow){
+    if (!isToolManualMergeField(field)) return;
+    state.toolSelection = {
+        model: String(model || '').toUpperCase(),
+        field: String(field || ''),
+        startRow: Math.min(Number(startRow) || 0, Number(endRow) || 0),
+        endRow: Math.max(Number(startRow) || 0, Number(endRow) || 0)
+    };
+    applyToolSelectionDom();
+}
+
+function getToolSelection(){
+    return state.toolSelection ? {
+        model: state.toolSelection.model,
+        field: state.toolSelection.field,
+        startRow: state.toolSelection.startRow,
+        endRow: state.toolSelection.endRow
+    } : null;
+}
+
+function getToolRowsForModel(model){
+    const grouped = buildToolGroups(state.toolStatusRows);
+    return grouped[String(model || '').toUpperCase()] || [];
+}
+
+function getToolSelectionRows(sel){
+    if (!sel) return null;
+    const rows = getToolRowsForModel(sel.model);
+    if (sel.startRow < 0 || sel.endRow >= rows.length) return null;
+    return rows.slice(sel.startRow, sel.endRow + 1);
+}
+
+function isSelectionSingleToolBlock(sel){
+    if (!sel) return false;
+    if (sel.field === 'item_code' || sel.field === 'tool_text') return true;
+    const rows = getToolSelectionRows(sel);
+    if (!rows || !rows.length) return false;
+    const baseTool = normalizeText(rows[0].tool_text || '');
+    return rows.every(function(row){ return normalizeText(row.tool_text || '') === baseTool; });
+}
+
+function isToolMergeSelectionValid(sel){
+    if (!sel || !isToolManualMergeField(sel.field) || sel.endRow <= sel.startRow) return false;
+    const rows = getToolSelectionRows(sel);
+    if (!rows || !rows.length) return false;
+    if (!isSelectionSingleToolBlock(sel)) return false;
+    const sample = normalizeText(sel.field === 'item_code' ? (rows[0].item_code || sel.model) : rows[0][sel.field]);
+    if (!sample) return false;
+    return rows.every(function(row){
+        const current = normalizeText(sel.field === 'item_code' ? (row.item_code || sel.model) : row[sel.field]);
+        return current === sample;
+    });
+}
+
+function selectionIntersectsAnyToolMerge(sel){
+    if (!sel || !isToolManualMergeField(sel.field)) return false;
+    const rows = getToolRowsForModel(sel.model);
+    if (!rows.length || sel.endRow >= rows.length) return false;
+    const merge = buildToolRowspans(rows, sel.model);
+    const spans = merge.spans[sel.field] || [];
+    for (let i = 0; i < spans.length; i++) {
+        const span = Number(spans[i] || 1);
+        if (span <= 1) continue;
+        const end = i + span - 1;
+        if (!(end < sel.startRow || i > sel.endRow)) return true;
+    }
+    return false;
+}
+
+function addToolMergeRange(model, field, startRow, endRow){
+    const target = normalizeRange({start:startRow, end:endRow});
+    const bucket = getToolManualState(model, field);
+    bucket.merge = normalizeRanges(bucket.merge.filter(function(range){ return !rangesOverlap(range, target); }).concat([target]));
+    bucket.split = normalizeRanges(bucket.split.filter(function(range){ return !rangesOverlap(range, target); }));
+}
+
+function addToolSplitRange(model, field, startRow, endRow){
+    const target = normalizeRange({start:startRow, end:endRow});
+    const bucket = getToolManualState(model, field);
+    bucket.merge = normalizeRanges(bucket.merge.filter(function(range){ return !rangesOverlap(range, target); }));
+    bucket.split = normalizeRanges(bucket.split.concat([target]));
+}
+
+function findRangeStarting(ranges, index){
+    return (Array.isArray(ranges) ? ranges : []).find(function(range){ return range.start === index; }) || null;
+}
+
+function rangeContains(ranges, index){
+    return (Array.isArray(ranges) ? ranges : []).some(function(range){ return index >= range.start && index <= range.end; });
+}
+
+function applyToolSelectionDom(){
+    const table = els.toolStatusRoot ? els.toolStatusRoot.querySelector('table.toolsheet') : null;
+    if (!table) return;
+    const sel = getToolSelection();
+    table.querySelectorAll('td.selected-range').forEach(function(td){
+        td.classList.remove('selected-range','selection-top','selection-bottom','selection-single');
+    });
+    if (!sel || sel.model !== String(state.activeToolModel || '').toUpperCase()) return;
+    table.querySelectorAll('tbody td[data-field][data-row-index]').forEach(function(td){
+        const field = td.getAttribute('data-field');
+        if (field !== sel.field) return;
+        const start = Number(td.getAttribute('data-row-index') || 0);
+        const span = Number(td.getAttribute('data-row-span') || 1);
+        const end = start + Math.max(1, span) - 1;
+        if (end < sel.startRow || start > sel.endRow) return;
+        td.classList.add('selected-range');
+        const touchesTop = sel.startRow >= start && sel.startRow <= end;
+        const touchesBottom = sel.endRow >= start && sel.endRow <= end;
+        if (touchesTop) td.classList.add('selection-top');
+        if (touchesBottom) td.classList.add('selection-bottom');
+        if (touchesTop && touchesBottom) td.classList.add('selection-single');
+    });
+}
+
+function ensureToolMergeMenu(){
+    if (state.toolMergeMenu) return state.toolMergeMenu;
+    const menu = document.createElement('div');
+    menu.className = 'tool-merge-menu hidden';
+    const mergeBtn = document.createElement('button');
+    mergeBtn.type = 'button';
+    mergeBtn.setAttribute('data-action', 'merge');
+    mergeBtn.textContent = '병합';
+    const unmergeBtn = document.createElement('button');
+    unmergeBtn.type = 'button';
+    unmergeBtn.setAttribute('data-action', 'unmerge');
+    unmergeBtn.textContent = '병합 해제';
+    menu.appendChild(mergeBtn);
+    menu.appendChild(unmergeBtn);
+    menu.addEventListener('click', function(ev){
+        const btn = ev.target.closest('button[data-action]');
+        if (!btn || btn.disabled) return;
+        const sel = getToolSelection();
+        if (!sel) return;
+        if (btn.getAttribute('data-action') === 'merge') {
+            if (!isToolMergeSelectionValid(sel)) {
+                setStatus('같은 열의 연속한 동일값만 병합할 수 있습니다.', true);
+                hideToolMergeMenu();
+                return;
+            }
+            addToolMergeRange(sel.model, sel.field, sel.startRow, sel.endRow);
+            renderToolStatus();
+            setStatus('선택 영역을 병합했습니다.', false);
+        } else {
+            addToolSplitRange(sel.model, sel.field, sel.startRow, sel.endRow);
+            renderToolStatus();
+            setStatus('선택 영역 병합을 해제했습니다.', false);
+        }
+        hideToolMergeMenu();
+    });
+    document.body.appendChild(menu);
+    state.toolMergeMenu = menu;
+    return menu;
+}
+
+function hideToolMergeMenu(){
+    const menu = ensureToolMergeMenu();
+    menu.classList.add('hidden');
+    menu.style.left = '-9999px';
+    menu.style.top = '-9999px';
+}
+
+function showToolMergeMenu(x, y){
+    const sel = getToolSelection();
+    if (!sel || !state.canEdit) return;
+    const menu = ensureToolMergeMenu();
+    const canMerge = isToolMergeSelectionValid(sel);
+    const canUnmerge = selectionIntersectsAnyToolMerge(sel);
+    menu.querySelector('[data-action="merge"]').disabled = !canMerge;
+    menu.querySelector('[data-action="unmerge"]').disabled = !canUnmerge;
+    menu.classList.remove('hidden');
+    menu.style.left = Math.max(8, x) + 'px';
+    menu.style.top = Math.max(8, y) + 'px';
+}
+
+function getToolCellMeta(target){
+    const td = target && target.closest ? target.closest('.toolsheet td[data-field]') : null;
+    if (!td) return null;
+    const tr = td.parentElement;
+    if (tr && tr.classList.contains('blank-row')) return null;
+    const field = String(td.getAttribute('data-field') || '');
+    if (!isToolManualMergeField(field)) return null;
+    const rowIndex = Number(td.getAttribute('data-row-index') || 0);
+    if (!Number.isFinite(rowIndex)) return null;
+    return {
+        td: td,
+        field: field,
+        rowIndex: rowIndex,
+        rowSpan: Number(td.getAttribute('data-row-span') || 1),
+        model: String(state.activeToolModel || '').toUpperCase()
+    };
 }
 
 function setDirty(flag){
@@ -1262,7 +1531,7 @@ function updateToolRowField(model, visibleIndex, field, value, meta){
     const rows = grouped[model] || [];
     const isNew = visibleIndex >= rows.length;
     const normalized = field === 'tool_text' ? normalizeText(value).toUpperCase() : value;
-    const mergeableSharedFields = ['issue_description_text','remark_text'];
+    const mergeableSharedFields = ['tool_text','affect_lot_text','issue_description_text','remark_text'];
     const mergeSpan = (!isNew && meta && meta.span > 1 && mergeableSharedFields.includes(field)) ? meta.span : 1;
 
     let target = isNew ? toolBlankRow(model) : rows[visibleIndex];
@@ -1320,9 +1589,13 @@ function updateToolRowField(model, visibleIndex, field, value, meta){
     renumberToolRows(model);
     refreshDirtyFlag();
 
+    if (needsReorder || isNew) clearToolManualState(model);
+
     if (needsReorder || becameFilled || isNew) {
         renderCurrent();
         focusToolField(model, visibleIndex, field, meta && typeof meta.caretPos === 'number' ? meta.caretPos : undefined);
+    } else {
+        applyToolSelectionDom();
     }
 }
 
@@ -1339,6 +1612,7 @@ function renumberToolRows(model){
 }
 
 function insertToolRowBelow(model, visibleIndex){
+    clearToolManualState(model);
     const grouped = buildToolGroups(state.toolStatusRows);
     const rows = grouped[model] || [];
     const base = rows[visibleIndex] || toolBlankRow(model);
@@ -1372,6 +1646,7 @@ function insertToolRowBelow(model, visibleIndex){
 
 async function deleteToolRow(row){
     if (!row) return;
+    clearToolManualState(String(row.part_name || '').toUpperCase());
     const rowId = toolRowIdentity(row);
     if (Number(row.id) > 0) {
         setStatus('삭제 중...', false);
@@ -1444,59 +1719,82 @@ async function deleteReleaseRow(row){
     renderReleaseBody();
 }
 
-function buildToolRowspans(rows){
-    const mergeFields = ['item_code','tool_text','issue_description_text','remark_text'];
+function buildToolRowspans(rows, modelName){
+    const mergeFields = ['item_code','tool_text','affect_lot_text','issue_description_text','remark_text'];
     const spans = {};
     const hidden = {};
+    const model = String(modelName || state.activeToolModel || '').toUpperCase();
     mergeFields.forEach(function(field){
         spans[field] = new Array(rows.length).fill(1);
         hidden[field] = new Set();
     });
 
-    let itemStart = 0;
-    while (itemStart < rows.length) {
-        const itemValue = normalizeText(rows[itemStart].item_code || '');
-        if (!itemValue) { itemStart += 1; continue; }
-
-        let itemEnd = itemStart + 1;
-        while (itemEnd < rows.length && normalizeText(rows[itemEnd].item_code || '') === itemValue) itemEnd += 1;
-
-        const itemCount = itemEnd - itemStart;
-        if (itemCount > 1) {
-            spans.item_code[itemStart] = itemCount;
-            for (let k = itemStart + 1; k < itemEnd; k++) hidden.item_code.add(k);
-        }
-        itemStart = itemEnd;
+    function applySpan(field, start, end){
+        if (start < 0 || end <= start || end >= rows.length) return;
+        spans[field][start] = end - start + 1;
+        for (let idx = start + 1; idx <= end; idx++) hidden[field].add(idx);
     }
+
+    function fieldState(field){
+        return peekToolManualState(model, field) || {merge:[], split:[]};
+    }
+
+    function buildLinearField(field, valueGetter, allowAuto){
+        const manual = fieldState(field);
+        let idx = 0;
+        while (idx < rows.length) {
+            const forced = findRangeStarting(manual.merge, idx);
+            if (forced) {
+                applySpan(field, idx, Math.min(forced.end, rows.length - 1));
+                idx = Math.min(forced.end, rows.length - 1) + 1;
+                continue;
+            }
+            if (rangeContains(manual.split, idx)) { idx += 1; continue; }
+            if (!allowAuto) { idx += 1; continue; }
+            const value = normalizeText(valueGetter(rows[idx], idx));
+            if (!value) { idx += 1; continue; }
+            let end = idx + 1;
+            while (end < rows.length) {
+                if (findRangeStarting(manual.merge, end) || rangeContains(manual.split, end)) break;
+                if (normalizeText(valueGetter(rows[end], end)) !== value) break;
+                end += 1;
+            }
+            applySpan(field, idx, end - 1);
+            idx = end;
+        }
+    }
+
+    buildLinearField('item_code', function(row){ return row.item_code || model; }, true);
+    buildLinearField('tool_text', function(row){ return row.tool_text || ''; }, true);
+    buildLinearField('affect_lot_text', function(row){ return row.affect_lot_text || ''; }, false);
 
     let i = 0;
     while (i < rows.length) {
         const toolKey = normalizeText(rows[i].tool_text);
         if (!toolKey) { i += 1; continue; }
-
         let j = i + 1;
         while (j < rows.length && normalizeText(rows[j].tool_text) === toolKey) j += 1;
 
-        const toolCount = j - i;
-        if (toolCount > 1) {
-            spans.tool_text[i] = toolCount;
-            for (let k = i + 1; k < j; k++) hidden.tool_text.add(k);
-        }
-
         ['issue_description_text','remark_text'].forEach(function(field){
+            const manual = fieldState(field);
             let start = i;
             while (start < j) {
+                const forced = findRangeStarting(manual.merge, start);
+                if (forced) {
+                    applySpan(field, start, Math.min(forced.end, j - 1));
+                    start = Math.min(forced.end, j - 1) + 1;
+                    continue;
+                }
+                if (rangeContains(manual.split, start)) { start += 1; continue; }
                 const value = normalizeText(rows[start][field] || '');
                 if (!value) { start += 1; continue; }
-
                 let end = start + 1;
-                while (end < j && normalizeText(rows[end][field] || '') === value) end += 1;
-
-                const count = end - start;
-                if (count > 1) {
-                    spans[field][start] = count;
-                    for (let k = start + 1; k < end; k++) hidden[field].add(k);
+                while (end < j) {
+                    if (findRangeStarting(manual.merge, end) || rangeContains(manual.split, end)) break;
+                    if (normalizeText(rows[end][field] || '') !== value) break;
+                    end += 1;
                 }
+                applySpan(field, start, end - 1);
                 start = end;
             }
         });
@@ -1588,7 +1886,7 @@ function renderToolStatus(){
     }
     if (els.toolModelTabs) els.toolModelTabs.innerHTML = '';
     const rows = buildToolRowsForRender(model);
-    const merge = buildToolRowspans(rows);
+    const merge = buildToolRowspans(rows, model);
     const section = document.createElement('div');
     section.className = 'model-section';
 
@@ -1628,6 +1926,7 @@ function renderToolStatus(){
     rows.forEach(function(row, visibleIndex){
         const tr = document.createElement('tr');
         tr.setAttribute('data-rowid', toolRowIdentity(row));
+        tr.setAttribute('data-row-index', visibleIndex);
         const isBlank = visibleIndex === rows.length - 1 && !anyFilled(row, ['tool_text','cavity_text','affect_lot_text','vendor_text','type_text','issue_description_text','remark_text']);
         if (isBlank) tr.classList.add('blank-row');
 
@@ -1656,8 +1955,10 @@ function renderToolStatus(){
             const td = document.createElement('td');
             td.setAttribute('data-field', col.key);
             td.setAttribute('data-rowid', toolRowIdentity(row));
+            td.setAttribute('data-row-index', visibleIndex);
             const currentValue = col.key === 'item_code' ? (row.item_code || model) : (row[col.key] || '');
             const mergeSpan = merge.spans[col.key] ? merge.spans[col.key][visibleIndex] : 1;
+            td.setAttribute('data-row-span', mergeSpan);
             td.setAttribute('data-measure', currentValue);
             if (isToolDirty(row, col.key)) td.classList.add('dirty-cell');
             if (mergeSpan > 1) {
@@ -1712,8 +2013,71 @@ function renderToolStatus(){
     wrap.appendChild(table);
     section.appendChild(wrap);
     els.toolStatusRoot.appendChild(section);
-    requestAnimationFrame(function(){ measureToolTable(table); });
+    applyToolSelectionDom();
+    requestAnimationFrame(function(){ measureToolTable(table); applyToolSelectionDom(); });
 }
+
+document.addEventListener('mousedown', function(ev){
+    if (ev.button !== 0) return;
+    hideToolMergeMenu();
+    const meta = getToolCellMeta(ev.target);
+    if (!meta || !state.canEdit) return;
+    state.toolSelectionDrag = {
+        model: meta.model,
+        field: meta.field,
+        anchorRow: meta.rowIndex,
+        startX: ev.clientX,
+        startY: ev.clientY,
+        active: false
+    };
+});
+
+document.addEventListener('mousemove', function(ev){
+    const drag = state.toolSelectionDrag;
+    if (!drag) return;
+    const moved = Math.abs(ev.clientX - drag.startX) > 3 || Math.abs(ev.clientY - drag.startY) > 3;
+    if (!drag.active && moved) {
+        drag.active = true;
+        document.body.classList.add('cell-selecting');
+        setToolSelection(drag.model, drag.field, drag.anchorRow, drag.anchorRow);
+    }
+    if (!drag.active) return;
+    const meta = getToolCellMeta(ev.target);
+    if (!meta || meta.model !== drag.model || meta.field !== drag.field) return;
+    setToolSelection(drag.model, drag.field, drag.anchorRow, meta.rowIndex);
+});
+
+document.addEventListener('mouseup', function(ev){
+    const drag = state.toolSelectionDrag;
+    if (!drag) return;
+    state.toolSelectionDrag = null;
+    document.body.classList.remove('cell-selecting');
+    if (drag.active) ev.preventDefault();
+});
+
+document.addEventListener('contextmenu', function(ev){
+    const meta = getToolCellMeta(ev.target);
+    if (!meta || !state.canEdit) {
+        hideToolMergeMenu();
+        return;
+    }
+    ev.preventDefault();
+    const sel = getToolSelection();
+    if (!sel || sel.model !== meta.model || sel.field !== meta.field || meta.rowIndex < sel.startRow || meta.rowIndex > sel.endRow) {
+        setToolSelection(meta.model, meta.field, meta.rowIndex, meta.rowIndex);
+    }
+    showToolMergeMenu(ev.clientX, ev.clientY);
+});
+
+document.addEventListener('click', function(ev){
+    if (ev.target.closest && ev.target.closest('.tool-merge-menu')) return;
+    if (ev.target.closest && ev.target.closest('.toolsheet td[data-field]')) return;
+    hideToolMergeMenu();
+});
+
+document.addEventListener('keydown', function(ev){
+    if (ev.key === 'Escape') hideToolMergeMenu();
+});
 
 function renderReleaseBody(){
     els.releaseBody.innerHTML = '';
