@@ -924,19 +924,25 @@ function isToolMergeSelectionValid(sel){
     });
 }
 
-function selectionIntersectsAnyToolMerge(sel){
-    if (!sel || !isToolManualMergeField(sel.field)) return false;
+function getToolMergeRangesForSelection(sel){
+    if (!sel || !isToolManualMergeField(sel.field)) return [];
     const rows = getToolRowsForModel(sel.model);
-    if (!rows.length || sel.endRow >= rows.length) return false;
+    if (!rows.length || sel.endRow >= rows.length) return [];
     const merge = buildToolRowspans(rows, sel.model);
     const spans = merge.spans[sel.field] || [];
+    const out = [];
     for (let i = 0; i < spans.length; i++) {
         const span = Number(spans[i] || 1);
         if (span <= 1) continue;
         const end = i + span - 1;
-        if (!(end < sel.startRow || i > sel.endRow)) return true;
+        if (end < sel.startRow || i > sel.endRow) continue;
+        out.push({start:i, end:end});
     }
-    return false;
+    return out;
+}
+
+function selectionIntersectsAnyToolMerge(sel){
+    return getToolMergeRangesForSelection(sel).length > 0;
 }
 
 function addToolMergeRange(model, field, startRow, endRow){
@@ -1014,7 +1020,14 @@ function ensureToolMergeMenu(){
             renderToolStatus();
             setStatus('선택 영역을 병합했습니다.', false);
         } else {
-            addToolSplitRange(sel.model, sel.field, sel.startRow, sel.endRow);
+            const targets = getToolMergeRangesForSelection(sel);
+            if (!targets.length) {
+                hideToolMergeMenu();
+                return;
+            }
+            targets.forEach(function(range){
+                addToolSplitRange(sel.model, sel.field, range.start, range.end);
+            });
             renderToolStatus();
             setStatus('선택 영역 병합을 해제했습니다.', false);
         }
