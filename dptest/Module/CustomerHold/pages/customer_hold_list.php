@@ -914,35 +914,22 @@ function isSelectionSingleToolBlock(sel){
 function isToolMergeSelectionValid(sel){
     if (!sel || !isToolManualMergeField(sel.field) || sel.endRow <= sel.startRow) return false;
     const rows = getToolSelectionRows(sel);
-    if (!rows || !rows.length) return false;
-    if (!isSelectionSingleToolBlock(sel)) return false;
-    const sample = normalizeText(sel.field === 'item_code' ? (rows[0].item_code || sel.model) : rows[0][sel.field]);
-    if (!sample) return false;
-    return rows.every(function(row){
-        const current = normalizeText(sel.field === 'item_code' ? (row.item_code || sel.model) : row[sel.field]);
-        return current === sample;
-    });
+    return !!(rows && rows.length);
 }
 
-function getToolMergeRangesForSelection(sel){
-    if (!sel || !isToolManualMergeField(sel.field)) return [];
+function selectionIntersectsAnyToolMerge(sel){
+    if (!sel || !isToolManualMergeField(sel.field)) return false;
     const rows = getToolRowsForModel(sel.model);
-    if (!rows.length || sel.endRow >= rows.length) return [];
+    if (!rows.length || sel.endRow >= rows.length) return false;
     const merge = buildToolRowspans(rows, sel.model);
     const spans = merge.spans[sel.field] || [];
-    const out = [];
     for (let i = 0; i < spans.length; i++) {
         const span = Number(spans[i] || 1);
         if (span <= 1) continue;
         const end = i + span - 1;
-        if (end < sel.startRow || i > sel.endRow) continue;
-        out.push({start:i, end:end});
+        if (!(end < sel.startRow || i > sel.endRow)) return true;
     }
-    return out;
-}
-
-function selectionIntersectsAnyToolMerge(sel){
-    return getToolMergeRangesForSelection(sel).length > 0;
+    return false;
 }
 
 function addToolMergeRange(model, field, startRow, endRow){
@@ -1012,7 +999,7 @@ function ensureToolMergeMenu(){
         if (!sel) return;
         if (btn.getAttribute('data-action') === 'merge') {
             if (!isToolMergeSelectionValid(sel)) {
-                setStatus('같은 열의 연속한 동일값만 병합할 수 있습니다.', true);
+                setStatus('같은 열의 연속 영역만 병합할 수 있습니다.', true);
                 hideToolMergeMenu();
                 return;
             }
@@ -1020,14 +1007,7 @@ function ensureToolMergeMenu(){
             renderToolStatus();
             setStatus('선택 영역을 병합했습니다.', false);
         } else {
-            const targets = getToolMergeRangesForSelection(sel);
-            if (!targets.length) {
-                hideToolMergeMenu();
-                return;
-            }
-            targets.forEach(function(range){
-                addToolSplitRange(sel.model, sel.field, range.start, range.end);
-            });
+            addToolSplitRange(sel.model, sel.field, sel.startRow, sel.endRow);
             renderToolStatus();
             setStatus('선택 영역 병합을 해제했습니다.', false);
         }
@@ -1788,32 +1768,34 @@ function buildToolRowspans(rows, modelName){
         let j = i + 1;
         while (j < rows.length && normalizeText(rows[j].tool_text) === toolKey) j += 1;
 
-        ['issue_description_text','remark_text'].forEach(function(field){
-            const manual = fieldState(field);
-            let start = i;
-            while (start < j) {
-                const forced = findRangeStarting(manual.merge, start);
-                if (forced) {
-                    applySpan(field, start, Math.min(forced.end, j - 1));
-                    start = Math.min(forced.end, j - 1) + 1;
-                    continue;
-                }
-                if (rangeContains(manual.split, start)) { start += 1; continue; }
-                const value = normalizeText(rows[start][field] || '');
-                if (!value) { start += 1; continue; }
-                let end = start + 1;
-                while (end < j) {
-                    if (findRangeStarting(manual.merge, end) || rangeContains(manual.split, end)) break;
-                    if (normalizeText(rows[end][field] || '') !== value) break;
-                    end += 1;
-                }
-                applySpan(field, start, end - 1);
-                start = end;
-            }
-        });
-
         i = j;
     }
+
+    ['issue_description_text','remark_text'].forEach(function(field){
+        const manual = fieldState(field);
+        let start = 0;
+        while (start < rows.length) {
+            const forced = findRangeStarting(manual.merge, start);
+            if (forced) {
+                applySpan(field, start, Math.min(forced.end, rows.length - 1));
+                start = Math.min(forced.end, rows.length - 1) + 1;
+                continue;
+            }
+            if (rangeContains(manual.split, start)) { start += 1; continue; }
+            const toolKey = normalizeText(rows[start].tool_text || '');
+            const value = normalizeText(rows[start][field] || '');
+            if (!toolKey || !value) { start += 1; continue; }
+            let end = start + 1;
+            while (end < rows.length) {
+                if (findRangeStarting(manual.merge, end) || rangeContains(manual.split, end)) break;
+                if (normalizeText(rows[end].tool_text || '') !== toolKey) break;
+                if (normalizeText(rows[end][field] || '') !== value) break;
+                end += 1;
+            }
+            applySpan(field, start, end - 1);
+            start = end;
+        }
+    });
 
     return {spans, hidden};
 }
@@ -2065,7 +2047,14 @@ document.addEventListener('mouseup', function(ev){
     if (!drag) return;
     state.toolSelectionDrag = null;
     document.body.classList.remove('cell-selecting');
-    if (drag.active) ev.preventDefault();
+    if (drag.active) {
+        ev.preventDefault();
+        return;
+    }
+    const meta = getToolCellMeta(ev.target);
+    if (meta && meta.model === drag.model && meta.field === drag.field) {
+        setToolSelection(meta.model, meta.field, meta.rowIndex, meta.rowIndex);
+    }
 });
 
 document.addEventListener('contextmenu', function(ev){
