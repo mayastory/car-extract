@@ -699,6 +699,11 @@ body.cell-selecting,body.cell-selecting *{user-select:none !important}
 .dashboard-log-badge.close{border-color:rgba(130,190,255,.28);background:rgba(130,190,255,.1);color:#d7e7ff}
 .dashboard-log-kv{font-size:12px;line-height:1.55;color:var(--muted);white-space:pre-line}
 .dashboard-log-note{margin-top:8px;font-size:13px;line-height:1.5;color:#effcf4;white-space:pre-line;word-break:break-word}
+.dashboard-filter-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 0 12px}
+.dashboard-filter{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;font-weight:700}
+.dashboard-filter .select-wrap{min-width:96px}
+.dashboard-status-btn.available{border-color:rgba(34,197,94,.38);background:rgba(34,197,94,.18);color:#dcfce7}
+.dashboard-empty{padding:18px 12px;color:var(--muted);font-size:13px}
 @media (max-width:1200px){
  .panel-head{flex-wrap:wrap}
  .status-strip{flex-direction:column;align-items:flex-start}
