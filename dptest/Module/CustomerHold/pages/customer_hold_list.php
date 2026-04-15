@@ -2833,54 +2833,105 @@ function renderToolModelTabs(target){
     });
 }
 
+function getSheetMeasureContext(source){
+    if (!getSheetMeasureContext.canvas) getSheetMeasureContext.canvas = document.createElement('canvas');
+    const ctx = getSheetMeasureContext.canvas.getContext('2d');
+    const probe = source || document.body;
+    const style = window.getComputedStyle(probe);
+    const fontSize = style.fontSize || '12px';
+    const fontFamily = style.fontFamily || 'Segoe UI';
+    const fontWeight = style.fontWeight || '600';
+    ctx.font = fontWeight + ' ' + fontSize + ' ' + fontFamily;
+    return ctx;
+}
+
+function longestLine(text){
+    return normalizeText(text || '').split('\n').sort(function(a,b){ return b.length - a.length; })[0] || '';
+}
+
+function setColWidth(table, selector, width){
+    const col = table ? table.querySelector(selector) : null;
+    if (col) col.style.width = width;
+}
+
 function measureToolTable(table){
     if (!table) return;
-    const fieldOrder = ['actions','item_code','tool_text','cavity_text','affect_lot_text','vendor_text','type_text','issue_description_text','remark_text'];
     const widths = {
         actions:74,
-        item_code:70,
-        tool_text:55,
-        cavity_text:55,
-        affect_lot_text:70,
-        vendor_text:58,
-        type_text:52,
-        issue_description_text:110,
-        remark_text:150
+        item_code:96,
+        tool_text:64,
+        cavity_text:110,
+        affect_lot_text:132,
+        vendor_text:104,
+        type_text:96,
+        issue_description_text:220,
+        remark_text:360
     };
-    const ctx = document.createElement('canvas').getContext('2d');
-    ctx.font = '600 12px Segoe UI';
+    const ctx = getSheetMeasureContext(table.querySelector('tbody td[data-field] .cell-input, tbody td[data-field] .vendor-trigger, tbody td[data-field] .status-select, tbody td[data-field] .cell-textarea') || table);
     table.querySelectorAll('thead th[data-field]').forEach(function(th){
         const field = th.getAttribute('data-field');
-        widths[field] = Math.max(widths[field] || 0, Math.ceil(ctx.measureText(th.textContent.trim()).width) + 28);
+        widths[field] = Math.max(widths[field] || 0, Math.ceil(ctx.measureText(normalizeText(th.textContent || '')).width) + 34);
     });
     table.querySelectorAll('tbody td[data-field]').forEach(function(td){
         const field = td.getAttribute('data-field');
         if (!field || field === 'remark_text') return;
-        const text = normalizeText(td.getAttribute('data-measure') || td.textContent || '');
-        if (!text) return;
-        const sample = text.split('\n').sort(function(a,b){ return b.length - a.length; })[0] || '';
-        widths[field] = Math.max(widths[field] || 0, Math.ceil(ctx.measureText(sample).width) + (field === 'issue_description_text' ? 44 : 32));
+        const sample = longestLine(td.getAttribute('data-measure') || td.textContent || '');
+        if (!sample) return;
+        const extra = (field === 'cavity_text' || field === 'vendor_text' || field === 'type_text') ? 54 : (field === 'issue_description_text' ? 56 : 40);
+        widths[field] = Math.max(widths[field] || 0, Math.ceil(ctx.measureText(sample).width) + extra);
     });
-    const colMap = {
-        actions:'.col-actions',
-        item_code:'.col-item',
-        tool_text:'.col-tool',
-        cavity_text:'.col-cavity',
-        affect_lot_text:'.col-affect',
-        vendor_text:'.col-vendor',
-        type_text:'.col-type',
-        issue_description_text:'.col-issue',
-        remark_text:'.col-remark'
+    setColWidth(table, '.col-actions', widths.actions + 'px');
+    setColWidth(table, '.col-item', Math.min(Math.max(widths.item_code, 96), 220) + 'px');
+    setColWidth(table, '.col-tool', Math.min(Math.max(widths.tool_text, 64), 120) + 'px');
+    setColWidth(table, '.col-cavity', Math.min(Math.max(widths.cavity_text, 110), 240) + 'px');
+    setColWidth(table, '.col-affect', Math.min(Math.max(widths.affect_lot_text, 132), 280) + 'px');
+    setColWidth(table, '.col-vendor', Math.min(Math.max(widths.vendor_text, 104), 200) + 'px');
+    setColWidth(table, '.col-type', Math.min(Math.max(widths.type_text, 96), 200) + 'px');
+    setColWidth(table, '.col-issue', Math.min(Math.max(widths.issue_description_text, 220), 360) + 'px');
+    setColWidth(table, '.col-remark', 'auto');
+}
+
+function measureReleaseTable(table){
+    if (!table) return;
+    const widths = {
+        actions:74,
+        holding_date_text:112,
+        vendor_text:104,
+        parts_name_text:132,
+        tool_text:64,
+        cavity_text:110,
+        affect_lot_text:132,
+        type_text:108,
+        issue_description_text:240,
+        status_text:96,
+        release_date_text:112,
+        note_text:420
     };
-    table.querySelector(colMap.actions).style.width = widths.actions + 'px';
-    table.querySelector(colMap.item_code).style.width = widths.item_code + 'px';
-    table.querySelector(colMap.tool_text).style.width = widths.tool_text + 'px';
-    table.querySelector(colMap.cavity_text).style.width = widths.cavity_text + 'px';
-    table.querySelector(colMap.affect_lot_text).style.width = widths.affect_lot_text + 'px';
-    table.querySelector(colMap.vendor_text).style.width = widths.vendor_text + 'px';
-    table.querySelector(colMap.type_text).style.width = widths.type_text + 'px';
-    table.querySelector(colMap.issue_description_text).style.width = Math.min(Math.max(widths.issue_description_text, 120), 240) + 'px';
-    table.querySelector(colMap.remark_text).style.width = 'auto';
+    const ctx = getSheetMeasureContext(table.querySelector('tbody td[data-field] .cell-input, tbody td[data-field] .vendor-trigger, tbody td[data-field] .status-select, tbody td[data-field] .cell-textarea') || table);
+    table.querySelectorAll('thead th[data-field]').forEach(function(th){
+        const field = th.getAttribute('data-field');
+        widths[field] = Math.max(widths[field] || 0, Math.ceil(ctx.measureText(normalizeText(th.textContent || '')).width) + 34);
+    });
+    table.querySelectorAll('tbody td[data-field]').forEach(function(td){
+        const field = td.getAttribute('data-field');
+        if (!field || field === 'note_text') return;
+        const sample = longestLine(td.getAttribute('data-measure') || td.textContent || '');
+        if (!sample) return;
+        const extra = (field === 'vendor_text' || field === 'cavity_text' || field === 'type_text' || field === 'status_text') ? 54 : (field === 'issue_description_text' ? 56 : 40);
+        widths[field] = Math.max(widths[field] || 0, Math.ceil(ctx.measureText(sample).width) + extra);
+    });
+    setColWidth(table, '.col-actions', widths.actions + 'px');
+    setColWidth(table, '.col-date', Math.min(Math.max(widths.holding_date_text, 112), 170) + 'px');
+    setColWidth(table, '.col-vendor', Math.min(Math.max(widths.vendor_text, 104), 220) + 'px');
+    setColWidth(table, '.col-parts', Math.min(Math.max(widths.parts_name_text, 132), 240) + 'px');
+    setColWidth(table, '.col-tool', Math.min(Math.max(widths.tool_text, 64), 120) + 'px');
+    setColWidth(table, '.col-cavity', Math.min(Math.max(widths.cavity_text, 110), 240) + 'px');
+    setColWidth(table, '.col-affect', Math.min(Math.max(widths.affect_lot_text, 132), 280) + 'px');
+    setColWidth(table, '.col-type', Math.min(Math.max(widths.type_text, 108), 220) + 'px');
+    setColWidth(table, '.col-issue', Math.min(Math.max(widths.issue_description_text, 240), 380) + 'px');
+    setColWidth(table, '.col-status', Math.min(Math.max(widths.status_text, 96), 150) + 'px');
+    setColWidth(table, '.col-release-date', Math.min(Math.max(widths.release_date_text, 112), 170) + 'px');
+    setColWidth(table, '.col-note', 'auto');
 }
 
 function renderToolStatus(){
@@ -3578,8 +3629,12 @@ function renderReleaseBody(){
         });
         els.releaseBody.appendChild(tr);
     });
-    refreshReleaseTextareaHeights();
-    applyReleaseSelectionDom();
+    requestAnimationFrame(function(){
+        refreshReleaseTextareaHeights();
+        const table = els.releaseBody ? els.releaseBody.closest('table.release-table') : null;
+        measureReleaseTable(table);
+        applyReleaseSelectionDom();
+    });
 }
 
 function renderCurrent(){
@@ -3696,12 +3751,27 @@ els.topTabs.forEach(function(btn){
         els.topTabs.forEach(function(x){ x.classList.toggle('active', x === btn); });
         els.toolTab.classList.toggle('hidden', tab !== 'tool');
         els.releaseTab.classList.toggle('hidden', tab !== 'release');
-        if (tab === 'release') refreshReleaseTextareaHeights();
+        requestAnimationFrame(function(){
+            if (tab === 'release') {
+                refreshReleaseTextareaHeights();
+                measureReleaseTable(els.releaseBody ? els.releaseBody.closest('table.release-table') : null);
+            } else {
+                measureToolTable(els.toolStatusRoot ? els.toolStatusRoot.querySelector('table.toolsheet') : null);
+            }
+        });
     });
 });
 
 window.addEventListener('resize', function(){
-    if (!els.releaseTab.classList.contains('hidden')) refreshReleaseTextareaHeights();
+    requestAnimationFrame(function(){
+        if (!els.releaseTab.classList.contains('hidden')) {
+            refreshReleaseTextareaHeights();
+            measureReleaseTable(els.releaseBody ? els.releaseBody.closest('table.release-table') : null);
+        }
+        if (!els.toolTab.classList.contains('hidden')) {
+            measureToolTable(els.toolStatusRoot ? els.toolStatusRoot.querySelector('table.toolsheet') : null);
+        }
+    });
 });
 
 els.reloadBtn.addEventListener('click', function(){ loadAll().catch(function(err){ setStatus(err.message || '불러오기 실패', true); }); });
