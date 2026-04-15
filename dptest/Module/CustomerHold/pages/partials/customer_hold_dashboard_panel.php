@@ -17,7 +17,6 @@
                     <span>상태</span>
                     <div class="select-wrap">
                         <select id="dashboardStatusFilter" class="status-select">
-                            <option value="all">전체</option>
                             <option value="blocked">출하불가</option>
                             <option value="available">출하가능</option>
                         </select>
