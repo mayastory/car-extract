@@ -668,37 +668,6 @@ body.cell-selecting,body.cell-selecting *{user-select:none !important}
 .release-table th:nth-child(11),.release-table td[data-field="release_date_text"]{min-width:112px}
 .release-table th:nth-child(12),.release-table td[data-field="note_text"]{min-width:420px}
 .release-table td[data-field="issue_description_text"],.release-table td[data-field="note_text"]{vertical-align:top}
-.dashboard-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:14px}
-.dashboard-card{background:rgba(9,24,20,.74);border:1px solid var(--line);border-radius:12px;padding:14px 16px;box-shadow:0 10px 22px rgba(0,0,0,.18)}
-.dashboard-card h3{margin:0 0 8px;font-size:14px;color:var(--muted);font-weight:700}
-.dashboard-card .dashboard-value{font-size:28px;line-height:1.1;font-weight:800;color:#f2fff8}
-.dashboard-card .dashboard-sub{margin-top:6px;font-size:12px;color:var(--muted)}
-.dashboard-board{display:flex;flex-direction:column;gap:14px}
-.dashboard-model{background:rgba(6,18,15,.72);border:1px solid rgba(120,255,190,.14);border-radius:14px;padding:14px 14px 12px}
-.dashboard-model-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
-.dashboard-model-title{font-size:15px;font-weight:800;color:#f3fff8}
-.dashboard-model-count{font-size:12px;color:var(--muted)}
-.dashboard-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
-.dashboard-entry{position:relative;background:rgba(10,28,23,.86);border:1px solid rgba(120,255,190,.16);border-radius:12px;padding:12px 12px 10px;cursor:pointer;transition:border-color .16s ease, transform .16s ease, box-shadow .16s ease}
-.dashboard-entry:hover{border-color:rgba(120,255,190,.34);transform:translateY(-1px);box-shadow:0 8px 18px rgba(0,0,0,.18)}
-.dashboard-entry.active{border-color:rgba(255,199,206,.75);box-shadow:0 0 0 1px rgba(255,199,206,.32) inset}
-.dashboard-entry-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px}
-.dashboard-entry-title{font-size:14px;font-weight:800;color:#f2fff8}
-.dashboard-entry-meta{font-size:12px;color:var(--muted);line-height:1.45;white-space:pre-line}
-.dashboard-status-btn{display:inline-flex;align-items:center;justify-content:center;min-width:72px;height:28px;padding:0 10px;border-radius:999px;border:1px solid rgba(255,199,206,.45);background:rgba(255,199,206,.16);color:#ffd9df;font-size:12px;font-weight:800;cursor:pointer}
-.dashboard-entry-issue{font-size:13px;line-height:1.45;color:#eefbf3;min-height:36px;white-space:pre-line;word-break:break-word}
-.dashboard-log-panel{margin-top:14px;background:rgba(7,19,16,.78);border:1px solid rgba(120,255,190,.14);border-radius:14px;padding:14px}
-.dashboard-log-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
-.dashboard-log-title{font-size:15px;font-weight:800;color:#f3fff8}
-.dashboard-log-sub{margin-top:4px;font-size:12px;color:var(--muted);line-height:1.45;white-space:pre-line}
-.dashboard-log-empty{padding:16px 8px;color:var(--muted);font-size:13px}
-.dashboard-log-list{display:flex;flex-direction:column;gap:10px}
-.dashboard-log-item{background:rgba(10,28,23,.78);border:1px solid rgba(120,255,190,.12);border-radius:12px;padding:12px}
-.dashboard-log-item-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
-.dashboard-log-badge{display:inline-flex;align-items:center;justify-content:center;min-width:64px;height:26px;padding:0 10px;border-radius:999px;border:1px solid rgba(120,255,190,.22);background:rgba(120,255,190,.1);color:#c9ffe0;font-size:12px;font-weight:800}
-.dashboard-log-badge.close{border-color:rgba(130,190,255,.28);background:rgba(130,190,255,.1);color:#d7e7ff}
-.dashboard-log-kv{font-size:12px;line-height:1.55;color:var(--muted);white-space:pre-line}
-.dashboard-log-note{margin-top:8px;font-size:13px;line-height:1.5;color:#effcf4;white-space:pre-line;word-break:break-word}
 @media (max-width:1200px){
  .panel-head{flex-wrap:wrap}
  .status-strip{flex-direction:column;align-items:flex-start}
@@ -719,9 +688,8 @@ body.cell-selecting,body.cell-selecting *{user-select:none !important}
     </div>
     <div class="content">
         <div class="top-tabs">
-            <button type="button" class="top-tab active" data-tab="dashboard">홀딩 현황판</button>
-            <button type="button" class="top-tab" data-tab="tool">Tool Status</button>
-            <button type="button" class="top-tab" data-tab="release">홀딩 세부내역</button>
+            <button type="button" class="top-tab active" data-tab="tool">Tool Status</button>
+            <button type="button" class="top-tab" data-tab="release">홀딩 해제 세부 내역</button>
         </div>
 
         <div class="status-strip">
@@ -731,16 +699,7 @@ body.cell-selecting,body.cell-selecting *{user-select:none !important}
 
         <div class="readonly-message hidden" id="readonlyMessage">현재 계정은 조회만 가능합니다. 레벨 77 이상부터 입력·수정·삭제·저장이 가능합니다.</div>
 
-        <section id="dashboardTab">
-            <div class="sheet-panel">
-                <div class="sheet-head">
-                    <div class="sheet-title">홀딩 현황판</div>
-                </div>
-                <div id="dashboardRoot"></div>
-            </div>
-        </section>
-
-        <section id="toolTab" class="hidden">
+        <section id="toolTab">
             <div class="sheet-panel">
                 <div class="sheet-head">
                     <div class="model-tabs" id="toolModelTabs"></div>
@@ -753,7 +712,7 @@ body.cell-selecting,body.cell-selecting *{user-select:none !important}
         <section id="releaseTab" class="hidden">
             <div class="sheet-panel">
                 <div class="sheet-head">
-                    <div class="sheet-title">홀딩 세부내역</div>
+                    <div class="sheet-title">홀딩 해제 세부 내역</div>
                     <button type="button" class="btn" id="releaseAddRowBtn">+ 행 추가</button>
                 </div>
                 <div class="grid-wrap">
@@ -840,8 +799,7 @@ const state = {
     undoStack: [],
     redoStack: [],
     historyLock: false,
-    pendingEditHistoryKey: null,
-    dashboardSelectedKey: ''
+    pendingEditHistoryKey: null
 };
 
 const MODELS = ['IR-BASE','Z-CARRIER','X-CARRIER','Y-CARRIER','Z-STOPPER'];
@@ -877,8 +835,6 @@ const releaseColumns = [
 
 const els = {
     topTabs: Array.from(document.querySelectorAll('.top-tab')),
-    dashboardTab: document.getElementById('dashboardTab'),
-    dashboardRoot: document.getElementById('dashboardRoot'),
     toolTab: document.getElementById('toolTab'),
     releaseTab: document.getElementById('releaseTab'),
     toolModelTabs: document.getElementById('toolModelTabs'),
@@ -3404,7 +3360,7 @@ document.addEventListener('keydown', function(ev){
     if (!state.toolEditCell && !state.releaseEditCell && ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Enter','Tab','F2'].includes(ev.key)) {
         blurGridEditorFocus();
     }
-    const activeSheet = (els.releaseTab && !els.releaseTab.classList.contains('hidden')) ? 'release' : ((els.dashboardTab && !els.dashboardTab.classList.contains('hidden')) ? 'dashboard' : 'tool');
+    const activeSheet = els.releaseTab && !els.releaseTab.classList.contains('hidden') ? 'release' : 'tool';
 
     if (ev.key === 'F2') {
         if (activeSheet === 'tool') {
@@ -3430,7 +3386,6 @@ document.addEventListener('keydown', function(ev){
     }
 
     if (state.toolEditCell || state.releaseEditCell) return;
-    if (activeSheet === 'dashboard') return;
 
     let moved = false;
     if (activeSheet === 'tool') {
@@ -3454,7 +3409,7 @@ document.addEventListener('keydown', function(ev){
 });
 
 function getActiveSheetName(){
-    return (els.releaseTab && !els.releaseTab.classList.contains('hidden')) ? 'release' : ((els.dashboardTab && !els.dashboardTab.classList.contains('hidden')) ? 'dashboard' : 'tool');
+    return (els.releaseTab && !els.releaseTab.classList.contains('hidden')) ? 'release' : 'tool';
 }
 
 function copyToolSelectionToClipboard(){
@@ -3682,196 +3637,7 @@ function renderReleaseBody(){
     });
 }
 
-function dashboardEntryKey(row){
-    return [
-        normalizeText(row.part_name || ''),
-        normalizeText(row.item_code || ''),
-        normalizeText(row.tool_text || ''),
-        normalizeText(row.cavity_text || ''),
-        normalizeText(row.affect_lot_text || ''),
-        normalizeText(row.vendor_text || ''),
-        normalizeText(row.type_text || ''),
-        normalizeText(row.issue_description_text || '')
-    ].join('||');
-}
-
-function dashboardEntryTitle(row){
-    const tool = normalizeText(row.tool_text || '') || '-';
-    const cavity = normalizeText(row.cavity_text || '');
-    return cavity ? (tool + ' / ' + cavity) : tool;
-}
-
-function findMatchingReleaseLogs(entry){
-    if (!entry) return [];
-    return (state.releaseDetails || []).filter(function(row){
-        const parts = normalizeText(row.parts_name_text || '');
-        const partOk = !parts || parts === normalizeText(entry.item_code || '') || parts === normalizeText(entry.part_name || '');
-        return partOk
-            && normalizeText(row.tool_text || '') === normalizeText(entry.tool_text || '')
-            && normalizeText(row.cavity_text || '') === normalizeText(entry.cavity_text || '')
-            && normalizeText(row.vendor_text || '') === normalizeText(entry.vendor_text || '')
-            && normalizeText(row.affect_lot_text || '') === normalizeText(entry.affect_lot_text || '')
-            && normalizeText(row.type_text || '') === normalizeText(entry.type_text || '')
-            && normalizeText(row.issue_description_text || '') === normalizeText(entry.issue_description_text || '');
-    }).sort(function(a,b){
-        return ((Number(b.sort_order) || 0) - (Number(a.sort_order) || 0));
-    });
-}
-
-function renderDashboardLogPanel(entry, logs){
-    const panel = document.createElement('div');
-    panel.className = 'dashboard-log-panel';
-    const head = document.createElement('div');
-    head.className = 'dashboard-log-head';
-    const left = document.createElement('div');
-    const title = document.createElement('div');
-    title.className = 'dashboard-log-title';
-    title.textContent = '관련 로그';
-    const sub = document.createElement('div');
-    sub.className = 'dashboard-log-sub';
-    if (entry) {
-        sub.textContent = [
-            (normalizeText(entry.part_name || '') || '-') + ' · ' + dashboardEntryTitle(entry),
-            [normalizeText(entry.vendor_text || ''), normalizeText(entry.type_text || ''), normalizeText(entry.affect_lot_text || '')].filter(Boolean).join(' · '),
-            normalizeText(entry.issue_description_text || '') || '-'
-        ].filter(Boolean).join('\n');
-    } else {
-        sub.textContent = '출하불가 배지를 누르면 해당 건의 로그를 볼 수 있습니다.';
-    }
-    left.appendChild(title);
-    left.appendChild(sub);
-    head.appendChild(left);
-    panel.appendChild(head);
-    if (!entry) {
-        const empty = document.createElement('div');
-        empty.className = 'dashboard-log-empty';
-        empty.textContent = '선택된 홀딩 건이 없습니다.';
-        panel.appendChild(empty);
-        return panel;
-    }
-    if (!logs.length) {
-        const empty = document.createElement('div');
-        empty.className = 'dashboard-log-empty';
-        empty.textContent = '연결된 홀딩 세부내역 로그가 없습니다.';
-        panel.appendChild(empty);
-        return panel;
-    }
-    const list = document.createElement('div');
-    list.className = 'dashboard-log-list';
-    logs.forEach(function(row){
-        const item = document.createElement('div');
-        item.className = 'dashboard-log-item';
-        const top = document.createElement('div');
-        top.className = 'dashboard-log-item-top';
-        const status = document.createElement('div');
-        status.className = 'dashboard-log-badge' + (normalizeText(row.status_text || '').toLowerCase() === 'close' ? ' close' : '');
-        status.textContent = normalizeText(row.status_text || '') || '기록';
-        const kv = document.createElement('div');
-        kv.className = 'dashboard-log-kv';
-        kv.textContent = [
-            'Holding DATE: ' + (normalizeText(row.holding_date_text || '') || '-'),
-            'Release DATE: ' + (normalizeText(row.release_date_text || '') || '-'),
-            'Parts name: ' + (normalizeText(row.parts_name_text || '') || '-')
-        ].join('\n');
-        top.appendChild(status);
-        top.appendChild(kv);
-        item.appendChild(top);
-        const note = document.createElement('div');
-        note.className = 'dashboard-log-note';
-        note.textContent = normalizeText(row.note_text || '') || '비고 없음';
-        item.appendChild(note);
-        list.appendChild(item);
-    });
-    panel.appendChild(list);
-    return panel;
-}
-
-function renderDashboard(){
-    if (!els.dashboardRoot) return;
-    const root = els.dashboardRoot;
-    root.innerHTML = '';
-    const currentRows = (state.toolStatusRows || []).filter(function(row){
-        return anyFilled(row, ['tool_text','cavity_text','affect_lot_text','vendor_text','type_text','issue_description_text','remark_text']);
-    });
-    const ongoingCount = (state.releaseDetails || []).filter(function(row){ return normalizeText(row.status_text || '').toLowerCase() === 'ongoing'; }).length;
-    const closeCount = (state.releaseDetails || []).filter(function(row){ return normalizeText(row.status_text || '').toLowerCase() === 'close'; }).length;
-
-    const summary = document.createElement('div');
-    summary.className = 'dashboard-summary';
-    [
-        {title:'현재 출하불가', value:String(currentRows.length), sub:'Tool Status 기준 현재 활성 홀딩'},
-        {title:'진행중 로그', value:String(ongoingCount), sub:'홀딩 세부내역의 Ongoing'},
-        {title:'해제완료 로그', value:String(closeCount), sub:'홀딩 세부내역의 Close'}
-    ].forEach(function(card){
-        const el = document.createElement('div');
-        el.className = 'dashboard-card';
-        el.innerHTML = '<h3>' + card.title + '</h3><div class="dashboard-value">' + card.value + '</div><div class="dashboard-sub">' + card.sub + '</div>';
-        summary.appendChild(el);
-    });
-    root.appendChild(summary);
-
-    const board = document.createElement('div');
-    board.className = 'dashboard-board';
-    const grouped = buildToolGroups(currentRows);
-    let selectedEntry = null;
-
-    state.models.forEach(function(model){
-        const rows = grouped[model] || [];
-        if (!rows.length) return;
-        const modelWrap = document.createElement('div');
-        modelWrap.className = 'dashboard-model';
-        const head = document.createElement('div');
-        head.className = 'dashboard-model-head';
-        head.innerHTML = '<div class="dashboard-model-title">' + model + '</div><div class="dashboard-model-count">' + rows.length + '건</div>';
-        modelWrap.appendChild(head);
-        const grid = document.createElement('div');
-        grid.className = 'dashboard-grid';
-        rows.forEach(function(row){
-            const key = dashboardEntryKey(row);
-            if (!selectedEntry && state.dashboardSelectedKey && state.dashboardSelectedKey === key) selectedEntry = row;
-            const entry = document.createElement('div');
-            entry.className = 'dashboard-entry' + (state.dashboardSelectedKey === key ? ' active' : '');
-            const top = document.createElement('div');
-            top.className = 'dashboard-entry-top';
-            const left = document.createElement('div');
-            left.innerHTML = '<div class="dashboard-entry-title">' + dashboardEntryTitle(row) + '</div><div class="dashboard-entry-meta">' + [normalizeText(row.vendor_text || ''), normalizeText(row.type_text || ''), normalizeText(row.affect_lot_text || '')].filter(Boolean).join(' · ') + '</div>';
-            const statusBtn = document.createElement('button');
-            statusBtn.type = 'button';
-            statusBtn.className = 'dashboard-status-btn';
-            statusBtn.textContent = '출하불가';
-            statusBtn.addEventListener('click', function(ev){
-                ev.stopPropagation();
-                state.dashboardSelectedKey = key;
-                renderDashboard();
-            });
-            top.appendChild(left);
-            top.appendChild(statusBtn);
-            entry.appendChild(top);
-            const issue = document.createElement('div');
-            issue.className = 'dashboard-entry-issue';
-            issue.textContent = normalizeText(row.issue_description_text || '') || '-';
-            entry.appendChild(issue);
-            entry.addEventListener('click', function(){
-                state.dashboardSelectedKey = key;
-                renderDashboard();
-            });
-            grid.appendChild(entry);
-        });
-        modelWrap.appendChild(grid);
-        board.appendChild(modelWrap);
-    });
-    root.appendChild(board);
-
-    if (!selectedEntry && currentRows.length) {
-        if (!state.dashboardSelectedKey) state.dashboardSelectedKey = dashboardEntryKey(currentRows[0]);
-        selectedEntry = currentRows.find(function(row){ return dashboardEntryKey(row) === state.dashboardSelectedKey; }) || currentRows[0];
-    }
-    const logs = selectedEntry ? findMatchingReleaseLogs(selectedEntry) : [];
-    root.appendChild(renderDashboardLogPanel(selectedEntry, logs));
-}
-
 function renderCurrent(){
-    renderDashboard();
     renderToolStatus();
     renderReleaseBody();
     els.userLvBadge.textContent = 'LV ' + state.userLv;
@@ -3914,7 +3680,6 @@ function applyPayload(data){
     state.releaseSelection = null;
     state.toolEditCell = null;
     state.releaseEditCell = null;
-    state.dashboardSelectedKey = '';
     resetGridHistory();
     state.toolStatusRows.forEach(seedToolOriginals);
     state.releaseDetails.forEach(seedReleaseOriginals);
@@ -3984,14 +3749,13 @@ els.topTabs.forEach(function(btn){
     btn.addEventListener('click', function(){
         const tab = btn.getAttribute('data-tab');
         els.topTabs.forEach(function(x){ x.classList.toggle('active', x === btn); });
-        if (els.dashboardTab) els.dashboardTab.classList.toggle('hidden', tab !== 'dashboard');
         els.toolTab.classList.toggle('hidden', tab !== 'tool');
         els.releaseTab.classList.toggle('hidden', tab !== 'release');
         requestAnimationFrame(function(){
             if (tab === 'release') {
                 refreshReleaseTextareaHeights();
                 measureReleaseTable(els.releaseBody ? els.releaseBody.closest('table.release-table') : null);
-            } else if (tab === 'tool') {
+            } else {
                 measureToolTable(els.toolStatusRoot ? els.toolStatusRoot.querySelector('table.toolsheet') : null);
             }
         });
