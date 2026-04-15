@@ -1,16 +1,3 @@
-function dashboardEntryKey(row) {
-  return [
-    normalizeText(row.part_name || ''),
-    normalizeText(row.item_code || ''),
-    normalizeText(row.tool_text || ''),
-    normalizeText(row.cavity_text || ''),
-    normalizeText(row.affect_lot_text || ''),
-    normalizeText(row.vendor_text || ''),
-    normalizeText(row.type_text || ''),
-    normalizeText(row.issue_description_text || '')
-  ].join('||');
-}
-
 function dashboardFilterEls() {
   return {
     vendor: document.getElementById('dashboardVendorFilter'),
@@ -20,10 +7,8 @@ function dashboardFilterEls() {
 
 function dashboardRemoveAllOption(selectEl) {
   if (!selectEl) return;
-  Array.from(selectEl.options || []).forEach(function (opt) {
-    if (String(opt.value || '').toLowerCase() === 'all') {
-      opt.remove();
-    }
+  Array.from(selectEl.options || []).forEach(function(opt) {
+    if (String(opt.value || '').toLowerCase() === 'all') opt.remove();
   });
 }
 
@@ -33,14 +18,14 @@ function dashboardEnsureFilterDefaults() {
   dashboardRemoveAllOption(controls.status);
 
   if (controls.vendor && (!controls.vendor.value || String(controls.vendor.value).toLowerCase() === 'all')) {
-    const hasLg = Array.from(controls.vendor.options || []).some(function (opt) {
+    const hasLg = Array.from(controls.vendor.options || []).some(function(opt) {
       return String(opt.value || '').toLowerCase() === 'lg';
     });
     controls.vendor.value = hasLg ? 'lg' : ((controls.vendor.options[0] && controls.vendor.options[0].value) || '');
   }
 
   if (controls.status && (!controls.status.value || String(controls.status.value).toLowerCase() === 'all')) {
-    const hasBlocked = Array.from(controls.status.options || []).some(function (opt) {
+    const hasBlocked = Array.from(controls.status.options || []).some(function(opt) {
       return String(opt.value || '').toLowerCase() === 'blocked';
     });
     controls.status.value = hasBlocked ? 'blocked' : ((controls.status.options[0] && controls.status.options[0].value) || '');
@@ -49,25 +34,48 @@ function dashboardEnsureFilterDefaults() {
 
 function getDashboardVendorFilter() {
   const el = dashboardFilterEls().vendor;
-  return el ? String(el.value || 'lg') : 'lg';
+  return el ? String(el.value || 'lg').toLowerCase() : 'lg';
 }
 
 function getDashboardStatusFilter() {
   const el = dashboardFilterEls().status;
-  return el ? String(el.value || 'blocked') : 'blocked';
+  return el ? String(el.value || 'blocked').toLowerCase() : 'blocked';
 }
 
 function ensureDashboardFilterBindings() {
   const controls = dashboardFilterEls();
   dashboardEnsureFilterDefaults();
-  [controls.vendor, controls.status].forEach(function (el) {
+  [controls.vendor, controls.status].forEach(function(el) {
     if (!el || el.dataset.bound === '1') return;
     el.dataset.bound = '1';
-    el.addEventListener('change', function () {
+    el.addEventListener('change', function() {
       state.dashboardSelectedKey = '';
       renderDashboard();
     });
   });
+}
+
+function dashboardModelName(row) {
+  const raw = normalizeText((row && (row.parts_name_text || row.part_name)) || '').toUpperCase();
+  const compact = raw.replace(/[_\s]+/g, '-');
+  if (compact === 'IR-BASE' || compact === 'IRBASE') return 'IR-BASE';
+  if (compact === 'Z-CARRIER' || compact === 'ZCARRIER') return 'Z-CARRIER';
+  if (compact === 'X-CARRIER' || compact === 'XCARRIER') return 'X-CARRIER';
+  if (compact === 'Y-CARRIER' || compact === 'YCARRIER') return 'Y-CARRIER';
+  if (compact === 'Z-STOPPER' || compact === 'ZSTOPPER') return 'Z-STOPPER';
+  return compact || raw || '';
+}
+
+function dashboardEntryKey(row) {
+  return [
+    dashboardModelName(row),
+    normalizeText(row.tool_text || ''),
+    normalizeText(row.cavity_text || ''),
+    normalizeText(row.vendor_text || ''),
+    normalizeText(row.affect_lot_text || ''),
+    normalizeText(row.type_text || ''),
+    normalizeText(row.issue_description_text || '')
+  ].join('||');
 }
 
 function dashboardEntryTitle(row) {
@@ -76,46 +84,46 @@ function dashboardEntryTitle(row) {
   return cavity ? (tool + ' / ' + cavity) : tool;
 }
 
+function dashboardHasHoldContent(row) {
+  return anyFilled(row, [
+    'tool_text',
+    'cavity_text',
+    'vendor_text',
+    'affect_lot_text',
+    'type_text',
+    'issue_description_text',
+    'status_text',
+    'holding_date_text',
+    'release_date_text',
+    'note_text'
+  ]);
+}
+
+function dashboardSortValue(row) {
+  return (Number(row.sort_order) || 0) * 1000000 + (Number(row.id) || 0);
+}
+
 function findMatchingReleaseLogs(entry) {
   if (!entry) return [];
-  return (state.releaseDetails || []).filter(function (row) {
-    const parts = normalizeText(row.parts_name_text || '');
-    const partOk = !parts || parts === normalizeText(entry.item_code || '') || parts === normalizeText(entry.part_name || '');
-    return partOk &&
-      normalizeText(row.tool_text || '') === normalizeText(entry.tool_text || '') &&
-      normalizeText(row.cavity_text || '') === normalizeText(entry.cavity_text || '') &&
-      normalizeText(row.vendor_text || '') === normalizeText(entry.vendor_text || '') &&
-      normalizeText(row.affect_lot_text || '') === normalizeText(entry.affect_lot_text || '') &&
-      normalizeText(row.type_text || '') === normalizeText(entry.type_text || '') &&
-      normalizeText(row.issue_description_text || '') === normalizeText(entry.issue_description_text || '');
-  }).sort(function (a, b) {
-    return ((Number(b.sort_order) || 0) - (Number(a.sort_order) || 0));
+  const key = dashboardEntryKey(entry);
+  return (state.releaseDetails || []).filter(function(row) {
+    return dashboardEntryKey(row) === key;
+  }).sort(function(a, b) {
+    return dashboardSortValue(b) - dashboardSortValue(a);
   });
 }
 
-function dashboardHasHoldContent(row) {
-  return anyFilled(row, ['cavity_text', 'affect_lot_text', 'vendor_text', 'type_text', 'issue_description_text', 'remark_text']);
-}
-
 function getDashboardStatusInfo(row, logs) {
-  const latest = logs && logs.length ? normalizeText(logs[0].status_text || '').toLowerCase() : '';
-  const hasHold = dashboardHasHoldContent(row);
-  if (latest === 'ongoing') {
-    return { code: 'blocked', label: '출하불가' };
-  }
-  if (latest === 'close' && !hasHold) {
-    return { code: 'available', label: '출하가능' };
-  }
-  if (hasHold) {
-    return { code: 'blocked', label: '출하불가' };
-  }
+  const latest = logs && logs.length ? normalizeText(logs[0].status_text || '').toLowerCase() : normalizeText(row.status_text || '').toLowerCase();
+  if (latest === 'close') return { code: 'available', label: '출하가능' };
+  if (latest === 'ongoing') return { code: 'blocked', label: '출하불가' };
+  if (dashboardHasHoldContent(row)) return { code: 'blocked', label: '출하불가' };
   return { code: 'available', label: '출하가능' };
 }
 
 function dashboardVendorMatches(row, selected) {
   if (!selected) return true;
-  if (selected === 'all') return true;
-  const vendor = normalizeText(row.vendor_text || '');
+  const vendor = normalizeText(row.vendor_text || '').toLowerCase();
   if (!vendor) return true;
   return vendor === selected;
 }
@@ -136,7 +144,7 @@ function renderDashboardLogPanel(entry, logs) {
   sub.className = 'dashboard-log-sub';
   if (entry) {
     sub.textContent = [
-      (normalizeText(entry.part_name || '') || '-') + ' · ' + dashboardEntryTitle(entry),
+      (dashboardModelName(entry) || '-') + ' · ' + dashboardEntryTitle(entry),
       [normalizeText(entry.vendor_text || ''), normalizeText(entry.type_text || ''), normalizeText(entry.affect_lot_text || '')].filter(Boolean).join(' · '),
       normalizeText(entry.issue_description_text || '') || '-'
     ].filter(Boolean).join('\n');
@@ -167,7 +175,8 @@ function renderDashboardLogPanel(entry, logs) {
 
   const list = document.createElement('div');
   list.className = 'dashboard-log-list';
-  logs.forEach(function (row) {
+
+  logs.forEach(function(row) {
     const item = document.createElement('div');
     item.className = 'dashboard-log-item';
 
@@ -202,6 +211,32 @@ function renderDashboardLogPanel(entry, logs) {
   return panel;
 }
 
+function dashboardBuildEntries() {
+  const grouped = Object.create(null);
+  (state.releaseDetails || []).forEach(function(row) {
+    if (!dashboardHasHoldContent(row)) return;
+    const model = dashboardModelName(row);
+    if (!model) return;
+    const key = dashboardEntryKey(row);
+    const prev = grouped[key];
+    if (!prev || dashboardSortValue(row) > dashboardSortValue(prev)) {
+      grouped[key] = row;
+    }
+  });
+  return Object.keys(grouped).map(function(key) { return grouped[key]; });
+}
+
+function dashboardGroupByModel(rows) {
+  const out = {};
+  (state.models || []).forEach(function(model) { out[model] = []; });
+  rows.forEach(function(row) {
+    const model = dashboardModelName(row);
+    if (!out[model]) out[model] = [];
+    out[model].push(row);
+  });
+  return out;
+}
+
 function renderDashboard() {
   if (!els.dashboardRoot) return;
 
@@ -214,30 +249,28 @@ function renderDashboard() {
   const vendorFilter = getDashboardVendorFilter();
   const statusFilter = getDashboardStatusFilter();
 
-  const allRows = (state.toolStatusRows || []).filter(function (row) {
-    return normalizeText(row.tool_text || '') !== '' || dashboardHasHoldContent(row);
-  });
-
+  const allRows = dashboardBuildEntries();
   const blockedRows = [];
   const availableRows = [];
   const visibleRows = [];
 
-  allRows.forEach(function (row) {
+  allRows.forEach(function(row) {
     const logs = findMatchingReleaseLogs(row);
     const status = getDashboardStatusInfo(row, logs);
+
     if (status.code === 'blocked') blockedRows.push(row);
     else availableRows.push(row);
 
     if (!dashboardVendorMatches(row, vendorFilter)) return;
-    if (statusFilter && statusFilter !== 'all' && status.code !== statusFilter) return;
+    if (statusFilter && status.code !== statusFilter) return;
     visibleRows.push(row);
   });
 
-  const ongoingCount = (state.releaseDetails || []).filter(function (row) {
+  const ongoingCount = (state.releaseDetails || []).filter(function(row) {
     return normalizeText(row.status_text || '').toLowerCase() === 'ongoing';
   }).length;
 
-  const closeCount = (state.releaseDetails || []).filter(function (row) {
+  const closeCount = (state.releaseDetails || []).filter(function(row) {
     return normalizeText(row.status_text || '').toLowerCase() === 'close';
   }).length;
 
@@ -245,10 +278,10 @@ function renderDashboard() {
   summary.className = 'dashboard-summary';
 
   [
-    { title: '현재 출하불가', value: String(blockedRows.length), sub: 'Tool Status 기준 현재 활성 홀딩' },
+    { title: '현재 출하불가', value: String(blockedRows.length), sub: '홀딩 세부내역 기준 현재 활성 홀딩' },
     { title: '진행중 로그', value: String(ongoingCount), sub: '홀딩 세부내역의 Ongoing' },
     { title: '해제완료 로그', value: String(closeCount), sub: '홀딩 세부내역의 Close' }
-  ].forEach(function (card) {
+  ].forEach(function(card) {
     const el = document.createElement('div');
     el.className = 'dashboard-card';
 
@@ -273,10 +306,10 @@ function renderDashboard() {
 
   const board = document.createElement('div');
   board.className = 'dashboard-board';
-  const grouped = buildToolGroups(visibleRows);
+  const grouped = dashboardGroupByModel(visibleRows);
   let selectedEntry = null;
 
-  state.models.forEach(function (model) {
+  (state.models || []).forEach(function(model) {
     const rows = grouped[model] || [];
     if (!rows.length) return;
 
@@ -301,10 +334,11 @@ function renderDashboard() {
     const grid = document.createElement('div');
     grid.className = 'dashboard-grid';
 
-    rows.forEach(function (row) {
+    rows.forEach(function(row) {
       const key = dashboardEntryKey(row);
       const logs = findMatchingReleaseLogs(row);
       const status = getDashboardStatusInfo(row, logs);
+
       if (!selectedEntry && state.dashboardSelectedKey && state.dashboardSelectedKey === key) {
         selectedEntry = row;
       }
@@ -316,17 +350,14 @@ function renderDashboard() {
       top.className = 'dashboard-entry-top';
 
       const left = document.createElement('div');
+
       const entryTitle = document.createElement('div');
       entryTitle.className = 'dashboard-entry-title';
       entryTitle.textContent = dashboardEntryTitle(row);
 
       const meta = document.createElement('div');
       meta.className = 'dashboard-entry-meta';
-      meta.textContent = [
-        normalizeText(row.vendor_text || ''),
-        normalizeText(row.type_text || ''),
-        normalizeText(row.affect_lot_text || '')
-      ].filter(Boolean).join(' · ');
+      meta.textContent = [normalizeText(row.vendor_text || ''), normalizeText(row.type_text || ''), normalizeText(row.affect_lot_text || '')].filter(Boolean).join(' · ');
 
       left.appendChild(entryTitle);
       left.appendChild(meta);
@@ -335,7 +366,7 @@ function renderDashboard() {
       statusBtn.type = 'button';
       statusBtn.className = 'dashboard-status-btn' + (status.code === 'available' ? ' available' : '');
       statusBtn.textContent = status.label;
-      statusBtn.addEventListener('click', function (ev) {
+      statusBtn.addEventListener('click', function(ev) {
         ev.stopPropagation();
         state.dashboardSelectedKey = key;
         renderDashboard();
@@ -350,7 +381,7 @@ function renderDashboard() {
       issue.textContent = normalizeText(row.issue_description_text || '') || '-';
       entry.appendChild(issue);
 
-      entry.addEventListener('click', function () {
+      entry.addEventListener('click', function() {
         state.dashboardSelectedKey = key;
         renderDashboard();
       });
@@ -373,7 +404,7 @@ function renderDashboard() {
 
   if (!selectedEntry && visibleRows.length) {
     if (!state.dashboardSelectedKey) state.dashboardSelectedKey = dashboardEntryKey(visibleRows[0]);
-    selectedEntry = visibleRows.find(function (row) {
+    selectedEntry = visibleRows.find(function(row) {
       return dashboardEntryKey(row) === state.dashboardSelectedKey;
     }) || visibleRows[0];
   }
