@@ -1279,6 +1279,13 @@ function oqc_pick_best_header_kind_by_source_files(PDO $pdo, array $meta, string
     $where[] = "UPPER(TRIM(h.`{$colKind}`)) = :kind";
     $params[':kind'] = $kindWanted;
 
+    // ✅ PASS0/일반 kind 선택도 현재 납품처의 1차 미사용만 대상으로 해야 한다.
+    // - shipinglist_export_lotlist.php 에서 JAWHA는 meta['h']['meas_date']를 jmeas_date로 alias 해둔다.
+    // - 따라서 여기서는 meta 기준의 meas_date 컬럼이 NULL 인 것만 고르면 된다.
+    if ($colMeas) {
+        $where[] = "h.`{$colMeas}` IS NULL";
+    }
+
     if ($colTc) {
         $params[':tc'] = $tcNorm;
         $params[':tc_like'] = $tcNorm . '%';
@@ -1341,7 +1348,7 @@ function oqc_pick_best_header_kind_by_source_files(PDO $pdo, array $meta, string
     $order = [];
     // ✅ 입력된 source_file 순서대로 스캔하기 위해 FIELD 우선 적용
     $order[] = "FIELD(h.`{$colSrc}`," . implode(',', $sfPh) . ") ASC";
-    if ($colMeas) $order[] = "h.`{$colMeas}` DESC";
+    // meas_date는 이미 NULL 집합만 보므로, 최신 업로드(id DESC)만 남기면 된다.
     $order[] = "h.`{$colId}` DESC";
 
     // NG 판정(템플릿 B열(point_no)만 체크)
@@ -1979,26 +1986,29 @@ function oqc_pick_emergency_and_consume_v712(PDO $pdo, array $meta, string $part
     $h = $meta['h'] ?? [];
     if (!$tHeader || !$h) return null;
 
-    $hId   = $h['id']        ?? 'id';
-    $hPart = $h['part_name'] ?? 'part_name';
-    $hKind = $h['kind']      ?? null;
-    $hSrc  = $h['source_file'] ?? null;
-    $hDate = $h['date'] ?? null;
-    $hMeas = $h['meas_date'] ?? null;
-    $hMeas2= $h['meas_date2']?? null;
-$dbg = (int)($GLOBALS['OQC_DEBUG'] ?? 0);
+    $hId    = $h['id']          ?? 'id';
+    $hPart  = $h['part_name']   ?? 'part_name';
+    $hKind  = $h['kind']        ?? null;
+    $hSrc   = $h['source_file'] ?? null;
+    $hDate  = $h['date']        ?? null;
+    $hMeas  = $h['meas_date']   ?? null;
+    $hMeas2 = $h['meas_date2']  ?? null;
+    $dbg = (int)($GLOBALS['OQC_DEBUG'] ?? 0);
 
     // tool#cavity 기반(우선 tc)
     $hTc   = $h['tc']    ?? null;
     $hTool = $h['tool']  ?? null;
     $hCav  = $h['cavity']?? null;
 
-    if (!$hPart || !$hId || !$hMeas || !$hMeas2 || !$hDate) return null;
+    // PASS3는 반드시 "1차 사용(meas_date/jmeas_date)이 이미 찍힌" 후보만 재사용해야 한다.
+    // 따라서 hDate(생산일) 유무와 무관하게 hMeas/hMeas2만 있으면 동작 가능해야 한다.
+    if (!$hPart || !$hId || !$hMeas || !$hMeas2) return null;
 
     $tcNorm = normalize_tool_cavity_key($toolCavity);
     if ($tcNorm === '') return null;
 
-    // 긴급 재사용 범위: header.date BETWEEN (base-60일) AND (base-30일), meas_date2 IS NULL
+    // 긴급 재사용 범위: 1차 사용일(meas_date)이 base-60일 ~ base-30일 사이이고,
+    // 2차 사용일(meas_date2)은 아직 비어 있는 후보만 허용.
     $tz = new DateTimeZone('Asia/Seoul');
     $baseYmd = (is_string($refDate) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $refDate) === 1) ? $refDate : 'now';
     $today = new DateTime($baseYmd, $tz);
@@ -2013,7 +2023,7 @@ $dbg = (int)($GLOBALS['OQC_DEBUG'] ?? 0);
     if ($dbg) {
         $k = $kindWanted ? $kindWanted : 'ANY';
         $dk = $disallowKinds ? implode(',', $disallowKinds) : '';
-        logline("    [DEBUG] PASS3 try: part={$part} tc={$tcNorm} kind={$k} disallow={$dk} range={$from}~{$to} dateCol=" . ($hDate ?: 'null') . " meas2Col=" . ($hMeas2 ?: 'null'));
+        logline("    [DEBUG] PASS3 try: part={$part} tc={$tcNorm} kind={$k} disallow={$dk} range={$from}~{$to} measCol=" . ($hMeas ?: 'null') . " meas2Col=" . ($hMeas2 ?: 'null') . " dateCol=" . ($hDate ?: 'null'));
     }
 
 
@@ -2056,7 +2066,11 @@ $dbg = (int)($GLOBALS['OQC_DEBUG'] ?? 0);
         $params[':kw'] = $kindWanted;
     }
 
-    $where[] = "h.`{$hDate}` BETWEEN :from AND :to";
+    // ✅ PASS3는 생산일(date)이 아니라 1차 사용일(meas_date) 기준으로 윈도우를 본다.
+    $where[] = "h.`{$hMeas}` IS NOT NULL";
+    $where[] = "h.`{$hMeas}` <> ''";
+    $where[] = "h.`{$hMeas}` <> '0000-00-00'";
+    $where[] = "h.`{$hMeas}` BETWEEN :from AND :to";
     $where[] = "h.`{$hMeas2}` IS NULL";
     $params[':from'] = $from;
     $params[':to']   = $to;
@@ -2134,26 +2148,36 @@ $dbg = (int)($GLOBALS['OQC_DEBUG'] ?? 0);
         if ($dbg) {
             $src = isset($row["source_file"]) ? $row["source_file"] : "";
             $k = isset($row["kind"]) ? $row["kind"] : "";
-            logline("    [DEBUG] PASS3 picked: tc={$tryTc} hid=" . ($row["hid"] ?? "") . " kind=" . $k . " src=" . $src . " useTemplateNg=" . ($useTemplateNg ? "Y" : "N"));
+            logline("    [DEBUG] PASS3 picked: tc={$tcNorm} hid=" . ($row["hid"] ?? "") . " kind=" . $k . " src=" . $src . " useTemplateNg=" . ($useTemplateNg ? "Y" : "N"));
         }
 
 
         $hid = (int)($row['hid'] ?? 0);
         if ($hid <= 0) { $pdo->rollBack(); return null; }
         $refMark = $today->format('Y-m-d');
-        $meas1Val = isset($row['meas_date']) ? (string)$row['meas_date'] : '';
+        $meas1Val = isset($row['meas_date']) ? trim((string)$row['meas_date']) : '';
         $meas1Empty = ($meas1Val === '' || $meas1Val === '0000-00-00');
 
-        if ($meas1Empty && $hMeas) {
-            $upd = $pdo->prepare("UPDATE `{$tHeader}` SET `{$hMeas}` = :m1 WHERE `{$hId}` = :id AND `{$hMeas}` IS NULL");
-            $upd->execute([':m1' => $refMark, ':id' => $hid]);
-        } else if ($hMeas2) {
-            $upd = $pdo->prepare("UPDATE `{$tHeader}` SET `{$hMeas2}` = :m2 WHERE `{$hId}` = :id AND `{$hMeas2}` IS NULL");
-            $upd->execute([':m2' => $refMark, ':id' => $hid]);
-        } else {
+        // PASS3로 선택된 후보는 반드시 1차 사용일이 있어야 한다.
+        // 여기서 비어 있으면 잘못된 후보가 섞인 것이므로 2차 마킹을 하지 않고 실패 처리한다.
+        if ($meas1Empty) {
+            if ($dbg) {
+                logline("    [DEBUG] PASS3 picked row has empty meas_date -> rollback");
+            }
             $pdo->rollBack();
             return null;
         }
+
+        $upd = $pdo->prepare(
+            "UPDATE `{$tHeader}`"
+          . " SET `{$hMeas2}` = :m2"
+          . " WHERE `{$hId}` = :id"
+          . "   AND `{$hMeas2}` IS NULL"
+          . "   AND `{$hMeas}` IS NOT NULL"
+          . "   AND `{$hMeas}` <> ''"
+          . "   AND `{$hMeas}` <> '0000-00-00'"
+        );
+        $upd->execute([':m2' => $refMark, ':id' => $hid]);
 
         if ($upd->rowCount() <= 0) {
             $pdo->rollBack();
@@ -2161,8 +2185,8 @@ $dbg = (int)($GLOBALS['OQC_DEBUG'] ?? 0);
         }
         $pdo->commit();
 
-        // ✅ 마킹 로그(취소 롤백용): 실제로 업데이트된 컬럼/날짜를 header_id별로 기록
-        $updatedCol = ($meas1Empty && $hMeas) ? (string)$hMeas : (string)$hMeas2;
+        // ✅ 마킹 로그(취소 롤백용): PASS3는 항상 meas_date2 / jmeas_date2 로 기록한다.
+        $updatedCol = (string)$hMeas2;
         if ($updatedCol !== '' && function_exists('oqc_marklog_add')) {
             oqc_marklog_add($hid, $updatedCol, $refMark, [
                 'type' => 'PASS3-EMG',
