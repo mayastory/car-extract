@@ -5304,12 +5304,36 @@ foreach ($dateList as $prodDate) {
         $deferredDupTcQueue = [];
         $deferredDupIdx = 0;
 
+        // 수동 발행은 허용된 Tool#Cavity 범위 안에서 PASS3가 같은 tc를 반복 재사용해도
+        // 남은 칸을 최대한 끝까지 채우는 것이 맞다.
+        // 따라서 empty slot 보강 시에는 "새 tc 다양성"을 먼저 시도하되,
+        // 고유 tc 풀이 소진되면 allowedTcSet/기존 배치 tc를 다시 재사용하는 fallback 후보를 준비한다.
+        $pass3DupReuseTcList = [];
+        $pushPass3DupTc = static function(string $tc) use (&$pass3DupReuseTcList, $allowedTcSet): void {
+            $norm = normalize_tool_cavity_key($tc);
+            if ($norm === '') return;
+            if (!empty($allowedTcSet) && !isset($allowedTcSet[$norm])) return;
+            if (!isset($pass3DupReuseTcList[$norm])) $pass3DupReuseTcList[$norm] = $norm;
+        };
+
         if (!empty($pass2DeferredDup)) {
             foreach ($pass2DeferredDup as $defer) {
                 $candTc = normalize_tool_cavity_key((string)($defer[1] ?? ''));
                 if ($candTc === '') continue;
                 if (!empty($allowedTcSet) && !isset($allowedTcSet[$candTc])) continue;
                 $deferredDupTcQueue[] = $candTc;
+                $pushPass3DupTc($candTc);
+            }
+        }
+
+        for ($ii = 0; $ii < 32; $ii++) {
+            $tcExist = trim((string)($toolPairs[$ii] ?? ''));
+            if ($tcExist === '') continue;
+            $pushPass3DupTc($tcExist);
+        }
+        if (!empty($allowedTcSet)) {
+            foreach (array_keys($allowedTcSet) as $tcAllowed) {
+                $pushPass3DupTc((string)$tcAllowed);
             }
         }
 
@@ -5379,6 +5403,29 @@ foreach ($dateList as $prodDate) {
                     $tc = $pickedTc;
                     $toolPairs[$i] = $tc;
                 } else {
+                    // 고유 tc 풀이 소진된 경우에는 허용된 tc를 다시 재사용해서라도
+                    // PASS3를 끝까지 시도한다. (예: 수동 D#4 단일 발행)
+                    foreach ($pass3DupReuseTcList as $dupTc) {
+                        $dupNorm = normalize_tool_cavity_key((string)$dupTc);
+                        if ($dupNorm === '') continue;
+                        if (!empty($allowedTcSet) && !isset($allowedTcSet[$dupNorm])) continue;
+
+                        if ($i < $reservedFaiCols) {
+                            $pickDupE = oqc_pick_emergency_and_consume_v712($pdo, $meta, $part, $dupNorm, 'FAI', $tmplNgMap, null, $shippingDateStr);
+                        } else {
+                            $pickDupE = oqc_pick_emergency_and_consume_v712($pdo, $meta, $part, $dupNorm, 'SPC', $tmplNgMap, ['FAI'], $shippingDateStr);
+                            if (!$pickDupE) $pickDupE = oqc_pick_emergency_and_consume_v712($pdo, $meta, $part, $dupNorm, null, $tmplNgMap, ['FAI'], $shippingDateStr);
+                        }
+                        if (!$pickDupE) continue;
+
+                        $toolPairs[$i]  = $dupNorm;
+                        $headerIds[$i]  = (int)($pickDupE['id'] ?? 0);
+                        $kinds[$i]      = strtoupper(trim((string)($pickDupE['kind'] ?? '')));
+                        $sourceTags[$i] = (string)($pickDupE['src_tag'] ?? '');
+                        $emgUsed++;
+                        continue 2;
+                    }
+
                     $emgMiss[] = '(EMPTY)';
                     continue;
                 }
