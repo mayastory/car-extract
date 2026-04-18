@@ -5308,7 +5308,10 @@ foreach ($dateList as $prodDate) {
     if (!$canEmergency) {
         logline("  - [경고] meas_date2 컬럼이 없어 v7.13 긴급 보강을 스킵합니다.");
     } else {
-        // ✅ PASS3가 비어있는 슬롯(tc='')도 채울 수 있도록: 긴급 풀에서 TC 후보를 미리 수집
+
+        // PASS3는 2단계로 처리한다.
+        //  1) 오늘~N일 범위 안의 같은 Tool#Cavity 1차 미사용(row: meas_date IS NULL)을 먼저 최대한 소진
+        //  2) 그래도 부족하면 기존 긴급 2차 재사용(meas_date2 / jmeas_date2)로 보강
         $usedTcNorm = [];
         $emptySlots = 0;
         for ($i = 0; $i < 32; $i++) {
@@ -5322,158 +5325,224 @@ foreach ($dateList as $prodDate) {
             }
         }
 
+        $pass3RangeCnt = 0;
+        $pass3Stage1ConsumedIds = [];
+
+        $stage1Days = max(1, (int)($GLOBALS['OQC_EMG_FROM_DAYS'] ?? 60));
+        $stage1RefDate = (is_string($shippingDateStr) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $shippingDateStr))
+            ? $shippingDateStr
+            : date('Y-m-d');
+        $stage1Dates = [];
+        try {
+            $tzPass3 = new DateTimeZone('Asia/Seoul');
+            $dtPass3 = new DateTime($stage1RefDate, $tzPass3);
+            for ($dd = 0; $dd <= $stage1Days; $dd++) {
+                $stage1Dates[] = (clone $dtPass3)->modify('-' . $dd . ' days')->format('Y-m-d');
+            }
+        } catch (Throwable $e) {
+            $stage1Dates[] = $stage1RefDate;
+        }
+
+        $stage1RowsCache = [];
+        $getStage1Rows = function(string $prodDate, ?string $kindWanted, ?array $disallowKinds = null) use ($pdo, $meta, $part, $tmplNgMap, &$stage1RowsCache): array {
+            $kindKey = $kindWanted !== null ? strtoupper(trim($kindWanted)) : '*';
+            $disKey = '';
+            if (is_array($disallowKinds) && $disallowKinds) {
+                $tmp = [];
+                foreach ($disallowKinds as $dk) {
+                    $dk = strtoupper(trim((string)$dk));
+                    if ($dk !== '') $tmp[$dk] = true;
+                }
+                if ($tmp) {
+                    $ks = array_keys($tmp);
+                    sort($ks, SORT_STRING);
+                    $disKey = implode(',', $ks);
+                }
+            }
+            $cacheKey = $prodDate . '|' . $kindKey . '|' . $disKey;
+            if (!array_key_exists($cacheKey, $stage1RowsCache)) {
+                $stage1RowsCache[$cacheKey] = oqc_pick_any_headers_for_part(
+                    $pdo,
+                    $meta,
+                    $part,
+                    $kindWanted,
+                    600,
+                    [],
+                    true,
+                    $prodDate,
+                    $tmplNgMap,
+                    $disallowKinds
+                );
+            }
+            return is_array($stage1RowsCache[$cacheKey]) ? $stage1RowsCache[$cacheKey] : [];
+        };
+
+        $pickStage1SameTc = function(string $tcWanted, ?string $kindWanted, ?array $disallowKinds = null) use ($pdo, $meta, $part, $shippingDateStr, &$pass3Stage1ConsumedIds, $stage1Dates, $getStage1Rows): ?array {
+            $tcWantedNorm = normalize_tool_cavity_key($tcWanted);
+            if ($tcWantedNorm === '') return null;
+            foreach ($stage1Dates as $pd) {
+                $rows = $getStage1Rows($pd, $kindWanted, $disallowKinds);
+                if (!$rows) continue;
+                foreach ($rows as $rr) {
+                    $hid = (int)($rr['_hid'] ?? 0);
+                    if ($hid <= 0 || isset($pass3Stage1ConsumedIds[$hid])) continue;
+                    $tcRow = normalize_tool_cavity_key((string)($rr['_tc'] ?? ''));
+                    if ($tcRow === '' || $tcRow !== $tcWantedNorm) continue;
+                    $reservedNow = oqc_reserve_headers_meas_date_v712($pdo, $meta, [$hid], $shippingDateStr, $part, 'PASS3-RANGE');
+                    if ($reservedNow <= 0) continue;
+                    $pass3Stage1ConsumedIds[$hid] = true;
+                    return [
+                        'id' => $hid,
+                        'kind' => strtoupper(trim((string)($rr['_kind'] ?? ''))),
+                        'src_tag' => (string)($rr['_tag'] ?? ''),
+                        'source_file' => (string)($rr['_src'] ?? ''),
+                    ];
+                }
+            }
+            return null;
+        };
+
+        $buildStage1TcPool = function(?string $kindWanted, ?array $disallowKinds = null) use ($stage1Dates, $getStage1Rows, $allowedTcSet): array {
+            $seen = [];
+            $out = [];
+            foreach ($stage1Dates as $pd) {
+                $rows = $getStage1Rows($pd, $kindWanted, $disallowKinds);
+                if (!$rows) continue;
+                foreach ($rows as $rr) {
+                    $tc = normalize_tool_cavity_key((string)($rr['_tc'] ?? ''));
+                    if ($tc === '') continue;
+                    if (!empty($allowedTcSet) && !isset($allowedTcSet[$tc])) continue;
+                    if (isset($seen[$tc])) continue;
+                    $seen[$tc] = true;
+                    $out[] = $tc;
+                }
+            }
+            return $out;
+        };
+
+        $stage1PoolAnyNoFai = [];
+        $stage1PoolFai = [];
+        if ($emptySlots > 0) {
+            $stage1PoolAnyNoFai = $buildStage1TcPool(null, ['FAI']);
+            $stage1PoolFai      = $buildStage1TcPool('FAI', null);
+        }
+
         $emgPoolAnyNoFai = [];
         $emgPoolFai = [];
-        $poolIdxAny = 0;
-        $poolIdxFai = 0;
-        $deferredDupTcQueue = [];
-        $deferredDupIdx = 0;
+        if ($emptySlots > 0 && function_exists('oqc_emg_list_tc_candidates_v48')) {
+            $emgPoolAnyNoFai = oqc_emg_list_tc_candidates_v48($pdo, $meta, $part, null, ['FAI'], $shippingDateStr, 1200);
+            $emgPoolFai      = oqc_emg_list_tc_candidates_v48($pdo, $meta, $part, 'FAI', null, $shippingDateStr, 1200);
+            if ($DEBUG) {
+                logline("  [DEBUG] PASS3 tc pool: emptySlots={$emptySlots} stage1AnyNoFai=" . count($stage1PoolAnyNoFai) . " stage1Fai=" . count($stage1PoolFai) . " emgAnyNoFai=" . count($emgPoolAnyNoFai) . " emgFai=" . count($emgPoolFai) . " usedTc=" . count($usedTcNorm));
+            }
+        }
 
-        // 수동 발행은 허용된 Tool#Cavity 범위 안에서 PASS3가 같은 tc를 반복 재사용해도
-        // 남은 칸을 최대한 끝까지 채우는 것이 맞다.
-        // 따라서 empty slot 보강 시에는 "새 tc 다양성"을 먼저 시도하되,
-        // 고유 tc 풀이 소진되면 allowedTcSet/기존 배치 tc를 다시 재사용하는 fallback 후보를 준비한다.
-        $pass3DupReuseTcList = [];
-        $pushPass3DupTc = static function(string $tc) use (&$pass3DupReuseTcList, $allowedTcSet): void {
+        $pass3ReuseTcPool = [];
+        $pushPass3ReuseTc = static function(string $tc) use (&$pass3ReuseTcPool, $allowedTcSet): void {
             $norm = normalize_tool_cavity_key($tc);
             if ($norm === '') return;
             if (!empty($allowedTcSet) && !isset($allowedTcSet[$norm])) return;
-            if (!isset($pass3DupReuseTcList[$norm])) $pass3DupReuseTcList[$norm] = $norm;
+            if (!isset($pass3ReuseTcPool[$norm])) $pass3ReuseTcPool[$norm] = $norm;
         };
-
-        if (!empty($pass2DeferredDup)) {
-            foreach ($pass2DeferredDup as $defer) {
-                $candTc = normalize_tool_cavity_key((string)($defer[1] ?? ''));
-                if ($candTc === '') continue;
-                if (!empty($allowedTcSet) && !isset($allowedTcSet[$candTc])) continue;
-                $deferredDupTcQueue[] = $candTc;
-                $pushPass3DupTc($candTc);
-            }
-        }
-
         for ($ii = 0; $ii < 32; $ii++) {
             $tcExist = trim((string)($toolPairs[$ii] ?? ''));
-            if ($tcExist === '') continue;
-            $pushPass3DupTc($tcExist);
+            if ($tcExist !== '') $pushPass3ReuseTc($tcExist);
         }
         if (!empty($allowedTcSet)) {
             foreach (array_keys($allowedTcSet) as $tcAllowed) {
-                $pushPass3DupTc((string)$tcAllowed);
+                $pushPass3ReuseTc((string)$tcAllowed);
             }
         }
 
-        if ($emptySlots > 0 && function_exists('oqc_emg_list_tc_candidates_v48')) {
-            // non-reserved: FAI는 제외하고(SPC 우선 포함) 전체 kind에서 후보 수집
-            $emgPoolAnyNoFai = oqc_emg_list_tc_candidates_v48($pdo, $meta, $part, null, ['FAI'], $shippingDateStr, 1200);
-            // reserved FAI: FAI만 후보 수집
-            $emgPoolFai      = oqc_emg_list_tc_candidates_v48($pdo, $meta, $part, 'FAI', null, $shippingDateStr, 1200);
-            if ($DEBUG) {
-                logline("  [DEBUG] PASS3 tc pool: emptySlots={$emptySlots} poolAnyNoFai=" . count($emgPoolAnyNoFai) . " poolFai=" . count($emgPoolFai) . " usedTc=" . count($usedTcNorm) . " deferredDup=" . count($deferredDupTcQueue));
-            }
-        }
+        $buildPass3TcCandidates = function(bool $isReserved) use (&$usedTcNorm, $stage1PoolAnyNoFai, $stage1PoolFai, $emgPoolAnyNoFai, $emgPoolFai, $pass3ReuseTcPool, $allowedTcSet): array {
+            $out = [];
+            $seen = [];
+            $append = static function(string $tc, bool $skipUsed) use (&$out, &$seen, &$usedTcNorm, $allowedTcSet): void {
+                $norm = normalize_tool_cavity_key($tc);
+                if ($norm === '') return;
+                if (!empty($allowedTcSet) && !isset($allowedTcSet[$norm])) return;
+                if ($skipUsed && isset($usedTcNorm[$norm])) return;
+                if (isset($seen[$norm])) return;
+                $seen[$norm] = true;
+                $out[] = $norm;
+            };
+            $primary = $isReserved ? $stage1PoolFai : $stage1PoolAnyNoFai;
+            $secondary = $isReserved ? $emgPoolFai : $emgPoolAnyNoFai;
+            foreach ($primary as $tc)   { $append((string)$tc, true); }
+            foreach ($secondary as $tc) { $append((string)$tc, true); }
+            foreach ($pass3ReuseTcPool as $tc) { $append((string)$tc, false); }
+            return $out;
+        };
+
+        $assignStage1Pick = function(int $slotIdx, string $tcNorm, array $pickR) use (&$toolPairs, &$headerIds, &$kinds, &$sourceTags, &$usedTcNorm, &$pass3RangeCnt, &$REPORT_OQC_NEW_USED): void {
+            $toolPairs[$slotIdx] = $tcNorm;
+            $headerIds[$slotIdx] = (int)($pickR['id'] ?? 0);
+            $kinds[$slotIdx] = strtoupper(trim((string)($pickR['kind'] ?? '')));
+            $sourceTags[$slotIdx] = (string)($pickR['src_tag'] ?? '');
+            if ($tcNorm !== '') $usedTcNorm[$tcNorm] = true;
+            $pass3RangeCnt++;
+            $REPORT_OQC_NEW_USED++;
+        };
+
+        $assignStage2Pick = function(int $slotIdx, string $tcNorm, array $pickE) use (&$toolPairs, &$headerIds, &$kinds, &$sourceTags, &$usedTcNorm, &$emgUsed): void {
+            $toolPairs[$slotIdx] = $tcNorm;
+            $headerIds[$slotIdx] = (int)($pickE['id'] ?? 0);
+            $kinds[$slotIdx] = strtoupper(trim((string)($pickE['kind'] ?? '')));
+            $sourceTags[$slotIdx] = (string)($pickE['src_tag'] ?? '');
+            if ($tcNorm !== '') $usedTcNorm[$tcNorm] = true;
+            $emgUsed++;
+        };
 
         for ($i = 0; $i < 32; $i++) {
             $tc = trim((string)($toolPairs[$i] ?? ''));
             $hid = (int)($headerIds[$i] ?? 0);
             if ($hid > 0) continue;
 
-            // non-reserved 빈 슬롯은 PASS2에서 다양성 우선으로 보류했던 중복 tc를 먼저 재사용한다.
-            // 슬롯 순서는 건드리지 않고, 빈 칸에 대해서만 순서대로 후보를 다시 태운다.
-            if ($tc === '' && $i >= $reservedFaiCols && !empty($deferredDupTcQueue)) {
-                while ($deferredDupIdx < count($deferredDupTcQueue)) {
-                    $candTc = (string)$deferredDupTcQueue[$deferredDupIdx++];
-                    $candNorm = normalize_tool_cavity_key($candTc);
-                    if ($candNorm === '') continue;
-                    if (!empty($allowedTcSet) && !isset($allowedTcSet[$candNorm])) continue;
-
-                    $pickDup = oqc_pick_emergency_and_consume_v712($pdo, $meta, $part, $candNorm, 'SPC', $tmplNgMap, ['FAI'], $shippingDateStr);
-                    if (!$pickDup) {
-                        $pickDup = oqc_pick_emergency_and_consume_v712($pdo, $meta, $part, $candNorm, null, $tmplNgMap, ['FAI'], $shippingDateStr);
-                    }
-                    if (!$pickDup) continue;
-
-                    $toolPairs[$i]  = $candNorm;
-                    $headerIds[$i]  = (int)($pickDup['id'] ?? 0);
-                    $kinds[$i]      = strtoupper(trim((string)($pickDup['kind'] ?? '')));
-                    $sourceTags[$i] = (string)($pickDup['src_tag'] ?? '');
-                    $emgUsed++;
-                    continue 2;
-                }
-            }
-
-            // tc가 비어있으면(=아예 슬롯이 비어있으면) 긴급 풀에서 새 Tool#Cavity를 뽑아 넣는다.
-            if ($tc === '') {
-                $pickedTc = '';
-                if ($i < $reservedFaiCols) {
-                    while ($poolIdxFai < count($emgPoolFai)) {
-                        $cand = (string)$emgPoolFai[$poolIdxFai++];
-                        $norm = normalize_tool_cavity_key($cand);
-                        if ($norm === '' || (!empty($allowedTcSet) && !isset($allowedTcSet[$norm])) || isset($usedTcNorm[$norm])) continue;
-                        $pickedTc = $cand;
-                        $usedTcNorm[$norm] = true;
-                        break;
-                    }
-                } else {
-                    while ($poolIdxAny < count($emgPoolAnyNoFai)) {
-                        $cand = (string)$emgPoolAnyNoFai[$poolIdxAny++];
-                        $norm = normalize_tool_cavity_key($cand);
-                        if ($norm === '' || (!empty($allowedTcSet) && !isset($allowedTcSet[$norm])) || isset($usedTcNorm[$norm])) continue;
-                        $pickedTc = $cand;
-                        $usedTcNorm[$norm] = true;
-                        break;
-                    }
-                }
-
-                if ($pickedTc !== '') {
-                    $tc = $pickedTc;
-                    $toolPairs[$i] = $tc;
-                } else {
-                    // 고유 tc 풀이 소진된 경우에는 허용된 tc를 다시 재사용해서라도
-                    // PASS3를 끝까지 시도한다. (예: 수동 D#4 단일 발행)
-                    foreach ($pass3DupReuseTcList as $dupTc) {
-                        $dupNorm = normalize_tool_cavity_key((string)$dupTc);
-                        if ($dupNorm === '') continue;
-                        if (!empty($allowedTcSet) && !isset($allowedTcSet[$dupNorm])) continue;
-
-                        if ($i < $reservedFaiCols) {
-                            $pickDupE = oqc_pick_emergency_and_consume_v712($pdo, $meta, $part, $dupNorm, 'FAI', $tmplNgMap, null, $shippingDateStr);
-                        } else {
-                            $pickDupE = oqc_pick_emergency_and_consume_v712($pdo, $meta, $part, $dupNorm, 'SPC', $tmplNgMap, ['FAI'], $shippingDateStr);
-                            if (!$pickDupE) $pickDupE = oqc_pick_emergency_and_consume_v712($pdo, $meta, $part, $dupNorm, null, $tmplNgMap, ['FAI'], $shippingDateStr);
-                        }
-                        if (!$pickDupE) continue;
-
-                        $toolPairs[$i]  = $dupNorm;
-                        $headerIds[$i]  = (int)($pickDupE['id'] ?? 0);
-                        $kinds[$i]      = strtoupper(trim((string)($pickDupE['kind'] ?? '')));
-                        $sourceTags[$i] = (string)($pickDupE['src_tag'] ?? '');
-                        $emgUsed++;
-                        continue 2;
-                    }
-
-                    $emgMiss[] = '(EMPTY)';
-                    continue;
-                }
-            }
-
-            // 예약석은 FAI만, 그 외는 SPC 우선
-            if ($i < $reservedFaiCols) {
-                $pickE = oqc_pick_emergency_and_consume_v712($pdo, $meta, $part, $tc, 'FAI', $tmplNgMap, null, $shippingDateStr);
+            $isReserved = ($i < $reservedFaiCols);
+            $tcCandidates = [];
+            if ($tc !== '') {
+                $tcNorm = normalize_tool_cavity_key($tc);
+                if ($tcNorm !== '') $tcCandidates[] = $tcNorm;
             } else {
-                $pickE = oqc_pick_emergency_and_consume_v712($pdo, $meta, $part, $tc, 'SPC', $tmplNgMap, ['FAI'], $shippingDateStr);
-                if (!$pickE) $pickE = oqc_pick_emergency_and_consume_v712($pdo, $meta, $part, $tc, null, $tmplNgMap, ['FAI'], $shippingDateStr);
+                $tcCandidates = $buildPass3TcCandidates($isReserved);
             }
 
-            if ($pickE) {
-                $headerIds[$i]  = (int)($pickE['id'] ?? 0);
-                $kinds[$i]      = strtoupper(trim((string)($pickE['kind'] ?? '')));
-                $sourceTags[$i] = (string)($pickE['src_tag'] ?? '');
-                $emgUsed++;
-            } else {
-                $emgMiss[] = $tc;
+            $filled = false;
+            foreach ($tcCandidates as $candTc) {
+                $candNorm = normalize_tool_cavity_key((string)$candTc);
+                if ($candNorm === '') continue;
+
+                // PASS3 1단계: 오늘~N일 범위의 같은 TC 1차 미사용을 먼저 최대한 사용
+                if ($isReserved) {
+                    $pickR = $pickStage1SameTc($candNorm, 'FAI', null);
+                } else {
+                    $pickR = $pickStage1SameTc($candNorm, 'SPC', ['FAI']);
+                    if (!$pickR) $pickR = $pickStage1SameTc($candNorm, null, ['FAI']);
+                }
+                if ($pickR) {
+                    $assignStage1Pick($i, $candNorm, $pickR);
+                    $filled = true;
+                    break;
+                }
+
+                // PASS3 2단계: 그래도 부족하면 2차 재사용(meas_date2/jmeas_date2)
+                if ($isReserved) {
+                    $pickE = oqc_pick_emergency_and_consume_v712($pdo, $meta, $part, $candNorm, 'FAI', $tmplNgMap, null, $shippingDateStr);
+                } else {
+                    $pickE = oqc_pick_emergency_and_consume_v712($pdo, $meta, $part, $candNorm, 'SPC', $tmplNgMap, ['FAI'], $shippingDateStr);
+                    if (!$pickE) $pickE = oqc_pick_emergency_and_consume_v712($pdo, $meta, $part, $candNorm, null, $tmplNgMap, ['FAI'], $shippingDateStr);
+                }
+                if ($pickE) {
+                    $assignStage2Pick($i, $candNorm, $pickE);
+                    $filled = true;
+                    break;
+                }
+            }
+
+            if (!$filled) {
+                $emgMiss[] = ($tc !== '' ? $tc : '(EMPTY)');
             }
         }
-
         $REPORT_OQC_EMG_USED += $emgUsed;
 
 //        if ($emgUsed > 0) {
@@ -5489,7 +5558,7 @@ foreach ($dateList as $prodDate) {
     // (v7.26.x) 사용자용 PASS 요약 로그(품명별)
     // ─────────────────────────────────────────────
     $pass3EmgCnt = (int)$emgUsed;
-    $pass3Cnt = (int)$pass3ResCnt + (int)$pass3EmgCnt;
+    $pass3Cnt = (int)$pass3ResCnt + (int)($pass3RangeCnt ?? 0) + (int)$pass3EmgCnt;
 
     $filledCnt = 0;
     for ($i = 0; $i < 32; $i++) {
