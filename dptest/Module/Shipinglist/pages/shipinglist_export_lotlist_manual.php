@@ -4715,22 +4715,47 @@ foreach ($dateList as $prodDate) {
     if ($reservedFaiCols > 0) {
         $faiCands = []; // hid => cand
 
+        // PASS0는 helper의 1건 pick 결과를 tc/date별로 누적하지 않고,
+        // 출하기간 prod_date별 FAI 풀에서 미사용 header만 직접 모은 뒤
+        // 실제 출하된 Tool#Cavity에 해당하는 후보만 남겨 상위 3개를 고른다.
+        // 이렇게 해야 1차 발행에서 meas_date가 찍힌 header가
+        // 2차 발행 PASS0 후보에 그대로 다시 올라오는 경로를 차단할 수 있다.
+        $pass0Exclude = array_keys($usedHeaderIds);
+
         foreach ($dateList as $prodDate) {
+            $allowedTcSetPass0 = [];
             $pairs = array_keys($byDate[$prodDate]['pairs'] ?? []);
             foreach ($pairs as $tcRaw) {
                 $tcNorm = normalize_tool_cavity_key($tcRaw);
                 if (!preg_match('/^([A-Za-z]+)#(\d+)$/', $tcNorm)) continue;
+                $allowedTcSetPass0[$tcNorm] = true;
+            }
+            if (!$allowedTcSetPass0) continue;
 
-                $pickF = $getPickKind($prodDate, $tcNorm, 'FAI');
-                if (!$pickF) continue;
+            $rowsF = oqc_pick_any_headers_for_part(
+                $pdo,
+                $meta,
+                $part,
+                'FAI',
+                400,
+                $pass0Exclude,
+                true,
+                $prodDate,
+                $tmplPointSet
+            );
+            if (!$rowsF) continue;
 
-                $hid = (int)($pickF['id'] ?? 0);
+            foreach ($rowsF as $rF) {
+                $hid = (int)($rF['_hid'] ?? 0);
                 if ($hid <= 0) continue;
+
+                $tcNorm = normalize_tool_cavity_key((string)($rF['_tc'] ?? ''));
+                if ($tcNorm === '' || !isset($allowedTcSetPass0[$tcNorm])) continue;
 
                 if (!isset($faiCands[$hid])) {
                     $faiCands[$hid] = [
                         'id' => $hid,
-                        'src_tag' => (string)($pickF['src_tag'] ?? ''),
+                        'src_tag' => (string)($rF['_tag'] ?? ''),
                         'tcNorm' => $tcNorm,
                         'prodDate' => $prodDate,
                     ];
