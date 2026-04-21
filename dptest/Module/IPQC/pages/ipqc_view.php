@@ -1442,19 +1442,9 @@ if ($doQuery) {
       }
 
 
-      // ALL 모드 보호 (header count)
+      // ALL 모드도 화면 출력 제한 없이 그대로 조회한다.
+      // header 개수 기준으로 화면 표시를 막지 않는다.
       $skipHeavy = false;
-      if ($pageAll) {
-        try {
-          $stmtC = $pdo->prepare("SELECT COUNT(*) FROM {$hT} WHERE {$where}");
-          $stmtC->execute($params);
-          $hc = (int)$stmtC->fetchColumn();
-          if ($hc > 1200) {
-            $meta['error'] = "ALL 범위가 너무 큽니다 (header={$hc}). 날짜를 선택하거나 EXPORT를 사용하세요.";
-            $skipHeavy = true;
-          }
-        } catch (Throwable $e) {}
-      }
 
       if (!$skipHeavy) {
         // heavy: header + measurements join
@@ -1836,30 +1826,8 @@ if ($type === 'AOI' && !empty($faiSel)) {
     }
   }
 
-// ALL 모드 보호: 너무 큰 범위면 화면 표시 대신 export를 유도 (OOM 방지)
-  if ($pageAll && empty($pageDate) === false) {
-    try {
-      $sqlHcnt = "
-        SELECT COUNT(*) AS c
-        FROM {$headerTable} h
-        WHERE h.meas_date IS NOT NULL
-          AND {$dateRangeSql}
-          AND h.part_name = ?
-          " . (!empty($toolParamsPos) ? " AND h.tool IN ($toolInSql)" : "") . "
-          {$excludeSql}
-      ";
-      $stmtC = $pdo->prepare($sqlHcnt);
-      $stmtC->execute(array_merge($dateParamsPos, [$model], $toolParamsPos));
-      $hc = (int)$stmtC->fetchColumn();
-      if ($hc > 1200) {
-        $meta['error'] = "ALL 범위가 너무 큽니다 (header={$hc}). 날짜를 선택하거나 EXPORT를 사용하세요.";
-        $skipHeavy = true; // heavy query skip
-      }
-    } catch (Throwable $e) {
-      // ignore
-    }
-  }
-
+// ALL 모드도 header 개수 기준으로 화면 출력을 막지 않는다.
+// 선택 범위의 결과는 화면에 전부 출력하는 것이 정상이다.
 
   
 

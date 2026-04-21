@@ -752,17 +752,9 @@ function ipqc_output_pivot_csv_stream(
         }
     }
 
-    // Page mode: limit by "groups"(=rows of Data n)
+    // Page export도 잘라내지 않는다. 현재 선택 범위를 전부 출력한다.
     $offsetGroups = 0;
     $limitGroups = PHP_INT_MAX;
-    if ($mode === 'page') {
-        $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
-        $perPage = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 5000;
-        $allowed = [1000, 2000, 5000, 10000, 20000];
-        if (!in_array($perPage, $allowed, true)) $perPage = 5000;
-        $offsetGroups = ($page - 1) * $perPage;
-        $limitGroups = $perPage;
-    }
 
     ipqc_send_download_headers($downloadName, 'text/csv; charset=UTF-8');
     // UTF-8 BOM for Excel
@@ -1478,15 +1470,7 @@ if (($type === 'omm' || $type === 'cmm') && ($mode === 'all' || $mode === 'page'
         ORDER BY DATE(h.meas_date) ASC, h.tool ASC, h.cavity ASC, m.row_index ASC
     ";
 
-    // optional page mode limit
-    if ($mode === 'page') {
-        $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
-        $perPage = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 5000;
-        $allowed = [1000, 2000, 5000, 10000, 20000];
-        if (!in_array($perPage, $allowed, true)) $perPage = 5000;
-        $offset = ($page - 1) * $perPage;
-        $sqlP .= " LIMIT {$perPage} OFFSET {$offset}";
-    }
+    // page export에서도 LIMIT/OFFSET를 적용하지 않는다.
 
     $stmtP = $pdo2->prepare($sqlP);
     foreach ($params2 as $k => $v) $stmtP->bindValue($k, $v);
@@ -1556,15 +1540,7 @@ $tmpBase = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'dptest_ipqc_xlsx_' . uniq
         ORDER BY {$orderKey}
     ";
 
-    // page/limit
-    if ($mode === 'page') {
-        $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
-        $perPage = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 5000;
-        $allowed = [1000, 2000, 5000, 10000, 20000];
-        if (!in_array($perPage, $allowed, true)) $perPage = 5000;
-        $offset = ($page - 1) * $perPage;
-        $sql .= " LIMIT {$perPage} OFFSET {$offset}";
-    }
+    // page export에서도 LIMIT/OFFSET를 적용하지 않는다.
     $pdo = dp_get_pdo();
 
     // OQC JMP export (CSV only)
