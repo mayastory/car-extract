@@ -60,6 +60,7 @@ function ipqc_norm_type(string $t): string {
     if ($t === 'aoi') return 'aoi';
     if ($t === 'cmm') return 'cmm';
     if ($t === 'oqc') return 'oqc';
+    if ($t === 'real_omm' || $t === 'real omm' || $t === 'realomm') return 'real_omm';
     return 'omm';
 }
 
@@ -726,8 +727,9 @@ function ipqc_output_pivot_csv_stream(
     // Build dynamic headers + key -> column index map
     $headers = ['Part','Tool','Cavity','Date','라벨'];
     $keyToIdx = [];
+    $isOmmLike = ($type === 'omm' || $type === 'real_omm');
 
-    if ($type === 'omm') {
+    if ($isOmmLike) {
         foreach ($colKeys as $i => $p) {
             $fai = (string)($p['fai'] ?? '');
             $rawLabel = trim((string)($p['label'] ?? ''));
@@ -770,7 +772,7 @@ function ipqc_output_pivot_csv_stream(
     $params2 = $params;
     $params2[':cols'] = $colsN;
 
-    if ($type === 'omm') {
+    if ($isOmmLike) {
         $sql = "
             SELECT
                 h.part_name AS part,
@@ -856,7 +858,7 @@ function ipqc_output_pivot_csv_stream(
         }
 
         // fill value
-        if ($type === 'omm') {
+        if ($isOmmLike) {
             $fai = (string)($r['fai'] ?? '');
             // SPC는 키에 관여하지 않음
             if ($fai !== '' && isset($keyToIdx[$fai])) {
@@ -910,6 +912,7 @@ function ipqc_default_cols(string $type): int {
     // JMP Assist long-form table 기준(가장 흔한 형태)
     if ($type === 'aoi') return 16;
     if ($type === 'cmm') return 3;
+    if ($type === 'real_omm') return 3;
     return 3;  // omm
 }
 
@@ -1139,7 +1142,7 @@ if ($part === '' || (($year <= 0 && empty($years)) && $pageDate === '')) {
     // (이 조건이 없으면 web에서는 여러 header의 값이 섞여서 CSV/XLSX가 뷰어/py와 달라질 수 있음)
     $whereSql = $where ? ("WHERE " . implode(" AND ", $where)) : "";
 
-    $dedupeTypes = ['aoi','omm','cmm'];
+    $dedupeTypes = ['aoi','omm','real_omm','cmm'];
     if (in_array($type, $dedupeTypes, true)) {
         $dedupeCond = "h.id = (SELECT MAX(h2.id) FROM {$hTable} h2
                                WHERE h2.meas_date IS NOT NULL
@@ -1251,7 +1254,7 @@ if ($type === 'aoi' && $format === 'csv') {
 // - OMM: (FAI, SPC) 조합이 컬럼
 // - CMM: point_no가 컬럼
 // (전체EXCEL/페이지EXCEL 모두 동일한 피벗 형태)
-if (($type === 'omm' || $type === 'cmm') && ($mode === 'all' || $mode === 'page' || $mode === 'page_date')) {
+if (($type === 'omm' || $type === 'real_omm' || $type === 'cmm') && ($mode === 'all' || $mode === 'page' || $mode === 'page_date')) {
     $pdo2 = dp_get_pdo();
 
     // filename (same rule as below)
@@ -1261,8 +1264,10 @@ if (($type === 'omm' || $type === 'cmm') && ($mode === 'all' || $mode === 'page'
     $whereKeyPrefix = $whereSql ? ($whereSql . " AND ") : "WHERE ";
     $params2 = $params;
     $params2[':cols'] = $colsN;
+    $filterSet = [];
+    if (!empty($fais)) { foreach ($fais as $x) { $filterSet[(string)$x] = 1; } }
 
-    if ($type === 'omm') {
+    if ($type === 'omm' || $type === 'real_omm') {
         // If user selected fai[] columns, export ONLY those columns (viewer/export sync)
         if (!empty($fais)) {
             $keys = [];
@@ -1305,8 +1310,18 @@ if (($type === 'omm' || $type === 'cmm') && ($mode === 'all' || $mode === 'page'
         try { $orderMap = ipqc2_load_order_map(); } catch (Throwable $e) { $orderMap = []; }
         $mk = ipqc2_model_to_mapkey($part);
         $labels = [];
-        if ($mk !== '' && isset($orderMap[$mk]['OMM']) && is_array($orderMap[$mk]['OMM'])) {
-            $labels = $orderMap[$mk]['OMM'];
+        if ($mk !== '') {
+            if ($type === 'real_omm') {
+                // REAL_OMM is displayed/exported like OMM pivot,
+                // but FAI order MUST follow AOI mapping. This is intentional and correct.
+                if (isset($orderMap[$mk]['AOI']) && is_array($orderMap[$mk]['AOI'])) {
+                    $labels = $orderMap[$mk]['AOI'];
+                }
+            } else {
+                if (isset($orderMap[$mk]['OMM']) && is_array($orderMap[$mk]['OMM'])) {
+                    $labels = $orderMap[$mk]['OMM'];
+                }
+            }
         }
 
         $seen = [];
@@ -1417,7 +1432,7 @@ if (($type === 'omm' || $type === 'cmm') && ($mode === 'all' || $mode === 'page'
     
     // CSV (대용량): MySQL 동적 PIVOT(MAX(CASE...)) 대신
     // long-row 스트리밍 + PHP에서 피벗 구성하여 500/메모리/쿼리길이 이슈를 피함
-    if ($format === 'csv' && ($type === 'omm' || $type === 'cmm')) {
+    if ($format === 'csv' && ($type === 'omm' || $type === 'real_omm' || $type === 'cmm')) {
         if ($type === 'cmm') { header('X-DP-Patch: jtmes-cmm-rowindex-nokeymap-v3'); }
 
         ipqc_output_pivot_csv_stream($pdo2, $type, $hTable, $mTable, $whereSql, $params, $colsN, $downloadName, $keys, $mode);
@@ -1439,9 +1454,10 @@ if (($type === 'omm' || $type === 'cmm') && ($mode === 'all' || $mode === 'page'
     $i = 0;
     foreach ($keys as $p) {
         $ck = "c{$i}";
-        if ($type === 'omm') {
+        if ($type === 'omm' || $type === 'real_omm') {
             $fai = (string)($p['fai'] ?? '');
-            $headers[] = $fai; // DB 라벨 그대로
+            $disp = trim((string)($p['label'] ?? ''));
+            $headers[] = ($disp !== '' ? $disp : $fai);
             $pf = ":kf{$i}";
             $select[] = "MAX(CASE WHEN m.fai = {$pf} THEN m.value END) AS {$ck}";
             $params2[$pf] = $fai;
