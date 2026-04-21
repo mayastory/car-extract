@@ -2438,6 +2438,7 @@ if (!isset($displayResults)) { $displayResults = $results; }
 #ms-model-list{ max-height: 180px; overflow:auto; padding-right: 2px; }
 .ms-grid-model .ms-datebtn{ align-items:flex-start; text-align:left; padding: 6px 8px; }
 .ms-grid-type{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ms-grid-type .ms-datebtn.ms-type-full{ grid-column: 1 / -1; }
 .ms-grid-model{ grid-template-columns: repeat(1, minmax(0, 1fr)); }
 .ms-grid-model .ms-datebtn{ align-items:flex-start; text-align:left; padding: 8px 10px; }
 .ms-grid-model .ms-datebtn-md{ width:100%; text-align:left; font-weight:700; }
@@ -3146,7 +3147,7 @@ main, .content, .content-area, .main, .main-content{
                   <div class="ms-list ms-grid-type">
                     <?php foreach($TYPE_MAP as $k=>$v): ?>
                       <button type="button"
-                        class="ms-datebtn ms-singlebtn <?= $k===$type?'active':'' ?>"
+                        class="ms-datebtn ms-singlebtn <?= $k==='REAL_OMM' ? 'ms-type-full ' : '' ?><?= $k===$type?'active':'' ?>"
                         data-value="<?= h($k) ?>"
                         data-label="<?= h($v['label']) ?>">
                         <span class="ms-datebtn-md"><?= h($v['label']) ?></span>
