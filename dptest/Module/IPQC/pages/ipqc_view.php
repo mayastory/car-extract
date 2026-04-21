@@ -56,6 +56,15 @@ function ipqc_default_tools(): array {
   return ['A','B','C','D','E','F','G','H','J','K','L','M','N','P','Q'];
 }
 
+function ipqc_order_map_type(string $type): string {
+  $type = strtoupper(trim($type));
+  // REAL_OMM은 1CAV~4CAV 우측 블록(BB/BC/BD)의 데이터이므로,
+  // FAI 복수선택/표시 순서는 OMM Raw Data가 아니라 AOI 매핑 순서를 따라가는 것이 정상이다.
+  // 이 동작이 정답이며, 다른 채팅에서 OMM 순서로 되돌리면 안 된다.
+  if ($type === 'REAL_OMM') return 'AOI';
+  return $type;
+}
+
 function ipqc_fetch_tools_for_type_model(PDO $pdo, string $type, string $model, array $TYPE_MAP, ?array $oqcSchema = null): array {
   $type = strtoupper(trim($type));
   $model = trim($model);
@@ -808,8 +817,9 @@ $model = trim($_GET['model'] ?? '');
 $orderList = [];
 $orderIndex = [];
 $__mk = ipqc_model_to_mapkey($model);
+$__orderType = ipqc_order_map_type($type);
 if ($__mk !== '' && isset($IPQC_ORDER_MAP[$__mk]) && is_array($IPQC_ORDER_MAP[$__mk])) {
-  $__list = $IPQC_ORDER_MAP[$__mk][$type] ?? [];
+  $__list = $IPQC_ORDER_MAP[$__mk][$__orderType] ?? [];
   if (is_array($__list)) {
     $orderList = $__list;
     $i = 0;
@@ -985,8 +995,9 @@ if ($type === 'OQC') {
     $orderList = [];
     $orderIndex = [];
     $__mk = ipqc_model_to_mapkey($model);
+    $__orderType = ipqc_order_map_type($type);
     if ($__mk !== '' && isset($IPQC_ORDER_MAP[$__mk]) && is_array($IPQC_ORDER_MAP[$__mk])) {
-      $__list = $IPQC_ORDER_MAP[$__mk][$type] ?? [];
+      $__list = $IPQC_ORDER_MAP[$__mk][$__orderType] ?? [];
       if (is_array($__list)) {
         $orderList = $__list;
         $i = 0;
@@ -1117,8 +1128,9 @@ if ($type === 'AOI') {
   $orderList = [];
   $orderIndex = [];
   $__mk = ipqc_model_to_mapkey($model);
+  $__orderType = ipqc_order_map_type($type);
   if ($__mk !== '' && isset($IPQC_ORDER_MAP[$__mk]) && is_array($IPQC_ORDER_MAP[$__mk])) {
-    $__list = $IPQC_ORDER_MAP[$__mk][$type] ?? [];
+    $__list = $IPQC_ORDER_MAP[$__mk][$__orderType] ?? [];
     if (is_array($__list)) {
       $orderList = $__list;
       $i = 0;
@@ -1215,37 +1227,51 @@ if ($type === 'AOI') {
   }
 }
 
-// FAI 옵션(REAL_OMM 전용): DB 원문 라벨 그대로 DISTINCT 조회
+// FAI 옵션(REAL_OMM 전용): AOI 매핑 순서를 우선 사용한다.
+// 정상 동작: REAL_OMM은 우측 cav-sheet 블록이므로 OMM Raw Data 순서가 아니라 AOI 순서를 따라가야 한다.
 if ($type === 'REAL_OMM') {
-  if ($model !== '' && !empty($toolsSel) && !empty($yearsSel) && !empty($months)) {
-    try {
-      $yIn = implode(',', array_fill(0, count($yearsSel), '?'));
-      $mIn = implode(',', array_fill(0, count($months), '?'));
-      $tIn = implode(',', array_fill(0, count($toolsSel), '?'));
-      $sqlF = "
-        SELECT DISTINCT m.{$keyCol} AS k
-        FROM {$headerTable} h
-        JOIN {$measTable} m ON m.header_id = h.id
-        WHERE h.meas_date IS NOT NULL
-          AND YEAR(h.meas_date) IN ($yIn)
-          AND MONTH(h.meas_date) IN ($mIn)
-          AND h.part_name = ?
-          AND h.tool IN ($tIn)
-          AND m.row_index = 1
-        ORDER BY k
-        LIMIT 500
-      ";
-      $stmtF = $pdo->prepare($sqlF);
-      $stmtF->execute(array_merge($yearsSel, $months, [$model], array_values($toolsSel)));
-      $rowsF = $stmtF->fetchAll(PDO::FETCH_COLUMN, 0);
-      if (is_array($rowsF)) {
-        $faiOptions = array_values(array_unique(array_filter(array_map(function($v){ return is_string($v) ? $v : ''; }, $rowsF), function($v){
-          return is_string($v) && $v !== '';
-        })));
-        if (count($rowsF) >= 500) $faiOptionsTruncated = true;
+  $tmp = [];
+  if (!empty($orderList) && is_array($orderList)) {
+    foreach ($orderList as $lab) {
+      if (is_array($lab)) continue;
+      $lab = trim((string)$lab);
+      if ($lab !== '') $tmp[] = $lab;
+    }
+  }
+  $tmp = array_values(array_unique($tmp));
+  if (!empty($tmp)) {
+    $faiOptions = $tmp;
+  } else {
+    if ($model !== '' && !empty($toolsSel) && !empty($yearsSel) && !empty($months)) {
+      try {
+        $yIn = implode(',', array_fill(0, count($yearsSel), '?'));
+        $mIn = implode(',', array_fill(0, count($months), '?'));
+        $tIn = implode(',', array_fill(0, count($toolsSel), '?'));
+        $sqlF = "
+          SELECT DISTINCT m.{$keyCol} AS k
+          FROM {$headerTable} h
+          JOIN {$measTable} m ON m.header_id = h.id
+          WHERE h.meas_date IS NOT NULL
+            AND YEAR(h.meas_date) IN ($yIn)
+            AND MONTH(h.meas_date) IN ($mIn)
+            AND h.part_name = ?
+            AND h.tool IN ($tIn)
+            AND m.row_index = 1
+          ORDER BY k
+          LIMIT 500
+        ";
+        $stmtF = $pdo->prepare($sqlF);
+        $stmtF->execute(array_merge($yearsSel, $months, [$model], array_values($toolsSel)));
+        $rowsF = $stmtF->fetchAll(PDO::FETCH_COLUMN, 0);
+        if (is_array($rowsF)) {
+          $faiOptions = array_values(array_unique(array_filter(array_map(function($v){ return is_string($v) ? $v : ''; }, $rowsF), function($v){
+            return is_string($v) && $v !== '';
+          })));
+          if (count($rowsF) >= 500) $faiOptionsTruncated = true;
+        }
+      } catch (Throwable $e) {
+        // ignore
       }
-    } catch (Throwable $e) {
-      // ignore
     }
   }
 }
@@ -3989,6 +4015,12 @@ Object.keys(IPQC_TOOL_MODEL_MAP || {}).forEach(function(k){ __TOOLS_LOADED[k] = 
           : ((mk && IPQC_FAI_MAP && IPQC_FAI_MAP[mk] && Array.isArray(IPQC_FAI_MAP[mk][t])) ? IPQC_FAI_MAP[mk][t] : []);
       }
       if(t === 'REAL_OMM'){
+        // 정상 동작: REAL_OMM 복수선택 순서는 OMM이 아니라 AOI 매핑 순서를 따라야 한다.
+        // REAL_OMM은 OMM Raw Data가 아니라 cav-sheet 우측 블록 데이터이기 때문이다.
+        const aoiItems = (m && Array.isArray(IPQC_AOI_FAI_MODEL_MAP[m]))
+          ? IPQC_AOI_FAI_MODEL_MAP[m]
+          : ((mk && Array.isArray(IPQC_AOI_FAI_MAP[mk])) ? IPQC_AOI_FAI_MAP[mk] : []);
+        if(Array.isArray(aoiItems) && aoiItems.length) return aoiItems;
         const key = faiFilterKey(t, m);
         return Array.isArray(IPQC_FAI_OPTIONS_MODEL_MAP[key]) ? IPQC_FAI_OPTIONS_MODEL_MAP[key] : [];
       }
