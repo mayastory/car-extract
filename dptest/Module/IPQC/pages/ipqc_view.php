@@ -210,6 +210,16 @@ function ipqc_cmp_nat(string $a, string $b): int {
   return $c !== 0 ? $c : strcmp($a, $b);
 }
 
+function ipqc_order_map_type(string $type): string {
+  $t = strtoupper(trim((string)$type));
+  return ($t === 'REAL_OMM') ? 'OMM' : $t;
+}
+
+function ipqc_is_omm_like_type(string $type): bool {
+  $t = strtoupper(trim((string)$type));
+  return ($t === 'OMM' || $t === 'REAL_OMM');
+}
+
 
 
 /* =========================
@@ -670,6 +680,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'oqc_points') {
 $TYPE_MAP = [
   'AOI' => ['label' => 'AOI',     'header' => 'ipqc_aoi_header', 'meas' => 'ipqc_aoi_measurements', 'res' => 'ipqc_aoi_result', 'key_col' => 'fai',      'has_spc' => true,  'data_cols' => 16],
   'OMM' => ['label' => 'OMM', 'header' => 'ipqc_omm_header', 'meas' => 'ipqc_omm_measurements', 'res' => 'ipqc_omm_result', 'key_col' => 'fai',      'has_spc' => false,  'data_cols' => 3],
+  'REAL_OMM' => ['label' => 'Real OMM', 'header' => 'ipqc_real_omm_header', 'meas' => 'ipqc_real_omm_measurements', 'res' => 'ipqc_real_omm_result', 'key_col' => 'fai', 'has_spc' => false, 'data_cols' => 3],
   'CMM' => ['label' => 'CMM', 'header' => 'ipqc_cmm_header', 'meas' => 'ipqc_cmm_measurements', 'res' => 'ipqc_cmm_result', 'key_col' => 'point_no', 'has_spc' => false, 'data_cols' => 3],
   'OQC' => ['label' => 'OQC', 'header' => '__OQC__', 'meas' => '__OQC__', 'res' => '', 'key_col' => 'point_no', 'has_spc' => false, 'data_cols' => 200],
 ];
@@ -719,7 +730,7 @@ $orderList = [];
 $orderIndex = [];
 $__mk = ipqc_model_to_mapkey($model);
 if ($__mk !== '' && isset($IPQC_ORDER_MAP[$__mk]) && is_array($IPQC_ORDER_MAP[$__mk])) {
-  $__list = $IPQC_ORDER_MAP[$__mk][$type] ?? [];
+  $__orderType = ipqc_order_map_type($type); $__list = $IPQC_ORDER_MAP[$__mk][$__orderType] ?? [];
   if (is_array($__list)) {
     $orderList = $__list;
     $i = 0;
@@ -777,7 +788,7 @@ $faiSel = array_values(array_unique($tmp));
 if (count($faiSel) > 500) $faiSel = array_slice($faiSel, 0, 500);
 
 // OMM/CMM: ALL 토큰은 '필터 없음(전체 컬럼)' 의미 (배타)
-if (($type === 'OMM' || $type === 'CMM' || $type === 'OQC') && in_array('__ALL__', $faiSel, true)) {
+if ((ipqc_is_omm_like_type($type) || $type === 'CMM' || $type === 'OQC') && in_array('__ALL__', $faiSel, true)) {
   $faiSel = ['__ALL__'];
 }
 
@@ -798,7 +809,7 @@ if ($type === 'AOI') {
 }
 
 // ✅ OMM/CMM: 기본 선택은 ALL이 아님 (선택이 없으면 첫 항목 1개 자동 선택)
-if (($type === 'OMM' || $type === 'CMM' || $type === 'OQC')) {
+if ((ipqc_is_omm_like_type($type) || $type === 'CMM' || $type === 'OQC')) {
   if (empty($faiSel)) {
     if (!empty($orderList) && is_array($orderList)) {
       $first = null;
@@ -896,7 +907,7 @@ if ($type === 'OQC') {
     $orderIndex = [];
     $__mk = ipqc_model_to_mapkey($model);
     if ($__mk !== '' && isset($IPQC_ORDER_MAP[$__mk]) && is_array($IPQC_ORDER_MAP[$__mk])) {
-      $__list = $IPQC_ORDER_MAP[$__mk][$type] ?? [];
+      $__orderType = ipqc_order_map_type($type); $__list = $IPQC_ORDER_MAP[$__mk][$__orderType] ?? [];
       if (is_array($__list)) {
         $orderList = $__list;
         $i = 0;
@@ -1028,7 +1039,7 @@ if ($type === 'AOI') {
   $orderIndex = [];
   $__mk = ipqc_model_to_mapkey($model);
   if ($__mk !== '' && isset($IPQC_ORDER_MAP[$__mk]) && is_array($IPQC_ORDER_MAP[$__mk])) {
-    $__list = $IPQC_ORDER_MAP[$__mk][$type] ?? [];
+    $__orderType = ipqc_order_map_type($type); $__list = $IPQC_ORDER_MAP[$__mk][$__orderType] ?? [];
     if (is_array($__list)) {
       $orderList = $__list;
       $i = 0;
@@ -1913,7 +1924,7 @@ r.usl, r.lsl, r.result_ok
 
         $label = 'Data ' . $idx;
 
-        if ($type === 'OMM') {
+        if (ipqc_is_omm_like_type($type)) {
           // OMM: DB에 저장된 fai 라벨을 그대로 사용한다. (SPC는 표시용 부가필드)
           $keyName = (string)($r['key_name'] ?? '');
           $colKey = $keyName;
@@ -1960,7 +1971,7 @@ r.usl, r.lsl, r.result_ok
 
       // Build ordered pivot columns
       // OMM: always follow mapping order (all labels), then append any DB-only columns
-      if ($type === 'OMM' && !empty($orderList)) {
+      if (ipqc_is_omm_like_type($type) && !empty($orderList)) {
         // OMM: 매핑.xlsx(order_map)은 '정렬'에만 사용한다.
         // - DB에 없는 라벨로 신규 컬럼을 만들지 않는다.
         // - 라벨/키를 정규화/분리/접두어 보정하지 않는다(DB 그대로).
@@ -1997,12 +2008,12 @@ r.usl, r.lsl, r.result_ok
           }
 
           // 2) Fallback: keep previous rule
-          if ($type === 'OMM') return ipqc_cmp_omm_cols((string)$a, (string)$b);
+          if (ipqc_is_omm_like_type($type)) return ipqc_cmp_omm_cols((string)$a, (string)$b);
           return ipqc_cmp_nat($la, $lb);
         });
       }
 // OMM/CMM: FAI 선택은 '열(컬럼)' 필터이다. 선택된 컬럼만 남긴다. (__ALL__이면 전체)
-      if (($type === 'OMM' || $type === 'CMM') && isset($colKeys) && is_array($colKeys) && !empty($faiSel) && !in_array('__ALL__', $faiSel, true)) {
+      if ((ipqc_is_omm_like_type($type) || $type === 'CMM') && isset($colKeys) && is_array($colKeys) && !empty($faiSel) && !in_array('__ALL__', $faiSel, true)) {
         $selSet = array_fill_keys($faiSel, 1);
         $colKeys = array_values(array_filter($colKeys, function($k) use ($selSet, $colMeta, $type){
           $k = (string)$k;
@@ -3062,7 +3073,7 @@ main, .content, .content-area, .main, .main-content{
   </div>
 </div>
 
-<?php if(in_array($type, ['AOI','OMM','CMM','OQC'], true)): ?>
+<?php if(in_array($type, ['AOI','OMM','REAL_OMM','CMM','OQC'], true)): ?>
 <div class="f">
   <label><?= ($type==='CMM'||$type==='OQC') ? 'Point (복수 선택)' : 'FAI (복수 선택)' ?></label>
   <div class="ms ms-fai" id="ms-fai" data-group="fai">
@@ -3574,12 +3585,20 @@ $IPQC_FAI_MAP = [];
 foreach ($IPQC_ORDER_MAP as $__mk3 => $__mm3) {
   if (!is_array($__mm3)) continue;
   $IPQC_FAI_MAP[$__mk3] = [];
-  foreach (['AOI','OMM','CMM','OQC'] as $__t) {
+  foreach (['AOI','OMM','REAL_OMM','CMM','OQC'] as $__t) {
     if (isset($__mm3[$__t]) && is_array($__mm3[$__t])) {
       $IPQC_FAI_MAP[$__mk3][$__t] = array_values($__mm3[$__t]);
     }
   }
 }
+
+foreach ($IPQC_FAI_MAP as $__mk3 => &$__map3) {
+  if (!is_array($__map3)) continue;
+  if ((!isset($__map3['REAL_OMM']) || !is_array($__map3['REAL_OMM']) || empty($__map3['REAL_OMM'])) && isset($__map3['OMM']) && is_array($__map3['OMM'])) {
+    $__map3['REAL_OMM'] = array_values($__map3['OMM']);
+  }
+}
+unset($__map3);
 
 // OQC point_no list map for client-side (model -> point_no list)
 // - OQC는 mapping.xlsx에 보통 매핑이 없으므로(DB에서 point_no를 직접 뽑아) UI에서 열 선택이 가능하게 한다.
@@ -3800,6 +3819,11 @@ Object.keys(IPQC_TOOL_MODEL_MAP || {}).forEach(function(k){ __TOOLS_LOADED[k] = 
       return '';
     }
 
+    function ipqcMapTypeJs(type){
+      const t = String(type || '').trim().toUpperCase();
+      return t === 'REAL_OMM' ? 'OMM' : t;
+    }
+
     let __FAI_SEL = new Set();
 
     function faiShowHint(msg){
@@ -3853,6 +3877,7 @@ Object.keys(IPQC_TOOL_MODEL_MAP || {}).forEach(function(k){ __TOOLS_LOADED[k] = 
       const model = document.getElementById('model') ? (document.getElementById('model').value || '') : '';
       const type = (document.getElementById('type') ? (document.getElementById('type').value || '') : '').trim().toUpperCase();
       const mk = ipqcModelToMapKeyJs(model);
+      const mapType = ipqcMapTypeJs(type);
 
       // ALL 선택이면 그대로 1개만 유지(필터 없음 의미)
       if(__FAI_SEL && __FAI_SEL.has('__ALL__')){
@@ -3886,9 +3911,9 @@ Object.keys(IPQC_TOOL_MODEL_MAP || {}).forEach(function(k){ __TOOLS_LOADED[k] = 
         if((!items || items.length === 0) && mk && IPQC_FAI_MAP && IPQC_FAI_MAP[mk] && Array.isArray(IPQC_FAI_MAP[mk][type])) {
           items = IPQC_FAI_MAP[mk][type];
         }
-      }else if(type === 'OMM' || type === 'CMM'){
+      }else if(type === 'OMM' || type === 'REAL_OMM' || type === 'CMM'){
 
-        order = (mk && IPQC_FAI_MAP && IPQC_FAI_MAP[mk] && Array.isArray(IPQC_FAI_MAP[mk][type])) ? IPQC_FAI_MAP[mk][type] : [];
+        order = (mk && IPQC_FAI_MAP && IPQC_FAI_MAP[mk] && Array.isArray(IPQC_FAI_MAP[mk][mapType])) ? IPQC_FAI_MAP[mk][mapType] : [];
       }
 
 // build ordered list of selected values
@@ -3916,6 +3941,7 @@ Object.keys(IPQC_TOOL_MODEL_MAP || {}).forEach(function(k){ __TOOLS_LOADED[k] = 
       const model = document.getElementById('model') ? (document.getElementById('model').value || '') : '';
       const mk = ipqcModelToMapKeyJs(model);
       const type = (document.getElementById('type') ? (document.getElementById('type').value || '') : '').trim().toUpperCase();
+      const mapType = ipqcMapTypeJs(type);
 
       let order = [];
       if(type === 'AOI'){
@@ -3923,8 +3949,8 @@ Object.keys(IPQC_TOOL_MODEL_MAP || {}).forEach(function(k){ __TOOLS_LOADED[k] = 
       }else if(type === 'OQC'){
         order = (model && IPQC_OQC_POINT_MODEL_MAP && Array.isArray(IPQC_OQC_POINT_MODEL_MAP[model])) ? IPQC_OQC_POINT_MODEL_MAP[model]
               : ((mk && IPQC_FAI_MAP && IPQC_FAI_MAP[mk] && Array.isArray(IPQC_FAI_MAP[mk][type])) ? IPQC_FAI_MAP[mk][type] : []);
-      }else if(type === 'OMM' || type === 'CMM'){
-        order = (mk && IPQC_FAI_MAP && IPQC_FAI_MAP[mk] && Array.isArray(IPQC_FAI_MAP[mk][type])) ? IPQC_FAI_MAP[mk][type] : [];
+      }else if(type === 'OMM' || type === 'REAL_OMM' || type === 'CMM'){
+        order = (mk && IPQC_FAI_MAP && IPQC_FAI_MAP[mk] && Array.isArray(IPQC_FAI_MAP[mk][mapType])) ? IPQC_FAI_MAP[mk][mapType] : [];
       }
 
       const out = [];
@@ -4075,6 +4101,7 @@ Object.keys(IPQC_TOOL_MODEL_MAP || {}).forEach(function(k){ __TOOLS_LOADED[k] = 
 
       const mk = ipqcModelToMapKeyJs(model);
       const type = (document.getElementById('type') ? (document.getElementById('type').value || '') : '').trim().toUpperCase();
+      const mapType = ipqcMapTypeJs(type);
       let items = [];
       if(type === 'AOI'){
         items = (model && Array.isArray(IPQC_AOI_FAI_MODEL_MAP[model])) ? IPQC_AOI_FAI_MODEL_MAP[model] : ((mk && Array.isArray(IPQC_AOI_FAI_MAP[mk])) ? IPQC_AOI_FAI_MAP[mk] : []);
@@ -4103,10 +4130,10 @@ Object.keys(IPQC_TOOL_MODEL_MAP || {}).forEach(function(k){ __TOOLS_LOADED[k] = 
             });
             return;
           }
-          items = (mk && IPQC_FAI_MAP && IPQC_FAI_MAP[mk] && Array.isArray(IPQC_FAI_MAP[mk][type])) ? IPQC_FAI_MAP[mk][type] : [];
+          items = (mk && IPQC_FAI_MAP && IPQC_FAI_MAP[mk] && Array.isArray(IPQC_FAI_MAP[mk][mapType])) ? IPQC_FAI_MAP[mk][mapType] : [];
         }
-      }else if(type === 'OMM' || type === 'CMM'){
-        items = (mk && IPQC_FAI_MAP && IPQC_FAI_MAP[mk] && Array.isArray(IPQC_FAI_MAP[mk][type])) ? IPQC_FAI_MAP[mk][type] : [];
+      }else if(type === 'OMM' || type === 'REAL_OMM' || type === 'CMM'){
+        items = (mk && IPQC_FAI_MAP && IPQC_FAI_MAP[mk] && Array.isArray(IPQC_FAI_MAP[mk][mapType])) ? IPQC_FAI_MAP[mk][mapType] : [];
       }
 
       list.innerHTML = '';
@@ -4123,7 +4150,7 @@ Object.keys(IPQC_TOOL_MODEL_MAP || {}).forEach(function(k){ __TOOLS_LOADED[k] = 
       if(!__FAI_SEL) __FAI_SEL = new Set();
 
       // OMM/CMM: ALL(전체 컬럼) 옵션 추가 (기본 선택은 ALL이 아님)
-      if(type === 'OMM' || type === 'CMM' || type === 'OQC'){
+      if(type === 'OMM' || type === 'REAL_OMM' || type === 'CMM' || type === 'OQC'){
         const allBtn = document.createElement('button');
         allBtn.type = 'button';
         allBtn.className = 'ms-datebtn fai-btn';
@@ -4263,7 +4290,7 @@ window.addEventListener('load', function(){
           const wrap = ms.closest('.f') || ms.parentElement;
 
           // FAI 필터가 의미있는 타입만 표시(AOI/OMM/CMM). 그 외 타입이면 UI 숨김 + 상태 초기화.
-          if(!['AOI','OMM','CMM','OQC'].includes(typeNow)){
+          if(!['AOI','OMM','REAL_OMM','CMM','OQC'].includes(typeNow)){
             if(wrap) wrap.style.display = 'none';
             faiHardResetUI();
             return;
@@ -4539,7 +4566,7 @@ function showBusy(title, sub){
       const tools = Array.from(form.querySelectorAll('input[name="tools[]"]:checked')).map(cb=>cb.value);
 
       let fais = [];
-      if (['AOI','OMM','CMM','OQC'].includes((type||'').toUpperCase())) {
+      if (['AOI','OMM','REAL_OMM','CMM','OQC'].includes((type||'').toUpperCase())) {
         try { fais = faiSelectedOrdered(); } catch(e) { fais = []; }
       }
 const qs = new URLSearchParams();
@@ -4555,7 +4582,7 @@ const qs = new URLSearchParams();
       months.forEach(m => qs.append('months[]', m));
       if(tools.length > 0){ tools.forEach(t => qs.append('tools[]', t)); }
 
-      if(fais.length > 0 && ['AOI','OMM','CMM','OQC'].includes((type||'').toUpperCase())){ fais.forEach(v => qs.append('fai[]', v)); }
+      if(fais.length > 0 && ['AOI','OMM','REAL_OMM','CMM','OQC'].includes((type||'').toUpperCase())){ fais.forEach(v => qs.append('fai[]', v)); }
       qs.set('format','csv');
             // Safety: do not accidentally export only one page
       qs.delete('page_date');
@@ -4584,10 +4611,10 @@ const qs = new URLSearchParams();
   const months = Array.from(form.querySelectorAll('input[name="months[]"]:checked')).map(cb=>cb.value);
   const tools = Array.from(form.querySelectorAll('input[name="tools[]"]:checked')).map(cb=>cb.value);
   let fais = [];
-      if (['AOI','OMM','CMM','OQC'].includes((type||'').toUpperCase())) {
+      if (['AOI','OMM','REAL_OMM','CMM','OQC'].includes((type||'').toUpperCase())) {
         try { fais = faiSelectedOrdered(); } catch(e) { fais = []; }
       }
-const colsMap = {'AOI':16,'OMM':3,'CMM':3};
+const colsMap = {'AOI':16,'OMM':3,'REAL_OMM':3,'CMM':3};
   const cols = colsMap[(type||'').toUpperCase()] || 16;
 
   const qs = new URLSearchParams();
@@ -4612,7 +4639,7 @@ qs.set('cols', String(cols));
   years.forEach(y => qs.append('years[]', y));
   months.forEach(m => qs.append('months[]', m));
   if(tools.length > 0){ tools.forEach(t => qs.append('tools[]', t)); }
-  if(fais.length > 0 && ['AOI','OMM','CMM','OQC'].includes((type||'').toUpperCase())){ fais.forEach(v => qs.append('fai[]', v)); }
+  if(fais.length > 0 && ['AOI','OMM','REAL_OMM','CMM','OQC'].includes((type||'').toUpperCase())){ fais.forEach(v => qs.append('fai[]', v)); }
 
   qs.set('format','csv');
 
