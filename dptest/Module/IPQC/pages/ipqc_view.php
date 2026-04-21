@@ -210,16 +210,6 @@ function ipqc_cmp_nat(string $a, string $b): int {
   return $c !== 0 ? $c : strcmp($a, $b);
 }
 
-function ipqc_order_map_type(string $type): string {
-  $t = strtoupper(trim((string)$type));
-  return ($t === 'REAL_OMM') ? 'OMM' : $t;
-}
-
-function ipqc_is_omm_like_type(string $type): bool {
-  $t = strtoupper(trim((string)$type));
-  return ($t === 'OMM' || $t === 'REAL_OMM');
-}
-
 
 
 /* =========================
@@ -720,6 +710,95 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'tools') {
   exit;
 }
 
+// ---------- AJAX: FAI/Point list (for types without static mapping, e.g. REAL_OMM) ----------
+if (isset($_GET['ajax']) && $_GET['ajax'] === 'fai_options') {
+  header('Content-Type: application/json; charset=utf-8');
+
+  $uiType = strtoupper(trim((string)($_GET['type'] ?? '')));
+  $uiModel = trim((string)($_GET['model'] ?? ''));
+  $items = [];
+  $err = null;
+  $truncated = false;
+
+  try {
+    if ($uiType === 'OQC') {
+      // OQC point list already has dedicated ajax=oqc_points endpoint; keep this endpoint focused on IPQC tables.
+    } elseif ($uiModel !== '' && isset($TYPE_MAP[$uiType]) && !empty($TYPE_MAP[$uiType]['header']) && ($TYPE_MAP[$uiType]['header'] !== '__OQC__')) {
+      $cfg = $TYPE_MAP[$uiType];
+      $headerTable = (string)$cfg['header'];
+      $measTable   = (string)$cfg['meas'];
+      $keyCol      = (string)$cfg['key_col'];
+
+      $yearsReq = $_GET['years'] ?? ($_GET['years[]'] ?? []);
+      if (!is_array($yearsReq)) $yearsReq = [$yearsReq];
+      $yearsReq = array_values(array_unique(array_filter(array_map('intval', $yearsReq), function($y){
+        return $y >= 2000 && $y <= 2100;
+      })));
+
+      $monthsReq = $_GET['months'] ?? ($_GET['months[]'] ?? []);
+      if (!is_array($monthsReq)) $monthsReq = [$monthsReq];
+      $monthsReq = array_values(array_unique(array_filter(array_map('intval', $monthsReq), function($m){
+        return $m >= 1 && $m <= 12;
+      })));
+
+      $toolsReq = $_GET['tools'] ?? ($_GET['tools[]'] ?? []);
+      if (!is_array($toolsReq)) $toolsReq = [$toolsReq];
+      $toolsReq = array_values(array_unique(array_filter(array_map('trim', $toolsReq), function($t){
+        return $t !== '' && strlen($t) <= 16;
+      })));
+
+      $where = "h.meas_date IS NOT NULL AND h.part_name = ?";
+      $params = [$uiModel];
+
+      if (!empty($yearsReq)) {
+        $where .= " AND YEAR(h.meas_date) IN (" . implode(',', array_fill(0, count($yearsReq), '?')) . ")";
+        foreach ($yearsReq as $y) $params[] = $y;
+      }
+      if (!empty($monthsReq)) {
+        $where .= " AND MONTH(h.meas_date) IN (" . implode(',', array_fill(0, count($monthsReq), '?')) . ")";
+        foreach ($monthsReq as $m) $params[] = $m;
+      }
+      if (!empty($toolsReq)) {
+        $where .= " AND h.tool IN (" . implode(',', array_fill(0, count($toolsReq), '?')) . ")";
+        foreach ($toolsReq as $t) $params[] = $t;
+      }
+
+      $sqlF = "
+        SELECT DISTINCT m.{$keyCol} AS k
+        FROM {$headerTable} h
+        JOIN {$measTable} m ON m.header_id = h.id
+        WHERE {$where}
+          AND m.row_index = 1
+        ORDER BY k
+        LIMIT 500
+      ";
+      $stmtF = $pdo->prepare($sqlF);
+      $stmtF->execute($params);
+      $rowsF = $stmtF->fetchAll(PDO::FETCH_COLUMN, 0);
+      if (is_array($rowsF)) {
+        $items = array_values(array_unique(array_filter(array_map(function($v){
+          return is_string($v) ? $v : '';
+        }, $rowsF), function($v){
+          return $v !== '';
+        })));
+        if (count($rowsF) >= 500) $truncated = true;
+      }
+    }
+  } catch (Throwable $e) {
+    $err = $e->getMessage();
+  }
+
+  echo json_encode([
+    'ok' => true,
+    'type' => $uiType,
+    'model' => $uiModel,
+    'items' => array_values(is_array($items) ? $items : []),
+    'truncated' => $truncated,
+    'error' => $err,
+  ], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+  exit;
+}
+
 $type = strtoupper($_GET['type'] ?? 'OMM');
 if (!isset($TYPE_MAP[$type])) $type = 'OMM';
 
@@ -730,7 +809,7 @@ $orderList = [];
 $orderIndex = [];
 $__mk = ipqc_model_to_mapkey($model);
 if ($__mk !== '' && isset($IPQC_ORDER_MAP[$__mk]) && is_array($IPQC_ORDER_MAP[$__mk])) {
-  $__orderType = ipqc_order_map_type($type); $__list = $IPQC_ORDER_MAP[$__mk][$__orderType] ?? [];
+  $__list = $IPQC_ORDER_MAP[$__mk][$type] ?? [];
   if (is_array($__list)) {
     $orderList = $__list;
     $i = 0;
@@ -788,7 +867,7 @@ $faiSel = array_values(array_unique($tmp));
 if (count($faiSel) > 500) $faiSel = array_slice($faiSel, 0, 500);
 
 // OMM/CMM: ALL 토큰은 '필터 없음(전체 컬럼)' 의미 (배타)
-if ((ipqc_is_omm_like_type($type) || $type === 'CMM' || $type === 'OQC') && in_array('__ALL__', $faiSel, true)) {
+if (($type === 'OMM' || $type === 'REAL_OMM' || $type === 'CMM' || $type === 'OQC') && in_array('__ALL__', $faiSel, true)) {
   $faiSel = ['__ALL__'];
 }
 
@@ -809,7 +888,7 @@ if ($type === 'AOI') {
 }
 
 // ✅ OMM/CMM: 기본 선택은 ALL이 아님 (선택이 없으면 첫 항목 1개 자동 선택)
-if ((ipqc_is_omm_like_type($type) || $type === 'CMM' || $type === 'OQC')) {
+if (($type === 'OMM' || $type === 'REAL_OMM' || $type === 'CMM' || $type === 'OQC')) {
   if (empty($faiSel)) {
     if (!empty($orderList) && is_array($orderList)) {
       $first = null;
@@ -907,7 +986,7 @@ if ($type === 'OQC') {
     $orderIndex = [];
     $__mk = ipqc_model_to_mapkey($model);
     if ($__mk !== '' && isset($IPQC_ORDER_MAP[$__mk]) && is_array($IPQC_ORDER_MAP[$__mk])) {
-      $__orderType = ipqc_order_map_type($type); $__list = $IPQC_ORDER_MAP[$__mk][$__orderType] ?? [];
+      $__list = $IPQC_ORDER_MAP[$__mk][$type] ?? [];
       if (is_array($__list)) {
         $orderList = $__list;
         $i = 0;
@@ -1039,7 +1118,7 @@ if ($type === 'AOI') {
   $orderIndex = [];
   $__mk = ipqc_model_to_mapkey($model);
   if ($__mk !== '' && isset($IPQC_ORDER_MAP[$__mk]) && is_array($IPQC_ORDER_MAP[$__mk])) {
-    $__orderType = ipqc_order_map_type($type); $__list = $IPQC_ORDER_MAP[$__mk][$__orderType] ?? [];
+    $__list = $IPQC_ORDER_MAP[$__mk][$type] ?? [];
     if (is_array($__list)) {
       $orderList = $__list;
       $i = 0;
@@ -1132,6 +1211,41 @@ if ($type === 'AOI') {
       } catch (Throwable $e) {
         // ignore
       }
+    }
+  }
+}
+
+// FAI 옵션(REAL_OMM 전용): DB 원문 라벨 그대로 DISTINCT 조회
+if ($type === 'REAL_OMM') {
+  if ($model !== '' && !empty($toolsSel) && !empty($yearsSel) && !empty($months)) {
+    try {
+      $yIn = implode(',', array_fill(0, count($yearsSel), '?'));
+      $mIn = implode(',', array_fill(0, count($months), '?'));
+      $tIn = implode(',', array_fill(0, count($toolsSel), '?'));
+      $sqlF = "
+        SELECT DISTINCT m.{$keyCol} AS k
+        FROM {$headerTable} h
+        JOIN {$measTable} m ON m.header_id = h.id
+        WHERE h.meas_date IS NOT NULL
+          AND YEAR(h.meas_date) IN ($yIn)
+          AND MONTH(h.meas_date) IN ($mIn)
+          AND h.part_name = ?
+          AND h.tool IN ($tIn)
+          AND m.row_index = 1
+        ORDER BY k
+        LIMIT 500
+      ";
+      $stmtF = $pdo->prepare($sqlF);
+      $stmtF->execute(array_merge($yearsSel, $months, [$model], array_values($toolsSel)));
+      $rowsF = $stmtF->fetchAll(PDO::FETCH_COLUMN, 0);
+      if (is_array($rowsF)) {
+        $faiOptions = array_values(array_unique(array_filter(array_map(function($v){ return is_string($v) ? $v : ''; }, $rowsF), function($v){
+          return is_string($v) && $v !== '';
+        })));
+        if (count($rowsF) >= 500) $faiOptionsTruncated = true;
+      }
+    } catch (Throwable $e) {
+      // ignore
     }
   }
 }
@@ -1778,7 +1892,7 @@ if ($type === 'AOI') {
     $totalRowsView = (int)($stmt->fetchColumn() ?: 0);
 
   } else {
-    // OMM/CMM pivot row key (rendered): part|tool|cavity|date|idx(row_index)
+    // OMM/REAL_OMM/CMM pivot row key (rendered): part|tool|cavity|date|idx(row_index)
     $sqlCntAll = "SELECT COUNT(*) FROM (
         SELECT
           h.part_name, DATE(h.meas_date) AS d, h.tool, h.cavity, m.row_index
@@ -1906,7 +2020,7 @@ r.usl, r.lsl, r.result_ok
       });
 
     } else {
-      // OMM/CMM: JMP 시트처럼 Pivot(라벨=Data 1..N, 열=포인트/FAI)
+      // OMM/REAL_OMM/CMM: JMP 시트처럼 Pivot(라벨=Data 1..N, 열=포인트/FAI)
       $isPivot = true;
       $pivotRows = [];
       $colMeta = [];
@@ -1924,7 +2038,7 @@ r.usl, r.lsl, r.result_ok
 
         $label = 'Data ' . $idx;
 
-        if (ipqc_is_omm_like_type($type)) {
+        if ($type === 'OMM' || $type === 'REAL_OMM') {
           // OMM: DB에 저장된 fai 라벨을 그대로 사용한다. (SPC는 표시용 부가필드)
           $keyName = (string)($r['key_name'] ?? '');
           $colKey = $keyName;
@@ -1971,7 +2085,7 @@ r.usl, r.lsl, r.result_ok
 
       // Build ordered pivot columns
       // OMM: always follow mapping order (all labels), then append any DB-only columns
-      if (ipqc_is_omm_like_type($type) && !empty($orderList)) {
+      if ($type === 'OMM' && !empty($orderList)) {
         // OMM: 매핑.xlsx(order_map)은 '정렬'에만 사용한다.
         // - DB에 없는 라벨로 신규 컬럼을 만들지 않는다.
         // - 라벨/키를 정규화/분리/접두어 보정하지 않는다(DB 그대로).
@@ -2008,12 +2122,12 @@ r.usl, r.lsl, r.result_ok
           }
 
           // 2) Fallback: keep previous rule
-          if (ipqc_is_omm_like_type($type)) return ipqc_cmp_omm_cols((string)$a, (string)$b);
+          if ($type === 'OMM' || $type === 'REAL_OMM') return ipqc_cmp_omm_cols((string)$a, (string)$b);
           return ipqc_cmp_nat($la, $lb);
         });
       }
 // OMM/CMM: FAI 선택은 '열(컬럼)' 필터이다. 선택된 컬럼만 남긴다. (__ALL__이면 전체)
-      if ((ipqc_is_omm_like_type($type) || $type === 'CMM') && isset($colKeys) && is_array($colKeys) && !empty($faiSel) && !in_array('__ALL__', $faiSel, true)) {
+      if (($type === 'OMM' || $type === 'REAL_OMM' || $type === 'CMM') && isset($colKeys) && is_array($colKeys) && !empty($faiSel) && !in_array('__ALL__', $faiSel, true)) {
         $selSet = array_fill_keys($faiSel, 1);
         $colKeys = array_values(array_filter($colKeys, function($k) use ($selSet, $colMeta, $type){
           $k = (string)$k;
@@ -3585,20 +3699,12 @@ $IPQC_FAI_MAP = [];
 foreach ($IPQC_ORDER_MAP as $__mk3 => $__mm3) {
   if (!is_array($__mm3)) continue;
   $IPQC_FAI_MAP[$__mk3] = [];
-  foreach (['AOI','OMM','REAL_OMM','CMM','OQC'] as $__t) {
+  foreach (['AOI','OMM','CMM','OQC'] as $__t) {
     if (isset($__mm3[$__t]) && is_array($__mm3[$__t])) {
       $IPQC_FAI_MAP[$__mk3][$__t] = array_values($__mm3[$__t]);
     }
   }
 }
-
-foreach ($IPQC_FAI_MAP as $__mk3 => &$__map3) {
-  if (!is_array($__map3)) continue;
-  if ((!isset($__map3['REAL_OMM']) || !is_array($__map3['REAL_OMM']) || empty($__map3['REAL_OMM'])) && isset($__map3['OMM']) && is_array($__map3['OMM'])) {
-    $__map3['REAL_OMM'] = array_values($__map3['OMM']);
-  }
-}
-unset($__map3);
 
 // OQC point_no list map for client-side (model -> point_no list)
 // - OQC는 mapping.xlsx에 보통 매핑이 없으므로(DB에서 point_no를 직접 뽑아) UI에서 열 선택이 가능하게 한다.
@@ -3609,7 +3715,19 @@ $IPQC_OQC_POINT_MODEL_MAP = []; // lazy via ajax=oqc_points
 const IPQC_FAI_MAP = <?= json_encode($IPQC_FAI_MAP, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
 const IPQC_AOI_FAI_MAP = <?= json_encode($IPQC_AOI_MAP, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
 const IPQC_AOI_FAI_MODEL_MAP = <?= json_encode($IPQC_AOI_MODEL_MAP, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
+
+<?php
+$__faiSeedYears = array_values($yearsSel); sort($__faiSeedYears);
+$__faiSeedMonths = array_values($months); sort($__faiSeedMonths);
+$__faiSeedTools = array_values($toolsSel); usort($__faiSeedTools, 'ipqc_cmp_nat');
+$__faiSeedKey = strtoupper((string)$type) . '|' . (string)$model . '|Y:' . implode(',', $__faiSeedYears) . '|M:' . implode(',', $__faiSeedMonths) . '|T:' . implode(',', $__faiSeedTools);
+$__faiSeedMap = [$__faiSeedKey => array_values(is_array($faiOptions) ? $faiOptions : [])];
+?>
 const IPQC_OQC_POINT_MODEL_MAP = <?= json_encode($IPQC_OQC_POINT_MODEL_MAP, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
+const IPQC_FAI_OPTIONS_MODEL_MAP = <?= json_encode($__faiSeedMap, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
+const __FAI_OPTIONS_LOADED = {};
+const __FAI_OPTIONS_PROMISE = {};
+Object.keys(IPQC_FAI_OPTIONS_MODEL_MAP || {}).forEach(function(k){ __FAI_OPTIONS_LOADED[k] = true; });
 const IPQC_TOOL_MODEL_MAP = <?= json_encode([strtoupper((string)$type) . '|' . (string)$model => array_values($tools)], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
 const IPQC_TOOL_SELECTION_MAP = <?= json_encode([strtoupper((string)$type) . '|' . (string)$model => array_values($toolsSel)], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
 const __TOOLS_LOADED = {};
@@ -3809,6 +3927,77 @@ Object.keys(IPQC_TOOL_MODEL_MAP || {}).forEach(function(k){ __TOOLS_LOADED[k] = 
       });
     }
 
+
+    function faiFilterKey(type, model){
+      const t = String(type || '').trim().toUpperCase();
+      const m = String(model || '');
+      const years = Array.from(document.querySelectorAll('#ms-years input[name="years[]"]:checked')).map(cb=>String(cb.value||'')).filter(Boolean).sort();
+      const months = Array.from(document.querySelectorAll('#ms-months input[name="months[]"]:checked')).map(cb=>String(cb.value||'')).filter(Boolean).sort();
+      const tools = Array.from(document.querySelectorAll('#ms-tools input[name="tools[]"]:checked')).map(cb=>String(cb.value||'')).filter(Boolean).sort();
+      return t + '|' + m + '|Y:' + years.join(',') + '|M:' + months.join(',') + '|T:' + tools.join(',');
+    }
+
+    function faiFetchOptions(type, model){
+      const t = String(type || '').trim().toUpperCase();
+      const m = String(model || '');
+      if(!t || !m) return Promise.resolve([]);
+      const key = faiFilterKey(t, m);
+      if(__FAI_OPTIONS_LOADED[key] && Array.isArray(IPQC_FAI_OPTIONS_MODEL_MAP[key])){
+        return Promise.resolve(IPQC_FAI_OPTIONS_MODEL_MAP[key]);
+      }
+      if(__FAI_OPTIONS_PROMISE[key]) return __FAI_OPTIONS_PROMISE[key];
+
+      const years = Array.from(document.querySelectorAll('#ms-years input[name="years[]"]:checked')).map(cb=>String(cb.value||'')).filter(Boolean);
+      const months = Array.from(document.querySelectorAll('#ms-months input[name="months[]"]:checked')).map(cb=>String(cb.value||'')).filter(Boolean);
+      const tools = Array.from(document.querySelectorAll('#ms-tools input[name="tools[]"]:checked')).map(cb=>String(cb.value||'')).filter(Boolean);
+
+      const qs = new URLSearchParams();
+      qs.set('ajax', 'fai_options');
+      qs.set('type', t);
+      qs.set('model', m);
+      years.forEach(v => qs.append('years[]', v));
+      months.forEach(v => qs.append('months[]', v));
+      tools.forEach(v => qs.append('tools[]', v));
+      const url = new URL(window.location.href);
+      url.search = qs.toString();
+
+      __FAI_OPTIONS_PROMISE[key] = fetch(url.toString(), { credentials: 'same-origin' })
+        .then(r => r.json())
+        .then(js => {
+          const arr = (js && Array.isArray(js.items)) ? js.items.map(v => String(v || '')).filter(v => v !== '') : [];
+          IPQC_FAI_OPTIONS_MODEL_MAP[key] = arr;
+          __FAI_OPTIONS_LOADED[key] = true;
+          delete __FAI_OPTIONS_PROMISE[key];
+          return arr;
+        })
+        .catch(() => {
+          delete __FAI_OPTIONS_PROMISE[key];
+          return [];
+        });
+      return __FAI_OPTIONS_PROMISE[key];
+    }
+
+    function faiGetOrderedItems(type, model){
+      const t = String(type || '').trim().toUpperCase();
+      const m = String(model || '');
+      const mk = ipqcModelToMapKeyJs(m);
+      if(t === 'AOI'){
+        return (m && Array.isArray(IPQC_AOI_FAI_MODEL_MAP[m])) ? IPQC_AOI_FAI_MODEL_MAP[m] : ((mk && Array.isArray(IPQC_AOI_FAI_MAP[mk])) ? IPQC_AOI_FAI_MAP[mk] : []);
+      }
+      if(t === 'OQC'){
+        return (m && IPQC_OQC_POINT_MODEL_MAP && Array.isArray(IPQC_OQC_POINT_MODEL_MAP[m])) ? IPQC_OQC_POINT_MODEL_MAP[m]
+          : ((mk && IPQC_FAI_MAP && IPQC_FAI_MAP[mk] && Array.isArray(IPQC_FAI_MAP[mk][t])) ? IPQC_FAI_MAP[mk][t] : []);
+      }
+      if(t === 'REAL_OMM'){
+        const key = faiFilterKey(t, m);
+        return Array.isArray(IPQC_FAI_OPTIONS_MODEL_MAP[key]) ? IPQC_FAI_OPTIONS_MODEL_MAP[key] : [];
+      }
+      if(t === 'OMM' || t === 'CMM'){
+        return (mk && IPQC_FAI_MAP && IPQC_FAI_MAP[mk] && Array.isArray(IPQC_FAI_MAP[mk][t])) ? IPQC_FAI_MAP[mk][t] : [];
+      }
+      return [];
+    }
+
     function ipqcModelToMapKeyJs(model){
       const m = String(model || '').toLowerCase();
       if (/(^|\s)z\s*[-_ ]?\s*stopper/.test(m)) return 'ZSTOPPER';
@@ -3817,11 +4006,6 @@ Object.keys(IPQC_TOOL_MODEL_MAP || {}).forEach(function(k){ __TOOLS_LOADED[k] = 
       if (/(^|\s)x\s*[-_ ]?\s*carrier/.test(m)) return 'XCARRIER';
       if (/(^|\s)ir\s*[-_ ]?\s*base/.test(m)) return 'IRBASE';
       return '';
-    }
-
-    function ipqcMapTypeJs(type){
-      const t = String(type || '').trim().toUpperCase();
-      return t === 'REAL_OMM' ? 'OMM' : t;
     }
 
     let __FAI_SEL = new Set();
@@ -3877,7 +4061,6 @@ Object.keys(IPQC_TOOL_MODEL_MAP || {}).forEach(function(k){ __TOOLS_LOADED[k] = 
       const model = document.getElementById('model') ? (document.getElementById('model').value || '') : '';
       const type = (document.getElementById('type') ? (document.getElementById('type').value || '') : '').trim().toUpperCase();
       const mk = ipqcModelToMapKeyJs(model);
-      const mapType = ipqcMapTypeJs(type);
 
       // ALL 선택이면 그대로 1개만 유지(필터 없음 의미)
       if(__FAI_SEL && __FAI_SEL.has('__ALL__')){
@@ -3888,33 +4071,7 @@ Object.keys(IPQC_TOOL_MODEL_MAP || {}).forEach(function(k){ __TOOLS_LOADED[k] = 
         return;
       }
 
-      let order = [];
-      if(type === 'AOI'){
-        order = (model && Array.isArray(IPQC_AOI_FAI_MODEL_MAP[model])) ? IPQC_AOI_FAI_MODEL_MAP[model] : ((mk && Array.isArray(IPQC_AOI_FAI_MAP[mk])) ? IPQC_AOI_FAI_MAP[mk] : []);
-      }else if(type === 'OQC'){
-        // OQC: point_no list (열 선택). mapping.xlsx가 없을 수 있으므로 DB에서 lazy fetch fallback.
-        items = (model && IPQC_OQC_POINT_MODEL_MAP && Array.isArray(IPQC_OQC_POINT_MODEL_MAP[model])) ? IPQC_OQC_POINT_MODEL_MAP[model] : [];
-
-        // 아직 로드된 적 없고(또는 빈 배열), 모델이 있으면 1회만 AJAX로 가져온다.
-        if(model && (!__OQC_POINTS_LOADED[model]) && (!items || items.length === 0)){
-          if(empty) empty.style.display = 'none';
-          list.style.display = 'block';
-          list.innerHTML = '<div class="ms-empty" style="grid-column:1/-1; padding:10px; opacity:0.85;">로딩...</div>';
-          faiSyncSummary();
-          faiFetchOqcPoints(model).then(function(){
-            try{ faiBuildListForModel(model, resetSelection); }catch(e){}
-          });
-          return;
-        }
-
-        // mapping fallback (드물게 있을 수 있음)
-        if((!items || items.length === 0) && mk && IPQC_FAI_MAP && IPQC_FAI_MAP[mk] && Array.isArray(IPQC_FAI_MAP[mk][type])) {
-          items = IPQC_FAI_MAP[mk][type];
-        }
-      }else if(type === 'OMM' || type === 'REAL_OMM' || type === 'CMM'){
-
-        order = (mk && IPQC_FAI_MAP && IPQC_FAI_MAP[mk] && Array.isArray(IPQC_FAI_MAP[mk][mapType])) ? IPQC_FAI_MAP[mk][mapType] : [];
-      }
+      let order = faiGetOrderedItems(type, model);
 
 // build ordered list of selected values
       const out = [];
@@ -3941,17 +4098,8 @@ Object.keys(IPQC_TOOL_MODEL_MAP || {}).forEach(function(k){ __TOOLS_LOADED[k] = 
       const model = document.getElementById('model') ? (document.getElementById('model').value || '') : '';
       const mk = ipqcModelToMapKeyJs(model);
       const type = (document.getElementById('type') ? (document.getElementById('type').value || '') : '').trim().toUpperCase();
-      const mapType = ipqcMapTypeJs(type);
 
-      let order = [];
-      if(type === 'AOI'){
-        order = (model && Array.isArray(IPQC_AOI_FAI_MODEL_MAP[model])) ? IPQC_AOI_FAI_MODEL_MAP[model] : ((mk && Array.isArray(IPQC_AOI_FAI_MAP[mk])) ? IPQC_AOI_FAI_MAP[mk] : []);
-      }else if(type === 'OQC'){
-        order = (model && IPQC_OQC_POINT_MODEL_MAP && Array.isArray(IPQC_OQC_POINT_MODEL_MAP[model])) ? IPQC_OQC_POINT_MODEL_MAP[model]
-              : ((mk && IPQC_FAI_MAP && IPQC_FAI_MAP[mk] && Array.isArray(IPQC_FAI_MAP[mk][type])) ? IPQC_FAI_MAP[mk][type] : []);
-      }else if(type === 'OMM' || type === 'REAL_OMM' || type === 'CMM'){
-        order = (mk && IPQC_FAI_MAP && IPQC_FAI_MAP[mk] && Array.isArray(IPQC_FAI_MAP[mk][mapType])) ? IPQC_FAI_MAP[mk][mapType] : [];
-      }
+      let order = faiGetOrderedItems(type, model);
 
       const out = [];
       const seen = new Set();
@@ -4022,7 +4170,7 @@ Object.keys(IPQC_TOOL_MODEL_MAP || {}).forEach(function(k){ __TOOLS_LOADED[k] = 
       }
 
 
-      // OMM/CMM: ALL은 배타(선택하면 나머지 해제). ALL이 선택된 상태에서 다른 값을 선택하면 ALL 해제.
+      // OMM/REAL_OMM/CMM: ALL은 배타(선택하면 나머지 해제). ALL이 선택된 상태에서 다른 값을 선택하면 ALL 해제.
       if(v === '__ALL__'){
         __FAI_SEL = new Set(['__ALL__']);
         faiWriteHiddenByOrder();
@@ -4099,41 +4247,50 @@ Object.keys(IPQC_TOOL_MODEL_MAP || {}).forEach(function(k){ __TOOLS_LOADED[k] = 
 
       if(!list) return;
 
-      const mk = ipqcModelToMapKeyJs(model);
       const type = (document.getElementById('type') ? (document.getElementById('type').value || '') : '').trim().toUpperCase();
-      const mapType = ipqcMapTypeJs(type);
-      let items = [];
-      if(type === 'AOI'){
-        items = (model && Array.isArray(IPQC_AOI_FAI_MODEL_MAP[model])) ? IPQC_AOI_FAI_MODEL_MAP[model] : ((mk && Array.isArray(IPQC_AOI_FAI_MAP[mk])) ? IPQC_AOI_FAI_MAP[mk] : []);
-      }else if(type === 'OQC'){
-        if(model && IPQC_OQC_POINT_MODEL_MAP && Array.isArray(IPQC_OQC_POINT_MODEL_MAP[model])){
-          items = IPQC_OQC_POINT_MODEL_MAP[model];
-        }else{
-          // OQC는 mapping.xlsx에 매핑이 없는 경우가 많다 -> 드롭다운을 열 때 DB에서 point_no를 lazy fetch
-          if(model && !__OQC_POINTS_LOADED[model]){
-            if(empty){
-              empty.style.display = 'block';
-              empty.textContent = '로딩 중...';
-            }
-            list.style.display = 'none';
-            faiSyncSummary();
-
-            faiFetchOqcPoints(model).then(() => {
-              if(empty){
-                empty.textContent = (empty.dataset.defaultText || '');
-              }
-              const curType = (document.getElementById('type') ? (document.getElementById('type').value || '') : '').trim().toUpperCase();
-              const curModel = (document.getElementById('model') ? (document.getElementById('model').value || '') : '');
-              if(curType === 'OQC' && curModel === model){
-                faiBuildListForModel(model, false);
-              }
-            });
-            return;
+      let items = faiGetOrderedItems(type, model);
+      if(type === 'OQC' && (!Array.isArray(items) || items.length === 0)){
+        // OQC는 mapping.xlsx에 매핑이 없는 경우가 많다 -> 드롭다운을 열 때 DB에서 point_no를 lazy fetch
+        if(model && !__OQC_POINTS_LOADED[model]){
+          if(empty){
+            empty.style.display = 'block';
+            empty.textContent = '로딩 중...';
           }
-          items = (mk && IPQC_FAI_MAP && IPQC_FAI_MAP[mk] && Array.isArray(IPQC_FAI_MAP[mk][mapType])) ? IPQC_FAI_MAP[mk][mapType] : [];
+          list.style.display = 'none';
+          faiSyncSummary();
+
+          faiFetchOqcPoints(model).then(() => {
+            if(empty){
+              empty.textContent = (empty.dataset.defaultText || '');
+            }
+            const curType = (document.getElementById('type') ? (document.getElementById('type').value || '') : '').trim().toUpperCase();
+            const curModel = (document.getElementById('model') ? (document.getElementById('model').value || '') : '');
+            if(curType === 'OQC' && curModel === model){
+              faiBuildListForModel(model, false);
+            }
+          });
+          return;
         }
-      }else if(type === 'OMM' || type === 'REAL_OMM' || type === 'CMM'){
-        items = (mk && IPQC_FAI_MAP && IPQC_FAI_MAP[mk] && Array.isArray(IPQC_FAI_MAP[mk][mapType])) ? IPQC_FAI_MAP[mk][mapType] : [];
+      }
+      if(type === 'REAL_OMM' && model && (!Array.isArray(items) || items.length === 0)){
+        if(empty){
+          empty.style.display = 'block';
+          empty.textContent = '로딩 중...';
+        }
+        list.style.display = 'none';
+        faiSyncSummary();
+
+        faiFetchOptions(type, model).then(() => {
+          if(empty){
+            empty.textContent = (empty.dataset.defaultText || '');
+          }
+          const curType = (document.getElementById('type') ? (document.getElementById('type').value || '') : '').trim().toUpperCase();
+          const curModel = (document.getElementById('model') ? (document.getElementById('model').value || '') : '');
+          if(curType === 'REAL_OMM' && curModel === model){
+            faiBuildListForModel(model, false);
+          }
+        });
+        return;
       }
 
       list.innerHTML = '';
@@ -4149,7 +4306,7 @@ Object.keys(IPQC_TOOL_MODEL_MAP || {}).forEach(function(k){ __TOOLS_LOADED[k] = 
       // ensure selection is loaded from hidden (first init)
       if(!__FAI_SEL) __FAI_SEL = new Set();
 
-      // OMM/CMM: ALL(전체 컬럼) 옵션 추가 (기본 선택은 ALL이 아님)
+      // OMM/REAL_OMM/CMM: ALL(전체 컬럼) 옵션 추가 (기본 선택은 ALL이 아님)
       if(type === 'OMM' || type === 'REAL_OMM' || type === 'CMM' || type === 'OQC'){
         const allBtn = document.createElement('button');
         allBtn.type = 'button';
