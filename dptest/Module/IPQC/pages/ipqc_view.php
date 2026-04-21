@@ -182,9 +182,28 @@ function is_numeric_leading(string $s): bool {
   return preg_match('/^\s*\d/', $s) === 1;
 }
 
+function ipqc_pretty_numeric_label($v): string {
+  $s = trim((string)$v);
+  if ($s === '') return '';
+  if (!preg_match('/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/', $s)) return $s;
+  $n = (float)$s;
+  $out = number_format($n, 12, '.', '');
+  $out = rtrim(rtrim($out, '0'), '.');
+  if ($out === '' || $out === '-0') $out = '0';
+  return $out;
+}
+
+function ipqc_omm_display_label($v): string {
+  $s = ipqc_norm_omm_match_key($v);
+  if ($s === '') return '';
+  if (preg_match('/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/', $s)) {
+    return ipqc_pretty_numeric_label($s);
+  }
+  return $s;
+}
+
 function omm_col_label(string $keyName, ?string $spc): string {
-  // OMM: DB에 저장된 fai 라벨을 그대로 사용한다. (SPC는 표시용 부가필드)
-  return (string)$keyName;
+  return ipqc_omm_display_label($keyName);
 }
 
 
@@ -193,17 +212,21 @@ function ipqc_norm_omm_match_key($v): string {
   // OMM/REAL_OMM 비교용 정규화:
   // - DB 원문 표시는 유지하되, 필터/매핑/정렬 비교에서는
   //   뒤/앞 공백, 중복 공백, 슬래시 주변 공백 차이 때문에 값이 누락되면 안 된다.
-  // - 예: "FAI 17-1 / SPC U ", "FAI 17-1/SPC U", "FAI 17-1 / SPC U" -> 동일 비교 키
+  // - 숫자형 FAI가 raw XML 부동소수 꼬리(예: 33.200000000000003)로 들어와도
+  //   뷰어에서는 33.2처럼 비교/표시되도록 맞춘다.
   $s = (string)$v;
   if ($s === '') return '';
   $s = str_replace(["Â ", "ã"], ' ', $s); // NBSP / 전각 공백
   $s = preg_replace('/\s*\/\s*/u', ' / ', $s);
   $s = preg_replace('/\s+/u', ' ', $s);
-  return trim($s);
+  $s = trim($s);
+  if ($s !== '' && preg_match('/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/', $s)) {
+    return ipqc_pretty_numeric_label($s);
+  }
+  return $s;
 }
 function ipqc_norm_omm_fai($v): string {
-  // OMM: DB 원문 표시는 유지하되, 비교용 키는 ipqc_norm_omm_match_key()를 사용한다.
-  return (string)$v;
+  return ipqc_omm_display_label($v);
 }
 function ipqc_norm_omm_spc($v): string {
   // OMM: SPC는 부가 필드(표시용). 가공/분리/강제 금지.
@@ -1081,7 +1104,7 @@ if ($type === 'AOI') {
   if (!empty($orderList) && is_array($orderList)) {
     foreach ($orderList as $lab) {
       if (is_array($lab)) continue;
-      $lab = trim((string)$lab);
+      $lab = ipqc_omm_display_label($lab);
       if ($lab !== '') $tmp[] = $lab;
     }
   }
@@ -1112,7 +1135,7 @@ if ($type === 'AOI') {
         $stmtF->execute(array_merge($yearsSel, $months, [$model], array_values($toolsSel)));
         $rowsF = $stmtF->fetchAll(PDO::FETCH_COLUMN, 0);
         if (is_array($rowsF)) {
-          $faiOptions = array_values(array_unique(array_filter(array_map('trim', $rowsF), function($v){
+          $faiOptions = array_values(array_unique(array_filter(array_map('ipqc_omm_display_label', $rowsF), function($v){
             return is_string($v) && $v !== '';
           })));
           if (count($rowsF) >= 500) $faiOptionsTruncated = true;
@@ -1207,7 +1230,7 @@ if ($type === 'AOI') {
   if (!empty($orderList) && is_array($orderList)) {
     foreach ($orderList as $lab) {
       if (is_array($lab)) continue;
-      $lab = trim((string)$lab);
+      $lab = ipqc_omm_display_label($lab);
       if ($lab !== '') $tmp[] = $lab;
     }
   }
@@ -1238,7 +1261,7 @@ if ($type === 'AOI') {
         $stmtF->execute(array_merge($yearsSel, $months, [$model], array_values($toolsSel)));
         $rowsF = $stmtF->fetchAll(PDO::FETCH_COLUMN, 0);
         if (is_array($rowsF)) {
-          $faiOptions = array_values(array_unique(array_filter(array_map('trim', $rowsF), function($v){
+          $faiOptions = array_values(array_unique(array_filter(array_map('ipqc_omm_display_label', $rowsF), function($v){
             return is_string($v) && $v !== '';
           })));
           if (count($rowsF) >= 500) $faiOptionsTruncated = true;
@@ -1257,7 +1280,7 @@ if ($type === 'REAL_OMM') {
   if (!empty($orderList) && is_array($orderList)) {
     foreach ($orderList as $lab) {
       if (is_array($lab)) continue;
-      $lab = trim((string)$lab);
+      $lab = ipqc_omm_display_label($lab);
       if ($lab !== '') $tmp[] = $lab;
     }
   }
@@ -1287,7 +1310,7 @@ if ($type === 'REAL_OMM') {
         $stmtF->execute(array_merge($yearsSel, $months, [$model], array_values($toolsSel)));
         $rowsF = $stmtF->fetchAll(PDO::FETCH_COLUMN, 0);
         if (is_array($rowsF)) {
-          $faiOptions = array_values(array_unique(array_filter(array_map(function($v){ return is_string($v) ? $v : ''; }, $rowsF), function($v){
+          $faiOptions = array_values(array_unique(array_filter(array_map(function($v){ return is_string($v) ? ipqc_omm_display_label($v) : ''; }, $rowsF), function($v){
             return is_string($v) && $v !== '';
           })));
           if (count($rowsF) >= 500) $faiOptionsTruncated = true;
@@ -2067,7 +2090,7 @@ r.usl, r.lsl, r.result_ok
 
           if (!isset($colMeta[$colKey])) {
             $colMeta[$colKey] = [
-              'label' => $colKey,
+              'label' => ipqc_omm_display_label($keyName),
               'usl'   => $r['usl'],
               'lsl'   => $r['lsl'],
             ];
