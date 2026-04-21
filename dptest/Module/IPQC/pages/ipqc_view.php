@@ -189,8 +189,20 @@ function omm_col_label(string $keyName, ?string $spc): string {
 
 
 // --- OMM label/key normalization (viewer/export consistency) ---
+function ipqc_norm_omm_match_key($v): string {
+  // OMM/REAL_OMM 비교용 정규화:
+  // - DB 원문 표시는 유지하되, 필터/매핑/정렬 비교에서는
+  //   뒤/앞 공백, 중복 공백, 슬래시 주변 공백 차이 때문에 값이 누락되면 안 된다.
+  // - 예: "FAI 17-1 / SPC U ", "FAI 17-1/SPC U", "FAI 17-1 / SPC U" -> 동일 비교 키
+  $s = (string)$v;
+  if ($s === '') return '';
+  $s = str_replace(["Â ", "ã"], ' ', $s); // NBSP / 전각 공백
+  $s = preg_replace('/\s*\/\s*/u', ' / ', $s);
+  $s = preg_replace('/\s+/u', ' ', $s);
+  return trim($s);
+}
 function ipqc_norm_omm_fai($v): string {
-  // OMM: 라벨 가공 금지(DB 그대로)
+  // OMM: DB 원문 표시는 유지하되, 비교용 키는 ipqc_norm_omm_match_key()를 사용한다.
   return (string)$v;
 }
 function ipqc_norm_omm_spc($v): string {
@@ -826,7 +838,8 @@ if ($__mk !== '' && isset($IPQC_ORDER_MAP[$__mk]) && is_array($IPQC_ORDER_MAP[$_
     foreach ($__list as $__lab) {
       if (is_array($__lab)) continue;
       $__lab = (string)$__lab;
-      if ($__lab !== '' && !isset($orderIndex[$__lab])) $orderIndex[$__lab] = $i;
+      $__ordKey = (($type === 'OMM' || $type === 'REAL_OMM') ? ipqc_norm_omm_match_key($__lab) : $__lab);
+      if ($__ordKey !== '' && !isset($orderIndex[$__ordKey])) $orderIndex[$__ordKey] = $i;
       $i++;
     }
   }
@@ -874,6 +887,15 @@ foreach ($faiSel as $v) {
   $tmp[] = $s;
 }
 $faiSel = array_values(array_unique($tmp));
+if ($type === 'OMM' || $type === 'REAL_OMM') {
+  $tmpNorm = [];
+  foreach ($faiSel as $v) {
+    if ($v === '__ALL__') { $tmpNorm[] = '__ALL__'; continue; }
+    $nv = ipqc_norm_omm_match_key($v);
+    if ($nv !== '') $tmpNorm[] = $nv;
+  }
+  $faiSel = array_values(array_unique($tmpNorm));
+}
 if (count($faiSel) > 500) $faiSel = array_slice($faiSel, 0, 500);
 
 // OMM/CMM: ALL 토큰은 '필터 없음(전체 컬럼)' 의미 (배타)
@@ -1004,7 +1026,8 @@ if ($type === 'OQC') {
         foreach ($__list as $__lab) {
           if (is_array($__lab)) continue;
           $__lab = (string)$__lab;
-          if ($__lab !== '' && !isset($orderIndex[$__lab])) $orderIndex[$__lab] = $i;
+          $__ordKey = (($type === 'OMM' || $type === 'REAL_OMM') ? ipqc_norm_omm_match_key($__lab) : $__lab);
+          if ($__ordKey !== '' && !isset($orderIndex[$__ordKey])) $orderIndex[$__ordKey] = $i;
           $i++;
         }
       }
@@ -1534,8 +1557,10 @@ if ($doQuery) {
           $la = (string)($a['label'] ?? '');
           $lb = (string)($b['label'] ?? '');
           if (!empty($orderIndex)) {
-            $ia = $orderIndex[$la] ?? PHP_INT_MAX;
-            $ib = $orderIndex[$lb] ?? PHP_INT_MAX;
+            $laOrd = (($type === 'OMM' || $type === 'REAL_OMM') ? ipqc_norm_omm_match_key($la) : $la);
+            $lbOrd = (($type === 'OMM' || $type === 'REAL_OMM') ? ipqc_norm_omm_match_key($lb) : $lb);
+            $ia = $orderIndex[$laOrd] ?? PHP_INT_MAX;
+            $ib = $orderIndex[$lbOrd] ?? PHP_INT_MAX;
             if ($ia !== $ib) return $ia <=> $ib;
           }
           return ipqc_cmp_nat($la, $lb);
@@ -2033,13 +2058,16 @@ r.usl, r.lsl, r.result_ok
         $label = 'Data ' . $idx;
 
         if ($type === 'OMM' || $type === 'REAL_OMM') {
-          // OMM: DB에 저장된 fai 라벨을 그대로 사용한다. (SPC는 표시용 부가필드)
+          // OMM/REAL_OMM: 표시는 사람이 보는 라벨로 유지하되,
+          // 비교/선택/매핑용 키는 공백 차이(특히 뒤 공백, 슬래시 주변 공백)를 정규화해서 사용한다.
           $keyName = (string)($r['key_name'] ?? '');
-          $colKey = $keyName;
+          $colKey = ipqc_norm_omm_match_key($keyName);
+          if ($colKey === '') $colKey = trim($keyName);
+          if ($colKey === '') continue;
 
           if (!isset($colMeta[$colKey])) {
             $colMeta[$colKey] = [
-              'label' => $keyName,
+              'label' => $colKey,
               'usl'   => $r['usl'],
               'lsl'   => $r['lsl'],
             ];
@@ -2088,10 +2116,11 @@ r.usl, r.lsl, r.result_ok
         foreach ($orderList as $__lab) {
           if (is_array($__lab)) continue;
           $__rawLab = (string)$__lab;
-          if ($__rawLab === '') continue;
-          if (isset($colMeta[$__rawLab]) && !isset($mappedSet[$__rawLab])) {
-            $mappedSet[$__rawLab] = 1;
-            $mappedKeys[] = $__rawLab;
+          $__mapKey = ipqc_norm_omm_match_key($__rawLab);
+          if ($__mapKey === '') continue;
+          if (isset($colMeta[$__mapKey]) && !isset($mappedSet[$__mapKey])) {
+            $mappedSet[$__mapKey] = 1;
+            $mappedKeys[] = $__mapKey;
           }
         }
 
@@ -2125,6 +2154,14 @@ r.usl, r.lsl, r.result_ok
         $selSet = array_fill_keys($faiSel, 1);
         $colKeys = array_values(array_filter($colKeys, function($k) use ($selSet, $colMeta, $type){
           $k = (string)$k;
+          if ($type === 'OMM' || $type === 'REAL_OMM') {
+            $cmpKey = ipqc_norm_omm_match_key($k);
+            if ($cmpKey !== '' && isset($selSet[$cmpKey])) return true;
+            $label = (string)($colMeta[$k]['label'] ?? '');
+            $cmpLabel = ipqc_norm_omm_match_key($label);
+            if ($cmpLabel !== '' && isset($selSet[$cmpLabel])) return true;
+            return false;
+          }
           if (isset($selSet[$k])) return true;
           if ($type === 'CMM') {
             $label = (string)($colMeta[$k]['label'] ?? '');
