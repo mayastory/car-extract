@@ -140,12 +140,6 @@ if (!function_exists('dp_userbar_fetch_uploader_items')) {
             if (!empty($row['host_name'])) {
                 $titleParts[] = 'Host: ' . (string)$row['host_name'];
             }
-            if (!empty($row['current_file'])) {
-                $titleParts[] = 'File: ' . (string)$row['current_file'];
-            }
-            if (!empty($row['last_message'])) {
-                $titleParts[] = 'Log: ' . (string)$row['last_message'];
-            }
 
             $items[] = [
                 'module' => $mod,
