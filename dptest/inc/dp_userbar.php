@@ -208,7 +208,8 @@ function dp_render_userbar(array $opt = []): string
     $logoutAct = dp_url($logoutAction);
     $iframeUrl = dp_url($iframeSrc);
 
-    $showUploaderStatus = (bool)($opt['show_uploader_status'] ?? $isAdmin);
+    $defaultShowUploaderStatus = $isAdmin || ($userLv !== null && $userLv >= 1);
+    $showUploaderStatus = (bool)($opt['show_uploader_status'] ?? $defaultShowUploaderStatus);
     $uploaderModules = $opt['uploader_modules'] ?? ['OQC', 'IPQC', 'SHIP'];
     $uploaderStaleAfter = (int)($opt['uploader_stale_after_sec'] ?? 45);
     $uploaderItems = $showUploaderStatus ? dp_userbar_fetch_uploader_items((array)$uploaderModules, $uploaderStaleAfter) : [];
