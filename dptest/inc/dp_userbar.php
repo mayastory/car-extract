@@ -232,7 +232,7 @@ function dp_render_userbar(array $opt = []): string
       </div>
     <?php endif; ?>
 
-    <div class="dp-ub-user">로그인 : <?php echo $userIdentityHtml; ?> 님</div>
+    <div class="dp-ub-user">&nbsp&nbsp <?php echo $userIdentityHtml; ?> 님</div>
 
     <?php if ($isAdmin && $adminMode !== 'none'): ?>
       <?php if ($adminMode === 'link'): ?>
