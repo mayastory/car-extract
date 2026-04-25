@@ -91,6 +91,40 @@ function oqc_status_ng_direction($value, $usl, $lsl): string
     return 'NG';
 }
 
+function oqc_status_tool_cavity_order(array $tools): array
+{
+    $original = [];
+    foreach ($tools as $tool) {
+        $key = strtoupper(trim((string)$tool));
+        if ($key === '') continue;
+        if (!isset($original[$key])) $original[$key] = (string)$tool;
+    }
+
+    // 사용자가 보는 Tool#Cavity 요약은 CAV 우선, Tool은 기존 성적서 계열 순서로 표시한다.
+    // 예: K#1, L#1, A#1, C#1 ... J#1, K#2, L#2 ...
+    $preferred = ['K','L','A','C','D','E','F','G','H','J'];
+    $ordered = [];
+    $used = [];
+    foreach ($preferred as $key) {
+        if (isset($original[$key])) {
+            $ordered[] = $original[$key];
+            $used[$key] = true;
+        }
+    }
+
+    $remaining = [];
+    foreach ($original as $key => $tool) {
+        if (!isset($used[$key])) $remaining[] = $tool;
+    }
+    usort($remaining, static function($a, $b) {
+        $la = strlen((string)$a); $lb = strlen((string)$b);
+        if ($la === $lb) return strnatcasecmp((string)$a, (string)$b);
+        return $la <=> $lb;
+    });
+
+    return array_merge($ordered, $remaining);
+}
+
 try {
     $pdo = dp_get_pdo();
 } catch (Throwable $e) {
@@ -421,7 +455,15 @@ body{padding:<?= $EMBED ? '0' : '18px' ?>;}
 .summary-card{background:#25282e; border:1px solid var(--border); border-radius:14px; padding:10px 12px; min-width:130px; box-shadow:0 8px 18px rgba(0,0,0,.22);}
 .summary-card .label{color:var(--muted); font-size:11.5px; margin-bottom:4px;}
 .summary-card .value{font-size:18px; font-weight:900;}
-.excel-scroll{overflow:auto; border:1px solid var(--border); border-radius:14px; background:#f7f7f7; max-height:calc(100vh - 210px);}
+.toolcav-card{background:#25282e; border:1px solid var(--border); border-radius:14px; padding:10px 12px; margin:0 0 12px; box-shadow:0 8px 18px rgba(0,0,0,.20);}
+.toolcav-card-title{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; color:#dbe3ee; font-weight:900;}
+.toolcav-card-title small{color:var(--muted); font-weight:700;}
+.toolcav-list{display:flex; gap:6px; flex-wrap:wrap;}
+.toolcav-chip{display:inline-flex; align-items:center; gap:6px; min-height:28px; border:1px solid rgba(255,255,255,.13); border-radius:9px; background:#1f2227; color:#edf2f7; padding:4px 8px; cursor:default;}
+.toolcav-chip strong{font-size:12px; font-weight:900;}
+.toolcav-chip em{font-style:normal; color:#a7f3d0; font-weight:900;}
+.toolcav-chip.is-zero em{color:#ffb4b4;}
+.excel-scroll{overflow:auto; border:1px solid var(--border); border-radius:14px; background:#f7f7f7; max-height:calc(100vh - 270px);}
 .oqc-grid{border-collapse:collapse; color:#101418; background:#fff; width:max-content; min-width:100%; font-size:12px;}
 .oqc-grid th,.oqc-grid td{border:1px solid #d7dce2; min-width:82px; height:24px; padding:3px 6px; text-align:center; white-space:nowrap;}
 .oqc-grid thead th{background:#f2f4f7; color:#111827; font-weight:900; position:sticky; top:0; z-index:2;}
@@ -508,6 +550,69 @@ endif; ?>
           <div class="summary-card"><div class="label">사용 불가 예상(NG)</div><div class="value" style="color:#ffb4b4"><?=number_format((int)$modelData['ng'])?></div></div>
           <div class="summary-card"><div class="label">Tool 수</div><div class="value"><?=number_format(count($modelData['tools']))?></div></div>
         </div>
+
+        <?php if ($modelData['tools']): ?>
+          <?php
+            $orderedCardTools = oqc_status_tool_cavity_order(array_keys($modelData['tools']));
+            $toolCavSummary = [];
+            foreach (['1','2','3','4'] as $cardCav) {
+                foreach ($orderedCardTools as $cardTool) {
+                    if (!isset($modelData['tools'][$cardTool])) continue;
+                    $cardCells = $modelData['tools'][$cardTool]['cavs'][$cardCav] ?? [];
+                    $cardTotal = count($cardCells);
+                    $cardNg = 0;
+                    foreach ($cardCells as $cardCell) {
+                        if ((int)($cardCell['ng'] ?? 0) > 0) $cardNg++;
+                    }
+                    $toolCavSummary[] = [
+                        'label' => (string)$cardTool . '#' . $cardCav,
+                        'tool' => (string)$cardTool,
+                        'cav' => (string)$cardCav,
+                        'usable' => max(0, $cardTotal - $cardNg),
+                        'ng' => $cardNg,
+                        'total' => $cardTotal,
+                    ];
+                }
+            }
+            $toolRank = array_flip(oqc_status_tool_cavity_order(array_unique(array_map(static function($r) { return (string)($r['tool'] ?? ''); }, $toolCavSummary))));
+            usort($toolCavSummary, static function($a, $b) use ($toolRank) {
+                $ua = (int)($a['usable'] ?? 0);
+                $ub = (int)($b['usable'] ?? 0);
+                if ($ua !== $ub) return $ua <=> $ub;
+
+                $ca = (int)($a['cav'] ?? 0);
+                $cb = (int)($b['cav'] ?? 0);
+                if ($ca !== $cb) return $ca <=> $cb;
+
+                $ta = strtoupper((string)($a['tool'] ?? ''));
+                $tb = strtoupper((string)($b['tool'] ?? ''));
+                $ra = $toolRank[$ta] ?? 9999;
+                $rb = $toolRank[$tb] ?? 9999;
+                if ($ra !== $rb) return $ra <=> $rb;
+
+                return strnatcasecmp((string)($a['label'] ?? ''), (string)($b['label'] ?? ''));
+            });
+          ?>
+          <?php if ($toolCavSummary): ?>
+            <div class="toolcav-card">
+              <div class="toolcav-card-title">
+                <span>Tool#Cavity별 사용 가능 예상</span>
+                <small>NG 제외 · 적은 순</small>
+              </div>
+              <div class="toolcav-list">
+                <?php foreach ($toolCavSummary as $tcRow): ?>
+                  <?php
+                    $tcTip = $tcRow['label'] . "\n"
+                        . '사용 가능 예상(NG 제외): ' . number_format((int)$tcRow['usable']) . '건' . "\n"
+                        . '사용 불가 예상(NG): ' . number_format((int)$tcRow['ng']) . '건' . "\n"
+                        . '전체 후보: ' . number_format((int)$tcRow['total']) . '건';
+                  ?>
+                  <span class="toolcav-chip <?= (int)$tcRow['usable'] <= 0 ? 'is-zero' : '' ?>" data-tooltip="<?=h($tcTip)?>"><strong><?=h($tcRow['label'])?></strong><em><?=number_format((int)$tcRow['usable'])?>건</em></span>
+                <?php endforeach; ?>
+              </div>
+            </div>
+          <?php endif; ?>
+        <?php endif; ?>
 
         <?php if (!$modelData['tools']): ?>
           <div class="empty-state">표시할 OQC 잔량 데이터가 없습니다.</div>
