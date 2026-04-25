@@ -181,7 +181,8 @@ foreach ($headers as $r) {
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) continue;
 
     $hid = (int)$r['id'];
-    $ng = $ngByHeader[$hid] ?? 0;
+    $ngPoints = $ngByHeader[$hid] ?? 0;
+    $ngFlag = $ngPoints > 0 ? 1 : 0;
     $slotText = $measKey1;
 
     if (!isset($data[$modelKey]['tools'][$tool])) {
@@ -192,27 +193,29 @@ foreach ($headers as $r) {
         ];
     }
 
-    $dateKey = $date;
+    $dateKey = $date . '#' . $hid;
     if (!isset($data[$modelKey]['tools'][$tool]['cavs'][$cav][$dateKey])) {
         $data[$modelKey]['tools'][$tool]['cavs'][$cav][$dateKey] = [
             'date' => $date,
             'ng' => 0,
+            'ng_points' => 0,
             'slot' => $slotText,
             'headers' => 0,
             'kind' => [],
         ];
     }
     $cell =& $data[$modelKey]['tools'][$tool]['cavs'][$cav][$dateKey];
-    $cell['ng'] += $ng;
+    $cell['ng'] = max((int)$cell['ng'], $ngFlag);
+    $cell['ng_points'] += $ngPoints;
     $cell['headers']++;
     if (!empty($r['kind'])) $cell['kind'][(string)$r['kind']] = true;
     unset($cell);
 
-    $data[$modelKey]['tools'][$tool]['ng'] += $ng;
+    $data[$modelKey]['tools'][$tool]['ng'] += $ngFlag;
     $data[$modelKey]['tools'][$tool]['total']++;
     $data[$modelKey]['total']++;
-    $data[$modelKey]['ng'] += $ng;
-    if ($ng <= 0) $data[$modelKey]['usable']++;
+    $data[$modelKey]['ng'] += $ngFlag;
+    if ($ngFlag <= 0) $data[$modelKey]['usable']++;
 }
 
 foreach ($data as $mk => &$modelData) {
@@ -224,7 +227,9 @@ foreach ($data as $mk => &$modelData) {
     foreach ($modelData['tools'] as &$toolData) {
         foreach ($toolData['cavs'] as &$cells) {
             uasort($cells, static function($a, $b) {
-                return strcmp((string)$a['date'], (string)$b['date']);
+                $cmp = strcmp((string)$a['date'], (string)$b['date']);
+                if ($cmp !== 0) return $cmp;
+                return ((int)($b['ng'] ?? 0)) <=> ((int)($a['ng'] ?? 0));
             });
         }
     }
@@ -371,7 +376,7 @@ endif; ?>
                       <?php foreach (['1','2','3','4'] as $cav): ?>
                         <?php $cell = array_values($toolData['cavs'][$cav])[$i] ?? null; ?>
                         <?php if ($cell): ?>
-                          <?php $title = '기준: ' . ($cell['slot'] ?: '-') . ' / headers: ' . $cell['headers'] . ' / kind: ' . implode(',', array_keys($cell['kind'])); ?>
+                          <?php $title = '기준: ' . ($cell['slot'] ?: '-') . ' / 후보: ' . $cell['headers'] . '건 / NG 포인트: ' . ((int)($cell['ng_points'] ?? 0)) . '건 / kind: ' . implode(',', array_keys($cell['kind'])); ?>
                           <td class="date-cell <?= $cell['ng'] > 0 ? 'ng' : '' ?>" title="<?=h($title)?>"><?=h($cell['date'])?></td>
                         <?php else: ?>
                           <td class="blank"></td>
