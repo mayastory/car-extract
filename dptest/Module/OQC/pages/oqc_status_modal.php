@@ -71,6 +71,26 @@ function oqc_status_in_placeholders(int $count): string
     return implode(',', array_fill(0, $count, '?'));
 }
 
+function oqc_status_fmt_value($v): string
+{
+    if ($v === null || $v === '') return '';
+    $s = trim((string)$v);
+    if ($s === '') return '';
+    if (is_numeric($s)) return number_format((float)$s, 4, '.', '');
+    return $s;
+}
+
+function oqc_status_ng_direction($value, $usl, $lsl): string
+{
+    $v = trim((string)$value);
+    if ($v !== '' && is_numeric($v)) {
+        $fv = (float)$v;
+        if ($usl !== null && $usl !== '' && is_numeric((string)$usl) && $fv > (float)$usl) return 'USL 초과';
+        if ($lsl !== null && $lsl !== '' && is_numeric((string)$lsl) && $fv < (float)$lsl) return 'LSL 미달';
+    }
+    return 'NG';
+}
+
 try {
     $pdo = dp_get_pdo();
 } catch (Throwable $e) {
@@ -109,6 +129,7 @@ $models = [
 
 $headerCols = oqc_status_table_columns($pdo, 'oqc_header');
 $resultCols = oqc_status_table_columns($pdo, 'oqc_result_header');
+$measurementCols = oqc_status_table_columns($pdo, 'oqc_measurements');
 $hasShipDate = isset($headerCols['ship_date']);
 $dateExpr = $hasShipDate ? "COALESCE(NULLIF(h.ship_date,''), h.lot_date)" : "h.lot_date";
 $selectMeas1 = isset($headerCols[$measKey1]) ? ", h.`{$measKey1}` AS status_date1" : ", NULL AS status_date1";
@@ -142,13 +163,29 @@ $headers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $ngByHeader = [];
 $headerIds = array_map(static fn($r) => (int)$r['id'], $headers);
 $headerIds = array_values(array_unique(array_filter($headerIds)));
+
+// 상세 모달용 NG 정보만 조회한다.
+// 전체 oqc_measurements를 미리 fetchAll 하면 데이터가 많은 경우 메모리가 터지므로 금지.
 if ($headerIds && $resultCols) {
+    $resultValueCol = null;
+    foreach (['value','measured_value','measure_value','meas_value','result_value','actual_value'] as $candidateCol) {
+        if (isset($resultCols[$candidateCol])) { $resultValueCol = $candidateCol; break; }
+    }
+
     foreach (array_chunk($headerIds, 700) as $chunk) {
         $in = oqc_status_in_placeholders(count($chunk));
         try {
             if (isset($resultCols['point_no'])) {
+                $selectParts = ['header_id', 'point_no'];
+                foreach (['spc_code','usl','lsl','row_index'] as $colName) {
+                    if (isset($resultCols[$colName])) $selectParts[] = $colName;
+                }
+                if ($resultValueCol) $selectParts[] = $resultValueCol . ' AS result_value';
+                $selectSql = '`' . implode('`,`', $selectParts) . '`';
+                $selectSql = str_replace('`' . $resultValueCol . ' AS result_value`', '`' . $resultValueCol . '` AS result_value', $selectSql);
+
                 $ngSql = "
-                    SELECT header_id, point_no
+                    SELECT {$selectSql}
                     FROM oqc_result_header
                     WHERE header_id IN ($in)
                       AND result_ok = 0
@@ -157,12 +194,27 @@ if ($headerIds && $resultCols) {
                 ";
                 $ngStmt = $pdo->prepare($ngSql);
                 $ngStmt->execute($chunk);
-                foreach ($ngStmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+                while (($r = $ngStmt->fetch(PDO::FETCH_ASSOC)) !== false) {
                     $hid = (int)$r['header_id'];
                     $point = trim((string)($r['point_no'] ?? ''));
                     if ($point === '') $point = '포인트 정보 없음';
-                    if (!isset($ngByHeader[$hid])) $ngByHeader[$hid] = ['count' => 0, 'points' => []];
+                    $spc = trim((string)($r['spc_code'] ?? ''));
+                    $usl = $r['usl'] ?? null;
+                    $lsl = $r['lsl'] ?? null;
+                    $value = $r['result_value'] ?? null;
+                    $direction = oqc_status_ng_direction($value, $usl, $lsl);
+
+                    if (!isset($ngByHeader[$hid])) $ngByHeader[$hid] = ['count' => 0, 'points' => [], 'details' => []];
                     $ngByHeader[$hid]['points'][$point] = true;
+                    $detailKey = $point . '|' . $spc . '|' . oqc_status_fmt_value($usl) . '|' . oqc_status_fmt_value($lsl) . '|' . oqc_status_fmt_value($value) . '|' . $direction;
+                    $ngByHeader[$hid]['details'][$detailKey] = [
+                        'point_no' => $point,
+                        'spc_code' => $spc,
+                        'usl' => oqc_status_fmt_value($usl),
+                        'lsl' => oqc_status_fmt_value($lsl),
+                        'value' => oqc_status_fmt_value($value),
+                        'direction' => $direction,
+                    ];
                 }
             } else {
                 $ngSql = "
@@ -174,13 +226,58 @@ if ($headerIds && $resultCols) {
                 ";
                 $ngStmt = $pdo->prepare($ngSql);
                 $ngStmt->execute($chunk);
-                foreach ($ngStmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+                while (($r = $ngStmt->fetch(PDO::FETCH_ASSOC)) !== false) {
                     $hid = (int)$r['header_id'];
-                    $ngByHeader[$hid] = ['count' => (int)$r['ng_count'], 'points' => []];
+                    $ngByHeader[$hid] = ['count' => (int)$r['ng_count'], 'points' => [], 'details' => []];
                 }
             }
         } catch (Throwable $e) {}
     }
+    // result_header에 측정값 컬럼이 없는 경우에만 NG 포인트의 값만 보강한다.
+    // header 전체 측정값을 읽지 않고, NG로 판정된 point_no만 제한 조회한다.
+    if ($ngByHeader && (!$resultValueCol) && $measurementCols && isset($measurementCols['point_no']) && isset($measurementCols['value'])) {
+        foreach (array_chunk(array_keys($ngByHeader), 250) as $hidChunk) {
+            $points = [];
+            foreach ($hidChunk as $hidForPoint) {
+                foreach (($ngByHeader[$hidForPoint]['details'] ?? []) as $detailRow) {
+                    $pointForQuery = trim((string)($detailRow['point_no'] ?? ''));
+                    if ($pointForQuery !== '' && $pointForQuery !== '포인트 정보 없음') $points[$pointForQuery] = true;
+                }
+            }
+            $points = array_keys($points);
+            if (!$points) continue;
+
+            foreach (array_chunk($points, 250) as $pointChunk) {
+                $hidIn = oqc_status_in_placeholders(count($hidChunk));
+                $pointIn = oqc_status_in_placeholders(count($pointChunk));
+                $measSelect = ['header_id', 'point_no', 'value'];
+                if (isset($measurementCols['spc_code'])) $measSelect[] = 'spc_code';
+                $measSql = "SELECT `" . implode('`,`', $measSelect) . "` FROM oqc_measurements WHERE header_id IN ($hidIn) AND point_no IN ($pointIn)";
+                try {
+                    $measStmt = $pdo->prepare($measSql);
+                    $measStmt->execute(array_merge($hidChunk, $pointChunk));
+                    while (($mr = $measStmt->fetch(PDO::FETCH_ASSOC)) !== false) {
+                        $mh = (int)($mr['header_id'] ?? 0);
+                        $mp = trim((string)($mr['point_no'] ?? ''));
+                        if (!$mh || $mp === '' || empty($ngByHeader[$mh]['details'])) continue;
+
+                        foreach ($ngByHeader[$mh]['details'] as &$detailRef) {
+                            if (trim((string)($detailRef['point_no'] ?? '')) !== $mp) continue;
+                            if (($detailRef['value'] ?? '') === '') {
+                                $detailRef['value'] = oqc_status_fmt_value($mr['value'] ?? null);
+                            }
+                            if (($detailRef['spc_code'] ?? '') === '' && isset($mr['spc_code'])) {
+                                $detailRef['spc_code'] = trim((string)$mr['spc_code']);
+                            }
+                            $detailRef['direction'] = oqc_status_ng_direction($detailRef['value'] ?? null, $detailRef['usl'] ?? null, $detailRef['lsl'] ?? null);
+                        }
+                        unset($detailRef);
+                    }
+                } catch (Throwable $e) {}
+            }
+        }
+    }
+
     foreach ($ngByHeader as $hid => &$ngInfo) {
         if (isset($ngInfo['points']) && is_array($ngInfo['points']) && $ngInfo['points']) {
             $ngInfo['count'] = count($ngInfo['points']);
@@ -188,6 +285,11 @@ if ($headerIds && $resultCols) {
         } else {
             $ngInfo['points'] = [];
             $ngInfo['count'] = (int)($ngInfo['count'] ?? 0);
+        }
+        if (isset($ngInfo['details']) && is_array($ngInfo['details'])) {
+            $ngInfo['details'] = array_values($ngInfo['details']);
+        } else {
+            $ngInfo['details'] = [];
         }
     }
     unset($ngInfo);
@@ -213,6 +315,7 @@ foreach ($headers as $r) {
     $ngInfo = $ngByHeader[$hid] ?? ['count' => 0, 'points' => []];
     $ngPoints = (int)($ngInfo['count'] ?? 0);
     $ngPointList = is_array($ngInfo['points'] ?? null) ? $ngInfo['points'] : [];
+    $ngDetailList = is_array($ngInfo['details'] ?? null) ? $ngInfo['details'] : [];
     $ngFlag = $ngPoints > 0 ? 1 : 0;
     $slotText = $measKey1;
 
@@ -231,6 +334,7 @@ foreach ($headers as $r) {
             'ng' => 0,
             'ng_points' => 0,
             'ng_point_list' => [],
+            'ng_detail_list' => [],
             'slot' => $slotText,
             'headers' => 0,
             'kind' => [],
@@ -243,6 +347,11 @@ foreach ($headers as $r) {
         foreach ($ngPointList as $pointName) {
             $pointName = trim((string)$pointName);
             if ($pointName !== '') $cell['ng_point_list'][$pointName] = true;
+        }
+    }
+    if ($ngDetailList) {
+        foreach ($ngDetailList as $detailRow) {
+            if (is_array($detailRow)) $cell['ng_detail_list'][] = $detailRow;
         }
     }
     $cell['headers']++;
@@ -328,6 +437,21 @@ body{padding:<?= $EMBED ? '0' : '18px' ?>;}
 .badge{display:inline-flex; align-items:center; gap:4px; border-radius:999px; padding:2px 8px; font-size:11px; font-weight:800;}
 .badge.ok{background:rgba(29,185,84,.16); color:#8ff5b4;}
 .badge.ng{background:rgba(232,93,93,.16); color:#ffb4b4;}
+.ng-detail-backdrop{position:fixed; inset:0; z-index:100000; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.58); padding:22px;}
+.ng-detail-backdrop.open{display:flex;}
+.ng-detail-modal{width:min(960px,96vw); max-height:86vh; display:flex; flex-direction:column; background:#23262b; border:1px solid rgba(255,255,255,.18); border-radius:16px; box-shadow:0 24px 70px rgba(0,0,0,.55); overflow:hidden;}
+.ng-detail-head{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 16px; border-bottom:1px solid rgba(255,255,255,.12); background:#2b2f36;}
+.ng-detail-title{font-size:16px; font-weight:900;}
+.ng-detail-sub{color:#aeb7c4; font-size:12px; margin-top:3px;}
+.ng-detail-close{width:32px; height:32px; border-radius:10px; border:1px solid rgba(255,255,255,.18); background:#3a3f48; color:#fff; font-size:20px; cursor:pointer;}
+.ng-detail-body{padding:14px; overflow:auto;}
+.ng-detail-table{width:100%; border-collapse:collapse; min-width:720px; font-size:12px; background:#1f2227; color:#f4f6f8;}
+.ng-detail-table th,.ng-detail-table td{border:1px solid rgba(255,255,255,.12); padding:8px 10px; text-align:center; white-space:nowrap;}
+.ng-detail-table th{background:#30343c; color:#e9edf3; font-weight:900; position:sticky; top:0;}
+.ng-detail-table td:first-child{text-align:left; font-weight:800;}
+.ng-detail-table .judgement{color:#ff9b9b; font-weight:900;}
+.ng-detail-empty{padding:28px; text-align:center; color:#aeb7c4;}
+.date-cell.ng{cursor:pointer; text-decoration:underline; text-underline-offset:2px;}
 @media (max-width:800px){.status-head{flex-direction:column}.status-controls{justify-content:flex-start}.excel-scroll{max-height:calc(100vh - 260px)}}
 </style>
 </head>
@@ -435,7 +559,18 @@ kind: " . $kindText;
 kind: " . $kindText;
                             }
                           ?>
-                          <td class="date-cell <?= $cell['ng'] > 0 ? 'ng' : '' ?>" data-tooltip="<?=h($tip)?>"><?=h($cell['date'])?></td>
+                          <?php
+                            $detailPayload = [
+                                'date' => (string)$cell['date'],
+                                'tool' => (string)$tool,
+                                'cavity' => (string)$cav . 'CAV',
+                                'kind' => $kindText,
+                                'slot' => (string)($cell['slot'] ?: '-'),
+                                'rows' => array_values($cell['ng_detail_list'] ?? []),
+                            ];
+                            $detailJson = ((int)($cell['ng'] ?? 0) > 0) ? json_encode($detailPayload, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) : '';
+                          ?>
+                          <td class="date-cell <?= $cell['ng'] > 0 ? 'ng' : '' ?>" data-tooltip="<?=h($tip)?>" <?= $detailJson !== '' ? 'data-ng-detail="'.h($detailJson).'"' : '' ?>><?=h($cell['date'])?></td>
                         <?php else: ?>
                           <td class="blank"></td>
                         <?php endif; ?>
@@ -457,6 +592,18 @@ kind: " . $kindText;
   </div>
 </div>
 <div class="status-tooltip" id="oqcStatusTooltip"></div>
+<div class="ng-detail-backdrop" id="oqcNgDetailBackdrop" aria-hidden="true">
+  <div class="ng-detail-modal" role="dialog" aria-modal="true" aria-labelledby="oqcNgDetailTitle">
+    <div class="ng-detail-head">
+      <div>
+        <div class="ng-detail-title" id="oqcNgDetailTitle">NG 상세</div>
+        <div class="ng-detail-sub" id="oqcNgDetailSub"></div>
+      </div>
+      <button type="button" class="ng-detail-close" id="oqcNgDetailClose">×</button>
+    </div>
+    <div class="ng-detail-body" id="oqcNgDetailBody"></div>
+  </div>
+</div>
 <script>
 (function(){
   const tabs = document.querySelectorAll('.model-tab');
@@ -503,6 +650,52 @@ kind: " . $kindText;
       if (tooltip) tooltip.style.display = 'none';
     });
   });
+
+  const ngBackdrop = document.getElementById('oqcNgDetailBackdrop');
+  const ngClose = document.getElementById('oqcNgDetailClose');
+  const ngSub = document.getElementById('oqcNgDetailSub');
+  const ngBody = document.getElementById('oqcNgDetailBody');
+  const escHtml = (value) => String(value ?? '').replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+  const openNgDetail = (payload) => {
+    if (!ngBackdrop || !ngSub || !ngBody) return;
+    const rows = Array.isArray(payload.rows) ? payload.rows : [];
+    ngSub.textContent = `${payload.date || '-'} · ${payload.tool || '-'}차 · ${payload.cavity || '-'} · kind ${payload.kind || '-'} · 기준 ${payload.slot || '-'}`;
+    if (!rows.length) {
+      ngBody.innerHTML = '<div class="ng-detail-empty">표시할 NG 상세가 없습니다.</div>';
+    } else {
+      const bodyRows = rows.map(row => `
+        <tr>
+          <td>${escHtml(row.point_no || '-')}</td>
+          <td>${escHtml(row.spc_code || '-')}</td>
+          <td>${escHtml(row.usl || '-')}</td>
+          <td>${escHtml(row.lsl || '-')}</td>
+          <td>${escHtml(row.value || '-')}</td>
+          <td class="judgement">${escHtml(row.direction || 'NG')}</td>
+        </tr>`).join('');
+      ngBody.innerHTML = `
+        <table class="ng-detail-table">
+          <thead><tr><th>FAI / 포인트</th><th>SPC</th><th>USL</th><th>LSL</th><th>측정값</th><th>판정</th></tr></thead>
+          <tbody>${bodyRows}</tbody>
+        </table>`;
+    }
+    ngBackdrop.classList.add('open');
+    ngBackdrop.setAttribute('aria-hidden','false');
+  };
+  const closeNgDetail = () => {
+    if (!ngBackdrop) return;
+    ngBackdrop.classList.remove('open');
+    ngBackdrop.setAttribute('aria-hidden','true');
+  };
+  document.querySelectorAll('[data-ng-detail]').forEach(cell => {
+    cell.addEventListener('click', () => {
+      const raw = cell.getAttribute('data-ng-detail') || '';
+      if (!raw) return;
+      try { openNgDetail(JSON.parse(raw)); } catch(e) {}
+    });
+  });
+  if (ngClose) ngClose.addEventListener('click', closeNgDetail);
+  if (ngBackdrop) ngBackdrop.addEventListener('click', e => { if (e.target === ngBackdrop) closeNgDetail(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && ngBackdrop && ngBackdrop.classList.contains('open')) closeNgDetail(); });
 
   tabs.forEach(btn => {
     btn.addEventListener('click', () => {
