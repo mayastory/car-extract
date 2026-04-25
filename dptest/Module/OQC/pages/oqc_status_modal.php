@@ -361,11 +361,12 @@ foreach ($headers as $r) {
         ];
     }
 
-    $dateKey = $date . '#' . $hid;
+    $dateKey = $date;
     if (!isset($data[$modelKey]['tools'][$tool]['cavs'][$cav][$dateKey])) {
         $data[$modelKey]['tools'][$tool]['cavs'][$cav][$dateKey] = [
             'date' => $date,
             'ng' => 0,
+            'ng_headers' => 0,
             'ng_points' => 0,
             'ng_point_list' => [],
             'ng_detail_list' => [],
@@ -376,6 +377,7 @@ foreach ($headers as $r) {
     }
     $cell =& $data[$modelKey]['tools'][$tool]['cavs'][$cav][$dateKey];
     $cell['ng'] = max((int)$cell['ng'], $ngFlag);
+    $cell['ng_headers'] += $ngFlag;
     $cell['ng_points'] += $ngPoints;
     if ($ngPointList) {
         foreach ($ngPointList as $pointName) {
@@ -559,10 +561,11 @@ endif; ?>
                 foreach ($orderedCardTools as $cardTool) {
                     if (!isset($modelData['tools'][$cardTool])) continue;
                     $cardCells = $modelData['tools'][$cardTool]['cavs'][$cardCav] ?? [];
-                    $cardTotal = count($cardCells);
+                    $cardTotal = 0;
                     $cardNg = 0;
                     foreach ($cardCells as $cardCell) {
-                        if ((int)($cardCell['ng'] ?? 0) > 0) $cardNg++;
+                        $cardTotal += (int)($cardCell['headers'] ?? 0);
+                        $cardNg += (int)($cardCell['ng_headers'] ?? 0);
                     }
                     $toolCavSummary[] = [
                         'label' => (string)$cardTool . '#' . $cardCav,
@@ -636,7 +639,7 @@ endif; ?>
                       <?php
                         $usableCavCount = 0;
                         foreach (($toolData['cavs'][$cavHead] ?? []) as $cavCell) {
-                            if ((int)($cavCell['ng'] ?? 0) <= 0) $usableCavCount++;
+                            $usableCavCount += max(0, (int)($cavCell['headers'] ?? 0) - (int)($cavCell['ng_headers'] ?? 0));
                         }
                         $cavTip = $tool . '차 ' . $cavHead . 'CAV' . "\n" . '사용 가능 예상(NG 제외): ' . number_format($usableCavCount) . '건';
                       ?>
@@ -655,25 +658,24 @@ endif; ?>
                           <?php
                             $kindText = implode(',', array_keys($cell['kind']));
                             if ($kindText === '') $kindText = '-';
+                            $cellHeaders = (int)($cell['headers'] ?? 0);
+                            $cellNgHeaders = (int)($cell['ng_headers'] ?? 0);
+                            $cellUsable = max(0, $cellHeaders - $cellNgHeaders);
+                            $dateLabel = (string)$cell['date'];
+                            if ($cellHeaders > 1) $dateLabel .= ' ×' . $cellHeaders;
                             $pointList = array_keys($cell['ng_point_list'] ?? []);
                             natcasesort($pointList);
                             $pointList = array_values($pointList);
                             if ((int)($cell['ng'] ?? 0) > 0) {
-                                $pointText = $pointList ? implode("
-", array_map(static fn($p) => '- ' . $p, $pointList)) : '- 포인트 정보 없음';
-                                $tip = "NG 포인트
-" . $pointText . "
-기준: " . ($cell['slot'] ?: '-') . "
-kind: " . $kindText;
+                                $pointText = $pointList ? implode("\n", array_map(static fn($p) => '- ' . $p, $pointList)) : '- 포인트 정보 없음';
+                                $tip = "NG 포인트\n" . $pointText . "\n사용 가능 예상(NG 제외): " . number_format($cellUsable) . "건\n사용 불가 예상(NG): " . number_format($cellNgHeaders) . "건\n기준: " . ($cell['slot'] ?: '-') . "\nkind: " . $kindText;
                             } else {
-                                $tip = "사용 가능 예상
-기준: " . ($cell['slot'] ?: '-') . "
-kind: " . $kindText;
+                                $tip = "사용 가능 예상: " . number_format($cellUsable) . "건\n기준: " . ($cell['slot'] ?: '-') . "\nkind: " . $kindText;
                             }
                           ?>
                           <?php
                             $detailPayload = [
-                                'date' => (string)$cell['date'],
+                                'date' => $dateLabel,
                                 'tool' => (string)$tool,
                                 'cavity' => (string)$cav . 'CAV',
                                 'kind' => $kindText,
@@ -682,7 +684,7 @@ kind: " . $kindText;
                             ];
                             $detailJson = ((int)($cell['ng'] ?? 0) > 0) ? json_encode($detailPayload, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) : '';
                           ?>
-                          <td class="date-cell <?= $cell['ng'] > 0 ? 'ng' : '' ?>" data-tooltip="<?=h($tip)?>" <?= $detailJson !== '' ? 'data-ng-detail="'.h($detailJson).'"' : '' ?>><?=h($cell['date'])?></td>
+                          <td class="date-cell <?= $cell['ng'] > 0 ? 'ng' : '' ?>" data-tooltip="<?=h($tip)?>" <?= $detailJson !== '' ? 'data-ng-detail="'.h($detailJson).'"' : '' ?>><?=h($dateLabel)?></td>
                         <?php else: ?>
                           <td class="blank"></td>
                         <?php endif; ?>
