@@ -574,21 +574,19 @@ endif; ?>
                     ];
                 }
             }
-            $toolRank = array_flip(oqc_status_tool_cavity_order(array_unique(array_map(static function($r) { return (string)($r['tool'] ?? ''); }, $toolCavSummary))));
-            usort($toolCavSummary, static function($a, $b) use ($toolRank) {
+            usort($toolCavSummary, static function($a, $b) {
                 $ua = (int)($a['usable'] ?? 0);
                 $ub = (int)($b['usable'] ?? 0);
                 if ($ua !== $ub) return $ua <=> $ub;
 
+                $ta = strtoupper((string)($a['tool'] ?? ''));
+                $tb = strtoupper((string)($b['tool'] ?? ''));
+                $toolCmp = strnatcasecmp($ta, $tb);
+                if ($toolCmp !== 0) return $toolCmp;
+
                 $ca = (int)($a['cav'] ?? 0);
                 $cb = (int)($b['cav'] ?? 0);
                 if ($ca !== $cb) return $ca <=> $cb;
-
-                $ta = strtoupper((string)($a['tool'] ?? ''));
-                $tb = strtoupper((string)($b['tool'] ?? ''));
-                $ra = $toolRank[$ta] ?? 9999;
-                $rb = $toolRank[$tb] ?? 9999;
-                if ($ra !== $rb) return $ra <=> $rb;
 
                 return strnatcasecmp((string)($a['label'] ?? ''), (string)($b['label'] ?? ''));
             });
@@ -597,7 +595,7 @@ endif; ?>
             <div class="toolcav-card">
               <div class="toolcav-card-title">
                 <span>Tool#Cavity별 사용 가능 예상</span>
-                <small>NG 제외 · 적은 순</small>
+                <small>NG 제외 · 적은 순 · 같은 건수 A-Z / 1-4</small>
               </div>
               <div class="toolcav-list">
                 <?php foreach ($toolCavSummary as $tcRow): ?>
