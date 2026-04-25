@@ -84,6 +84,16 @@ if ($customer !== 'LG' && $customer !== 'JH') $customer = 'LG';
 $customerLabel = ($customer === 'JH') ? '자화전자(주)' : '엘지이노텍(주)';
 $measKey1 = ($customer === 'JH') ? 'jmeas_date' : 'meas_date';
 
+$kindFilter = strtoupper(trim((string)($_GET['kind'] ?? 'ALL')));
+if (!in_array($kindFilter, ['ALL','FAI','SPC'], true)) $kindFilter = 'ALL';
+$kindLabelMap = ['ALL' => 'ALL', 'FAI' => 'FAI', 'SPC' => 'SPC'];
+$kindSql = '';
+if ($kindFilter === 'FAI') {
+    $kindSql = "AND UPPER(TRIM(COALESCE(h.kind,''))) = 'FAI'";
+} elseif ($kindFilter === 'SPC') {
+    $kindSql = "AND UPPER(TRIM(COALESCE(h.kind,''))) = 'SPC'";
+}
+
 $rangeDays = (int)($_GET['days'] ?? 120);
 if ($rangeDays < 7) $rangeDays = 7;
 if ($rangeDays > 730) $rangeDays = 730;
@@ -121,6 +131,7 @@ $sql = "
       AND {$dateExpr} <> ''
       AND {$dateExpr} >= :from_date
       AND {$slotSql}
+      {$kindSql}
     ORDER BY h.part_name, h.tool_cavity, {$dateExpr}, h.excel_col
 ";
 
@@ -244,6 +255,11 @@ body{padding:<?= $EMBED ? '0' : '18px' ?>;}
 .status-controls{display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end;}
 .status-controls select,.status-controls input{height:34px; border-radius:10px; border:1px solid var(--border); background:#17191d; color:var(--fg); padding:0 10px;}
 .status-controls button{height:34px; border-radius:10px; border:1px solid rgba(29,185,84,.55); background:rgba(29,185,84,.18); color:var(--fg); padding:0 12px; font-weight:700; cursor:pointer;}
+.kind-filter{display:inline-flex; align-items:center; gap:6px; height:34px; border:1px solid var(--border); border-radius:10px; background:#17191d; padding:0 8px;}
+.kind-filter span{font-weight:700; color:#dbe3ee; margin-right:2px;}
+.kind-filter label{display:inline-flex; align-items:center; gap:4px; height:24px; padding:0 6px; border-radius:8px; cursor:pointer; color:#cbd5e1; font-weight:800;}
+.kind-filter label.is-checked{background:rgba(29,185,84,.20); color:#fff;}
+.kind-filter input{width:13px; height:13px; margin:0; accent-color:var(--accent);}
 .model-tabs{display:flex; gap:6px; border-bottom:1px solid var(--border); margin-bottom:12px; overflow-x:auto;}
 .model-tab{appearance:none; border:1px solid var(--border); border-bottom:0; background:#24272d; color:#cbd5e1; padding:9px 14px; border-radius:12px 12px 0 0; cursor:pointer; font-weight:800; white-space:nowrap;}
 .model-tab.active{background:#303134; color:#fff; box-shadow:inset 0 2px 0 var(--accent);}
@@ -280,7 +296,7 @@ endif; ?>
     <div class="status-head">
       <div class="status-title">
         <h1>OQC 현황표</h1>
-        <div class="sub">모델별 Tool / Cavity 사용 가능 예상 데이터 현황 · <?=h($customerLabel)?> 기준 · 최근 <?=h((string)$rangeDays)?>일</div>
+        <div class="sub">모델별 Tool / Cavity 사용 가능 예상 데이터 현황 · <?=h($customerLabel)?> 기준 · 종류 <?=h($kindLabelMap[$kindFilter] ?? $kindFilter)?> · 최근 <?=h((string)$rangeDays)?>일</div>
       </div>
       <form class="status-controls" method="get">
         <?php if ($EMBED): ?><input type="hidden" name="embed" value="1"><?php endif; ?>
@@ -290,6 +306,13 @@ endif; ?>
             <option value="JH" <?= $customer === 'JH' ? 'selected' : '' ?>>자화전자(주)</option>
           </select>
         </label>
+        <div class="kind-filter" aria-label="종류">
+          <span>종류</span>
+          <?php foreach (['ALL','FAI','SPC'] as $k): ?>
+            <label class="<?= $kindFilter === $k ? 'is-checked' : '' ?>"><input type="checkbox" name="kind" value="<?=h($k)?>" <?= $kindFilter === $k ? 'checked' : '' ?>><?=h($k)?></label>
+          <?php endforeach; ?>
+        </div>
+        <input type="hidden" name="model" value="<?=h($initialModel)?>" id="oqcStatusModelInput">
         <label>기간
           <select name="days">
             <?php foreach ([7,30,60,90,120,180,365,730] as $d): ?>
@@ -374,11 +397,28 @@ endif; ?>
 (function(){
   const tabs = document.querySelectorAll('.model-tab');
   const panels = document.querySelectorAll('.model-panel');
+  const modelInput = document.getElementById('oqcStatusModelInput');
+  const kindChecks = document.querySelectorAll('input[name="kind"]');
+  const refreshKindLabels = () => {
+    kindChecks.forEach(item => item.closest('label')?.classList.toggle('is-checked', item.checked));
+  };
+  kindChecks.forEach(chk => {
+    chk.addEventListener('change', () => {
+      if (chk.checked) {
+        kindChecks.forEach(other => { if (other !== chk) other.checked = false; });
+      } else if (![...kindChecks].some(item => item.checked)) {
+        chk.checked = true;
+      }
+      refreshKindLabels();
+    });
+  });
+  refreshKindLabels();
   tabs.forEach(btn => {
     btn.addEventListener('click', () => {
       const key = btn.dataset.model;
       tabs.forEach(b => b.classList.toggle('active', b === btn));
       panels.forEach(p => p.classList.toggle('active', p.dataset.modelPanel === key));
+      if (modelInput) modelInput.value = key;
       try { history.replaceState(null, '', location.pathname + location.search.replace(/([?&])model=[^&]*/,'').replace(/[?&]$/,'') + (location.search ? '&' : '?') + 'model=' + encodeURIComponent(key)); } catch(e) {}
     });
   });
