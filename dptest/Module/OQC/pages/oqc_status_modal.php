@@ -83,7 +83,6 @@ $customer = $_GET['customer'] ?? 'LG';
 if ($customer !== 'LG' && $customer !== 'JH') $customer = 'LG';
 $customerLabel = ($customer === 'JH') ? '자화전자(주)' : '엘지이노텍(주)';
 $measKey1 = ($customer === 'JH') ? 'jmeas_date' : 'meas_date';
-$measKey2 = ($customer === 'JH') ? 'jmeas_date2' : 'meas_date2';
 
 $rangeDays = (int)($_GET['days'] ?? 120);
 if ($rangeDays < 7) $rangeDays = 7;
@@ -103,11 +102,9 @@ $resultCols = oqc_status_table_columns($pdo, 'oqc_result_header');
 $hasShipDate = isset($headerCols['ship_date']);
 $dateExpr = $hasShipDate ? "COALESCE(NULLIF(h.ship_date,''), h.lot_date)" : "h.lot_date";
 $selectMeas1 = isset($headerCols[$measKey1]) ? ", h.`{$measKey1}` AS status_date1" : ", NULL AS status_date1";
-$selectMeas2 = isset($headerCols[$measKey2]) ? ", h.`{$measKey2}` AS status_date2" : ", NULL AS status_date2";
-$whereSlot = [];
-if (isset($headerCols[$measKey1])) $whereSlot[] = "(h.`{$measKey1}` IS NULL OR h.`{$measKey1}` = '' OR h.`{$measKey1}` = '0000-00-00')";
-if (isset($headerCols[$measKey2])) $whereSlot[] = "(h.`{$measKey2}` IS NULL OR h.`{$measKey2}` = '' OR h.`{$measKey2}` = '0000-00-00')";
-$slotSql = $whereSlot ? '(' . implode(' OR ', $whereSlot) . ')' : '1=1';
+$slotSql = isset($headerCols[$measKey1])
+    ? "(h.`{$measKey1}` IS NULL OR h.`{$measKey1}` = '' OR h.`{$measKey1}` = '0000-00-00')"
+    : '1=0';
 
 $sql = "
     SELECT
@@ -119,7 +116,6 @@ $sql = "
         h.excel_col,
         {$dateExpr} AS data_date
         {$selectMeas1}
-        {$selectMeas2}
     FROM oqc_header h
     WHERE {$dateExpr} IS NOT NULL
       AND {$dateExpr} <> ''
@@ -175,7 +171,7 @@ foreach ($headers as $r) {
 
     $hid = (int)$r['id'];
     $ng = $ngByHeader[$hid] ?? 0;
-    $slotText = oqc_status_is_empty_date($r['status_date1'] ?? '') ? $measKey1 : (oqc_status_is_empty_date($r['status_date2'] ?? '') ? $measKey2 : '');
+    $slotText = $measKey1;
 
     if (!isset($data[$modelKey]['tools'][$tool])) {
         $data[$modelKey]['tools'][$tool] = [
@@ -185,7 +181,7 @@ foreach ($headers as $r) {
         ];
     }
 
-    $dateKey = $date . '|' . $slotText;
+    $dateKey = $date;
     if (!isset($data[$modelKey]['tools'][$tool]['cavs'][$cav][$dateKey])) {
         $data[$modelKey]['tools'][$tool]['cavs'][$cav][$dateKey] = [
             'date' => $date,
@@ -217,7 +213,6 @@ foreach ($data as $mk => &$modelData) {
     foreach ($modelData['tools'] as &$toolData) {
         foreach ($toolData['cavs'] as &$cells) {
             uasort($cells, static function($a, $b) {
-                if ($a['date'] === $b['date']) return strcmp((string)$a['slot'], (string)$b['slot']);
                 return strcmp((string)$a['date'], (string)$b['date']);
             });
         }
@@ -353,7 +348,7 @@ endif; ?>
                       <?php foreach (['1','2','3','4'] as $cav): ?>
                         <?php $cell = array_values($toolData['cavs'][$cav])[$i] ?? null; ?>
                         <?php if ($cell): ?>
-                          <?php $title = 'slot: ' . ($cell['slot'] ?: '-') . ' / headers: ' . $cell['headers'] . ' / kind: ' . implode(',', array_keys($cell['kind'])); ?>
+                          <?php $title = '기준: ' . ($cell['slot'] ?: '-') . ' / headers: ' . $cell['headers'] . ' / kind: ' . implode(',', array_keys($cell['kind'])); ?>
                           <td class="date-cell <?= $cell['ng'] > 0 ? 'ng' : '' ?>" title="<?=h($title)?>"><?=h($cell['date'])?></td>
                         <?php else: ?>
                           <td class="blank"></td>
