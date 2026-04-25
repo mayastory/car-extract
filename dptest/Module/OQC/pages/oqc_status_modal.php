@@ -1,5 +1,5 @@
 <?php
-// OQC 현황표 : JTGPT 엑셀식 모델별 Tool/Cavity 잔량 현황
+// OQC 현황표 : 모델별 Tool/Cavity 잔량 현황
 if (!defined('JTMES_ROOT')) { define('JTMES_ROOT', realpath(dirname(__DIR__, 3)) ?: dirname(__DIR__, 3)); }
 
 session_start();
@@ -285,7 +285,7 @@ endif; ?>
     <div class="status-head">
       <div class="status-title">
         <h1>OQC 현황표</h1>
-        <div class="sub">JTGPT 엑셀식 모델별 Tool / Cavity 사용 가능 예상 데이터 현황 · <?=h($customerLabel)?> 기준 · 최근 <?=h((string)$rangeDays)?>일</div>
+        <div class="sub">모델별 Tool / Cavity 사용 가능 예상 데이터 현황 · <?=h($customerLabel)?> 기준 · 최근 <?=h((string)$rangeDays)?>일</div>
       </div>
       <form class="status-controls" method="get">
         <?php if ($EMBED): ?><input type="hidden" name="embed" value="1"><?php endif; ?>
@@ -297,7 +297,7 @@ endif; ?>
         </label>
         <label>기간
           <select name="days">
-            <?php foreach ([30,60,90,120,180,365,730] as $d): ?>
+            <?php foreach ([7,30,60,90,120,180,365,730] as $d): ?>
               <option value="<?=$d?>" <?= $rangeDays === $d ? 'selected' : '' ?>>최근 <?=$d?>일</option>
             <?php endforeach; ?>
           </select>
