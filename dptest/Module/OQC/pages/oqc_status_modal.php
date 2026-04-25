@@ -528,8 +528,17 @@ endif; ?>
                   <?php endforeach; ?>
                 </tr>
                 <tr>
-                  <?php foreach ($modelData['tools'] as $toolData): ?>
-                    <th>1CAV</th><th>2CAV</th><th>3CAV</th><th>4CAV</th>
+                  <?php foreach ($modelData['tools'] as $tool => $toolData): ?>
+                    <?php foreach (['1','2','3','4'] as $cavHead): ?>
+                      <?php
+                        $usableCavCount = 0;
+                        foreach (($toolData['cavs'][$cavHead] ?? []) as $cavCell) {
+                            if ((int)($cavCell['ng'] ?? 0) <= 0) $usableCavCount++;
+                        }
+                        $cavTip = $tool . '차 ' . $cavHead . 'CAV' . "\n" . '사용 가능 예상(NG 제외): ' . number_format($usableCavCount) . '건';
+                      ?>
+                      <th data-tooltip="<?=h($cavTip)?>"><?=h($cavHead)?>CAV</th>
+                    <?php endforeach; ?>
                   <?php endforeach; ?>
                 </tr>
               </thead>
