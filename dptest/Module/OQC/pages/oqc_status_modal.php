@@ -448,7 +448,7 @@ body{padding:<?= $EMBED ? '0' : '18px' ?>;}
 .ng-detail-table{width:100%; border-collapse:collapse; min-width:720px; font-size:12px; background:#1f2227; color:#f4f6f8;}
 .ng-detail-table th,.ng-detail-table td{border:1px solid rgba(255,255,255,.12); padding:8px 10px; text-align:center; white-space:nowrap;}
 .ng-detail-table th{background:#30343c; color:#e9edf3; font-weight:900; position:sticky; top:0;}
-.ng-detail-table td:first-child{text-align:left; font-weight:800;}
+.ng-detail-table td:first-child{text-align:center; font-weight:800;}
 .ng-detail-table .judgement{color:#ff9b9b; font-weight:900;}
 .ng-detail-empty{padding:28px; text-align:center; color:#aeb7c4;}
 .date-cell.ng{cursor:pointer; text-decoration:underline; text-underline-offset:2px;}
