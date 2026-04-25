@@ -145,23 +145,52 @@ $headerIds = array_values(array_unique(array_filter($headerIds)));
 if ($headerIds && $resultCols) {
     foreach (array_chunk($headerIds, 700) as $chunk) {
         $in = oqc_status_in_placeholders(count($chunk));
-        $pointFilter = isset($resultCols['point_no']) ? "AND (point_no IS NULL OR point_no NOT LIKE '%(DC)%')" : '';
-        $ngSql = "
-            SELECT header_id, COUNT(*) AS ng_count
-            FROM oqc_result_header
-            WHERE header_id IN ($in)
-              AND result_ok = 0
-              {$pointFilter}
-            GROUP BY header_id
-        ";
         try {
-            $ngStmt = $pdo->prepare($ngSql);
-            $ngStmt->execute($chunk);
-            foreach ($ngStmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
-                $ngByHeader[(int)$r['header_id']] = (int)$r['ng_count'];
+            if (isset($resultCols['point_no'])) {
+                $ngSql = "
+                    SELECT header_id, point_no
+                    FROM oqc_result_header
+                    WHERE header_id IN ($in)
+                      AND result_ok = 0
+                      AND (point_no IS NULL OR point_no NOT LIKE '%(DC)%')
+                    ORDER BY header_id, point_no
+                ";
+                $ngStmt = $pdo->prepare($ngSql);
+                $ngStmt->execute($chunk);
+                foreach ($ngStmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+                    $hid = (int)$r['header_id'];
+                    $point = trim((string)($r['point_no'] ?? ''));
+                    if ($point === '') $point = '포인트 정보 없음';
+                    if (!isset($ngByHeader[$hid])) $ngByHeader[$hid] = ['count' => 0, 'points' => []];
+                    $ngByHeader[$hid]['points'][$point] = true;
+                }
+            } else {
+                $ngSql = "
+                    SELECT header_id, COUNT(*) AS ng_count
+                    FROM oqc_result_header
+                    WHERE header_id IN ($in)
+                      AND result_ok = 0
+                    GROUP BY header_id
+                ";
+                $ngStmt = $pdo->prepare($ngSql);
+                $ngStmt->execute($chunk);
+                foreach ($ngStmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+                    $hid = (int)$r['header_id'];
+                    $ngByHeader[$hid] = ['count' => (int)$r['ng_count'], 'points' => []];
+                }
             }
         } catch (Throwable $e) {}
     }
+    foreach ($ngByHeader as $hid => &$ngInfo) {
+        if (isset($ngInfo['points']) && is_array($ngInfo['points']) && $ngInfo['points']) {
+            $ngInfo['count'] = count($ngInfo['points']);
+            $ngInfo['points'] = array_keys($ngInfo['points']);
+        } else {
+            $ngInfo['points'] = [];
+            $ngInfo['count'] = (int)($ngInfo['count'] ?? 0);
+        }
+    }
+    unset($ngInfo);
 }
 
 $data = [];
@@ -181,7 +210,9 @@ foreach ($headers as $r) {
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) continue;
 
     $hid = (int)$r['id'];
-    $ngPoints = $ngByHeader[$hid] ?? 0;
+    $ngInfo = $ngByHeader[$hid] ?? ['count' => 0, 'points' => []];
+    $ngPoints = (int)($ngInfo['count'] ?? 0);
+    $ngPointList = is_array($ngInfo['points'] ?? null) ? $ngInfo['points'] : [];
     $ngFlag = $ngPoints > 0 ? 1 : 0;
     $slotText = $measKey1;
 
@@ -199,6 +230,7 @@ foreach ($headers as $r) {
             'date' => $date,
             'ng' => 0,
             'ng_points' => 0,
+            'ng_point_list' => [],
             'slot' => $slotText,
             'headers' => 0,
             'kind' => [],
@@ -207,6 +239,12 @@ foreach ($headers as $r) {
     $cell =& $data[$modelKey]['tools'][$tool]['cavs'][$cav][$dateKey];
     $cell['ng'] = max((int)$cell['ng'], $ngFlag);
     $cell['ng_points'] += $ngPoints;
+    if ($ngPointList) {
+        foreach ($ngPointList as $pointName) {
+            $pointName = trim((string)$pointName);
+            if ($pointName !== '') $cell['ng_point_list'][$pointName] = true;
+        }
+    }
     $cell['headers']++;
     if (!empty($r['kind'])) $cell['kind'][(string)$r['kind']] = true;
     unset($cell);
@@ -282,6 +320,8 @@ body{padding:<?= $EMBED ? '0' : '18px' ?>;}
 .oqc-grid .tool-head{background:#ffffff; font-size:13px;}
 .oqc-grid .date-cell{background:#fff; color:#111827;}
 .oqc-grid .date-cell.ng{color:#d3352f; font-weight:900;}
+.status-tooltip{position:fixed; z-index:99999; max-width:360px; pointer-events:none; background:#111827; color:#f9fafb; border:1px solid rgba(255,255,255,.22); border-radius:10px; padding:9px 11px; font-size:12px; line-height:1.45; box-shadow:0 14px 32px rgba(0,0,0,.35); white-space:pre-line; display:none;}
+.status-tooltip strong{display:block; margin-bottom:4px; color:#ffb4b4;}
 .oqc-grid .ng-note{color:#c5352c; font-weight:900; background:#fff7f5; text-align:left;}
 .oqc-grid .blank{background:#fff;}
 .empty-state{padding:50px 20px; text-align:center; color:#6b7280; background:#fff; border-radius:14px;}
@@ -376,8 +416,26 @@ endif; ?>
                       <?php foreach (['1','2','3','4'] as $cav): ?>
                         <?php $cell = array_values($toolData['cavs'][$cav])[$i] ?? null; ?>
                         <?php if ($cell): ?>
-                          <?php $title = '기준: ' . ($cell['slot'] ?: '-') . ' / 후보: ' . $cell['headers'] . '건 / NG 포인트: ' . ((int)($cell['ng_points'] ?? 0)) . '건 / kind: ' . implode(',', array_keys($cell['kind'])); ?>
-                          <td class="date-cell <?= $cell['ng'] > 0 ? 'ng' : '' ?>" title="<?=h($title)?>"><?=h($cell['date'])?></td>
+                          <?php
+                            $kindText = implode(',', array_keys($cell['kind']));
+                            if ($kindText === '') $kindText = '-';
+                            $pointList = array_keys($cell['ng_point_list'] ?? []);
+                            natcasesort($pointList);
+                            $pointList = array_values($pointList);
+                            if ((int)($cell['ng'] ?? 0) > 0) {
+                                $pointText = $pointList ? implode("
+", array_map(static fn($p) => '- ' . $p, $pointList)) : '- 포인트 정보 없음';
+                                $tip = "NG 포인트
+" . $pointText . "
+기준: " . ($cell['slot'] ?: '-') . "
+kind: " . $kindText;
+                            } else {
+                                $tip = "사용 가능 예상
+기준: " . ($cell['slot'] ?: '-') . "
+kind: " . $kindText;
+                            }
+                          ?>
+                          <td class="date-cell <?= $cell['ng'] > 0 ? 'ng' : '' ?>" data-tooltip="<?=h($tip)?>"><?=h($cell['date'])?></td>
                         <?php else: ?>
                           <td class="blank"></td>
                         <?php endif; ?>
@@ -398,6 +456,7 @@ endif; ?>
     <?php endforeach; ?>
   </div>
 </div>
+<div class="status-tooltip" id="oqcStatusTooltip"></div>
 <script>
 (function(){
   const tabs = document.querySelectorAll('.model-tab');
@@ -418,6 +477,33 @@ endif; ?>
     });
   });
   refreshKindLabels();
+
+  const tooltip = document.getElementById('oqcStatusTooltip');
+  const moveTooltip = (ev) => {
+    if (!tooltip || tooltip.style.display === 'none') return;
+    const pad = 14;
+    let left = ev.clientX + pad;
+    let top = ev.clientY + pad;
+    const rect = tooltip.getBoundingClientRect();
+    if (left + rect.width + 10 > window.innerWidth) left = ev.clientX - rect.width - pad;
+    if (top + rect.height + 10 > window.innerHeight) top = ev.clientY - rect.height - pad;
+    tooltip.style.left = Math.max(8, left) + 'px';
+    tooltip.style.top = Math.max(8, top) + 'px';
+  };
+  document.querySelectorAll('[data-tooltip]').forEach(cell => {
+    cell.addEventListener('mouseenter', (ev) => {
+      if (!tooltip) return;
+      const text = cell.getAttribute('data-tooltip') || '';
+      tooltip.textContent = text;
+      tooltip.style.display = 'block';
+      moveTooltip(ev);
+    });
+    cell.addEventListener('mousemove', moveTooltip);
+    cell.addEventListener('mouseleave', () => {
+      if (tooltip) tooltip.style.display = 'none';
+    });
+  });
+
   tabs.forEach(btn => {
     btn.addEventListener('click', () => {
       const key = btn.dataset.model;
