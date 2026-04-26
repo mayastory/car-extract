@@ -91,6 +91,32 @@ function oqc_status_ng_direction($value, $usl, $lsl): string
     return 'NG';
 }
 
+
+function oqc_status_ng_ignore_point_norm(string $point): string
+{
+    $s = strtoupper(trim($point));
+    $s = str_replace(['–', '—', '－', '‑'], '-', $s);
+    $s = preg_replace('/\s+/u', '', $s);
+    return $s ?? '';
+}
+
+function oqc_status_is_ng_ignored_point(string $modelKey, string $point): bool
+{
+    if ($modelKey !== 'MEM-Z-CARRIER') return false;
+
+    static $ignore = null;
+    if ($ignore === null) {
+        $ignore = array_fill_keys([
+            '99-V1', '100-V1', '101-V1', '102-V1',
+            '99-V2', '100-V2', '101-V2', '102-V2',
+            '105-V3', '106-V3', '107-V3', '108-V3',
+            '105-V4', '106-V4', '107-V4', '108-V4',
+        ], true);
+    }
+
+    return isset($ignore[oqc_status_ng_ignore_point_norm($point)]);
+}
+
 function oqc_status_tool_cavity_order(array $tools): array
 {
     $original = [];
@@ -198,6 +224,11 @@ $ngByHeader = [];
 $headerIds = array_map(static fn($r) => (int)$r['id'], $headers);
 $headerIds = array_values(array_unique(array_filter($headerIds)));
 
+$headerModelById = [];
+foreach ($headers as $headerRowForModel) {
+    $headerModelById[(int)$headerRowForModel['id']] = oqc_status_model_key((string)$headerRowForModel['part_name']);
+}
+
 // 상세 모달용 NG 정보만 조회한다.
 // 전체 oqc_measurements를 미리 fetchAll 하면 데이터가 많은 경우 메모리가 터지므로 금지.
 if ($headerIds && $resultCols) {
@@ -232,6 +263,7 @@ if ($headerIds && $resultCols) {
                     $hid = (int)$r['header_id'];
                     $point = trim((string)($r['point_no'] ?? ''));
                     if ($point === '') $point = '포인트 정보 없음';
+                    if (oqc_status_is_ng_ignored_point((string)($headerModelById[$hid] ?? ''), $point)) continue;
                     $spc = trim((string)($r['spc_code'] ?? ''));
                     $usl = $r['usl'] ?? null;
                     $lsl = $r['lsl'] ?? null;
