@@ -107,6 +107,7 @@ function oqc_status_is_ng_ignored_point(string $modelKey, string $point): bool
     static $ignore = null;
     if ($ignore === null) {
         $ignore = array_fill_keys([
+            '1-1', '1-2', '1-3', '1-4',
             '99-V1', '100-V1', '101-V1', '102-V1',
             '99-V2', '100-V2', '101-V2', '102-V2',
             '105-V3', '106-V3', '107-V3', '108-V3',
