@@ -158,7 +158,7 @@ if ($kindFilter === 'FAI') {
     $kindSql = "AND UPPER(TRIM(COALESCE(h.kind,''))) = 'SPC'";
 }
 
-$rangeDays = (int)($_GET['days'] ?? 120);
+$rangeDays = (int)($_GET['days'] ?? 7);
 if ($rangeDays < 7) $rangeDays = 7;
 if ($rangeDays > 730) $rangeDays = 730;
 $fromDate = date('Y-m-d', strtotime('-' . $rangeDays . ' days'));
