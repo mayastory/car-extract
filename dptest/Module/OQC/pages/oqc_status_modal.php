@@ -120,36 +120,19 @@ function oqc_status_is_ng_ignored_point(string $modelKey, string $point): bool
 
 function oqc_status_tool_cavity_order(array $tools): array
 {
-    $original = [];
+    $ordered = [];
     foreach ($tools as $tool) {
         $key = strtoupper(trim((string)$tool));
         if ($key === '') continue;
-        if (!isset($original[$key])) $original[$key] = (string)$tool;
+        if (!isset($ordered[$key])) $ordered[$key] = (string)$tool;
     }
 
-    // 사용자가 보는 Tool#Cavity 요약은 CAV 우선, Tool은 기존 성적서 계열 순서로 표시한다.
-    // 예: K#1, L#1, A#1, C#1 ... J#1, K#2, L#2 ...
-    $preferred = ['K','L','A','C','D','E','F','G','H','J'];
-    $ordered = [];
-    $used = [];
-    foreach ($preferred as $key) {
-        if (isset($original[$key])) {
-            $ordered[] = $original[$key];
-            $used[$key] = true;
-        }
-    }
-
-    $remaining = [];
-    foreach ($original as $key => $tool) {
-        if (!isset($used[$key])) $remaining[] = $tool;
-    }
-    usort($remaining, static function($a, $b) {
-        $la = strlen((string)$a); $lb = strlen((string)$b);
-        if ($la === $lb) return strnatcasecmp((string)$a, (string)$b);
-        return $la <=> $lb;
+    $result = array_values($ordered);
+    usort($result, static function($a, $b) {
+        return strnatcasecmp((string)$a, (string)$b);
     });
 
-    return array_merge($ordered, $remaining);
+    return $result;
 }
 
 try {
