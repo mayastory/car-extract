@@ -693,10 +693,18 @@ function ipqc_omm_header_label(string $fai, string $spc): string {
     return (string)$fai;
 }
 
-// Normalize OMM pivot keys so that mapping.xlsx 라벨 공백/표기 흔들림에도 안정적으로 매칭된다.
+// Normalize OMM pivot keys only for internal matching.
+// Display labels stay unchanged, but trailing/variant spaces and slash spacing must not break export fill.
 function ipqc_norm_omm_fai_key(string $s): string {
-    // OMM: 라벨 가공 금지(DB 그대로)
-    return (string)$s;
+    $s = (string)$s;
+    if ($s === '') return '';
+    $s = str_replace(["\xC2\xA0", "\xE3\x80\x80"], ' ', $s); // NBSP / full-width space
+    $s = trim($s);
+    $tmp = @preg_replace('/\s*\/\s*/u', '/', $s); // "A / B" == "A/B"
+    if (is_string($tmp)) $s = $tmp;
+    $tmp = @preg_replace('/\s+/u', ' ', $s); // collapse duplicate spaces
+    if (is_string($tmp)) $s = $tmp;
+    return $s;
 }
 function ipqc_norm_omm_spc_key(string $s): string {
     // OMM: SPC는 부가 필드(표시용). 가공/분리/강제 금지.
@@ -738,7 +746,8 @@ function ipqc_output_pivot_csv_stream(
             } else {
                 $headers[] = $fai; // DB 라벨 그대로
             }
-            $keyToIdx[$fai] = (int)$i;
+            $faiKey = ipqc_norm_omm_fai_key($fai);
+            if ($faiKey !== '' && !isset($keyToIdx[$faiKey])) $keyToIdx[$faiKey] = (int)$i;
         }
     } else { // cmm
         foreach ($colKeys as $i => $p) {
@@ -859,7 +868,7 @@ function ipqc_output_pivot_csv_stream(
 
         // fill value
         if ($isOmmLike) {
-            $fai = (string)($r['fai'] ?? '');
+            $fai = ipqc_norm_omm_fai_key((string)($r['fai'] ?? ''));
             // SPC는 키에 관여하지 않음
             if ($fai !== '' && isset($keyToIdx[$fai])) {
                 $idx = (int)$keyToIdx[$fai];
@@ -1801,27 +1810,36 @@ function ipqc2_export_omm_pivot_csv(PDO $pdo, string $model, array $tools, strin
 
     $whereSql = "WHERE " . implode(" AND ", $where);
 
+    // Optional column filter (OMM): if faiFilter is provided, keep only those columns.
+    // Use the same normalized key as the viewer/export fill logic; headers still display original labels.
+    $filterSet = [];
+    if (!empty($faiFilter)) {
+        foreach ($faiFilter as $x) {
+            $fk = ipqc_norm_omm_fai_key((string)$x);
+            if ($fk !== '') $filterSet[$fk] = 1;
+        }
+    }
+
     // 0) Mapping order (매핑.xlsx -> ipqc_order_map.php):
-    //    - 라벨은 문자열 그대로 사용
-    //    - 라벨 파싱/분리/trim/정규화 금지
+    //    - display label is kept as-is
+    //    - matching key is normalized only to absorb trailing spaces / slash spacing differences
     $mappedKeys = [];
     $mappedSet  = [];
+    $mappedLabels = [];
     if (!empty($orderLabels)) {
         foreach ($orderLabels as $lb) {
             if (is_array($lb)) continue;
             $lab = (string)$lb;
-            if ($lab === '') continue;
-            if (!empty($filterSet) && !isset($filterSet[$lab])) continue;
-            if (isset($mappedSet[$lab])) continue;
-            $mappedSet[$lab] = 1;
-            $mappedKeys[] = $lab;
+            $labKey = ipqc_norm_omm_fai_key($lab);
+            if ($labKey === '') continue;
+            if (!empty($filterSet) && !isset($filterSet[$labKey])) continue;
+            if (isset($mappedSet[$labKey])) continue;
+            $mappedSet[$labKey] = 1;
+            $mappedLabels[$labKey] = $lab;
+            $mappedKeys[] = $labKey;
         }
     }
 
-    
-    // Optional column filter (OMM): if faiFilter is provided, keep only those columns.
-    $filterSet = [];
-    if (!empty($faiFilter)) { foreach ($faiFilter as $x) { $filterSet[(string)$x] = 1; } }
 // 1) Distinct labels present in DB for this filter (actual DB)
     $presentKeys = [];
     $presentSet = [];
@@ -1839,8 +1857,9 @@ function ipqc2_export_omm_pivot_csv(PDO $pdo, string $model, array $tools, strin
     $stmtK->execute();
 
     while ($r = $stmtK->fetch(PDO::FETCH_ASSOC)) {
-        $f = (string)($r['fai'] ?? '');
+        $f = ipqc_norm_omm_fai_key((string)($r['fai'] ?? ''));
         if ($f === '') continue;
+        if (!empty($filterSet) && !isset($filterSet[$f])) continue;
         if (isset($presentSet[$f])) continue;
         $presentSet[$f] = 1;
         $presentKeys[] = $f;
@@ -1850,7 +1869,7 @@ function ipqc2_export_omm_pivot_csv(PDO $pdo, string $model, array $tools, strin
     //    then append any DB-only columns (if any).
     $colMeta = []; // key => ['label'=>...]
     foreach ($mappedKeys as $k) {
-        $colMeta[$k] = ['label' => $k];
+        $colMeta[$k] = ['label' => ($mappedLabels[$k] ?? $k)];
     }
     foreach ($presentKeys as $k) {
         if (!isset($colMeta[$k])) $colMeta[$k] = ['label' => $k];
@@ -1882,7 +1901,10 @@ function ipqc2_export_omm_pivot_csv(PDO $pdo, string $model, array $tools, strin
 
     // colKey -> column index
     $colIndex = [];
-    foreach ($colKeys as $i => $ck) $colIndex[$ck] = $i;
+    foreach ($colKeys as $i => $ck) {
+        $ckKey = ipqc_norm_omm_fai_key((string)$ck);
+        if ($ckKey !== '' && !isset($colIndex[$ckKey])) $colIndex[$ckKey] = $i;
+    }
 
     // 4) Stream measurements ordered by row key so we can flush row by row
     $sql = "
@@ -1923,7 +1945,7 @@ function ipqc2_export_omm_pivot_csv(PDO $pdo, string $model, array $tools, strin
             $curRow[4] = "Data {$idx}";
         }
 
-        $ck = (string)($r['fai'] ?? '');
+        $ck = ipqc_norm_omm_fai_key((string)($r['fai'] ?? ''));
         if ($ck === '') continue;
 
         if (isset($colIndex[$ck])) {
@@ -2125,7 +2147,8 @@ function ipqc2_export_pivot_csv(PDO $pdo, string $type, string $model, array $to
     } else {
         foreach ($colLabels as $i => $lb) {
             $headers[] = $lb;
-            $colIndex[(string)$lb] = $i;
+            $lbKey = ipqc_norm_omm_fai_key((string)$lb);
+            if ($lbKey !== '' && !isset($colIndex[$lbKey])) $colIndex[$lbKey] = $i;
         }
     }
 
@@ -2155,7 +2178,7 @@ function ipqc2_export_pivot_csv(PDO $pdo, string $type, string $model, array $to
         }
 
         if ($typeU === 'OMM') {
-            $lb = ipqc2_omm_col_label((string)$r['fai'], (string)$r['spc']);
+            $lb = ipqc_norm_omm_fai_key(ipqc2_omm_col_label((string)$r['fai'], (string)$r['spc']));
         } else {
             $lb = (string)$r['point_no'];
         }
