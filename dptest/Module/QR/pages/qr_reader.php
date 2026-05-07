@@ -387,7 +387,7 @@ $recentRows = $pdo ? qr_fetch_recent($pdo, 20) : [];
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;background:transparent;color:var(--text);} .page{max-width:1180px;margin:0 auto;padding:18px 16px 40px;}
 .card{background:rgba(8,18,42,.94);border:1px solid rgba(120,145,205,.22);border-radius:24px;padding:16px;box-shadow:0 18px 42px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.04);margin-bottom:14px;}
 h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color:var(--muted)}.ok{color:#8effa1}.bad{color:#ffb0b0}.warn{color:#ffe58b}.small{font-size:13px;line-height:1.45}
-.topline{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}.badge{border:1px solid rgba(156,255,143,.35);background:rgba(46,230,107,.08);color:#dfffe6;border-radius:999px;padding:8px 11px;font-size:13px;font-weight:800;}
+.topline{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}.topline h1{margin:0}.qr-csv-btn{padding:10px 16px;min-width:116px}.badge{border:1px solid rgba(156,255,143,.35);background:rgba(46,230,107,.08);color:#dfffe6;border-radius:999px;padding:8px 11px;font-size:13px;font-weight:800;}
 .scanGrid{display:grid;grid-template-columns:minmax(300px,440px) 1fr;gap:14px;align-items:start}.videoWrap{position:relative;aspect-ratio:3/4;width:100%;max-height:72vh;border-radius:22px;overflow:hidden;background:#000;border:1px solid rgba(255,255,255,.08);}video{width:100%;height:100%;object-fit:cover;background:#000}.mask{position:absolute;inset:0;pointer-events:none;background:rgba(0,0,0,.12)}
 .scanArea{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(76vw,360px);height:min(46vw,210px);max-width:84%;border:3px solid rgba(46,230,107,.96);border-radius:24px;box-shadow:0 0 0 9999px rgba(0,0,0,.28),0 0 0 1px rgba(255,255,255,.12) inset,0 0 18px rgba(46,230,107,.25);background:linear-gradient(to bottom,rgba(46,230,107,.04),rgba(46,230,107,.01));}.corner{position:absolute;width:34px;height:34px;border-color:var(--green2);border-style:solid;filter:drop-shadow(0 0 7px rgba(156,255,143,.45))}.tl{left:-3px;top:-3px;border-width:5px 0 0 5px;border-top-left-radius:18px}.tr{right:-3px;top:-3px;border-width:5px 5px 0 0;border-top-right-radius:18px}.bl{left:-3px;bottom:-3px;border-width:0 0 5px 5px;border-bottom-left-radius:18px}.br{right:-3px;bottom:-3px;border-width:0 5px 5px 0;border-bottom-right-radius:18px}.crosshairH,.crosshairV,.crossDot{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}.crosshairH{width:52px;height:2px;background:rgba(156,255,143,.95);box-shadow:0 0 10px rgba(156,255,143,.45)}.crosshairV{width:2px;height:52px;background:rgba(156,255,143,.95);box-shadow:0 0 10px rgba(156,255,143,.45)}.crossDot{width:8px;height:8px;border-radius:50%;background:var(--green2);box-shadow:0 0 10px rgba(156,255,143,.85)}.scanLine{position:absolute;left:8px;right:8px;top:12px;height:3px;background:linear-gradient(90deg,rgba(46,230,107,0),rgba(156,255,143,.96),rgba(46,230,107,0));box-shadow:0 0 14px rgba(46,230,107,.7);border-radius:999px;animation:scanMove 2.1s linear infinite;}@keyframes scanMove{0%{top:12px;opacity:.95}45%{opacity:1}100%{top:calc(100% - 15px);opacity:.92}}
 .guideText{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);background:rgba(6,14,28,.74);color:#f1fff4;border:1px solid rgba(46,230,107,.35);border-radius:999px;padding:9px 12px;font-size:13px;text-align:center;width:min(92%,480px);backdrop-filter:blur(6px);box-shadow:0 6px 18px rgba(0,0,0,.2);}
@@ -403,8 +403,9 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
         <div class="topline">
             <div>
                 <h1>QR 리더기</h1>
-</div>
-</div>
+            </div>
+            <a class="btn qr-csv-btn" href="?download=csv">CSV 다운로드</a>
+        </div>
     </div>
 
     <?php if (!empty($fatalMessage)): ?>
@@ -441,11 +442,6 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
                     <input type="text" id="manualCode" placeholder="예: 3HUR00021A/480/DP261672730G3BZM">
                     <button id="manualSaveBtn" type="button">저장</button>
                 </div>
-            </div>
-            <div class="card">
-                <h2>내 스캔 CSV</h2>
-                <a class="btn" href="?download=csv">CSV 다운로드</a>
-                <div class="muted small" style="margin-top:10px">DB의 내 계정 스캔 기록 최근 300건 기준</div>
             </div>
             <div class="qr-hidden-diagnostics card">
                 <h2>브라우저 진단</h2>
