@@ -464,7 +464,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
         <div class="tableWrap">
             <table>
                 <thead>
-                    <tr><th>시간</th><th>모델</th><th>LOT</th><th>Tool</th><th>Cavity</th><th>ea</th><th>DP</th><th>라벨</th><th>소스</th></tr>
+                    <tr><th>시간</th><th>모델</th><th>LOT</th><th>Tool</th><th>Cavity</th><th>ea</th><th>DP</th></tr>
                 </thead>
                 <tbody id="rowsBody">
                 <?php foreach ($recentRows as $row): ?>
