@@ -318,6 +318,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
 .guideText{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);background:rgba(6,14,28,.74);color:#f1fff4;border:1px solid rgba(46,230,107,.35);border-radius:999px;padding:9px 12px;font-size:13px;text-align:center;width:min(92%,480px);backdrop-filter:blur(6px);box-shadow:0 6px 18px rgba(0,0,0,.2);}
 .controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}button,.btn{appearance:none;border:none;border-radius:16px;padding:14px 14px;font-size:16px;font-weight:800;background:var(--accent);color:#fff;cursor:pointer;text-align:center;text-decoration:none;box-shadow:0 10px 24px rgba(63,109,241,.26);}button.secondary,.btn.secondary{background:#293658;box-shadow:none}input[type=text]{width:100%;padding:14px 16px;border-radius:16px;border:1px solid rgba(255,255,255,.09);background:#252f49;color:#fff;font-size:16px;outline:none;}.manualGrid{display:grid;grid-template-columns:1fr auto;gap:10px}.result{font-size:16px;font-weight:800;word-break:break-all;margin-top:12px;line-height:1.5;white-space:pre-line}.statusBox{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:14px;line-height:1.55;font-size:14px;white-space:pre-line;}.diagGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.diagRow{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.05)}.diagVal{font-weight:800;text-align:right;word-break:break-word}.tableWrap{overflow:auto;border-radius:14px;border:1px solid rgba(255,255,255,.08)}table{width:100%;border-collapse:collapse;font-size:13px;min-width:980px}th,td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.07);text-align:left;white-space:nowrap}th{background:rgba(255,255,255,.06);color:#dce6ff}td{color:#eef2ff}.fatal{border-color:rgba(255,118,118,.5);background:rgba(255,118,118,.08)}
 @media (max-width:880px){.scanGrid{grid-template-columns:1fr}.diagGrid{grid-template-columns:1fr}.page{padding:12px}.controls,.manualGrid{grid-template-columns:1fr}h1{font-size:22px}.videoWrap{max-height:70vh}.scanArea{height:min(52vw,220px)}.guideText{font-size:12px}}
+.qr-hidden-diagnostics{display:none !important;}
 </style>
 </head>
 <body>
@@ -326,10 +327,8 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
         <div class="topline">
             <div>
                 <h1>QR 리더기</h1>
-                <div class="muted">스캔값은 로그인 계정별로 DB에 저장됩니다.</div>
-            </div>
-            <div class="badge">계정: <?= h($accountId !== '' ? $accountId : '세션 계정') ?></div>
-        </div>
+</div>
+</div>
     </div>
 
     <?php if (!empty($fatalMessage)): ?>
@@ -372,7 +371,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
                 <a class="btn" href="?download=csv">CSV 다운로드</a>
                 <div class="muted small" style="margin-top:10px">DB의 내 계정 스캔 기록 최근 300건 기준</div>
             </div>
-            <div class="card">
+            <div class="qr-hidden-diagnostics card">
                 <h2>브라우저 진단</h2>
                 <div class="diagGrid">
                     <div class="diagRow"><div>protocol</div><div class="diagVal" id="dProtocol"></div></div>
