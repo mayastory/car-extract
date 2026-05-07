@@ -472,12 +472,10 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
                         <td><?= h((string)($row['created_at'] ?? '')) ?></td>
                         <td><?= h((string)($row['model_name'] ?? '')) ?></td>
                         <td><?= h((string)($row['lot_date'] ?? '')) ?></td>
-                        <td><?= h((string)($row['cavity'] ?? '')) ?></td>
                         <td><?= h((string)($row['tool'] ?? '')) ?></td>
+                        <td><?= h((string)($row['cavity'] ?? '')) ?></td>
                         <td><?= h((string)($row['ea'] ?? '')) ?></td>
                         <td><?= h((string)($row['dp_code'] ?? '')) ?></td>
-                        <td><?= h((string)($row['label_code'] ?? '')) ?></td>
-                        <td><?= h((string)($row['scan_source'] ?? '')) ?></td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>
@@ -543,7 +541,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
     function renderRows(rows) {
         if (!Array.isArray(rows)) return;
         rowsBody.innerHTML = rows.map(row => `<tr>
-            <td>${esc(row.created_at)}</td><td>${esc(row.model_name)}</td><td>${esc(row.lot_date)}</td><td>${esc(row.cavity)}</td><td>${esc(row.tool)}</td><td>${esc(row.ea)}</td><td>${esc(row.dp_code)}</td><td>${esc(row.label_code)}</td><td>${esc(row.scan_source)}</td>
+            <td>${esc(row.created_at)}</td><td>${esc(row.model_name)}</td><td>${esc(row.lot_date)}</td><td>${esc(row.tool)}</td><td>${esc(row.cavity)}</td><td>${esc(row.ea)}</td><td>${esc(row.dp_code)}</td>
         </tr>`).join('');
     }
     async function saveCode(code, source) {
