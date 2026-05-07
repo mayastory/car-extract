@@ -558,7 +558,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
     setDiag('dBarcode', String(hasBarcodeDetector), hasBarcodeDetector);
     setDiag('dZxing', hasZXing ? '사용 가능' : '로드 실패', hasZXing);
     document.getElementById('dUA').textContent = navigator.userAgent;
-    supportMessage.textContent = supportText();
+    supportMessage.textContent = '';
 
     function activateTab(name) {
         document.querySelectorAll('.qrPanel').forEach(panel => panel.classList.remove('active'));
@@ -583,12 +583,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
         el.className = 'diagVal ' + (ok ? 'ok' : 'warn');
     }
     function supportText() {
-        if (!hasSecure || !hasMediaDevices || !hasGetUserMedia) {
-            return '카메라 조건이 충족되지 않았습니다.\nHTTPS, 카메라 권한, 브라우저 지원 여부를 확인해 주세요.\n수동 입력은 계속 사용할 수 있습니다.';
-        }
-        if (hasBarcodeDetector) return 'BarcodeDetector 지원 브라우저입니다.\nAndroid/Samsung Internet/Chrome 계열은 이 경로로 인식합니다.';
-        if (hasZXing) return 'BarcodeDetector는 없지만 ZXing fallback을 사용합니다.\niPhone Safari는 보통 이 경로로 인식합니다.';
-        return '카메라는 가능하지만 자동 인식 엔진이 없습니다.\n수동 입력을 사용해 주세요.';
+        return '';
     }
     function setStatus(text, cls='muted') {
         resultEl.textContent = text;
@@ -686,7 +681,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
             zxingReader.decodeFromVideoElementContinuously(video, (result) => {
                 if (result && result.text) handleDetected(result.text, 'ZXing');
             });
-            setStatus('ZXing fallback으로 자동 인식 중입니다.', 'ok');
+            // ZXing fallback 상태 문구는 화면에 표시하지 않음
         } catch (e) {
             setStatus('ZXing 시작 실패: ' + e.message, 'bad');
         }
