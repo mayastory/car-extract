@@ -172,24 +172,88 @@ function qr_fetch_recent(PDO $pdo, int $limit = 80): array {
     $accountNo = qr_current_account_no();
     $accountId = qr_current_account_id();
     $limit = max(1, min(300, $limit));
+    $scanLimit = max($limit * 10, 300);
 
     if ($accountNo !== null) {
         $st = $pdo->prepare("SELECT id, account_no, account_id, scanner_name, scan_source, raw_code, label_code, barcode, dp_code, model_suffix, model_name, lot_date, cavity, tool, ea, remote_ip, created_at
             FROM qr_scan_log
             WHERE account_no = :account_no
             ORDER BY created_at DESC, id DESC
-            LIMIT {$limit}");
+            LIMIT {$scanLimit}");
         $st->execute([':account_no' => $accountNo]);
     } else {
         $st = $pdo->prepare("SELECT id, account_no, account_id, scanner_name, scan_source, raw_code, label_code, barcode, dp_code, model_suffix, model_name, lot_date, cavity, tool, ea, remote_ip, created_at
             FROM qr_scan_log
             WHERE account_id = :account_id
             ORDER BY created_at DESC, id DESC
-            LIMIT {$limit}");
+            LIMIT {$scanLimit}");
         $st->execute([':account_id' => $accountId]);
     }
 
-    return $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    $seen = [];
+    $out = [];
+
+    foreach ($rows as $row) {
+        $key = trim((string)($row['dp_code'] ?? ''));
+        if ($key === '') $key = trim((string)($row['barcode'] ?? ''));
+        if ($key === '') $key = trim((string)($row['raw_code'] ?? ''));
+        if ($key === '') $key = 'id:' . (string)($row['id'] ?? '');
+
+        if (isset($seen[$key])) continue;
+        $seen[$key] = true;
+        $out[] = $row;
+
+        if (count($out) >= $limit) break;
+    }
+
+    return $out;
+}
+
+function qr_duplicate_scan_id(PDO $pdo, array $parsed): ?int {
+    $accountNo = qr_current_account_no();
+    $accountId = qr_current_account_id();
+    $dpCode = trim((string)($parsed['dp_code'] ?? ''));
+    $barcode = trim((string)($parsed['barcode'] ?? ''));
+    $rawCode = trim((string)($parsed['raw_code'] ?? ''));
+
+    $conds = [];
+    $params = [];
+
+    if ($accountNo !== null) {
+        $conds[] = 'account_no = :account_no';
+        $params[':account_no'] = $accountNo;
+    } else {
+        $conds[] = 'account_id = :account_id';
+        $params[':account_id'] = $accountId;
+    }
+
+    $codeConds = [];
+    if ($dpCode !== '') {
+        $codeConds[] = 'dp_code = :dp_code';
+        $params[':dp_code'] = $dpCode;
+    }
+    if ($barcode !== '') {
+        $codeConds[] = 'barcode = :barcode';
+        $params[':barcode'] = $barcode;
+    }
+    if ($rawCode !== '') {
+        $codeConds[] = 'raw_code = :raw_code';
+        $params[':raw_code'] = $rawCode;
+    }
+
+    if (!$codeConds) return null;
+
+    $sql = "SELECT id FROM qr_scan_log WHERE " . implode(' AND ', $conds) . " AND (" . implode(' OR ', $codeConds) . ") ORDER BY created_at DESC, id DESC LIMIT 1";
+    $st = $pdo->prepare($sql);
+    foreach ($params as $key => $value) {
+        if ($key === ':account_no') $st->bindValue($key, (int)$value, PDO::PARAM_INT);
+        else $st->bindValue($key, (string)$value, PDO::PARAM_STR);
+    }
+    $st->execute();
+    $id = $st->fetchColumn();
+
+    return $id ? (int)$id : null;
 }
 
 function qr_insert_scan(PDO $pdo, array $parsed, string $source): int {
@@ -288,6 +352,17 @@ if ($pdo && isset($_GET['ajax'])) {
             $source = trim((string)($body['source'] ?? 'manual'));
             if ($code === '') qr_json(['ok' => false, 'message' => '코드값이 비어 있습니다.'], 400);
             $parsed = qr_parse_scan_code($code);
+            $duplicateId = qr_duplicate_scan_id($pdo, $parsed);
+            if ($duplicateId !== null) {
+                qr_json([
+                    'ok' => true,
+                    'duplicate' => true,
+                    'id' => $duplicateId,
+                    'message' => '이미 저장된 코드입니다.',
+                    'parsed' => $parsed,
+                    'rows' => qr_fetch_recent($pdo, 80)
+                ]);
+            }
             $id = qr_insert_scan($pdo, $parsed, $source);
             qr_json(['ok' => true, 'id' => $id, 'parsed' => $parsed, 'rows' => qr_fetch_recent($pdo, 80)]);
         }
@@ -319,6 +394,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
 .controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}button,.btn{appearance:none;border:none;border-radius:16px;padding:14px 14px;font-size:16px;font-weight:800;background:var(--accent);color:#fff;cursor:pointer;text-align:center;text-decoration:none;box-shadow:0 10px 24px rgba(63,109,241,.26);}button.secondary,.btn.secondary{background:#293658;box-shadow:none}input[type=text]{width:100%;padding:14px 16px;border-radius:16px;border:1px solid rgba(255,255,255,.09);background:#252f49;color:#fff;font-size:16px;outline:none;}.manualGrid{display:grid;grid-template-columns:1fr auto;gap:10px}.result{font-size:16px;font-weight:800;word-break:break-all;margin-top:12px;line-height:1.5;white-space:pre-line}.statusBox{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:14px;line-height:1.55;font-size:14px;white-space:pre-line;}.diagGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.diagRow{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.05)}.diagVal{font-weight:800;text-align:right;word-break:break-word}.tableWrap{overflow:auto;border-radius:14px;border:1px solid rgba(255,255,255,.08)}table{width:100%;border-collapse:collapse;font-size:13px;min-width:980px}th,td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.07);text-align:left;white-space:nowrap}th{background:rgba(255,255,255,.06);color:#dce6ff}td{color:#eef2ff}.fatal{border-color:rgba(255,118,118,.5);background:rgba(255,118,118,.08)}
 @media (max-width:880px){.scanGrid{grid-template-columns:1fr}.diagGrid{grid-template-columns:1fr}.page{padding:12px}.controls,.manualGrid{grid-template-columns:1fr}h1{font-size:22px}.videoWrap{max-height:70vh}.scanArea{height:min(52vw,220px)}.guideText{font-size:12px}}
 .qr-hidden-diagnostics{display:none !important;}
+.qr-hidden-status{display:none !important;}
 </style>
 </head>
 <body>
@@ -355,7 +431,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
         </div>
 
         <div>
-            <div class="card">
+            <div class="qr-hidden-status card">
                 <h2>상태</h2>
                 <div id="supportMessage" class="statusBox">브라우저 기능 확인 중...</div>
             </div>
@@ -482,6 +558,11 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
         const data = await res.json();
         if (!res.ok || !data.ok) throw new Error(data.message || '저장 실패');
         const p = data.parsed || {};
+        if (data.duplicate) {
+            setStatus(`이미 저장된 코드\nDP: ${p.dp_code || ''}`, 'warn');
+            renderRows(data.rows || []);
+            return;
+        }
         setStatus(`DB 저장 완료\nModel: ${p.model_name || ''}\nDP: ${p.dp_code || ''}\nNew LOT: ${p.lot_date || ''}\nCavity: ${p.cavity || ''} / Tool: ${p.tool || ''} / ea: ${p.ea ?? ''}`, 'ok');
         renderRows(data.rows || []);
         try { navigator.vibrate && navigator.vibrate(90); } catch (_) {}
