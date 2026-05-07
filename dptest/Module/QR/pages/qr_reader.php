@@ -210,6 +210,23 @@ function qr_fetch_recent(PDO $pdo, int $limit = 80): array {
     return $out;
 }
 
+function qr_clear_history(PDO $pdo): int {
+    $accountNo = qr_current_account_no();
+    $accountId = qr_current_account_id();
+
+    if ($accountNo !== null) {
+        $st = $pdo->prepare("DELETE FROM qr_scan_log WHERE account_no = :account_no");
+        $st->bindValue(':account_no', $accountNo, PDO::PARAM_INT);
+        $st->execute();
+        return $st->rowCount();
+    }
+
+    $st = $pdo->prepare("DELETE FROM qr_scan_log WHERE account_id = :account_id");
+    $st->bindValue(':account_id', $accountId, PDO::PARAM_STR);
+    $st->execute();
+    return $st->rowCount();
+}
+
 function qr_duplicate_scan_id(PDO $pdo, array $parsed): ?int {
     $accountNo = qr_current_account_no();
     $accountId = qr_current_account_id();
@@ -366,6 +383,10 @@ if ($pdo && isset($_GET['ajax'])) {
             $id = qr_insert_scan($pdo, $parsed, $source);
             qr_json(['ok' => true, 'id' => $id, 'parsed' => $parsed, 'rows' => qr_fetch_recent($pdo, 80)]);
         }
+        if ($action === 'clear_history') {
+            $deleted = qr_clear_history($pdo);
+            qr_json(['ok' => true, 'deleted' => $deleted, 'rows' => qr_fetch_recent($pdo, 80)]);
+        }
         qr_json(['ok' => false, 'message' => '지원하지 않는 요청입니다.'], 400);
     } catch (Throwable $e) {
         qr_json(['ok' => false, 'message' => $e->getMessage()], 500);
@@ -387,7 +408,7 @@ $recentRows = $pdo ? qr_fetch_recent($pdo, 20) : [];
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;background:transparent;color:var(--text);} .page{max-width:1180px;margin:0 auto;padding:18px 16px 40px;}
 .card{background:rgba(8,18,42,.94);border:1px solid rgba(120,145,205,.22);border-radius:24px;padding:16px;box-shadow:0 18px 42px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.04);margin-bottom:14px;}
 h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color:var(--muted)}.ok{color:#8effa1}.bad{color:#ffb0b0}.warn{color:#ffe58b}.small{font-size:13px;line-height:1.45}
-.topline{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}.topline h1{margin:0}.qr-csv-btn{padding:10px 16px;min-width:116px}.badge{border:1px solid rgba(156,255,143,.35);background:rgba(46,230,107,.08);color:#dfffe6;border-radius:999px;padding:8px 11px;font-size:13px;font-weight:800;}
+.topline{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}.topline h1{margin:0}.badge{border:1px solid rgba(156,255,143,.35);background:rgba(46,230,107,.08);color:#dfffe6;border-radius:999px;padding:8px 11px;font-size:13px;font-weight:800;}
 .scanGrid{display:grid;grid-template-columns:minmax(300px,440px) 1fr;gap:14px;align-items:start}.videoWrap{position:relative;aspect-ratio:3/4;width:100%;max-height:72vh;border-radius:22px;overflow:hidden;background:#000;border:1px solid rgba(255,255,255,.08);}video{width:100%;height:100%;object-fit:cover;background:#000}.mask{position:absolute;inset:0;pointer-events:none;background:rgba(0,0,0,.12)}
 .scanArea{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(76vw,360px);height:min(46vw,210px);max-width:84%;border:3px solid rgba(46,230,107,.96);border-radius:24px;box-shadow:0 0 0 9999px rgba(0,0,0,.28),0 0 0 1px rgba(255,255,255,.12) inset,0 0 18px rgba(46,230,107,.25);background:linear-gradient(to bottom,rgba(46,230,107,.04),rgba(46,230,107,.01));}.corner{position:absolute;width:34px;height:34px;border-color:var(--green2);border-style:solid;filter:drop-shadow(0 0 7px rgba(156,255,143,.45))}.tl{left:-3px;top:-3px;border-width:5px 0 0 5px;border-top-left-radius:18px}.tr{right:-3px;top:-3px;border-width:5px 5px 0 0;border-top-right-radius:18px}.bl{left:-3px;bottom:-3px;border-width:0 0 5px 5px;border-bottom-left-radius:18px}.br{right:-3px;bottom:-3px;border-width:0 5px 5px 0;border-bottom-right-radius:18px}.crosshairH,.crosshairV,.crossDot{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}.crosshairH{width:52px;height:2px;background:rgba(156,255,143,.95);box-shadow:0 0 10px rgba(156,255,143,.45)}.crosshairV{width:2px;height:52px;background:rgba(156,255,143,.95);box-shadow:0 0 10px rgba(156,255,143,.45)}.crossDot{width:8px;height:8px;border-radius:50%;background:var(--green2);box-shadow:0 0 10px rgba(156,255,143,.85)}.scanLine{position:absolute;left:8px;right:8px;top:12px;height:3px;background:linear-gradient(90deg,rgba(46,230,107,0),rgba(156,255,143,.96),rgba(46,230,107,0));box-shadow:0 0 14px rgba(46,230,107,.7);border-radius:999px;animation:scanMove 2.1s linear infinite;}@keyframes scanMove{0%{top:12px;opacity:.95}45%{opacity:1}100%{top:calc(100% - 15px);opacity:.92}}
 .guideText{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);background:rgba(6,14,28,.74);color:#f1fff4;border:1px solid rgba(46,230,107,.35);border-radius:999px;padding:9px 12px;font-size:13px;text-align:center;width:min(92%,480px);backdrop-filter:blur(6px);box-shadow:0 6px 18px rgba(0,0,0,.2);}
@@ -396,16 +417,35 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
 .qr-hidden-diagnostics{display:none !important;}
 .qr-hidden-status{display:none !important;}
 .tableWrap table th,.tableWrap table td{text-align:center !important;vertical-align:middle;}
+
+.tabCard{padding:10px 14px 0;overflow:visible}
+.qrTabs{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;margin:0}
+.qrTab{appearance:none;border:1px solid rgba(120,145,205,.26) !important;background:rgba(255,255,255,.04) !important;color:var(--text) !important;padding:12px 18px !important;border-radius:14px 14px 0 0 !important;font-size:16px !important;font-weight:800 !important;line-height:1 !important;text-decoration:none !important;cursor:pointer;box-shadow:none !important;min-height:auto !important}
+.qrTab:hover{background:rgba(255,255,255,.08) !important}
+.qrTab.active{background:rgba(8,18,42,.98) !important;border-bottom-color:rgba(8,18,42,.98) !important;transform:translateY(1px)}
+.qrTab.download{background:rgba(255,199,206,.20) !important;border-color:rgba(255,199,206,.62) !important;color:#ffe7eb !important}
+.qrTab.download:hover{background:rgba(255,199,206,.30) !important;border-color:rgba(255,199,206,.78) !important}
+.qrPanel{display:none}
+.qrPanel.active{display:block}
+@media (max-width:640px){.qrTabs{gap:6px}.qrTab{font-size:14px !important;padding:10px 12px !important}}
+
+
+.historyHeader{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.historyHeader h2{margin:0}
+.clearHistoryBtn{appearance:none;border:1px solid rgba(255,170,170,.55);background:rgba(255,170,170,.14);color:#ffd8d8;border-radius:14px;padding:10px 16px;font-size:14px;font-weight:800;cursor:pointer;box-shadow:none;white-space:nowrap}
+.clearHistoryBtn:hover{background:rgba(255,170,170,.24);border-color:rgba(255,170,170,.76)}
+.qrPanel{display:none}
+.qrPanel.active{display:block}
+
 </style>
 </head>
 <body>
 <div class="page">
-    <div class="card">
-        <div class="topline">
-            <div>
-                <h1>QR 리더기</h1>
-            </div>
-            <a class="btn qr-csv-btn" href="?download=csv">CSV 다운로드</a>
+    <div class="card tabCard">
+        <div class="qrTabs" role="tablist" aria-label="QR 리더기 탭">
+            <button type="button" class="qrTab active" data-tab-target="reader" aria-selected="true">QR 리더기</button>
+            <button type="button" class="qrTab" data-tab-target="history" aria-selected="false">QR 내역</button>
+            <a class="qrTab download" href="?download=csv">CSV 다운로드</a>
         </div>
     </div>
 
@@ -413,6 +453,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
     <div class="card fatal"><div class="result bad"><?= h($fatalMessage) ?></div></div>
     <?php endif; ?>
 
+    <div class="qrPanel active" id="qrPanelReader">
     <div class="scanGrid">
         <div class="card">
             <h2>카메라 스캔</h2>
@@ -458,9 +499,14 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
             </div>
         </div>
     </div>
+    </div>
 
+    <div class="qrPanel" id="qrPanelHistory">
     <div class="card">
-        <h2>최근 내 스캔 기록</h2>
+        <div class="historyHeader">
+            <h2>QR 내역</h2>
+            <button type="button" class="clearHistoryBtn" id="clearHistoryBtn">비우기</button>
+        </div>
         <div class="tableWrap">
             <table>
                 <thead>
@@ -482,6 +528,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
             </table>
         </div>
     </div>
+    </div>
 </div>
 <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
 <script>
@@ -491,6 +538,8 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
     const supportMessage = document.getElementById('supportMessage');
     const manualCode = document.getElementById('manualCode');
     const rowsBody = document.getElementById('rowsBody');
+    const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+    const tabButtons = Array.from(document.querySelectorAll('[data-tab-target]'));
     const hasSecure = window.isSecureContext === true;
     const hasMediaDevices = !!navigator.mediaDevices;
     const hasGetUserMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
@@ -511,6 +560,16 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
     document.getElementById('dUA').textContent = navigator.userAgent;
     supportMessage.textContent = supportText();
 
+    function activateTab(name) {
+        document.querySelectorAll('.qrPanel').forEach(panel => panel.classList.remove('active'));
+        tabButtons.forEach(btn => {
+            const active = btn.dataset.tabTarget === name;
+            btn.classList.toggle('active', active);
+            btn.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        const panel = document.getElementById(name === 'history' ? 'qrPanelHistory' : 'qrPanelReader');
+        if (panel) panel.classList.add('active');
+    }
     function ajaxUrl(action) {
         const url = new URL(location.href);
         url.searchParams.set('ajax', '1');
@@ -571,6 +630,20 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
         lastSavedByCode.set(code, now);
         try { await saveCode(code, source); } catch (e) { setStatus('저장 오류: ' + e.message, 'bad'); }
     }
+    async function clearHistory() {
+        const ok = window.confirm('내 QR 이력을 전체 비울까요?');
+        if (!ok) return;
+        const res = await fetch(ajaxUrl('clear_history'), {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({clear: true})
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.message || '비우기 실패');
+        renderRows(data.rows || []);
+        setStatus(`QR 이력 비우기 완료
+삭제 건수: ${data.deleted ?? 0}`, 'ok');
+    }
     async function startCamera() {
         if (scanning) return;
         if (!hasGetUserMedia) { setStatus('이 브라우저에서는 카메라를 사용할 수 없습니다.', 'bad'); return; }
@@ -625,6 +698,14 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
         if (!code) { setStatus('수동 입력값을 넣어 주세요.', 'bad'); manualCode.focus(); return; }
         try { await saveCode(code, 'manual'); manualCode.select(); } catch (e) { setStatus('저장 오류: ' + e.message, 'bad'); }
     });
+    tabButtons.forEach(btn => {
+        btn.addEventListener('click', () => activateTab(btn.dataset.tabTarget || 'reader'));
+    });
+    if (clearHistoryBtn) {
+        clearHistoryBtn.addEventListener('click', async () => {
+            try { await clearHistory(); } catch (e) { setStatus('비우기 오류: ' + e.message, 'bad'); }
+        });
+    }
     manualCode.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); document.getElementById('manualSaveBtn').click(); } });
     window.addEventListener('beforeunload', stopCamera);
 })();
