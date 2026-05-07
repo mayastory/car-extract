@@ -58,7 +58,7 @@ function dp_sidebar_render(string $active = ''): string
 
  'nav' => '/shipinglist', // dp_shell.js용 (페이지 리로드 없이 iframe만 전환)
 
- 'icon' => '',
+ 'icon' => '📦',
 
  ],
 
@@ -72,7 +72,7 @@ function dp_sidebar_render(string $active = ''): string
 
  'nav' => '/rma', // dp_shell.js용
 
- 'icon' => '',
+ 'icon' => '🧾',
 
  ],
 
@@ -85,7 +85,7 @@ function dp_sidebar_render(string $active = ''): string
 
  'nav' => '/customer_hold',
 
- 'icon' => '',
+ 'icon' => '❗',
 
  ],
 
@@ -99,7 +99,7 @@ function dp_sidebar_render(string $active = ''): string
 
  'nav' => '/oqc', // dp_shell.js용
 
- 'icon' => '',
+ 'icon' => '📏',
 
  ],
 
@@ -113,7 +113,7 @@ function dp_sidebar_render(string $active = ''): string
 
  'nav' => '/oqc_holdinglist', // dp_shell.js용
 
- 'icon' => '',
+ 'icon' => '🔐',
 
  ],
 
@@ -127,7 +127,7 @@ function dp_sidebar_render(string $active = ''): string
 
  'nav' => '/qr_reader', // dp_shell.js용
 
- 'icon' => '▣',
+ 'icon' => '📸',
 
  ],
 
@@ -140,7 +140,7 @@ function dp_sidebar_render(string $active = ''): string
 
  'nav' => '/ipqc', // dp_shell.js용
 
- 'icon' => '',
+ 'icon' => '📊',
 
  ],
 
