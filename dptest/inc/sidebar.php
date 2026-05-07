@@ -116,6 +116,18 @@ function dp_sidebar_render(string $active = ''): string
  'icon' => '🔐',
 
  ],
+ [
+
+ 'key' => 'ipqc',
+
+ 'title' => 'JMP Assist (IPQC)',
+ 'href' => dp_url('ipqc'), // pretty url (fallback)
+
+ 'nav' => '/ipqc', // dp_shell.js용
+
+ 'icon' => '📊',
+
+ ],
 
  [
 
@@ -131,18 +143,7 @@ function dp_sidebar_render(string $active = ''): string
 
  ],
 
- [
 
- 'key' => 'ipqc',
-
- 'title' => 'JMP Assist (IPQC)',
- 'href' => dp_url('ipqc'), // pretty url (fallback)
-
- 'nav' => '/ipqc', // dp_shell.js용
-
- 'icon' => '📊',
-
- ],
 
  ];
 
