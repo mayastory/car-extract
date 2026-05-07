@@ -156,9 +156,9 @@ function dp_sidebar_render(string $active = ''): string
 
 <div class="dp-rail" aria-label="JTMES navigation rail">
 
- <a class="dp-rail-btn" href="<?= h(dp_url('shipinglist')) ?>" data-dp-view="shipinglist" data-dp-nav="/shipinglist" title="QA 출하내역"></a>
+ <a class="dp-rail-btn" href="<?= h(dp_url('shipinglist')) ?>" data-dp-view="shipinglist" data-dp-nav="/shipinglist" title="QA 출하내역">📦</a>
 
- <a class="dp-rail-btn" href="<?= h(dp_url('ipqc')) ?>" data-dp-view="ipqc" data-dp-nav="/ipqc" title="JMP Assist (IPQC)"></a>
+ <a class="dp-rail-btn" href="<?= h(dp_url('ipqc')) ?>" data-dp-view="ipqc" data-dp-nav="/ipqc" title="JMP Assist (IPQC)">📊</a>
  <button class="dp-rail-btn" type="button" data-dp-open="1" title="메뉴">≡</button>
 
 </div>
