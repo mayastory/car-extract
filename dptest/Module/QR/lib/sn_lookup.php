@@ -299,6 +299,25 @@ function qr_sn_ensure_schema(PDO $pdo): void {
     qr_sn_add_column_if_missing($pdo, 'revision_name', "VARCHAR(50) DEFAULT NULL AFTER revision");
 }
 
+function qr_sn_duplicate_lookup_id(PDO $pdo, string $snCode): ?int {
+    $snCode = strtoupper(preg_replace('/\s+/', '', trim($snCode)));
+    if ($snCode === '') return null;
+
+    $accountNo = qr_current_account_no();
+    $accountId = qr_current_account_id();
+
+    if ($accountNo !== null) {
+        $st = $pdo->prepare("SELECT id FROM qr_sn_lookup_log WHERE account_no = :account_no AND sn_code = :sn_code ORDER BY created_at DESC, id DESC LIMIT 1");
+        $st->execute([':account_no' => $accountNo, ':sn_code' => $snCode]);
+    } else {
+        $st = $pdo->prepare("SELECT id FROM qr_sn_lookup_log WHERE account_id = :account_id AND sn_code = :sn_code ORDER BY created_at DESC, id DESC LIMIT 1");
+        $st->execute([':account_id' => $accountId, ':sn_code' => $snCode]);
+    }
+
+    $id = $st->fetchColumn();
+    return $id ? (int)$id : null;
+}
+
 function qr_sn_insert_lookup(PDO $pdo, array $parsed): int {
     $accountNo = qr_current_account_no();
     $accountId = qr_current_account_id();
@@ -359,16 +378,32 @@ function qr_sn_fetch_recent(PDO $pdo, int $limit = 80): array {
     $accountNo = qr_current_account_no();
     $accountId = qr_current_account_id();
     $limit = max(1, min(500, $limit));
+    $scanLimit = max($limit * 10, 500);
 
     if ($accountNo !== null) {
-        $st = $pdo->prepare("SELECT * FROM qr_sn_lookup_log WHERE account_no = :account_no ORDER BY created_at DESC, id DESC LIMIT {$limit}");
+        $st = $pdo->prepare("SELECT * FROM qr_sn_lookup_log WHERE account_no = :account_no ORDER BY created_at DESC, id DESC LIMIT {$scanLimit}");
         $st->execute([':account_no' => $accountNo]);
     } else {
-        $st = $pdo->prepare("SELECT * FROM qr_sn_lookup_log WHERE account_id = :account_id ORDER BY created_at DESC, id DESC LIMIT {$limit}");
+        $st = $pdo->prepare("SELECT * FROM qr_sn_lookup_log WHERE account_id = :account_id ORDER BY created_at DESC, id DESC LIMIT {$scanLimit}");
         $st->execute([':account_id' => $accountId]);
     }
 
-    return $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    $seen = [];
+    $out = [];
+
+    foreach ($rows as $row) {
+        $key = strtoupper(trim((string)($row['sn_code'] ?? '')));
+        if ($key === '') $key = 'id:' . (string)($row['id'] ?? '');
+        if (isset($seen[$key])) continue;
+
+        $seen[$key] = true;
+        $out[] = $row;
+
+        if (count($out) >= $limit) break;
+    }
+
+    return $out;
 }
 
 function qr_sn_clear_history(PDO $pdo): int {
@@ -397,25 +432,25 @@ function qr_sn_csv_download(PDO $pdo): void {
     echo "\xEF\xBB\xBF";
 
     $out = fopen('php://output', 'w');
-    fputcsv($out, ['조회시간', 'SN', '회사', '공장', '프로그램', '제조일자', '생산순서', '생산시간대', '생산순번', '모델', '라인', '설비', '금형', '캐비티', '리비전', '주의사항']);
+    // 화면의 SN 조회 내역 컬럼 순서와 동일하게 다운로드
+    fputcsv($out, ['조회시간', 'SN', '제조일자', '회사', '공장', '프로그램', '생산순서', '모델', '라인', '설비', '금형', '캐비티', '리비전']);
     foreach ($rows as $row) {
+        $sequenceText = trim((string)($row['sequence_shift_name'] ?? '') . ' ' . (string)($row['sequence_no_name'] ?? ''));
+
         fputcsv($out, [
             $row['created_at'] ?? '',
             $row['sn_code'] ?? '',
+            $row['mfg_date'] ?? '',
             $row['company_name'] ?? '',
             $row['plant_name'] ?? '',
             $row['program_name'] ?? '',
-            $row['mfg_date'] ?? '',
-            $row['sequence_code'] ?? '',
-            $row['sequence_shift_name'] ?? '',
-            $row['sequence_no_name'] ?? '',
+            $sequenceText,
             $row['model_name'] ?? ($row['type_name'] ?? ''),
             $row['line_code'] ?? '',
             $row['equipment_no'] ?? '',
             $row['mold_code'] ?? '',
             $row['cavity'] ?? '',
             $row['revision'] ?? '',
-            $row['warnings'] ?? '',
         ]);
     }
     fclose($out);

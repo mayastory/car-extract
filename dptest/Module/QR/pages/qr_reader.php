@@ -179,6 +179,25 @@ function qr_normalize_tool_cavity_from_dp(array $row): array {
     return $row;
 }
 
+function qr_split_scan_codes(string $raw): array {
+    $raw = trim($raw);
+    if ($raw === '') return [];
+
+    $parts = preg_split('/[\r\n,;]+/', $raw);
+    $codes = [];
+    $seen = [];
+
+    foreach ($parts as $part) {
+        $code = trim((string)$part);
+        if ($code === '') continue;
+        if (isset($seen[$code])) continue;
+        $seen[$code] = true;
+        $codes[] = $code;
+    }
+
+    return $codes;
+}
+
 function qr_fetch_recent(PDO $pdo, int $limit = 80): array {
     $accountNo = qr_current_account_no();
     $accountId = qr_current_account_id();
@@ -399,6 +418,39 @@ if ($pdo && isset($_GET['ajax'])) {
             $id = qr_insert_scan($pdo, $parsed, $source);
             qr_json(['ok' => true, 'id' => $id, 'parsed' => $parsed, 'rows' => qr_fetch_recent($pdo, 80)]);
         }
+        if ($action === 'save_multi') {
+            $body = qr_read_json();
+            $raw = trim((string)($body['code'] ?? ''));
+            $source = trim((string)($body['source'] ?? 'manual'));
+            $codes = qr_split_scan_codes($raw);
+            if (!$codes) qr_json(['ok' => false, 'message' => '코드값이 비어 있습니다.'], 400);
+
+            $ids = [];
+            $parsedList = [];
+            $skipped = [];
+
+            foreach ($codes as $code) {
+                $parsed = qr_parse_scan_code($code);
+                $duplicateId = qr_duplicate_scan_id($pdo, $parsed);
+                if ($duplicateId !== null) {
+                    $skipped[] = $parsed['dp_code'] ?: $code;
+                    continue;
+                }
+
+                $ids[] = qr_insert_scan($pdo, $parsed, $source);
+                $parsedList[] = $parsed;
+            }
+
+            qr_json([
+                'ok' => true,
+                'ids' => $ids,
+                'inserted_count' => count($parsedList),
+                'skipped_count' => count($skipped),
+                'skipped' => $skipped,
+                'parsed_list' => $parsedList,
+                'rows' => qr_fetch_recent($pdo, 80)
+            ]);
+        }
         if ($action === 'sn_lookup') {
             $body = qr_read_json();
             $snRaw = trim((string)($body['sn'] ?? ''));
@@ -407,7 +459,15 @@ if ($pdo && isset($_GET['ajax'])) {
 
             $parsedList = [];
             $ids = [];
+            $skipped = [];
+
             foreach ($codes as $sn) {
+                $duplicateId = qr_sn_duplicate_lookup_id($pdo, $sn);
+                if ($duplicateId !== null) {
+                    $skipped[] = $sn;
+                    continue;
+                }
+
                 $parsed = qr_sn_parse($sn);
                 $ids[] = qr_sn_insert_lookup($pdo, $parsed);
                 $parsedList[] = $parsed;
@@ -417,6 +477,10 @@ if ($pdo && isset($_GET['ajax'])) {
                 'ok' => true,
                 'ids' => $ids,
                 'count' => count($parsedList),
+                'inserted_count' => count($parsedList),
+                'skipped_count' => count($skipped),
+                'skipped' => $skipped,
+                'duplicate' => count($parsedList) === 0 && count($skipped) > 0,
                 'parsed' => $parsedList[0] ?? null,
                 'parsed_list' => $parsedList,
                 'rows' => qr_sn_fetch_recent($pdo, 80)
@@ -490,6 +554,11 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
 .snTable td:nth-child(2){font-weight:800;color:#eaf2ff}
 .snTable td:nth-child(3){color:#c7d4ee}.snCsvBtn{text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
 
+.qrHistoryManualGrid{align-items:center;margin-bottom:0}
+.qrHistoryTableWrap{margin-top:12px}
+
+.qrManualTextarea{width:100%;min-height:48px;max-height:120px;resize:vertical;padding:14px 16px;border-radius:16px;border:1px solid rgba(255,255,255,.09);background:#252f49;color:#fff;font-size:16px;outline:none;font-family:inherit}
+
 </style>
 </head>
 <body>
@@ -531,13 +600,6 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
             <div class="qr-hidden-status card">
                 <h2>상태</h2>
                 <div id="supportMessage" class="statusBox">브라우저 기능 확인 중...</div>
-            </div>
-            <div class="card">
-                <h2>수동 입력</h2>
-                <div class="manualGrid">
-                    <input type="text" id="manualCode" placeholder="예: 3HUR00021A/480/DP261672730G3BZM">
-                    <button id="manualSaveBtn" type="button">저장</button>
-                </div>
             </div>
             <div class="qr-hidden-diagnostics card">
                 <h2>브라우저 진단</h2>
@@ -612,7 +674,12 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
             <h2>QR 내역</h2>
             <button type="button" class="clearHistoryBtn" id="clearHistoryBtn">비우기</button>
         </div>
-        <div class="tableWrap">
+        <div class="manualGrid qrHistoryManualGrid">
+            <textarea id="manualCode" class="qrManualTextarea" placeholder="예: 3HUR00021A/480/DP261672730G3BZM, 3HUR00021A/480/DP261672730G3BZM"></textarea>
+            <button id="manualSaveBtn" type="button">저장</button>
+        </div>
+        <div id="manualResult" class="snResult muted">QR을 직접 입력하거나 여러 개를 콤마/줄바꿈으로 붙여 넣을 수 있습니다.</div>
+        <div class="tableWrap qrHistoryTableWrap">
             <table>
                 <thead>
                     <tr><th>시간</th><th>모델</th><th>LOT</th><th>Tool</th><th>Cavity</th><th>ea</th><th>DP</th></tr>
@@ -643,6 +710,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
     const resultEl = document.getElementById('result');
     const supportMessage = document.getElementById('supportMessage');
     const manualCode = document.getElementById('manualCode');
+    const manualResult = document.getElementById('manualResult');
     const rowsBody = document.getElementById('rowsBody');
     const qrSuccessSound = document.getElementById('qrSuccessSound');
     const clearHistoryBtn = document.getElementById('clearHistoryBtn');
@@ -772,6 +840,44 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
         playSuccessSound();
         try { navigator.vibrate && navigator.vibrate(90); } catch (_) {}
     }
+    function setManualResult(text, cls='muted') {
+        if (!manualResult) return;
+        manualResult.textContent = text || '';
+        manualResult.className = 'snResult ' + cls;
+    }
+    async function saveManualCodes() {
+        const code = manualCode ? manualCode.value.trim() : '';
+        if (!code) {
+            setManualResult('수동 입력값을 넣어 주세요.', 'bad');
+            if (manualCode) manualCode.focus();
+            return;
+        }
+
+        const res = await fetch(ajaxUrl('save_multi'), {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({code, source: 'manual'})
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.message || '저장 실패');
+
+        const inserted = Number(data.inserted_count || 0);
+        const skipped = Number(data.skipped_count || 0);
+        const msg = [];
+        if (inserted > 0) msg.push(`QR ${inserted}건 저장 완료`);
+        if (skipped > 0) msg.push(`중복 ${skipped}건 제외`);
+        if (!msg.length) msg.push('처리할 신규 QR이 없습니다.');
+        if (skipped > 0 && Array.isArray(data.skipped) && data.skipped.length <= 5) {
+            msg.push(`중복 QR: ${data.skipped.join(', ')}`);
+        }
+
+        setManualResult(msg.join('\n'), skipped > 0 ? 'warn' : 'ok');
+        renderRows(data.rows || []);
+
+        if (manualCode) {
+            manualCode.select();
+        }
+    }
     async function handleDetected(code, source) {
         code = String(code || '').trim();
         if (!code) return;
@@ -826,11 +932,18 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
                 if (warnings.length) warningItems.push(`${item.sn_code || ''}: ${warnings.join(' / ')}`);
             });
 
-            if (list.length > 1) {
-                snResult.textContent = warningItems.length
-                    ? `SN ${list.length}건 추가 완료\n주의: ${warningItems.join('\n')}`
-                    : `SN ${list.length}건 추가 완료`;
-                snResult.className = 'snResult ' + (warningItems.length ? 'warn' : 'ok');
+            const insertedCount = Number(data.inserted_count ?? list.length);
+            const skippedCount = Number(data.skipped_count ?? 0);
+            const skipped = Array.isArray(data.skipped) ? data.skipped : [];
+
+            if (list.length > 1 || skippedCount > 0) {
+                const msg = [];
+                if (insertedCount > 0) msg.push(`SN ${insertedCount}건 추가 완료`);
+                if (skippedCount > 0) msg.push(`중복 ${skippedCount}건 제외`);
+                if (warningItems.length) msg.push(`주의: ${warningItems.join('\n')}`);
+                if (skippedCount > 0 && skipped.length <= 5) msg.push(`중복 SN: ${skipped.join(', ')}`);
+                snResult.textContent = msg.join('\n') || '처리할 신규 SN이 없습니다.';
+                snResult.className = 'snResult ' + ((warningItems.length || skippedCount > 0) ? 'warn' : 'ok');
                 if (snRowsBody) snRowsBody.innerHTML = '';
                 if (snTableWrap) snTableWrap.style.display = 'none';
             } else {
@@ -935,9 +1048,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
     document.getElementById('startBtn').addEventListener('click', startCamera);
     document.getElementById('stopBtn').addEventListener('click', stopCamera);
     document.getElementById('manualSaveBtn').addEventListener('click', async () => {
-        const code = manualCode.value.trim();
-        if (!code) { setStatus('수동 입력값을 넣어 주세요.', 'bad'); manualCode.focus(); return; }
-        try { await saveCode(code, 'manual'); manualCode.select(); } catch (e) { setStatus('저장 오류: ' + e.message, 'bad'); }
+        try { await saveManualCodes(); } catch (e) { setManualResult('저장 오류: ' + e.message, 'bad'); }
     });
     tabButtons.forEach(btn => {
         btn.addEventListener('click', () => activateTab(btn.dataset.tabTarget || 'reader'));
@@ -970,7 +1081,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
             try { await clearHistory(); } catch (e) { setStatus('비우기 오류: ' + e.message, 'bad'); }
         });
     }
-    manualCode.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); document.getElementById('manualSaveBtn').click(); } });
+    manualCode.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); document.getElementById('manualSaveBtn').click(); } });
     activateTab('reader');
     window.addEventListener('beforeunload', stopCamera);
 })();
