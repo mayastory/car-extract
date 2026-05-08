@@ -361,7 +361,7 @@ function qr_sn_csv_download(PDO $pdo): void {
     echo "\xEF\xBB\xBF";
 
     $out = fopen('php://output', 'w');
-    fputcsv($out, ['조회시간', 'SN', '회사', '공장', '프로그램', '제조일자', '생산순서', '생산시간대', '생산순번', '모델', '생산라인', '설비번호', '설비', '금형번호', '금형', '캐비티', '리비전', '주의사항']);
+    fputcsv($out, ['조회시간', 'SN', '회사', '공장', '프로그램', '제조일자', '생산순서', '생산시간대', '생산순번', '모델', '라인', '설비', '금형', '캐비티', '리비전', '주의사항']);
     foreach ($rows as $row) {
         fputcsv($out, [
             $row['created_at'] ?? '',
@@ -374,13 +374,11 @@ function qr_sn_csv_download(PDO $pdo): void {
             $row['sequence_shift_name'] ?? '',
             $row['sequence_no_name'] ?? '',
             $row['model_name'] ?? ($row['type_name'] ?? ''),
-            $row['line_name'] ?? ($row['line_code'] ?? ''),
+            $row['line_code'] ?? '',
             $row['equipment_no'] ?? '',
-            $row['equipment_name'] ?? '',
             $row['mold_code'] ?? '',
-            $row['mold_name'] ?? '',
-            $row['cavity_name'] ?? ($row['cavity'] ?? ''),
-            $row['revision_name'] ?? ($row['revision'] ?? ''),
+            $row['cavity'] ?? '',
+            $row['revision'] ?? '',
             $row['warnings'] ?? '',
         ]);
     }

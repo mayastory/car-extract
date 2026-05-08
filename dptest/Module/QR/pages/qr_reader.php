@@ -573,11 +573,11 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
                         <td><?= h((string)($row['program_name'] ?? '')) ?></td>
                         <td><?= h(trim((string)($row['sequence_shift_name'] ?? '') . ' ' . (string)($row['sequence_no_name'] ?? ''))) ?></td>
                         <td><?= h((string)($row['model_name'] ?? ($row['type_name'] ?? ''))) ?></td>
-                        <td><?= h((string)($row['line_name'] ?? ($row['line_code'] ?? ''))) ?></td>
-                        <td><?= h((string)($row['equipment_name'] ?? ($row['equipment_no'] ?? ''))) ?></td>
-                        <td><?= h((string)($row['mold_name'] ?? ($row['mold_code'] ?? ''))) ?></td>
-                        <td><?= h((string)($row['cavity_name'] ?? ($row['cavity'] ?? ''))) ?></td>
-                        <td><?= h((string)($row['revision_name'] ?? ($row['revision'] ?? ''))) ?></td>
+                        <td><?= h((string)($row['line_code'] ?? '')) ?></td>
+                        <td><?= h((string)($row['equipment_no'] ?? '')) ?></td>
+                        <td><?= h((string)($row['mold_code'] ?? '')) ?></td>
+                        <td><?= h((string)($row['cavity'] ?? '')) ?></td>
+                        <td><?= h((string)($row['revision'] ?? '')) ?></td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>
@@ -765,11 +765,11 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
             <td>${esc(row.program_name)}</td>
             <td>${esc(String((row.sequence_shift_name || '') + ' ' + (row.sequence_no_name || '')).trim())}</td>
             <td>${esc(row.model_name || row.type_name)}</td>
-            <td>${esc(row.line_name || row.line_code)}</td>
-            <td>${esc(row.equipment_name || row.equipment_no)}</td>
-            <td>${esc(row.mold_name || row.mold_code)}</td>
-            <td>${esc(row.cavity_name || row.cavity)}</td>
-            <td>${esc(row.revision_name || row.revision)}</td>
+            <td>${esc(row.line_code)}</td>
+            <td>${esc(row.equipment_no)}</td>
+            <td>${esc(row.mold_code)}</td>
+            <td>${esc(row.cavity)}</td>
+            <td>${esc(row.revision)}</td>
         </tr>`).join('');
     }
     async function renderSnLookup() {
