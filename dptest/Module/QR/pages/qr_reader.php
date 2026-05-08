@@ -590,6 +590,41 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
     background:linear-gradient(180deg, rgba(76,204,121,.98), rgba(35,145,79,.98)) !important;
 }
 
+
+/* 바코드/SN 수동 입력 textarea까지 녹색 계열 강제 적용 */
+#manualCode,
+#snInput,
+textarea#manualCode,
+textarea#snInput,
+textarea.multiInput,
+.qrPanel textarea,
+.qrPanel input[type=text]{
+    background:rgba(7,37,24,.88) !important;
+    border:1px solid rgba(97,213,138,.58) !important;
+    color:#effff3 !important;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 0 0 1px rgba(97,213,138,.08) !important;
+    caret-color:#9cffb5 !important;
+}
+#manualCode::placeholder,
+#snInput::placeholder,
+textarea#manualCode::placeholder,
+textarea#snInput::placeholder,
+textarea.multiInput::placeholder,
+.qrPanel textarea::placeholder,
+.qrPanel input[type=text]::placeholder{
+    color:rgba(218,245,226,.48) !important;
+}
+#manualCode:focus,
+#snInput:focus,
+textarea#manualCode:focus,
+textarea#snInput:focus,
+textarea.multiInput:focus,
+.qrPanel textarea:focus,
+.qrPanel input[type=text]:focus{
+    border-color:rgba(97,213,138,.95) !important;
+    box-shadow:0 0 0 3px rgba(97,213,138,.18), inset 0 1px 0 rgba(255,255,255,.06) !important;
+}
+
 </style>
 </head>
 <body>
