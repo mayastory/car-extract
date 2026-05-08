@@ -255,8 +255,8 @@ function qr_enrich_ship_date(PDO $pdo, array $row): array {
 function qr_fetch_recent(PDO $pdo, int $limit = 80): array {
     $accountNo = qr_current_account_no();
     $accountId = qr_current_account_id();
-    $limit = max(1, min(300, $limit));
-    $scanLimit = max($limit * 10, 300);
+    $limit = max(1, min(5000, $limit));
+    $scanLimit = max($limit * 10, 5000);
 
     if ($accountNo !== null) {
         $st = $pdo->prepare("SELECT id, account_no, account_id, scanner_name, scan_source, raw_code, label_code, barcode, dp_code, model_suffix, model_name, lot_date, cavity, tool, ea, remote_ip, created_at
@@ -395,7 +395,7 @@ function qr_insert_scan(PDO $pdo, array $parsed, string $source): int {
 }
 
 function qr_csv_download(PDO $pdo): void {
-    $rows = qr_fetch_recent($pdo, 300);
+    $rows = qr_fetch_recent($pdo, 1000);
     $fileName = 'qr_scan_' . date('Ymd_His') . '.csv';
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename="' . $fileName . '"');
@@ -446,7 +446,7 @@ if ($pdo && isset($_GET['ajax'])) {
     $action = (string)($_GET['action'] ?? '');
     try {
         if ($action === 'load') {
-            qr_json(['ok' => true, 'rows' => qr_fetch_recent($pdo, 80), 'account_id' => qr_current_account_id(), 'account_no' => qr_current_account_no()]);
+            qr_json(['ok' => true, 'rows' => qr_fetch_recent($pdo, 1000), 'account_id' => qr_current_account_id(), 'account_no' => qr_current_account_no()]);
         }
         if ($action === 'save') {
             $body = qr_read_json();
@@ -462,11 +462,11 @@ if ($pdo && isset($_GET['ajax'])) {
                     'id' => $duplicateId,
                     'message' => '이미 저장된 코드입니다.',
                     'parsed' => $parsed,
-                    'rows' => qr_fetch_recent($pdo, 80)
+                    'rows' => qr_fetch_recent($pdo, 1000)
                 ]);
             }
             $id = qr_insert_scan($pdo, $parsed, $source);
-            qr_json(['ok' => true, 'id' => $id, 'parsed' => $parsed, 'rows' => qr_fetch_recent($pdo, 80)]);
+            qr_json(['ok' => true, 'id' => $id, 'parsed' => $parsed, 'rows' => qr_fetch_recent($pdo, 1000)]);
         }
         if ($action === 'save_multi') {
             $body = qr_read_json();
@@ -498,7 +498,7 @@ if ($pdo && isset($_GET['ajax'])) {
                 'skipped_count' => count($skipped),
                 'skipped' => $skipped,
                 'parsed_list' => $parsedList,
-                'rows' => qr_fetch_recent($pdo, 80)
+                'rows' => qr_fetch_recent($pdo, 1000)
             ]);
         }
         if ($action === 'sn_lookup') {
@@ -533,16 +533,16 @@ if ($pdo && isset($_GET['ajax'])) {
                 'duplicate' => count($parsedList) === 0 && count($skipped) > 0,
                 'parsed' => $parsedList[0] ?? null,
                 'parsed_list' => $parsedList,
-                'rows' => qr_sn_fetch_recent($pdo, 80)
+                'rows' => qr_sn_fetch_recent($pdo, 1000)
             ]);
         }
         if ($action === 'sn_clear_history') {
             $deleted = qr_sn_clear_history($pdo);
-            qr_json(['ok' => true, 'deleted' => $deleted, 'rows' => qr_sn_fetch_recent($pdo, 80)]);
+            qr_json(['ok' => true, 'deleted' => $deleted, 'rows' => qr_sn_fetch_recent($pdo, 1000)]);
         }
         if ($action === 'clear_history') {
             $deleted = qr_clear_history($pdo);
-            qr_json(['ok' => true, 'deleted' => $deleted, 'rows' => qr_fetch_recent($pdo, 80)]);
+            qr_json(['ok' => true, 'deleted' => $deleted, 'rows' => qr_fetch_recent($pdo, 1000)]);
         }
         qr_json(['ok' => false, 'message' => '지원하지 않는 요청입니다.'], 400);
     } catch (Throwable $e) {
@@ -552,8 +552,8 @@ if ($pdo && isset($_GET['ajax'])) {
 
 $embed = !empty($_GET['embed']);
 $accountId = qr_current_account_id();
-$recentRows = $pdo ? qr_fetch_recent($pdo, 20) : [];
-$snRecentRows = $pdo ? qr_sn_fetch_recent($pdo, 80) : [];
+$recentRows = $pdo ? qr_fetch_recent($pdo, 1000) : [];
+$snRecentRows = $pdo ? qr_sn_fetch_recent($pdo, 1000) : [];
 ?>
 <!doctype html>
 <html lang="ko">

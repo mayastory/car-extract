@@ -377,8 +377,8 @@ function qr_sn_insert_lookup(PDO $pdo, array $parsed): int {
 function qr_sn_fetch_recent(PDO $pdo, int $limit = 80): array {
     $accountNo = qr_current_account_no();
     $accountId = qr_current_account_id();
-    $limit = max(1, min(500, $limit));
-    $scanLimit = max($limit * 10, 500);
+    $limit = max(1, min(5000, $limit));
+    $scanLimit = max($limit * 10, 5000);
 
     if ($accountNo !== null) {
         $st = $pdo->prepare("SELECT * FROM qr_sn_lookup_log WHERE account_no = :account_no ORDER BY created_at DESC, id DESC LIMIT {$scanLimit}");
@@ -424,7 +424,7 @@ function qr_sn_clear_history(PDO $pdo): int {
 }
 
 function qr_sn_csv_download(PDO $pdo): void {
-    $rows = qr_sn_fetch_recent($pdo, 500);
+    $rows = qr_sn_fetch_recent($pdo, 1000);
     $fileName = 'sn_lookup_' . date('Ymd_His') . '.csv';
 
     header('Content-Type: text/csv; charset=utf-8');
