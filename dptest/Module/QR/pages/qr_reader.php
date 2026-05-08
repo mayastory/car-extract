@@ -718,6 +718,7 @@ function qr_csv_enrich_ship_dates(PDO $pdo, array $rows): array {
         foreach (['dp_code', 'barcode', 'raw_code'] as $field) {
             $v = trim((string)($row[$field] ?? ''));
             if ($v !== '') $keys[$v] = true;
+
             foreach (qr_csv_extract_dp_tokens_from_text($v) as $dpToken) {
                 $keys[$dpToken] = true;
             }
@@ -726,6 +727,9 @@ function qr_csv_enrich_ship_dates(PDO $pdo, array $rows): array {
 
     $dateMap = [];
 
+    // 날짜가 없는 경우 느려지는 원인은 per-row LIKE 검색이다.
+    // CSV 출력 시에는 인덱스를 탈 수 있는 exact IN 매칭만 사용하고,
+    // 못 찾은 날짜는 빈칸으로 빠르게 통과한다.
     if ($keys) {
         $values = array_slice(array_keys($keys), 0, 1000);
         $placeholders = [];
@@ -760,41 +764,12 @@ function qr_csv_enrich_ship_dates(PDO $pdo, array $rows): array {
         }
     }
 
-    // CSV 출력 때만 보조 LIKE 매칭. 화면/저장 속도에는 영향 없음.
-    try {
-        $likeStmt = $pdo->prepare("SELECT customer_lot_id, pack_barcode, small_pack_no, pack_no,
-                                          ship_datetime, ann_date, pack_date
-                                   FROM ShipingList
-                                   WHERE customer_lot_id LIKE :needle
-                                      OR pack_barcode LIKE :needle
-                                      OR small_pack_no LIKE :needle
-                                      OR pack_no LIKE :needle
-                                   ORDER BY ship_datetime DESC, id DESC
-                                   LIMIT 1");
-    } catch (Throwable $e) {
-        $likeStmt = null;
-    }
-
-    if ($likeStmt) {
-        foreach ($rows as $row) {
-            $dp = trim((string)($row['dp_code'] ?? ''));
-            if ($dp === '' || isset($dateMap[$dp])) continue;
-
-            try {
-                $likeStmt->execute([':needle' => '%' . $dp . '%']);
-                $srow = $likeStmt->fetch(PDO::FETCH_ASSOC);
-                if ($srow) {
-                    qr_csv_map_shipinglist_row_dates($dateMap, $srow);
-                }
-            } catch (Throwable $e) {}
-        }
-    }
-
     foreach ($rows as &$row) {
         $candidates = [];
         foreach (['dp_code', 'barcode', 'raw_code'] as $field) {
             $v = trim((string)($row[$field] ?? ''));
             if ($v !== '') $candidates[] = $v;
+
             foreach (qr_csv_extract_dp_tokens_from_text($v) as $dpToken) {
                 $candidates[] = $dpToken;
             }
