@@ -57,6 +57,8 @@ function qr_current_scanner_name(): string {
     return qr_current_account_id();
 }
 
+require_once __DIR__ . '/../lib/sn_lookup.php';
+
 function qr_ensure_schema(PDO $pdo): void {
     $pdo->exec("CREATE TABLE IF NOT EXISTS qr_scan_log (
         id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -355,6 +357,7 @@ try {
     }
     $pdo = dp_get_pdo();
     qr_ensure_schema($pdo);
+    qr_sn_ensure_schema($pdo);
 } catch (Throwable $e) {
     if (isset($_GET['ajax'])) {
         qr_json(['ok' => false, 'message' => 'DB 연결 또는 테이블 준비 실패: ' . $e->getMessage()], 500);
@@ -365,6 +368,9 @@ try {
 
 if ($pdo && isset($_GET['download']) && $_GET['download'] === 'csv') {
     qr_csv_download($pdo);
+}
+if ($pdo && isset($_GET['download']) && $_GET['download'] === 'sn_csv') {
+    qr_sn_csv_download($pdo);
 }
 
 if ($pdo && isset($_GET['ajax'])) {
@@ -393,6 +399,13 @@ if ($pdo && isset($_GET['ajax'])) {
             $id = qr_insert_scan($pdo, $parsed, $source);
             qr_json(['ok' => true, 'id' => $id, 'parsed' => $parsed, 'rows' => qr_fetch_recent($pdo, 80)]);
         }
+        if ($action === 'sn_lookup') {
+            $body = qr_read_json();
+            $sn = trim((string)($body['sn'] ?? ''));
+            $parsed = qr_sn_parse($sn);
+            $id = qr_sn_insert_lookup($pdo, $parsed);
+            qr_json(['ok' => true, 'id' => $id, 'parsed' => $parsed, 'rows' => qr_sn_fetch_recent($pdo, 80)]);
+        }
         if ($action === 'clear_history') {
             $deleted = qr_clear_history($pdo);
             qr_json(['ok' => true, 'deleted' => $deleted, 'rows' => qr_fetch_recent($pdo, 80)]);
@@ -406,6 +419,7 @@ if ($pdo && isset($_GET['ajax'])) {
 $embed = !empty($_GET['embed']);
 $accountId = qr_current_account_id();
 $recentRows = $pdo ? qr_fetch_recent($pdo, 20) : [];
+$snRecentRows = $pdo ? qr_sn_fetch_recent($pdo, 80) : [];
 ?>
 <!doctype html>
 <html lang="ko">
@@ -447,6 +461,15 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
 .qrPanel{display:none}
 .qrPanel.active{display:block}
 
+
+.snLookupGrid{align-items:center}
+.snResult{margin-top:12px;font-size:15px;font-weight:800;line-height:1.55;white-space:pre-line;word-break:break-all}
+.snTableWrap{margin-top:12px}
+.snTable{min-width:620px}
+.snTable th:nth-child(1),.snTable td:nth-child(1){width:170px}
+.snTable td:nth-child(2){font-weight:800;color:#eaf2ff}
+.snTable td:nth-child(3){color:#c7d4ee}.snCsvBtn{text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+
 </style>
 </head>
 <body>
@@ -455,6 +478,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
         <div class="qrTabs" role="tablist" aria-label="QR 리더기 탭">
             <button type="button" class="qrTab active" data-tab-target="reader" aria-selected="true">QR 리더기</button>
             <button type="button" class="qrTab" data-tab-target="history" aria-selected="false">QR 내역</button>
+            <button type="button" class="qrTab" data-tab-target="sn" aria-selected="false">SN 조회</button>
             <a class="qrTab download" href="?download=csv">CSV 다운로드</a>
         </div>
     </div>
@@ -511,6 +535,55 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
     </div>
     </div>
 
+    <div class="qrPanel" id="qrPanelSn">
+    <div class="card">
+        <div class="historyHeader">
+            <h2>SN 조회</h2>
+            <a class="clearHistoryBtn snCsvBtn" href="?download=sn_csv">SN CSV 다운로드</a>
+        </div>
+        <div class="manualGrid snLookupGrid">
+            <input type="text" id="snInput" placeholder="예: DGVD18510001R+A10A4+B" autocomplete="off">
+            <button id="snLookupBtn" type="button">조회</button>
+        </div>
+        <div id="snResult" class="snResult muted">SN을 입력하고 조회를 눌러 주세요.</div>
+        <div class="tableWrap snTableWrap" id="snTableWrap" style="display:none">
+            <table class="snTable">
+                <thead>
+                    <tr><th>항목</th><th>값</th><th>정의</th></tr>
+                </thead>
+                <tbody id="snRowsBody"></tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card">
+        <h2>SN 조회 내역</h2>
+        <div class="tableWrap">
+            <table>
+                <thead>
+                    <tr><th>조회시간</th><th>SN</th><th>제조일자</th><th>회사</th><th>공장</th><th>프로그램</th><th>타입</th><th>라인</th><th>설비</th><th>캐비티</th><th>리비전</th></tr>
+                </thead>
+                <tbody id="snHistoryBody">
+                <?php foreach ($snRecentRows as $row): ?>
+                    <tr>
+                        <td><?= h((string)($row['created_at'] ?? '')) ?></td>
+                        <td><?= h((string)($row['sn_code'] ?? '')) ?></td>
+                        <td><?= h((string)($row['mfg_date'] ?? '')) ?></td>
+                        <td><?= h((string)($row['company_name'] ?? '')) ?></td>
+                        <td><?= h((string)($row['plant_name'] ?? '')) ?></td>
+                        <td><?= h((string)($row['program_name'] ?? '')) ?></td>
+                        <td><?= h((string)($row['type_name'] ?? '')) ?></td>
+                        <td><?= h((string)($row['line_code'] ?? '')) ?></td>
+                        <td><?= h((string)($row['equipment_no'] ?? '')) ?></td>
+                        <td><?= h((string)($row['cavity'] ?? '')) ?></td>
+                        <td><?= h((string)($row['revision'] ?? '')) ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    </div>
+
     <div class="qrPanel" id="qrPanelHistory">
     <div class="card">
         <div class="historyHeader">
@@ -552,6 +625,12 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
     const qrSuccessSound = document.getElementById('qrSuccessSound');
     const clearHistoryBtn = document.getElementById('clearHistoryBtn');
     const tabButtons = Array.from(document.querySelectorAll('[data-tab-target]'));
+    const snInput = document.getElementById('snInput');
+    const snLookupBtn = document.getElementById('snLookupBtn');
+    const snResult = document.getElementById('snResult');
+    const snRowsBody = document.getElementById('snRowsBody');
+    const snTableWrap = document.getElementById('snTableWrap');
+    const snHistoryBody = document.getElementById('snHistoryBody');
     const hasSecure = window.isSecureContext === true;
     const hasMediaDevices = !!navigator.mediaDevices;
     const hasGetUserMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
@@ -579,7 +658,12 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
             btn.classList.toggle('active', active);
             btn.setAttribute('aria-selected', active ? 'true' : 'false');
         });
-        const panel = document.getElementById(name === 'history' ? 'qrPanelHistory' : 'qrPanelReader');
+        const panelMap = {
+            reader: 'qrPanelReader',
+            history: 'qrPanelHistory',
+            sn: 'qrPanelSn'
+        };
+        const panel = document.getElementById(panelMap[name] || 'qrPanelReader');
         if (panel) panel.classList.add('active');
     }
     function ajaxUrl(action) {
@@ -659,6 +743,56 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
         lastSavedByCode.set(code, now);
         try { await saveCode(code, source); } catch (e) { setStatus('저장 오류: ' + e.message, 'bad'); }
     }
+    function renderSnDetail(parsed) {
+        if (!parsed || !Array.isArray(parsed.display_rows)) return;
+        snRowsBody.innerHTML = parsed.display_rows.map(row => `<tr>
+            <td>${esc(row[0])}</td>
+            <td>${esc(row[1])}</td>
+            <td>${esc(row[2])}</td>
+        </tr>`).join('');
+        snTableWrap.style.display = '';
+    }
+    function renderSnHistory(rows) {
+        if (!snHistoryBody || !Array.isArray(rows)) return;
+        snHistoryBody.innerHTML = rows.map(row => `<tr>
+            <td>${esc(row.created_at)}</td>
+            <td>${esc(row.sn_code)}</td>
+            <td>${esc(row.mfg_date)}</td>
+            <td>${esc(row.company_name)}</td>
+            <td>${esc(row.plant_name)}</td>
+            <td>${esc(row.program_name)}</td>
+            <td>${esc(row.type_name)}</td>
+            <td>${esc(row.line_code)}</td>
+            <td>${esc(row.equipment_no)}</td>
+            <td>${esc(row.cavity)}</td>
+            <td>${esc(row.revision)}</td>
+        </tr>`).join('');
+    }
+    async function renderSnLookup() {
+        try {
+            const sn = snInput ? snInput.value : '';
+            const res = await fetch(ajaxUrl('sn_lookup'), {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({sn})
+            });
+            const data = await res.json();
+            if (!res.ok || !data.ok) throw new Error(data.message || 'SN 조회 실패');
+            const parsed = data.parsed || {};
+            const warnings = Array.isArray(parsed.warnings) ? parsed.warnings : [];
+            snResult.textContent = warnings.length
+                ? `조회 완료: ${parsed.sn_code || ''}\n주의: ${warnings.join(' / ')}`
+                : `조회 완료: ${parsed.sn_code || ''}`;
+            snResult.className = 'snResult ' + (warnings.length ? 'warn' : 'ok');
+            renderSnDetail(parsed);
+            renderSnHistory(data.rows || []);
+        } catch (e) {
+            snResult.textContent = e.message || 'SN 조회 실패';
+            snResult.className = 'snResult bad';
+            snRowsBody.innerHTML = '';
+            snTableWrap.style.display = 'none';
+        }
+    }
     async function clearHistory() {
         const ok = window.confirm('내 QR 이력을 전체 비울까요?');
         if (!ok) return;
@@ -730,6 +864,17 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
     tabButtons.forEach(btn => {
         btn.addEventListener('click', () => activateTab(btn.dataset.tabTarget || 'reader'));
     });
+    if (snLookupBtn) {
+        snLookupBtn.addEventListener('click', renderSnLookup);
+    }
+    if (snInput) {
+        snInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                renderSnLookup();
+            }
+        });
+    }
     if (clearHistoryBtn) {
         clearHistoryBtn.addEventListener('click', async () => {
             try { await clearHistory(); } catch (e) { setStatus('비우기 오류: ' + e.message, 'bad'); }
