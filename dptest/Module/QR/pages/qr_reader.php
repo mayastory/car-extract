@@ -691,9 +691,9 @@ textarea.multiInput:focus,
         </div>
         <div class="manualGrid snLookupGrid">
             <textarea id="snInput" class="multiInput" placeholder="예: DGVD18510001R+A10A4+B, DGMG13445216B+E08H4+B" autocomplete="off"></textarea>
-            <button id="snLookupBtn" type="button">조회</button>
+            <button id="snLookupBtn" type="button">저장</button>
         </div>
-        <div id="snResult" class="snResult muted">SN을 입력하고 조회를 눌러 주세요.</div>
+        <div id="snResult" class="snResult muted">SN을 입력하고 저장을 눌러 주세요.</div>
         <div class="tableWrap snTableWrap" id="snTableWrap" style="display:none">
             <table class="snTable">
                 <thead>
@@ -1037,7 +1037,7 @@ textarea.multiInput:focus,
                 body: JSON.stringify({sn})
             });
             const data = await res.json();
-            if (!res.ok || !data.ok) throw new Error(data.message || 'SN 조회 실패');
+            if (!res.ok || !data.ok) throw new Error(data.message || 'SN 저장 실패');
 
             const list = Array.isArray(data.parsed_list) ? data.parsed_list : (data.parsed ? [data.parsed] : []);
             const warningItems = [];
@@ -1064,15 +1064,15 @@ textarea.multiInput:focus,
                 const parsed = list[0] || {};
                 const warnings = Array.isArray(parsed.warnings) ? parsed.warnings : [];
                 snResult.textContent = warnings.length
-                    ? `조회 완료: ${parsed.sn_code || ''}\n주의: ${warnings.join(' / ')}`
-                    : `조회 완료: ${parsed.sn_code || ''}`;
+                    ? `저장 완료: ${parsed.sn_code || ''}\n주의: ${warnings.join(' / ')}`
+                    : `저장 완료: ${parsed.sn_code || ''}`;
                 snResult.className = 'snResult ' + (warnings.length ? 'warn' : 'ok');
                 renderSnDetail(parsed);
             }
 
             renderSnHistory(data.rows || []);
         } catch (e) {
-            snResult.textContent = e.message || 'SN 조회 실패';
+            snResult.textContent = e.message || 'SN 저장 실패';
             snResult.className = 'snResult bad';
             snRowsBody.innerHTML = '';
             snTableWrap.style.display = 'none';
