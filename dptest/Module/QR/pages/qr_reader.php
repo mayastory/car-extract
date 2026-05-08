@@ -162,10 +162,19 @@ function qr_parse_scan_code(string $raw): array {
         'model_suffix' => $modelSuffix,
         'model_name' => qr_model_from_suffix($modelSuffix),
         'lot_date' => qr_calc_lot_from_dp($dp),
-        'cavity' => strlen($dp) >= 12 ? substr($dp, 11, 1) : '',
-        'tool' => strlen($dp) >= 13 ? substr($dp, 12, 1) : '',
+        'tool' => strlen($dp) >= 12 ? substr($dp, 11, 1) : '',
+        'cavity' => strlen($dp) >= 13 ? substr($dp, 12, 1) : '',
         'ea' => $ea,
     ];
+}
+
+function qr_normalize_tool_cavity_from_dp(array $row): array {
+    $dp = (string)($row['dp_code'] ?? '');
+    if (strlen($dp) >= 13) {
+        $row['tool'] = substr($dp, 11, 1);
+        $row['cavity'] = substr($dp, 12, 1);
+    }
+    return $row;
 }
 
 function qr_fetch_recent(PDO $pdo, int $limit = 80): array {
@@ -202,6 +211,7 @@ function qr_fetch_recent(PDO $pdo, int $limit = 80): array {
 
         if (isset($seen[$key])) continue;
         $seen[$key] = true;
+        $row = qr_normalize_tool_cavity_from_dp($row);
         $out[] = $row;
 
         if (count($out) >= $limit) break;
@@ -315,7 +325,7 @@ function qr_csv_download(PDO $pdo): void {
     header('Content-Disposition: attachment; filename="' . $fileName . '"');
     echo "\xEF\xBB\xBF";
     $out = fopen('php://output', 'w');
-    fputcsv($out, ['Scanned At', 'Account ID', 'Scanner', 'Source', 'Raw', 'Label Code', 'Barcode', 'DP', 'Model Suffix', 'Model', 'LOT', 'Cavity', 'Tool', 'ea', 'IP']);
+    fputcsv($out, ['Scanned At', 'Account ID', 'Scanner', 'Source', 'Raw', 'Label Code', 'Barcode', 'DP', 'Model Suffix', 'Model', 'LOT', 'Tool', 'Cavity', 'ea', 'IP']);
     foreach ($rows as $row) {
         fputcsv($out, [
             $row['created_at'] ?? '',
@@ -470,7 +480,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
                 <button id="startBtn" type="button">카메라 시작</button>
                 <button id="stopBtn" type="button" class="secondary">카메라 중지</button>
             </div>
-            <div id="result" class="result muted">아직 스캔된 값이 없습니다.</div>
+            <div id="result" class="result muted"></div>
         </div>
 
         <div>
@@ -586,7 +596,20 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
         return '';
     }
     function setStatus(text, cls='muted') {
-        resultEl.textContent = text;
+        const msg = String(text || '');
+        const silentPrefixes = [
+            '카메라 시작됨',
+            '카메라 중지됨.',
+            'ZXing fallback',
+            '아직 스캔된 값',
+            '카메라는 시작되었지만 자동 인식 엔진이 없습니다.'
+        ];
+        if (!msg || silentPrefixes.some(prefix => msg.startsWith(prefix))) {
+            resultEl.textContent = '';
+            resultEl.className = 'result muted';
+            return;
+        }
+        resultEl.textContent = msg;
         resultEl.className = 'result ' + cls;
     }
     function esc(v) {
@@ -612,7 +635,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
             renderRows(data.rows || []);
             return;
         }
-        setStatus(`DB 저장 완료\nModel: ${p.model_name || ''}\nDP: ${p.dp_code || ''}\nLOT: ${p.lot_date || ''}\nCavity: ${p.cavity || ''} / Tool: ${p.tool || ''} / ea: ${p.ea ?? ''}`, 'ok');
+        setStatus(`스캔 완료\nModel: ${p.model_name || ''}\nDP: ${p.dp_code || ''}\nLOT: ${p.lot_date || ''}\nTool: ${p.tool || ''} / Cavity: ${p.cavity || ''} / ea: ${p.ea ?? ''}`, 'ok');
         renderRows(data.rows || []);
         try { navigator.vibrate && navigator.vibrate(90); } catch (_) {}
     }
