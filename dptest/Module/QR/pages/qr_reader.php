@@ -560,6 +560,36 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
 .qrManualTextarea{width:100%;min-height:48px;max-height:120px;resize:vertical;padding:14px 16px;border-radius:16px;border:1px solid rgba(255,255,255,.09);background:#252f49;color:#fff;font-size:16px;outline:none;font-family:inherit}
 
 .tabCard::after{content:none !important;}
+
+/* QR/SN 입력부 녹색 계열 정리 */
+.qrPanel textarea.multiInput,
+.qrPanel input[type=text]{
+    background:rgba(7,37,24,.82) !important;
+    border-color:rgba(97,213,138,.42) !important;
+    color:#effff3 !important;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 0 0 1px rgba(97,213,138,.06) !important;
+}
+.qrPanel textarea.multiInput::placeholder,
+.qrPanel input[type=text]::placeholder{
+    color:rgba(218,245,226,.48) !important;
+}
+.qrPanel textarea.multiInput:focus,
+.qrPanel input[type=text]:focus{
+    border-color:rgba(97,213,138,.88) !important;
+    box-shadow:0 0 0 3px rgba(97,213,138,.16), inset 0 1px 0 rgba(255,255,255,.06) !important;
+}
+#manualSaveBtn,
+#snLookupBtn{
+    background:linear-gradient(180deg, rgba(61,184,104,.96), rgba(28,126,69,.96)) !important;
+    color:#f4fff6 !important;
+    border:1px solid rgba(144,245,170,.42) !important;
+    box-shadow:0 10px 22px rgba(24,112,60,.24), inset 0 1px 0 rgba(255,255,255,.18) !important;
+}
+#manualSaveBtn:hover,
+#snLookupBtn:hover{
+    background:linear-gradient(180deg, rgba(76,204,121,.98), rgba(35,145,79,.98)) !important;
+}
+
 </style>
 </head>
 <body>
