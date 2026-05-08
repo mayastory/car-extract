@@ -1,27 +1,4 @@
 <?php
-function qr_force_https_if_needed(): void {
-    $host = (string)($_SERVER['HTTP_HOST'] ?? '');
-    $uri = (string)($_SERVER['REQUEST_URI'] ?? '');
-
-    if ($host === '') return;
-
-    $hostOnly = strtolower(preg_replace('/:\d+$/', '', $host));
-    $isLocal = in_array($hostOnly, ['localhost', '127.0.0.1', '::1'], true);
-
-    $https = strtolower((string)($_SERVER['HTTPS'] ?? ''));
-    $forwardedProto = strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''));
-    $forwardedSsl = strtolower((string)($_SERVER['HTTP_X_FORWARDED_SSL'] ?? ''));
-
-    $isHttps = ($https === 'on' || $https === '1' || $forwardedProto === 'https' || $forwardedSsl === 'on');
-
-    if (!$isLocal && !$isHttps) {
-        header('Location: https://' . $host . $uri, true, 302);
-        exit;
-    }
-}
-
-qr_force_https_if_needed();
-
 require_once __DIR__ . '/../../bootstrap.php';
 require_once JTMES_ROOT . '/inc/common.php';
 $configFile = JTMES_ROOT . '/config/dp_config.php';
