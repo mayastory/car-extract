@@ -18,6 +18,26 @@
  }
  var BASE = detectBase();
 
+ function isLocalHostForQr(){
+  var h = String(location.hostname || '').toLowerCase();
+  return h === 'localhost' || h === '127.0.0.1' || h === '::1';
+ }
+
+ function qrHttpsUrl(){
+  return 'https://' + location.host + BASE + '/qr_reader';
+ }
+
+ function shouldForceQrHttps(targetPath){
+  return targetPath === '/qr_reader' && location.protocol === 'http:' && !isLocalHostForQr();
+ }
+
+ function forceQrHttps(targetPath){
+  if (!shouldForceQrHttps(targetPath)) return false;
+  try{ window.location.replace(qrHttpsUrl()); }catch(e){ window.location.href = qrHttpsUrl(); }
+  return true;
+ }
+
+
  // ---------- Routes (pretty url -> 실제 페이지) ----------
  // NOTE: SHELL(app.php)에서 iframe으로 실제 페이지를 띄우는 매핑
  // (메뉴 이동 시 전체 페이지 리로드를 막아 매트릭스 BG가 초기화되지 않게 함)
@@ -134,6 +154,7 @@
 
  function navigate(targetPath, opts){
   opts = opts || {};
+  if (forceQrHttps(targetPath)) return;
   var frame = getFrame();
   if (!frame) return;
 
@@ -175,6 +196,8 @@
 
    e.preventDefault();
    e.stopPropagation();
+
+   if (forceQrHttps(target)) return;
    navigate(target);
   }, true);
  }
@@ -204,6 +227,7 @@
   bindFrameLoadTheme();
 
   var p = currentPrettyPath();
+  if (forceQrHttps(p)) return;
   setActiveMenu(p);
 
   // 첫 로드 시 iframe src 세팅
