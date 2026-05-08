@@ -198,16 +198,6 @@ function qr_split_scan_codes(string $raw): array {
     return $codes;
 }
 
-function qr_shipinglist_column_exists(PDO $pdo, string $column): bool {
-    try {
-        $st = $pdo->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'ShipingList' AND COLUMN_NAME = ?");
-        $st->execute([$column]);
-        return (int)$st->fetchColumn() > 0;
-    } catch (Throwable $e) {
-        return false;
-    }
-}
-
 function qr_date_only($value): string {
     $value = trim((string)$value);
     if ($value === '' || strpos($value, '0000-00-00') === 0) return '';
@@ -249,30 +239,10 @@ function qr_find_ship_dates_from_shipinglist(PDO $pdo, string $dpCode, string $r
 
         if (!$where) return $empty;
 
-        $annealCandidates = ['annealing_date', 'anneal_date', 'annealing_datetime', 'anneal_datetime', 'jmeas_date', 'meas_date'];
-        $packingCandidates = ['packing_date', 'pack_date', 'packing_datetime', 'pack_datetime', 'package_date', 'pkg_date'];
-
-        $annealCol = '';
-        foreach ($annealCandidates as $col) {
-            if (qr_shipinglist_column_exists($pdo, $col)) {
-                $annealCol = $col;
-                break;
-            }
-        }
-
-        $packingCol = '';
-        foreach ($packingCandidates as $col) {
-            if (qr_shipinglist_column_exists($pdo, $col)) {
-                $packingCol = $col;
-                break;
-            }
-        }
-
-        $selects = ["ship_datetime AS ship_value"];
-        $selects[] = $annealCol !== '' ? "{$annealCol} AS annealing_value" : "NULL AS annealing_value";
-        $selects[] = $packingCol !== '' ? "{$packingCol} AS packing_value" : "NULL AS packing_value";
-
-        $sql = "SELECT " . implode(', ', $selects) . "
+        $sql = "SELECT
+                    ship_datetime AS ship_value,
+                    ann_date AS annealing_value,
+                    pack_date AS packing_value
                 FROM ShipingList
                 WHERE (" . implode(' OR ', $where) . ")
                 ORDER BY ship_datetime DESC, id DESC
