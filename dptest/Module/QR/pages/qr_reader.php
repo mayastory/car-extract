@@ -733,6 +733,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
     let zxingReader = null;
     let scanning = false;
     const lastSavedByCode = new Map();
+    let userTabClicking = false;
 
     setDiag('dProtocol', location.protocol, true);
     setDiag('dSecure', String(hasSecure), hasSecure);
@@ -744,6 +745,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
     supportMessage.textContent = '';
 
     function activateTab(name) {
+        if (!userTabClicking) return;
         document.querySelectorAll('.qrPanel').forEach(panel => panel.classList.remove('active'));
         tabButtons.forEach(btn => {
             const active = btn.dataset.tabTarget === name;
@@ -1101,7 +1103,14 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
         try { await saveManualCodes(); } catch (e) { setManualResult('저장 오류: ' + e.message, 'bad'); }
     });
     tabButtons.forEach(btn => {
-        btn.addEventListener('click', () => activateTab(btn.dataset.tabTarget || 'reader'));
+        btn.addEventListener('click', () => {
+            userTabClicking = true;
+            try {
+                activateTab(btn.dataset.tabTarget || 'reader');
+            } finally {
+                userTabClicking = false;
+            }
+        });
     });
     if (snLookupBtn) {
         snLookupBtn.addEventListener('click', renderSnLookup);
@@ -1132,7 +1141,6 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
         });
     }
     manualCode.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); document.getElementById('manualSaveBtn').click(); } });
-    activateTab('reader');
     window.addEventListener('beforeunload', stopCamera);
 })();
 </script>
