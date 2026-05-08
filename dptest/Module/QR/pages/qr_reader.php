@@ -198,6 +198,60 @@ function qr_split_scan_codes(string $raw): array {
     return $codes;
 }
 
+function qr_find_ship_date_from_shipinglist(PDO $pdo, string $dpCode, string $rawCode = ''): string {
+    $dpCode = trim($dpCode);
+    $rawCode = trim($rawCode);
+    if ($dpCode === '' && $rawCode === '') return '';
+
+    try {
+        $where = [];
+        $params = [];
+
+        if ($dpCode !== '') {
+            $where[] = "customer_lot_id = :dp_exact";
+            $where[] = "pack_barcode = :dp_exact";
+            $where[] = "small_pack_no = :dp_exact";
+            $where[] = "pack_no = :dp_exact";
+            $where[] = "pack_barcode LIKE :dp_like";
+            $params[':dp_exact'] = $dpCode;
+            $params[':dp_like'] = '%' . $dpCode . '%';
+        }
+
+        if ($rawCode !== '') {
+            $where[] = "pack_barcode = :raw_exact";
+            $where[] = "pack_barcode LIKE :raw_like";
+            $params[':raw_exact'] = $rawCode;
+            $params[':raw_like'] = '%' . $rawCode . '%';
+        }
+
+        if (!$where) return '';
+
+        $sql = "SELECT ship_datetime
+                FROM ShipingList
+                WHERE (" . implode(' OR ', $where) . ")
+                  AND ship_datetime IS NOT NULL
+                  AND ship_datetime <> ''
+                  AND ship_datetime NOT LIKE '0000-00-00%'
+                ORDER BY ship_datetime DESC, id DESC
+                LIMIT 1";
+        $st = $pdo->prepare($sql);
+        $st->execute($params);
+        $v = (string)($st->fetchColumn() ?: '');
+        return $v !== '' ? substr($v, 0, 10) : '';
+    } catch (Throwable $e) {
+        return '';
+    }
+}
+
+function qr_enrich_ship_date(PDO $pdo, array $row): array {
+    $row['ship_date'] = qr_find_ship_date_from_shipinglist(
+        $pdo,
+        (string)($row['dp_code'] ?? ''),
+        (string)($row['raw_code'] ?? '')
+    );
+    return $row;
+}
+
 function qr_fetch_recent(PDO $pdo, int $limit = 80): array {
     $accountNo = qr_current_account_no();
     $accountId = qr_current_account_id();
@@ -233,6 +287,7 @@ function qr_fetch_recent(PDO $pdo, int $limit = 80): array {
         if (isset($seen[$key])) continue;
         $seen[$key] = true;
         $row = qr_normalize_tool_cavity_from_dp($row);
+        $row = qr_enrich_ship_date($pdo, $row);
         $out[] = $row;
 
         if (count($out) >= $limit) break;
@@ -347,7 +402,7 @@ function qr_csv_download(PDO $pdo): void {
     echo "\xEF\xBB\xBF";
     $out = fopen('php://output', 'w');
     // 화면의 바코드 내역 컬럼과 동일하게 다운로드
-    fputcsv($out, ['시간', '바코드', '모델', 'LOT', 'Tool', 'Cavity', 'ea', 'DP']);
+    fputcsv($out, ['시간', '바코드', '모델', 'LOT', 'Tool', 'Cavity', 'ea', 'DP', '출하일자']);
     foreach ($rows as $row) {
         fputcsv($out, [
             $row['created_at'] ?? '',
@@ -358,6 +413,7 @@ function qr_csv_download(PDO $pdo): void {
             $row['cavity'] ?? '',
             $row['ea'] ?? '',
             $row['dp_code'] ?? '',
+            $row['ship_date'] ?? '',
         ]);
     }
     fclose($out);
@@ -742,7 +798,7 @@ textarea.multiInput:focus,
         <div class="tableWrap qrHistoryTableWrap">
             <table>
                 <thead>
-                    <tr><th>시간</th><th>바코드</th><th>모델</th><th>LOT</th><th>Tool</th><th>Cavity</th><th>ea</th><th>DP</th></tr>
+                    <tr><th>시간</th><th>바코드</th><th>모델</th><th>LOT</th><th>Tool</th><th>Cavity</th><th>ea</th><th>DP</th><th>출하일자</th></tr>
                 </thead>
                 <tbody id="rowsBody">
                 <?php foreach ($recentRows as $row): ?>
@@ -755,6 +811,7 @@ textarea.multiInput:focus,
                         <td><?= h((string)($row['cavity'] ?? '')) ?></td>
                         <td><?= h((string)($row['ea'] ?? '')) ?></td>
                         <td><?= h((string)($row['dp_code'] ?? '')) ?></td>
+                        <td><?= h((string)($row['ship_date'] ?? '')) ?></td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>
@@ -881,7 +938,7 @@ textarea.multiInput:focus,
     function renderRows(rows) {
         if (!Array.isArray(rows)) return;
         rowsBody.innerHTML = rows.map(row => `<tr>
-            <td>${esc(row.created_at)}</td><td>${esc(row.raw_code)}</td><td>${esc(row.model_name)}</td><td>${esc(row.lot_date)}</td><td>${esc(row.tool)}</td><td>${esc(row.cavity)}</td><td>${esc(row.ea)}</td><td>${esc(row.dp_code)}</td>
+            <td>${esc(row.created_at)}</td><td>${esc(row.raw_code)}</td><td>${esc(row.model_name)}</td><td>${esc(row.lot_date)}</td><td>${esc(row.tool)}</td><td>${esc(row.cavity)}</td><td>${esc(row.ea)}</td><td>${esc(row.dp_code)}</td><td>${esc(row.ship_date)}</td>
         </tr>`).join('');
     }
     function normalizeScannedCode(code) {
