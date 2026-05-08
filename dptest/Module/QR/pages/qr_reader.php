@@ -346,24 +346,18 @@ function qr_csv_download(PDO $pdo): void {
     header('Content-Disposition: attachment; filename="' . $fileName . '"');
     echo "\xEF\xBB\xBF";
     $out = fopen('php://output', 'w');
-    fputcsv($out, ['Scanned At', 'Account ID', 'Scanner', 'Source', 'Raw', 'Label Code', 'Barcode', 'DP', 'Model Suffix', 'Model', 'LOT', 'Tool', 'Cavity', 'ea', 'IP']);
+    // 화면의 바코드 내역 컬럼과 동일하게 다운로드
+    fputcsv($out, ['시간', '바코드', '모델', 'LOT', 'Tool', 'Cavity', 'ea', 'DP']);
     foreach ($rows as $row) {
         fputcsv($out, [
             $row['created_at'] ?? '',
-            $row['account_id'] ?? '',
-            $row['scanner_name'] ?? '',
-            $row['scan_source'] ?? '',
             $row['raw_code'] ?? '',
-            $row['label_code'] ?? '',
-            $row['barcode'] ?? '',
-            $row['dp_code'] ?? '',
-            $row['model_suffix'] ?? '',
             $row['model_name'] ?? '',
             $row['lot_date'] ?? '',
             $row['tool'] ?? '',
             $row['cavity'] ?? '',
             $row['ea'] ?? '',
-            $row['remote_ip'] ?? '',
+            $row['dp_code'] ?? '',
         ]);
     }
     fclose($out);
@@ -748,12 +742,13 @@ textarea.multiInput:focus,
         <div class="tableWrap qrHistoryTableWrap">
             <table>
                 <thead>
-                    <tr><th>시간</th><th>모델</th><th>LOT</th><th>Tool</th><th>Cavity</th><th>ea</th><th>DP</th></tr>
+                    <tr><th>시간</th><th>바코드</th><th>모델</th><th>LOT</th><th>Tool</th><th>Cavity</th><th>ea</th><th>DP</th></tr>
                 </thead>
                 <tbody id="rowsBody">
                 <?php foreach ($recentRows as $row): ?>
                     <tr>
                         <td><?= h((string)($row['created_at'] ?? '')) ?></td>
+                        <td><?= h((string)($row['raw_code'] ?? '')) ?></td>
                         <td><?= h((string)($row['model_name'] ?? '')) ?></td>
                         <td><?= h((string)($row['lot_date'] ?? '')) ?></td>
                         <td><?= h((string)($row['tool'] ?? '')) ?></td>
@@ -886,7 +881,7 @@ textarea.multiInput:focus,
     function renderRows(rows) {
         if (!Array.isArray(rows)) return;
         rowsBody.innerHTML = rows.map(row => `<tr>
-            <td>${esc(row.created_at)}</td><td>${esc(row.model_name)}</td><td>${esc(row.lot_date)}</td><td>${esc(row.tool)}</td><td>${esc(row.cavity)}</td><td>${esc(row.ea)}</td><td>${esc(row.dp_code)}</td>
+            <td>${esc(row.created_at)}</td><td>${esc(row.raw_code)}</td><td>${esc(row.model_name)}</td><td>${esc(row.lot_date)}</td><td>${esc(row.tool)}</td><td>${esc(row.cavity)}</td><td>${esc(row.ea)}</td><td>${esc(row.dp_code)}</td>
         </tr>`).join('');
     }
     function normalizeScannedCode(code) {
