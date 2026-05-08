@@ -520,7 +520,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
 .scanGrid{display:grid;grid-template-columns:minmax(300px,440px) 1fr;gap:14px;align-items:start}.videoWrap{position:relative;aspect-ratio:3/4;width:100%;max-height:72vh;border-radius:22px;overflow:hidden;background:#000;border:1px solid rgba(255,255,255,.08);}video{width:100%;height:100%;object-fit:cover;background:#000}.mask{position:absolute;inset:0;pointer-events:none;background:rgba(0,0,0,.12)}
 .scanArea{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(76vw,360px);height:min(46vw,210px);max-width:84%;border:3px solid rgba(46,230,107,.96);border-radius:24px;box-shadow:0 0 0 9999px rgba(0,0,0,.28),0 0 0 1px rgba(255,255,255,.12) inset,0 0 18px rgba(46,230,107,.25);background:linear-gradient(to bottom,rgba(46,230,107,.04),rgba(46,230,107,.01));}.corner{position:absolute;width:34px;height:34px;border-color:var(--green2);border-style:solid;filter:drop-shadow(0 0 7px rgba(156,255,143,.45))}.tl{left:-3px;top:-3px;border-width:5px 0 0 5px;border-top-left-radius:18px}.tr{right:-3px;top:-3px;border-width:5px 5px 0 0;border-top-right-radius:18px}.bl{left:-3px;bottom:-3px;border-width:0 0 5px 5px;border-bottom-left-radius:18px}.br{right:-3px;bottom:-3px;border-width:0 5px 5px 0;border-bottom-right-radius:18px}.crosshairH,.crosshairV,.crossDot{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}.crosshairH{width:52px;height:2px;background:rgba(156,255,143,.95);box-shadow:0 0 10px rgba(156,255,143,.45)}.crosshairV{width:2px;height:52px;background:rgba(156,255,143,.95);box-shadow:0 0 10px rgba(156,255,143,.45)}.crossDot{width:8px;height:8px;border-radius:50%;background:var(--green2);box-shadow:0 0 10px rgba(156,255,143,.85)}.scanLine{position:absolute;left:8px;right:8px;top:12px;height:3px;background:linear-gradient(90deg,rgba(46,230,107,0),rgba(156,255,143,.96),rgba(46,230,107,0));box-shadow:0 0 14px rgba(46,230,107,.7);border-radius:999px;animation:scanMove 2.1s linear infinite;}@keyframes scanMove{0%{top:12px;opacity:.95}45%{opacity:1}100%{top:calc(100% - 15px);opacity:.92}}
 .guideText{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);background:rgba(6,14,28,.74);color:#f1fff4;border:1px solid rgba(46,230,107,.35);border-radius:999px;padding:9px 12px;font-size:13px;text-align:center;width:min(92%,480px);backdrop-filter:blur(6px);box-shadow:0 6px 18px rgba(0,0,0,.2);}
-.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}button,.btn{appearance:none;border:none;border-radius:16px;padding:14px 14px;font-size:16px;font-weight:800;background:var(--accent);color:#fff;cursor:pointer;text-align:center;text-decoration:none;box-shadow:0 10px 24px rgba(63,109,241,.26);}button.secondary,.btn.secondary{background:#293658;box-shadow:none}input[type=text]{width:100%;padding:14px 16px;border-radius:16px;border:1px solid rgba(255,255,255,.09);background:#252f49;color:#fff;font-size:16px;outline:none;}.manualGrid{display:grid;grid-template-columns:1fr auto;gap:10px}.result{font-size:16px;font-weight:800;word-break:break-all;margin-top:12px;line-height:1.5;white-space:pre-line}.statusBox{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:14px;line-height:1.55;font-size:14px;white-space:pre-line;}.diagGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.diagRow{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.05)}.diagVal{font-weight:800;text-align:right;word-break:break-word}.tableWrap{overflow:auto;border-radius:14px;border:1px solid rgba(255,255,255,.08)}table{width:100%;border-collapse:collapse;font-size:13px;min-width:980px}th,td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.07);text-align:center;white-space:nowrap}th{background:rgba(255,255,255,.06);color:#dce6ff}td{color:#eef2ff}.fatal{border-color:rgba(255,118,118,.5);background:rgba(255,118,118,.08)}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}button,.btn{appearance:none;border:none;border-radius:16px;padding:14px 14px;font-size:16px;font-weight:800;background:var(--accent);color:#fff;cursor:pointer;text-align:center;text-decoration:none;box-shadow:0 10px 24px rgba(63,109,241,.26);}button.secondary,.btn.secondary{background:#293658;box-shadow:none}textarea.multiInput{width:100%;min-height:46px;max-height:220px;resize:vertical;padding:14px 16px;border-radius:16px;border:1px solid rgba(255,255,255,.09);background:#252f49;color:#fff;font-size:16px;outline:none;font-family:inherit;line-height:1.45;}input[type=text]{width:100%;padding:14px 16px;border-radius:16px;border:1px solid rgba(255,255,255,.09);background:#252f49;color:#fff;font-size:16px;outline:none;}.manualGrid{display:grid;grid-template-columns:1fr auto;gap:10px}.result{font-size:16px;font-weight:800;word-break:break-all;margin-top:12px;line-height:1.5;white-space:pre-line}.statusBox{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:14px;line-height:1.55;font-size:14px;white-space:pre-line;}.diagGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.diagRow{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.05)}.diagVal{font-weight:800;text-align:right;word-break:break-word}.tableWrap{overflow:auto;border-radius:14px;border:1px solid rgba(255,255,255,.08)}table{width:100%;border-collapse:collapse;font-size:13px;min-width:980px}th,td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.07);text-align:center;white-space:nowrap}th{background:rgba(255,255,255,.06);color:#dce6ff}td{color:#eef2ff}.fatal{border-color:rgba(255,118,118,.5);background:rgba(255,118,118,.08)}
 @media (max-width:880px){.scanGrid{grid-template-columns:1fr}.diagGrid{grid-template-columns:1fr}.page{padding:12px}.controls,.manualGrid{grid-template-columns:1fr}h1{font-size:22px}.videoWrap{max-height:70vh}.scanArea{height:min(52vw,220px)}.guideText{font-size:12px}}
 .qr-hidden-diagnostics{display:none !important;}
 .qr-hidden-status{display:none !important;}
@@ -566,8 +566,8 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
     <div class="card tabCard">
         <div class="qrTabs" role="tablist" aria-label="QR 리더기 탭">
             <button type="button" class="qrTab active" data-tab-target="reader" aria-selected="true">QR 리더기</button>
-            <button type="button" class="qrTab" data-tab-target="history" aria-selected="false">QR 내역</button>
-            <button type="button" class="qrTab" data-tab-target="sn" aria-selected="false">SN 조회</button>
+            <button type="button" class="qrTab" data-tab-target="history" aria-selected="false">바코드 내역</button>
+            <button type="button" class="qrTab" data-tab-target="sn" aria-selected="false">SN 내역</button>
             <a class="qrTab download" id="dynamicCsvDownload" href="?download=csv">QR CSV 다운로드</a>
         </div>
     </div>
@@ -620,11 +620,11 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
     <div class="qrPanel" id="qrPanelSn">
     <div class="card">
         <div class="historyHeader">
-            <h2>SN 조회</h2>
+            <h2>SN 내역</h2>
             <button type="button" class="clearHistoryBtn" id="snClearHistoryBtn">비우기</button>
         </div>
         <div class="manualGrid snLookupGrid">
-            <input type="text" id="snInput" placeholder="예: DGVD18510001R+A10A4+B, DGMG13445216B+E08H4+B" autocomplete="off">
+            <textarea id="snInput" class="multiInput" placeholder="예: DGVD18510001R+A10A4+B, DGMG13445216B+E08H4+B" autocomplete="off"></textarea>
             <button id="snLookupBtn" type="button">조회</button>
         </div>
         <div id="snResult" class="snResult muted">SN을 입력하고 조회를 눌러 주세요.</div>
@@ -671,7 +671,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
     <div class="qrPanel" id="qrPanelHistory">
     <div class="card">
         <div class="historyHeader">
-            <h2>QR 내역</h2>
+            <h2>바코드 내역</h2>
             <button type="button" class="clearHistoryBtn" id="clearHistoryBtn">비우기</button>
         </div>
         <div class="manualGrid qrHistoryManualGrid">
@@ -821,6 +821,43 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
             <td>${esc(row.created_at)}</td><td>${esc(row.model_name)}</td><td>${esc(row.lot_date)}</td><td>${esc(row.tool)}</td><td>${esc(row.cavity)}</td><td>${esc(row.ea)}</td><td>${esc(row.dp_code)}</td>
         </tr>`).join('');
     }
+    function normalizeScannedCode(code) {
+        return String(code || '').trim().toUpperCase().replace(/\s+/g, '');
+    }
+    function isSnCode(code) {
+        const s = normalizeScannedCode(code);
+        // SN 규격: 21자리, 14/20번째 + delimiter 포함
+        // 예: DGMG13445216B+E08H4+B
+        return /^[A-Z]{4}\d{3}\d{5}[A-Z]\+[A-Z]\d{2}[A-Z]\d\+[A-Z]$/.test(s);
+    }
+    async function saveSnCode(code, source) {
+        const res = await fetch(ajaxUrl('sn_lookup'), {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({sn: code, source})
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.message || 'SN 저장 실패');
+
+        const list = Array.isArray(data.parsed_list) ? data.parsed_list : (data.parsed ? [data.parsed] : []);
+        renderSnHistory(data.rows || []);
+        activateTab('sn');
+
+        if (Number(data.inserted_count || 0) > 0) {
+            const parsed = list[0] || {};
+            if (snResult) {
+                snResult.textContent = `SN 스캔 완료\n${parsed.sn_code || ''}`;
+                snResult.className = 'snResult ok';
+            }
+            playSuccessSound();
+            try { navigator.vibrate && navigator.vibrate(90); } catch (_) {}
+        } else {
+            if (snResult) {
+                snResult.textContent = `이미 저장된 SN\n${(data.skipped || [code])[0] || code}`;
+                snResult.className = 'snResult warn';
+            }
+        }
+    }
     async function saveCode(code, source) {
         const res = await fetch(ajaxUrl('save'), {
             method: 'POST',
@@ -833,10 +870,12 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
         if (data.duplicate) {
             setStatus(`이미 저장된 코드\nDP: ${p.dp_code || ''}`, 'warn');
             renderRows(data.rows || []);
+            activateTab('history');
             return;
         }
         setStatus(`스캔 완료\nModel: ${p.model_name || ''}\nDP: ${p.dp_code || ''}\nLOT: ${p.lot_date || ''}\nTool: ${p.tool || ''} / Cavity: ${p.cavity || ''} / ea: ${p.ea ?? ''}`, 'ok');
         renderRows(data.rows || []);
+        activateTab('history');
         playSuccessSound();
         try { navigator.vibrate && navigator.vibrate(90); } catch (_) {}
     }
@@ -881,11 +920,22 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
     async function handleDetected(code, source) {
         code = String(code || '').trim();
         if (!code) return;
+        const dedupeKey = normalizeScannedCode(code);
         const now = Date.now();
-        const last = lastSavedByCode.get(code) || 0;
+        const last = lastSavedByCode.get(dedupeKey) || 0;
         if (now - last < 10000) return;
-        lastSavedByCode.set(code, now);
-        try { await saveCode(code, source); } catch (e) { setStatus('저장 오류: ' + e.message, 'bad'); }
+        lastSavedByCode.set(dedupeKey, now);
+
+        try {
+            if (isSnCode(code)) {
+                await saveSnCode(code, source);
+            } else {
+                await saveCode(code, source);
+                activateTab('history');
+            }
+        } catch (e) {
+            setStatus('저장 오류: ' + e.message, 'bad');
+        }
     }
     function renderSnDetail(parsed) {
         if (!parsed || !Array.isArray(parsed.display_rows)) return;
@@ -1058,7 +1108,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
     }
     if (snInput) {
         snInput.addEventListener('keydown', e => {
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault();
                 renderSnLookup();
             }
