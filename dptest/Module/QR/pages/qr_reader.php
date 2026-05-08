@@ -339,6 +339,196 @@ function qr_fetch_recent(PDO $pdo, int $limit = 80): array {
     return $out;
 }
 
+function qr_extract_dp_tokens_from_text(string $text): array {
+    $text = strtoupper(trim($text));
+    if ($text === '') return [];
+
+    preg_match_all('/DP[0-9A-Z]+/', $text, $m);
+    $out = [];
+
+    foreach (($m[0] ?? []) as $v) {
+        $v = trim($v);
+        if ($v !== '') $out[$v] = true;
+    }
+
+    return array_keys($out);
+}
+
+function qr_ship_dates_from_shipinglist_row(array $row): array {
+    return [
+        'ship_date' => qr_date_only($row['ship_datetime'] ?? ''),
+        'ann_date' => qr_date_only($row['ann_date'] ?? ''),
+        'pack_date' => qr_date_only($row['pack_date'] ?? ''),
+    ];
+}
+
+function qr_map_shipinglist_row_dates(array &$dateMap, array $row): void {
+    $dates = qr_ship_dates_from_shipinglist_row($row);
+
+    foreach (['customer_lot_id', 'pack_barcode', 'small_pack_no', 'pack_no'] as $field) {
+        $key = trim((string)($row[$field] ?? ''));
+        if ($key !== '' && !isset($dateMap[$key])) {
+            $dateMap[$key] = $dates;
+        }
+
+        foreach (qr_extract_dp_tokens_from_text($key) as $dpToken) {
+            if (!isset($dateMap[$dpToken])) {
+                $dateMap[$dpToken] = $dates;
+            }
+        }
+    }
+}
+
+function qr_refresh_ship_dates(PDO $pdo, int $limit = 200): int {
+    $accountNo = qr_current_account_no();
+    $accountId = qr_current_account_id();
+    $limit = max(1, min(1000, $limit));
+
+    if ($accountNo !== null) {
+        $st = $pdo->prepare("SELECT id, raw_code, label_code, barcode, dp_code
+                              FROM qr_scan_log
+                              WHERE account_no = :account_no
+                              ORDER BY created_at DESC, id DESC
+                              LIMIT {$limit}");
+        $st->execute([':account_no' => $accountNo]);
+    } else {
+        $st = $pdo->prepare("SELECT id, raw_code, label_code, barcode, dp_code
+                              FROM qr_scan_log
+                              WHERE account_id = :account_id
+                              ORDER BY created_at DESC, id DESC
+                              LIMIT {$limit}");
+        $st->execute([':account_id' => $accountId]);
+    }
+
+    $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    if (!$rows) return 0;
+
+    $keys = [];
+    foreach ($rows as $row) {
+        foreach (['dp_code', 'barcode', 'raw_code'] as $field) {
+            $v = trim((string)($row[$field] ?? ''));
+            if ($v !== '') $keys[$v] = true;
+            foreach (qr_extract_dp_tokens_from_text($v) as $dpToken) {
+                $keys[$dpToken] = true;
+            }
+        }
+    }
+
+    $dateMap = [];
+
+    // 1차: 인덱스를 탈 수 있는 exact 매칭
+    if ($keys) {
+        $values = array_slice(array_keys($keys), 0, 1000);
+        $placeholders = [];
+        $params = [];
+
+        foreach ($values as $i => $value) {
+            $ph = ':k' . $i;
+            $placeholders[] = $ph;
+            $params[$ph] = $value;
+        }
+
+        $in = implode(',', $placeholders);
+
+        try {
+            $sql = "SELECT customer_lot_id, pack_barcode, small_pack_no, pack_no,
+                           ship_datetime, ann_date, pack_date
+                    FROM ShipingList
+                    WHERE customer_lot_id IN ({$in})
+                       OR pack_barcode IN ({$in})
+                       OR small_pack_no IN ({$in})
+                       OR pack_no IN ({$in})
+                    ORDER BY ship_datetime DESC, id DESC";
+
+            $st = $pdo->prepare($sql);
+            $st->execute($params);
+
+            while ($srow = $st->fetch(PDO::FETCH_ASSOC)) {
+                qr_map_shipinglist_row_dates($dateMap, $srow);
+            }
+        } catch (Throwable $e) {
+            // exact 조회 실패 시 아래 LIKE 보조 검색만 시도
+        }
+    }
+
+    // 2차: exact에 안 걸린 DP만 보조 LIKE 검색.
+    // 저장 흐름이 아니라 버튼 클릭 시에만 실행되므로 속도보다 매칭 성공률 우선.
+    $likeStmt = null;
+    try {
+        $likeStmt = $pdo->prepare("SELECT customer_lot_id, pack_barcode, small_pack_no, pack_no,
+                                          ship_datetime, ann_date, pack_date
+                                   FROM ShipingList
+                                   WHERE customer_lot_id LIKE :needle
+                                      OR pack_barcode LIKE :needle
+                                      OR small_pack_no LIKE :needle
+                                      OR pack_no LIKE :needle
+                                   ORDER BY ship_datetime DESC, id DESC
+                                   LIMIT 1");
+    } catch (Throwable $e) {
+        $likeStmt = null;
+    }
+
+    if ($likeStmt) {
+        foreach ($rows as $row) {
+            $dp = trim((string)($row['dp_code'] ?? ''));
+            if ($dp === '') continue;
+            if (isset($dateMap[$dp])) continue;
+
+            try {
+                $likeStmt->execute([':needle' => '%' . $dp . '%']);
+                $srow = $likeStmt->fetch(PDO::FETCH_ASSOC);
+                if ($srow) {
+                    qr_map_shipinglist_row_dates($dateMap, $srow);
+                }
+            } catch (Throwable $e) {
+                // 개별 실패는 무시하고 다음 row 진행
+            }
+        }
+    }
+
+    if (!$dateMap) return 0;
+
+    $up = $pdo->prepare("UPDATE qr_scan_log
+                         SET ship_date = :ship_date,
+                             ann_date = :ann_date,
+                             pack_date = :pack_date
+                         WHERE id = :id");
+
+    $updated = 0;
+
+    foreach ($rows as $row) {
+        $candidates = [];
+        foreach (['dp_code', 'barcode', 'raw_code'] as $field) {
+            $v = trim((string)($row[$field] ?? ''));
+            if ($v !== '') $candidates[] = $v;
+            foreach (qr_extract_dp_tokens_from_text($v) as $dpToken) {
+                $candidates[] = $dpToken;
+            }
+        }
+
+        $dates = null;
+        foreach ($candidates as $key) {
+            if (isset($dateMap[$key])) {
+                $dates = $dateMap[$key];
+                break;
+            }
+        }
+        if (!$dates) continue;
+
+        $up->bindValue(':ship_date', $dates['ship_date'] !== '' ? $dates['ship_date'] : null, $dates['ship_date'] !== '' ? PDO::PARAM_STR : PDO::PARAM_NULL);
+        $up->bindValue(':ann_date', $dates['ann_date'] !== '' ? $dates['ann_date'] : null, $dates['ann_date'] !== '' ? PDO::PARAM_STR : PDO::PARAM_NULL);
+        $up->bindValue(':pack_date', $dates['pack_date'] !== '' ? $dates['pack_date'] : null, $dates['pack_date'] !== '' ? PDO::PARAM_STR : PDO::PARAM_NULL);
+        $up->bindValue(':id', (int)$row['id'], PDO::PARAM_INT);
+        $up->execute();
+
+        // 날짜값이 같아서 rowCount=0이어도 매칭은 된 것이므로 카운트
+        $updated++;
+    }
+
+    return $updated;
+}
+
+
 function qr_clear_history(PDO $pdo): int {
     $accountNo = qr_current_account_no();
     $accountId = qr_current_account_id();
@@ -484,8 +674,152 @@ function qr_insert_scan(PDO $pdo, array $parsed, string $source): int {
     return (int)$pdo->lastInsertId();
 }
 
+function qr_csv_extract_dp_tokens_from_text(string $text): array {
+    $text = strtoupper(trim($text));
+    if ($text === '') return [];
+
+    preg_match_all('/DP[0-9A-Z]+/', $text, $m);
+    $out = [];
+
+    foreach (($m[0] ?? []) as $v) {
+        $v = trim($v);
+        if ($v !== '') $out[$v] = true;
+    }
+
+    return array_keys($out);
+}
+
+function qr_csv_map_shipinglist_row_dates(array &$dateMap, array $row): void {
+    $dates = [
+        'ship_date' => qr_date_only($row['ship_datetime'] ?? ''),
+        'ann_date' => qr_date_only($row['ann_date'] ?? ''),
+        'pack_date' => qr_date_only($row['pack_date'] ?? ''),
+    ];
+
+    foreach (['customer_lot_id', 'pack_barcode', 'small_pack_no', 'pack_no'] as $field) {
+        $key = trim((string)($row[$field] ?? ''));
+        if ($key !== '' && !isset($dateMap[$key])) {
+            $dateMap[$key] = $dates;
+        }
+
+        foreach (qr_csv_extract_dp_tokens_from_text($key) as $dpToken) {
+            if (!isset($dateMap[$dpToken])) {
+                $dateMap[$dpToken] = $dates;
+            }
+        }
+    }
+}
+
+function qr_csv_enrich_ship_dates(PDO $pdo, array $rows): array {
+    if (!$rows) return $rows;
+
+    $keys = [];
+    foreach ($rows as $row) {
+        foreach (['dp_code', 'barcode', 'raw_code'] as $field) {
+            $v = trim((string)($row[$field] ?? ''));
+            if ($v !== '') $keys[$v] = true;
+            foreach (qr_csv_extract_dp_tokens_from_text($v) as $dpToken) {
+                $keys[$dpToken] = true;
+            }
+        }
+    }
+
+    $dateMap = [];
+
+    if ($keys) {
+        $values = array_slice(array_keys($keys), 0, 1000);
+        $placeholders = [];
+        $params = [];
+
+        foreach ($values as $i => $value) {
+            $ph = ':k' . $i;
+            $placeholders[] = $ph;
+            $params[$ph] = $value;
+        }
+
+        $in = implode(',', $placeholders);
+
+        try {
+            $sql = "SELECT customer_lot_id, pack_barcode, small_pack_no, pack_no,
+                           ship_datetime, ann_date, pack_date
+                    FROM ShipingList
+                    WHERE customer_lot_id IN ({$in})
+                       OR pack_barcode IN ({$in})
+                       OR small_pack_no IN ({$in})
+                       OR pack_no IN ({$in})
+                    ORDER BY ship_datetime DESC, id DESC";
+
+            $st = $pdo->prepare($sql);
+            $st->execute($params);
+
+            while ($srow = $st->fetch(PDO::FETCH_ASSOC)) {
+                qr_csv_map_shipinglist_row_dates($dateMap, $srow);
+            }
+        } catch (Throwable $e) {
+            $dateMap = [];
+        }
+    }
+
+    // CSV 출력 때만 보조 LIKE 매칭. 화면/저장 속도에는 영향 없음.
+    try {
+        $likeStmt = $pdo->prepare("SELECT customer_lot_id, pack_barcode, small_pack_no, pack_no,
+                                          ship_datetime, ann_date, pack_date
+                                   FROM ShipingList
+                                   WHERE customer_lot_id LIKE :needle
+                                      OR pack_barcode LIKE :needle
+                                      OR small_pack_no LIKE :needle
+                                      OR pack_no LIKE :needle
+                                   ORDER BY ship_datetime DESC, id DESC
+                                   LIMIT 1");
+    } catch (Throwable $e) {
+        $likeStmt = null;
+    }
+
+    if ($likeStmt) {
+        foreach ($rows as $row) {
+            $dp = trim((string)($row['dp_code'] ?? ''));
+            if ($dp === '' || isset($dateMap[$dp])) continue;
+
+            try {
+                $likeStmt->execute([':needle' => '%' . $dp . '%']);
+                $srow = $likeStmt->fetch(PDO::FETCH_ASSOC);
+                if ($srow) {
+                    qr_csv_map_shipinglist_row_dates($dateMap, $srow);
+                }
+            } catch (Throwable $e) {}
+        }
+    }
+
+    foreach ($rows as &$row) {
+        $candidates = [];
+        foreach (['dp_code', 'barcode', 'raw_code'] as $field) {
+            $v = trim((string)($row[$field] ?? ''));
+            if ($v !== '') $candidates[] = $v;
+            foreach (qr_csv_extract_dp_tokens_from_text($v) as $dpToken) {
+                $candidates[] = $dpToken;
+            }
+        }
+
+        $dates = null;
+        foreach ($candidates as $key) {
+            if (isset($dateMap[$key])) {
+                $dates = $dateMap[$key];
+                break;
+            }
+        }
+
+        $row['ship_date'] = $dates['ship_date'] ?? '';
+        $row['ann_date'] = $dates['ann_date'] ?? '';
+        $row['pack_date'] = $dates['pack_date'] ?? '';
+    }
+    unset($row);
+
+    return $rows;
+}
+
 function qr_csv_download(PDO $pdo): void {
     $rows = qr_fetch_recent($pdo, 300);
+    $rows = qr_csv_enrich_ship_dates($pdo, $rows);
     $fileName = 'qr_scan_' . date('Ymd_His') . '.csv';
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename="' . $fileName . '"');
@@ -767,6 +1101,7 @@ textarea.multiInput:focus,
     box-shadow:0 0 0 3px rgba(97,213,138,.18), inset 0 1px 0 rgba(255,255,255,.06) !important;
 }
 
+.historyActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.refreshShipDatesBtn{background:rgba(97,213,138,.15)!important;border-color:rgba(97,213,138,.55)!important;color:#dfffe8!important}.refreshShipDatesBtn:hover{background:rgba(97,213,138,.24)!important;border-color:rgba(97,213,138,.78)!important}
 </style>
 </head>
 <body>
@@ -880,7 +1215,8 @@ textarea.multiInput:focus,
     <div class="card">
         <div class="historyHeader">
             <h2>바코드 내역</h2>
-            <button type="button" class="clearHistoryBtn" id="clearHistoryBtn">비우기</button>
+            <div class="historyActions"><button type="button" class="clearHistoryBtn" id="clearHistoryBtn">비우기</button>
+            </div>
         </div>
         <div class="manualGrid qrHistoryManualGrid">
             <textarea id="manualCode" class="qrManualTextarea" placeholder="예: 3HUR00021A/480/DP261672730G3BZM, 3HUR00021A/480/DP261672730G3BZM"></textarea>
@@ -890,7 +1226,7 @@ textarea.multiInput:focus,
         <div class="tableWrap qrHistoryTableWrap">
             <table>
                 <thead>
-                    <tr><th>시간</th><th>바코드</th><th>모델</th><th>LOT</th><th>Tool</th><th>Cavity</th><th>ea</th><th>DP</th><th>출하일자</th><th>어닐링일자</th><th>포장일자</th></tr>
+                    <tr><th>시간</th><th>바코드</th><th>모델</th><th>LOT</th><th>Tool</th><th>Cavity</th><th>ea</th><th>DP</th></tr>
                 </thead>
                 <tbody id="rowsBody">
                 <?php foreach ($recentRows as $row): ?>
@@ -903,9 +1239,6 @@ textarea.multiInput:focus,
                         <td><?= h((string)($row['cavity'] ?? '')) ?></td>
                         <td><?= h((string)($row['ea'] ?? '')) ?></td>
                         <td><?= h((string)($row['dp_code'] ?? '')) ?></td>
-                        <td><?= h((string)($row['ship_date'] ?? '')) ?></td>
-                        <td><?= h((string)($row['ann_date'] ?? '')) ?></td>
-                        <td><?= h((string)($row['pack_date'] ?? '')) ?></td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>
@@ -926,7 +1259,7 @@ textarea.multiInput:focus,
     const rowsBody = document.getElementById('rowsBody');
     const qrSuccessSound = document.getElementById('qrSuccessSound');
     const clearHistoryBtn = document.getElementById('clearHistoryBtn');
-    const tabButtons = Array.from(document.querySelectorAll('[data-tab-target]'));
+const tabButtons = Array.from(document.querySelectorAll('[data-tab-target]'));
     const snInput = document.getElementById('snInput');
     const snLookupBtn = document.getElementById('snLookupBtn');
     const snResult = document.getElementById('snResult');
@@ -945,9 +1278,7 @@ textarea.multiInput:focus,
     let zxingReader = null;
     let scanning = false;
     const lastSavedByCode = new Map();
-    let userTabClicking = false;
-
-    setDiag('dProtocol', location.protocol, true);
+setDiag('dProtocol', location.protocol, true);
     setDiag('dSecure', String(hasSecure), hasSecure);
     setDiag('dMedia', String(hasMediaDevices), hasMediaDevices);
     setDiag('dGum', String(hasGetUserMedia), hasGetUserMedia);
@@ -957,13 +1288,13 @@ textarea.multiInput:focus,
     supportMessage.textContent = '';
 
     function activateTab(name) {
-        if (!userTabClicking) return;
         document.querySelectorAll('.qrPanel').forEach(panel => panel.classList.remove('active'));
         tabButtons.forEach(btn => {
             const active = btn.dataset.tabTarget === name;
             btn.classList.toggle('active', active);
             btn.setAttribute('aria-selected', active ? 'true' : 'false');
         });
+
         const panelMap = {
             reader: 'qrPanelReader',
             history: 'qrPanelHistory',
@@ -1032,7 +1363,7 @@ textarea.multiInput:focus,
     function renderRows(rows) {
         if (!Array.isArray(rows)) return;
         rowsBody.innerHTML = rows.map(row => `<tr>
-            <td>${esc(row.created_at)}</td><td>${esc(row.raw_code)}</td><td>${esc(row.model_name)}</td><td>${esc(row.lot_date)}</td><td>${esc(row.tool)}</td><td>${esc(row.cavity)}</td><td>${esc(row.ea)}</td><td>${esc(row.dp_code)}</td><td>${esc(row.ship_date)}</td><td>${esc(row.ann_date)}</td><td>${esc(row.pack_date)}</td><td>${esc(row.ann_date)}</td><td>${esc(row.pack_date)}</td>
+            <td>${esc(row.created_at)}</td><td>${esc(row.raw_code)}</td><td>${esc(row.model_name)}</td><td>${esc(row.lot_date)}</td><td>${esc(row.tool)}</td><td>${esc(row.cavity)}</td><td>${esc(row.ea)}</td><td>${esc(row.dp_code)}</td>
         </tr>`).join('');
     }
     function normalizeScannedCode(code) {
@@ -1315,14 +1646,7 @@ textarea.multiInput:focus,
         try { await saveManualCodes(); } catch (e) { setManualResult('저장 오류: ' + e.message, 'bad'); }
     });
     tabButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            userTabClicking = true;
-            try {
-                activateTab(btn.dataset.tabTarget || 'reader');
-            } finally {
-                userTabClicking = false;
-            }
-        });
+        btn.addEventListener('click', () => activateTab(btn.dataset.tabTarget || 'reader'));
     });
     if (snLookupBtn) {
         snLookupBtn.addEventListener('click', renderSnLookup);
