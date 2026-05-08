@@ -108,7 +108,7 @@ function qr_sn_parse(string $raw): array {
     $mfgDate = qr_sn_calc_mfg_date($yearCode, $weekCode, $dayCode);
     $sequenceShiftName = qr_sn_sequence_shift_name($sequenceShiftCode);
     $sequenceNo = ctype_digit($sequenceNoText) ? (int)$sequenceNoText : null;
-    $sequenceNoName = $sequenceNo !== null ? qr_sn_ordinal_ko($sequenceNo) . ' 생산품' : '';
+    $sequenceNoName = $sequenceNo !== null ? ($sequenceNo . '번째 생산품') : '';
     $equipmentText = ctype_digit($equipmentNo) ? ($lineCode . '열 ' . ((int)$equipmentNo) . '번째 설비') : '';
     $moldName = $moldCode !== '' ? ($moldCode . '금형') : '';
     $cavityName = $cavity !== '' ? ($cavity . 'Cavity') : '';
