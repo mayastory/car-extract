@@ -540,6 +540,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
     </div>
     </div>
 </div>
+<audio id="qrSuccessSound" src="../sound/Coin.wav" preload="auto" playsinline></audio>
 <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
 <script>
 (() => {
@@ -548,6 +549,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
     const supportMessage = document.getElementById('supportMessage');
     const manualCode = document.getElementById('manualCode');
     const rowsBody = document.getElementById('rowsBody');
+    const qrSuccessSound = document.getElementById('qrSuccessSound');
     const clearHistoryBtn = document.getElementById('clearHistoryBtn');
     const tabButtons = Array.from(document.querySelectorAll('[data-tab-target]'));
     const hasSecure = window.isSecureContext === true;
@@ -595,6 +597,14 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
     function supportText() {
         return '';
     }
+    function playSuccessSound() {
+        if (!qrSuccessSound) return;
+        try {
+            qrSuccessSound.currentTime = 0;
+            const p = qrSuccessSound.play();
+            if (p && typeof p.catch === 'function') p.catch(() => {});
+        } catch (_) {}
+    }
     function setStatus(text, cls='muted') {
         const msg = String(text || '');
         const silentPrefixes = [
@@ -637,6 +647,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
         }
         setStatus(`스캔 완료\nModel: ${p.model_name || ''}\nDP: ${p.dp_code || ''}\nLOT: ${p.lot_date || ''}\nTool: ${p.tool || ''} / Cavity: ${p.cavity || ''} / ea: ${p.ea ?? ''}`, 'ok');
         renderRows(data.rows || []);
+        playSuccessSound();
         try { navigator.vibrate && navigator.vibrate(90); } catch (_) {}
     }
     async function handleDetected(code, source) {
