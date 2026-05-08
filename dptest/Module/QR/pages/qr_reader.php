@@ -198,10 +198,33 @@ function qr_split_scan_codes(string $raw): array {
     return $codes;
 }
 
-function qr_find_ship_date_from_shipinglist(PDO $pdo, string $dpCode, string $rawCode = ''): string {
+function qr_shipinglist_column_exists(PDO $pdo, string $column): bool {
+    try {
+        $st = $pdo->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'ShipingList' AND COLUMN_NAME = ?");
+        $st->execute([$column]);
+        return (int)$st->fetchColumn() > 0;
+    } catch (Throwable $e) {
+        return false;
+    }
+}
+
+function qr_date_only($value): string {
+    $value = trim((string)$value);
+    if ($value === '' || strpos($value, '0000-00-00') === 0) return '';
+    return substr($value, 0, 10);
+}
+
+function qr_find_ship_dates_from_shipinglist(PDO $pdo, string $dpCode, string $rawCode = ''): array {
     $dpCode = trim($dpCode);
     $rawCode = trim($rawCode);
-    if ($dpCode === '' && $rawCode === '') return '';
+
+    $empty = [
+        'ship_date' => '',
+        'annealing_date' => '',
+        'packing_date' => '',
+    ];
+
+    if ($dpCode === '' && $rawCode === '') return $empty;
 
     try {
         $where = [];
@@ -224,39 +247,71 @@ function qr_find_ship_date_from_shipinglist(PDO $pdo, string $dpCode, string $ra
             $params[':raw_like'] = '%' . $rawCode . '%';
         }
 
-        if (!$where) return '';
+        if (!$where) return $empty;
 
-        $sql = "SELECT ship_datetime
+        $annealCandidates = ['annealing_date', 'anneal_date', 'annealing_datetime', 'anneal_datetime', 'jmeas_date', 'meas_date'];
+        $packingCandidates = ['packing_date', 'pack_date', 'packing_datetime', 'pack_datetime', 'package_date', 'pkg_date'];
+
+        $annealCol = '';
+        foreach ($annealCandidates as $col) {
+            if (qr_shipinglist_column_exists($pdo, $col)) {
+                $annealCol = $col;
+                break;
+            }
+        }
+
+        $packingCol = '';
+        foreach ($packingCandidates as $col) {
+            if (qr_shipinglist_column_exists($pdo, $col)) {
+                $packingCol = $col;
+                break;
+            }
+        }
+
+        $selects = ["ship_datetime AS ship_value"];
+        $selects[] = $annealCol !== '' ? "{$annealCol} AS annealing_value" : "NULL AS annealing_value";
+        $selects[] = $packingCol !== '' ? "{$packingCol} AS packing_value" : "NULL AS packing_value";
+
+        $sql = "SELECT " . implode(', ', $selects) . "
                 FROM ShipingList
                 WHERE (" . implode(' OR ', $where) . ")
-                  AND ship_datetime IS NOT NULL
-                  AND ship_datetime <> ''
-                  AND ship_datetime NOT LIKE '0000-00-00%'
                 ORDER BY ship_datetime DESC, id DESC
                 LIMIT 1";
+
         $st = $pdo->prepare($sql);
         $st->execute($params);
-        $v = (string)($st->fetchColumn() ?: '');
-        return $v !== '' ? substr($v, 0, 10) : '';
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        if (!$row) return $empty;
+
+        return [
+            'ship_date' => qr_date_only($row['ship_value'] ?? ''),
+            'annealing_date' => qr_date_only($row['annealing_value'] ?? ''),
+            'packing_date' => qr_date_only($row['packing_value'] ?? ''),
+        ];
     } catch (Throwable $e) {
-        return '';
+        return $empty;
     }
 }
 
 function qr_enrich_ship_date(PDO $pdo, array $row): array {
-    $row['ship_date'] = qr_find_ship_date_from_shipinglist(
+    $dates = qr_find_ship_dates_from_shipinglist(
         $pdo,
         (string)($row['dp_code'] ?? ''),
         (string)($row['raw_code'] ?? '')
     );
+
+    $row['ship_date'] = $dates['ship_date'] ?? '';
+    $row['annealing_date'] = $dates['annealing_date'] ?? '';
+    $row['packing_date'] = $dates['packing_date'] ?? '';
+
     return $row;
 }
 
 function qr_fetch_recent(PDO $pdo, int $limit = 80): array {
     $accountNo = qr_current_account_no();
     $accountId = qr_current_account_id();
-    $limit = max(1, min(5000, $limit));
-    $scanLimit = max($limit * 10, 5000);
+    $limit = max(1, min(300, $limit));
+    $scanLimit = max($limit * 10, 300);
 
     if ($accountNo !== null) {
         $st = $pdo->prepare("SELECT id, account_no, account_id, scanner_name, scan_source, raw_code, label_code, barcode, dp_code, model_suffix, model_name, lot_date, cavity, tool, ea, remote_ip, created_at
@@ -395,14 +450,14 @@ function qr_insert_scan(PDO $pdo, array $parsed, string $source): int {
 }
 
 function qr_csv_download(PDO $pdo): void {
-    $rows = qr_fetch_recent($pdo, 1000);
+    $rows = qr_fetch_recent($pdo, 300);
     $fileName = 'qr_scan_' . date('Ymd_His') . '.csv';
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename="' . $fileName . '"');
     echo "\xEF\xBB\xBF";
     $out = fopen('php://output', 'w');
     // 화면의 바코드 내역 컬럼과 동일하게 다운로드
-    fputcsv($out, ['시간', '바코드', '모델', 'LOT', 'Tool', 'Cavity', 'ea', 'DP', '출하일자']);
+    fputcsv($out, ['시간', '바코드', '모델', 'LOT', 'Tool', 'Cavity', 'ea', 'DP', '출하일자', '어닐링일자', '포장일자']);
     foreach ($rows as $row) {
         fputcsv($out, [
             $row['created_at'] ?? '',
@@ -414,6 +469,8 @@ function qr_csv_download(PDO $pdo): void {
             $row['ea'] ?? '',
             $row['dp_code'] ?? '',
             $row['ship_date'] ?? '',
+            $row['annealing_date'] ?? '',
+            $row['packing_date'] ?? '',
         ]);
     }
     fclose($out);
@@ -446,7 +503,7 @@ if ($pdo && isset($_GET['ajax'])) {
     $action = (string)($_GET['action'] ?? '');
     try {
         if ($action === 'load') {
-            qr_json(['ok' => true, 'rows' => qr_fetch_recent($pdo, 1000), 'account_id' => qr_current_account_id(), 'account_no' => qr_current_account_no()]);
+            qr_json(['ok' => true, 'rows' => qr_fetch_recent($pdo, 80), 'account_id' => qr_current_account_id(), 'account_no' => qr_current_account_no()]);
         }
         if ($action === 'save') {
             $body = qr_read_json();
@@ -462,11 +519,11 @@ if ($pdo && isset($_GET['ajax'])) {
                     'id' => $duplicateId,
                     'message' => '이미 저장된 코드입니다.',
                     'parsed' => $parsed,
-                    'rows' => qr_fetch_recent($pdo, 1000)
+                    'rows' => qr_fetch_recent($pdo, 80)
                 ]);
             }
             $id = qr_insert_scan($pdo, $parsed, $source);
-            qr_json(['ok' => true, 'id' => $id, 'parsed' => $parsed, 'rows' => qr_fetch_recent($pdo, 1000)]);
+            qr_json(['ok' => true, 'id' => $id, 'parsed' => $parsed, 'rows' => qr_fetch_recent($pdo, 80)]);
         }
         if ($action === 'save_multi') {
             $body = qr_read_json();
@@ -498,7 +555,7 @@ if ($pdo && isset($_GET['ajax'])) {
                 'skipped_count' => count($skipped),
                 'skipped' => $skipped,
                 'parsed_list' => $parsedList,
-                'rows' => qr_fetch_recent($pdo, 1000)
+                'rows' => qr_fetch_recent($pdo, 80)
             ]);
         }
         if ($action === 'sn_lookup') {
@@ -533,16 +590,16 @@ if ($pdo && isset($_GET['ajax'])) {
                 'duplicate' => count($parsedList) === 0 && count($skipped) > 0,
                 'parsed' => $parsedList[0] ?? null,
                 'parsed_list' => $parsedList,
-                'rows' => qr_sn_fetch_recent($pdo, 1000)
+                'rows' => qr_sn_fetch_recent($pdo, 80)
             ]);
         }
         if ($action === 'sn_clear_history') {
             $deleted = qr_sn_clear_history($pdo);
-            qr_json(['ok' => true, 'deleted' => $deleted, 'rows' => qr_sn_fetch_recent($pdo, 1000)]);
+            qr_json(['ok' => true, 'deleted' => $deleted, 'rows' => qr_sn_fetch_recent($pdo, 80)]);
         }
         if ($action === 'clear_history') {
             $deleted = qr_clear_history($pdo);
-            qr_json(['ok' => true, 'deleted' => $deleted, 'rows' => qr_fetch_recent($pdo, 1000)]);
+            qr_json(['ok' => true, 'deleted' => $deleted, 'rows' => qr_fetch_recent($pdo, 80)]);
         }
         qr_json(['ok' => false, 'message' => '지원하지 않는 요청입니다.'], 400);
     } catch (Throwable $e) {
@@ -552,8 +609,8 @@ if ($pdo && isset($_GET['ajax'])) {
 
 $embed = !empty($_GET['embed']);
 $accountId = qr_current_account_id();
-$recentRows = $pdo ? qr_fetch_recent($pdo, 1000) : [];
-$snRecentRows = $pdo ? qr_sn_fetch_recent($pdo, 1000) : [];
+$recentRows = $pdo ? qr_fetch_recent($pdo, 20) : [];
+$snRecentRows = $pdo ? qr_sn_fetch_recent($pdo, 80) : [];
 ?>
 <!doctype html>
 <html lang="ko">
@@ -798,7 +855,7 @@ textarea.multiInput:focus,
         <div class="tableWrap qrHistoryTableWrap">
             <table>
                 <thead>
-                    <tr><th>시간</th><th>바코드</th><th>모델</th><th>LOT</th><th>Tool</th><th>Cavity</th><th>ea</th><th>DP</th><th>출하일자</th></tr>
+                    <tr><th>시간</th><th>바코드</th><th>모델</th><th>LOT</th><th>Tool</th><th>Cavity</th><th>ea</th><th>DP</th><th>출하일자</th><th>어닐링일자</th><th>포장일자</th></tr>
                 </thead>
                 <tbody id="rowsBody">
                 <?php foreach ($recentRows as $row): ?>
@@ -812,6 +869,8 @@ textarea.multiInput:focus,
                         <td><?= h((string)($row['ea'] ?? '')) ?></td>
                         <td><?= h((string)($row['dp_code'] ?? '')) ?></td>
                         <td><?= h((string)($row['ship_date'] ?? '')) ?></td>
+                        <td><?= h((string)($row['annealing_date'] ?? '')) ?></td>
+                        <td><?= h((string)($row['packing_date'] ?? '')) ?></td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>
@@ -938,7 +997,7 @@ textarea.multiInput:focus,
     function renderRows(rows) {
         if (!Array.isArray(rows)) return;
         rowsBody.innerHTML = rows.map(row => `<tr>
-            <td>${esc(row.created_at)}</td><td>${esc(row.raw_code)}</td><td>${esc(row.model_name)}</td><td>${esc(row.lot_date)}</td><td>${esc(row.tool)}</td><td>${esc(row.cavity)}</td><td>${esc(row.ea)}</td><td>${esc(row.dp_code)}</td><td>${esc(row.ship_date)}</td>
+            <td>${esc(row.created_at)}</td><td>${esc(row.raw_code)}</td><td>${esc(row.model_name)}</td><td>${esc(row.lot_date)}</td><td>${esc(row.tool)}</td><td>${esc(row.cavity)}</td><td>${esc(row.ea)}</td><td>${esc(row.dp_code)}</td><td>${esc(row.ship_date)}</td><td>${esc(row.annealing_date)}</td><td>${esc(row.packing_date)}</td>
         </tr>`).join('');
     }
     function normalizeScannedCode(code) {
