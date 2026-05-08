@@ -526,11 +526,11 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
 .qr-hidden-status{display:none !important;}
 .tableWrap table th,.tableWrap table td{text-align:center !important;vertical-align:middle;}
 
-.tabCard{padding:10px 14px 0;overflow:visible}
-.qrTabs{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;margin:0}
-.qrTab{appearance:none;border:1px solid rgba(120,145,205,.26) !important;background:rgba(255,255,255,.04) !important;color:var(--text) !important;padding:12px 18px !important;border-radius:14px 14px 0 0 !important;font-size:16px !important;font-weight:800 !important;line-height:1 !important;text-decoration:none !important;cursor:pointer;box-shadow:none !important;min-height:auto !important}
-.qrTab:hover{background:rgba(255,255,255,.08) !important}
-.qrTab.active{background:rgba(8,18,42,.98) !important;border-bottom-color:rgba(8,18,42,.98) !important;transform:translateY(1px)}
+.tabCard{padding:0 12px 0;overflow:visible;border-radius:18px 18px 0 0}
+.qrTabs{display:flex;align-items:flex-end;gap:6px;flex-wrap:wrap;margin:0}
+.qrTab{appearance:none;border:1px solid rgba(120,145,205,.34) !important;border-bottom-color:rgba(120,145,205,.28) !important;background:rgba(21,34,58,.68) !important;color:var(--text) !important;padding:12px 18px 11px !important;border-radius:12px 12px 0 0 !important;font-size:16px !important;font-weight:800 !important;line-height:1 !important;text-decoration:none !important;cursor:pointer;box-shadow:none !important;min-height:auto !important;position:relative;overflow:visible}
+.qrTab:hover{background:rgba(30,47,78,.82) !important}
+.qrTab.active{background:rgba(8,18,42,.98) !important;border-color:rgba(120,145,205,.42) !important;border-top-color:#61d58a !important;border-top-width:4px !important;border-bottom-color:rgba(8,18,42,.98) !important;transform:none !important;box-shadow:none !important;padding-top:9px !important}
 .qrTab.download{background:rgba(255,199,206,.20) !important;border-color:rgba(255,199,206,.62) !important;color:#ffe7eb !important}
 .qrTab.download:hover{background:rgba(255,199,206,.30) !important;border-color:rgba(255,199,206,.78) !important}
 .qrPanel{display:none}
@@ -559,6 +559,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
 
 .qrManualTextarea{width:100%;min-height:48px;max-height:120px;resize:vertical;padding:14px 16px;border-radius:16px;border:1px solid rgba(255,255,255,.09);background:#252f49;color:#fff;font-size:16px;outline:none;font-family:inherit}
 
+.tabCard::after{content:none !important;}
 </style>
 </head>
 <body>
