@@ -59,6 +59,18 @@ function qr_current_scanner_name(): string {
 
 require_once __DIR__ . '/../lib/sn_lookup.php';
 
+function qr_column_exists(PDO $pdo, string $table, string $column): bool {
+    $st = $pdo->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?");
+    $st->execute([$table, $column]);
+    return (int)$st->fetchColumn() > 0;
+}
+
+function qr_add_column_if_missing(PDO $pdo, string $column, string $definition): void {
+    if (!qr_column_exists($pdo, 'qr_scan_log', $column)) {
+        $pdo->exec("ALTER TABLE qr_scan_log ADD COLUMN {$column} {$definition}");
+    }
+}
+
 function qr_ensure_schema(PDO $pdo): void {
     $pdo->exec("CREATE TABLE IF NOT EXISTS qr_scan_log (
         id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -76,6 +88,9 @@ function qr_ensure_schema(PDO $pdo): void {
         cavity VARCHAR(10) DEFAULT NULL,
         tool VARCHAR(10) DEFAULT NULL,
         ea INT UNSIGNED DEFAULT NULL,
+        ship_date DATE DEFAULT NULL,
+        ann_date DATE DEFAULT NULL,
+        pack_date DATE DEFAULT NULL,
         remote_ip VARCHAR(45) DEFAULT NULL,
         user_agent TEXT DEFAULT NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -85,6 +100,10 @@ function qr_ensure_schema(PDO $pdo): void {
         KEY idx_dp_code (dp_code),
         KEY idx_lot_model (lot_date, model_name)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+    qr_add_column_if_missing($pdo, 'ship_date', "DATE DEFAULT NULL AFTER ea");
+    qr_add_column_if_missing($pdo, 'ann_date', "DATE DEFAULT NULL AFTER ship_date");
+    qr_add_column_if_missing($pdo, 'pack_date', "DATE DEFAULT NULL AFTER ann_date");
 }
 
 function qr_excel_weekday_index_from_code(int $dayDigit): ?int {
@@ -210,8 +229,8 @@ function qr_find_ship_dates_from_shipinglist(PDO $pdo, string $dpCode, string $r
 
     $empty = [
         'ship_date' => '',
-        'annealing_date' => '',
-        'packing_date' => '',
+        'ann_date' => '',
+        'pack_date' => '',
     ];
 
     if ($dpCode === '' && $rawCode === '') return $empty;
@@ -255,8 +274,8 @@ function qr_find_ship_dates_from_shipinglist(PDO $pdo, string $dpCode, string $r
 
         return [
             'ship_date' => qr_date_only($row['ship_value'] ?? ''),
-            'annealing_date' => qr_date_only($row['annealing_value'] ?? ''),
-            'packing_date' => qr_date_only($row['packing_value'] ?? ''),
+            'ann_date' => qr_date_only($row['annealing_value'] ?? ''),
+            'pack_date' => qr_date_only($row['packing_value'] ?? ''),
         ];
     } catch (Throwable $e) {
         return $empty;
@@ -271,8 +290,8 @@ function qr_enrich_ship_date(PDO $pdo, array $row): array {
     );
 
     $row['ship_date'] = $dates['ship_date'] ?? '';
-    $row['annealing_date'] = $dates['annealing_date'] ?? '';
-    $row['packing_date'] = $dates['packing_date'] ?? '';
+    $row['ann_date'] = $dates['ann_date'] ?? '';
+    $row['pack_date'] = $dates['pack_date'] ?? '';
 
     return $row;
 }
@@ -284,14 +303,14 @@ function qr_fetch_recent(PDO $pdo, int $limit = 80): array {
     $scanLimit = max($limit * 10, 300);
 
     if ($accountNo !== null) {
-        $st = $pdo->prepare("SELECT id, account_no, account_id, scanner_name, scan_source, raw_code, label_code, barcode, dp_code, model_suffix, model_name, lot_date, cavity, tool, ea, remote_ip, created_at
+        $st = $pdo->prepare("SELECT id, account_no, account_id, scanner_name, scan_source, raw_code, label_code, barcode, dp_code, model_suffix, model_name, lot_date, cavity, tool, ea, ship_date, ann_date, pack_date, remote_ip, created_at
             FROM qr_scan_log
             WHERE account_no = :account_no
             ORDER BY created_at DESC, id DESC
             LIMIT {$scanLimit}");
         $st->execute([':account_no' => $accountNo]);
     } else {
-        $st = $pdo->prepare("SELECT id, account_no, account_id, scanner_name, scan_source, raw_code, label_code, barcode, dp_code, model_suffix, model_name, lot_date, cavity, tool, ea, remote_ip, created_at
+        $st = $pdo->prepare("SELECT id, account_no, account_id, scanner_name, scan_source, raw_code, label_code, barcode, dp_code, model_suffix, model_name, lot_date, cavity, tool, ea, ship_date, ann_date, pack_date, remote_ip, created_at
             FROM qr_scan_log
             WHERE account_id = :account_id
             ORDER BY created_at DESC, id DESC
@@ -312,7 +331,6 @@ function qr_fetch_recent(PDO $pdo, int $limit = 80): array {
         if (isset($seen[$key])) continue;
         $seen[$key] = true;
         $row = qr_normalize_tool_cavity_from_dp($row);
-        $row = qr_enrich_ship_date($pdo, $row);
         $out[] = $row;
 
         if (count($out) >= $limit) break;
@@ -384,6 +402,51 @@ function qr_duplicate_scan_id(PDO $pdo, array $parsed): ?int {
     return $id ? (int)$id : null;
 }
 
+function qr_lookup_ship_dates_once(PDO $pdo, string $dpCode, string $rawCode = ''): array {
+    $empty = ['ship_date' => '', 'ann_date' => '', 'pack_date' => ''];
+    $dpCode = trim($dpCode);
+    $rawCode = trim($rawCode);
+    if ($dpCode === '' && $rawCode === '') return $empty;
+
+    try {
+        $where = [];
+        $params = [];
+
+        if ($dpCode !== '') {
+            $where[] = "customer_lot_id = :dp";
+            $where[] = "pack_barcode = :dp";
+            $where[] = "small_pack_no = :dp";
+            $where[] = "pack_no = :dp";
+            $params[':dp'] = $dpCode;
+        }
+
+        if ($rawCode !== '') {
+            $where[] = "pack_barcode = :raw";
+            $params[':raw'] = $rawCode;
+        }
+
+        if (!$where) return $empty;
+
+        $sql = "SELECT ship_datetime, ann_date, pack_date
+                FROM ShipingList
+                WHERE " . implode(' OR ', $where) . "
+                ORDER BY ship_datetime DESC, id DESC
+                LIMIT 1";
+        $st = $pdo->prepare($sql);
+        $st->execute($params);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        if (!$row) return $empty;
+
+        return [
+            'ship_date' => qr_date_only($row['ship_datetime'] ?? ''),
+            'ann_date' => qr_date_only($row['ann_date'] ?? ''),
+            'pack_date' => qr_date_only($row['pack_date'] ?? ''),
+        ];
+    } catch (Throwable $e) {
+        return $empty;
+    }
+}
+
 function qr_insert_scan(PDO $pdo, array $parsed, string $source): int {
     $accountNo = qr_current_account_no();
     $accountId = qr_current_account_id();
@@ -392,9 +455,9 @@ function qr_insert_scan(PDO $pdo, array $parsed, string $source): int {
     $ua = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
 
     $st = $pdo->prepare("INSERT INTO qr_scan_log
-        (account_no, account_id, scanner_name, scan_source, raw_code, label_code, barcode, dp_code, model_suffix, model_name, lot_date, cavity, tool, ea, remote_ip, user_agent)
+        (account_no, account_id, scanner_name, scan_source, raw_code, label_code, barcode, dp_code, model_suffix, model_name, lot_date, cavity, tool, ea, ship_date, ann_date, pack_date, remote_ip, user_agent)
         VALUES
-        (:account_no, :account_id, :scanner_name, :scan_source, :raw_code, :label_code, :barcode, :dp_code, :model_suffix, :model_name, :lot_date, :cavity, :tool, :ea, :remote_ip, :user_agent)");
+        (:account_no, :account_id, :scanner_name, :scan_source, :raw_code, :label_code, :barcode, :dp_code, :model_suffix, :model_name, :lot_date, :cavity, :tool, :ea, :ship_date, :ann_date, :pack_date, :remote_ip, :user_agent)");
 
     $st->bindValue(':account_no', $accountNo, $accountNo === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
     $st->bindValue(':account_id', $accountId, PDO::PARAM_STR);
@@ -411,7 +474,9 @@ function qr_insert_scan(PDO $pdo, array $parsed, string $source): int {
     $st->bindValue(':cavity', $parsed['cavity'], PDO::PARAM_STR);
     $st->bindValue(':tool', $parsed['tool'], PDO::PARAM_STR);
     if ($parsed['ea'] === null) $st->bindValue(':ea', null, PDO::PARAM_NULL);
-    else $st->bindValue(':ea', (int)$parsed['ea'], PDO::PARAM_INT);
+    else $st->bindValue(':ea', (int)$parsed['ea'], PDO::PARAM_INT);    $st->bindValue(':ship_date', null, PDO::PARAM_NULL);
+    $st->bindValue(':ann_date', null, PDO::PARAM_NULL);
+    $st->bindValue(':pack_date', null, PDO::PARAM_NULL);
     $st->bindValue(':remote_ip', $ip, PDO::PARAM_STR);
     $st->bindValue(':user_agent', $ua, PDO::PARAM_STR);
     $st->execute();
@@ -439,8 +504,8 @@ function qr_csv_download(PDO $pdo): void {
             $row['ea'] ?? '',
             $row['dp_code'] ?? '',
             $row['ship_date'] ?? '',
-            $row['annealing_date'] ?? '',
-            $row['packing_date'] ?? '',
+            $row['ann_date'] ?? '',
+            $row['pack_date'] ?? '',
         ]);
     }
     fclose($out);
@@ -839,8 +904,8 @@ textarea.multiInput:focus,
                         <td><?= h((string)($row['ea'] ?? '')) ?></td>
                         <td><?= h((string)($row['dp_code'] ?? '')) ?></td>
                         <td><?= h((string)($row['ship_date'] ?? '')) ?></td>
-                        <td><?= h((string)($row['annealing_date'] ?? '')) ?></td>
-                        <td><?= h((string)($row['packing_date'] ?? '')) ?></td>
+                        <td><?= h((string)($row['ann_date'] ?? '')) ?></td>
+                        <td><?= h((string)($row['pack_date'] ?? '')) ?></td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>
@@ -967,7 +1032,7 @@ textarea.multiInput:focus,
     function renderRows(rows) {
         if (!Array.isArray(rows)) return;
         rowsBody.innerHTML = rows.map(row => `<tr>
-            <td>${esc(row.created_at)}</td><td>${esc(row.raw_code)}</td><td>${esc(row.model_name)}</td><td>${esc(row.lot_date)}</td><td>${esc(row.tool)}</td><td>${esc(row.cavity)}</td><td>${esc(row.ea)}</td><td>${esc(row.dp_code)}</td><td>${esc(row.ship_date)}</td><td>${esc(row.annealing_date)}</td><td>${esc(row.packing_date)}</td>
+            <td>${esc(row.created_at)}</td><td>${esc(row.raw_code)}</td><td>${esc(row.model_name)}</td><td>${esc(row.lot_date)}</td><td>${esc(row.tool)}</td><td>${esc(row.cavity)}</td><td>${esc(row.ea)}</td><td>${esc(row.dp_code)}</td><td>${esc(row.ship_date)}</td><td>${esc(row.ann_date)}</td><td>${esc(row.pack_date)}</td><td>${esc(row.ann_date)}</td><td>${esc(row.pack_date)}</td>
         </tr>`).join('');
     }
     function normalizeScannedCode(code) {
