@@ -120,7 +120,7 @@ function qr_sn_parse(string $raw): array {
 
     $companyMap = ['D' => 'Dpamstech'];
     $plantMap = ['G' => 'Gunpo 공장'];
-    $programMap = ['V' => 'Varo Program'];
+    $programMap = ['V' => 'Varo Program', 'M' => 'Memphis Program'];
     $modelMap = qr_sn_model_map();
     $weekdayMap = ['1' => '월요일', '2' => '화요일', '3' => '수요일', '4' => '목요일', '5' => '금요일', '6' => '토요일', '7' => '일요일'];
 
@@ -432,25 +432,25 @@ function qr_sn_csv_download(PDO $pdo): void {
     echo "\xEF\xBB\xBF";
 
     $out = fopen('php://output', 'w');
-    // 화면의 SN 조회 내역 컬럼 순서와 동일하게 다운로드
-    fputcsv($out, ['조회시간', 'SN', '제조일자', '회사', '공장', '프로그램', '생산순서', '모델', '라인', '설비', '금형', '캐비티', '리비전']);
+    fputcsv($out, ['조회시간', 'SN', '회사', '공장', '프로그램', '제조일자', '생산순서', '생산시간대', '생산순번', '모델', '라인', '설비', '금형', '캐비티', '리비전', '주의사항']);
     foreach ($rows as $row) {
-        $sequenceText = trim((string)($row['sequence_shift_name'] ?? '') . ' ' . (string)($row['sequence_no_name'] ?? ''));
-
         fputcsv($out, [
             $row['created_at'] ?? '',
             $row['sn_code'] ?? '',
-            $row['mfg_date'] ?? '',
             $row['company_name'] ?? '',
             $row['plant_name'] ?? '',
             $row['program_name'] ?? '',
-            $sequenceText,
+            $row['mfg_date'] ?? '',
+            $row['sequence_code'] ?? '',
+            $row['sequence_shift_name'] ?? '',
+            $row['sequence_no_name'] ?? '',
             $row['model_name'] ?? ($row['type_name'] ?? ''),
             $row['line_code'] ?? '',
             $row['equipment_no'] ?? '',
             $row['mold_code'] ?? '',
             $row['cavity'] ?? '',
             $row['revision'] ?? '',
+            $row['warnings'] ?? '',
         ]);
     }
     fclose($out);
