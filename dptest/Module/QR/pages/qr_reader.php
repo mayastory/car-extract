@@ -401,10 +401,30 @@ if ($pdo && isset($_GET['ajax'])) {
         }
         if ($action === 'sn_lookup') {
             $body = qr_read_json();
-            $sn = trim((string)($body['sn'] ?? ''));
-            $parsed = qr_sn_parse($sn);
-            $id = qr_sn_insert_lookup($pdo, $parsed);
-            qr_json(['ok' => true, 'id' => $id, 'parsed' => $parsed, 'rows' => qr_sn_fetch_recent($pdo, 80)]);
+            $snRaw = trim((string)($body['sn'] ?? ''));
+            $codes = qr_sn_split_codes($snRaw);
+            if (!$codes) qr_json(['ok' => false, 'message' => 'SN을 입력해 주세요.'], 400);
+
+            $parsedList = [];
+            $ids = [];
+            foreach ($codes as $sn) {
+                $parsed = qr_sn_parse($sn);
+                $ids[] = qr_sn_insert_lookup($pdo, $parsed);
+                $parsedList[] = $parsed;
+            }
+
+            qr_json([
+                'ok' => true,
+                'ids' => $ids,
+                'count' => count($parsedList),
+                'parsed' => $parsedList[0] ?? null,
+                'parsed_list' => $parsedList,
+                'rows' => qr_sn_fetch_recent($pdo, 80)
+            ]);
+        }
+        if ($action === 'sn_clear_history') {
+            $deleted = qr_sn_clear_history($pdo);
+            qr_json(['ok' => true, 'deleted' => $deleted, 'rows' => qr_sn_fetch_recent($pdo, 80)]);
         }
         if ($action === 'clear_history') {
             $deleted = qr_clear_history($pdo);
@@ -479,7 +499,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
             <button type="button" class="qrTab active" data-tab-target="reader" aria-selected="true">QR 리더기</button>
             <button type="button" class="qrTab" data-tab-target="history" aria-selected="false">QR 내역</button>
             <button type="button" class="qrTab" data-tab-target="sn" aria-selected="false">SN 조회</button>
-            <a class="qrTab download" href="?download=csv">CSV 다운로드</a>
+            <a class="qrTab download" id="dynamicCsvDownload" href="?download=csv">QR CSV 다운로드</a>
         </div>
     </div>
 
@@ -539,10 +559,10 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
     <div class="card">
         <div class="historyHeader">
             <h2>SN 조회</h2>
-            <a class="clearHistoryBtn snCsvBtn" href="?download=sn_csv">SN CSV 다운로드</a>
+            <button type="button" class="clearHistoryBtn" id="snClearHistoryBtn">비우기</button>
         </div>
         <div class="manualGrid snLookupGrid">
-            <input type="text" id="snInput" placeholder="예: DGVD18510001R+A10A4+B" autocomplete="off">
+            <input type="text" id="snInput" placeholder="예: DGVD18510001R+A10A4+B, DGMG13445216B+E08H4+B" autocomplete="off">
             <button id="snLookupBtn" type="button">조회</button>
         </div>
         <div id="snResult" class="snResult muted">SN을 입력하고 조회를 눌러 주세요.</div>
@@ -632,7 +652,9 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
     const snResult = document.getElementById('snResult');
     const snRowsBody = document.getElementById('snRowsBody');
     const snTableWrap = document.getElementById('snTableWrap');
+    const dynamicCsvDownload = document.getElementById('dynamicCsvDownload');
     const snHistoryBody = document.getElementById('snHistoryBody');
+    const snClearHistoryBtn = document.getElementById('snClearHistoryBtn');
     const hasSecure = window.isSecureContext === true;
     const hasMediaDevices = !!navigator.mediaDevices;
     const hasGetUserMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
@@ -667,6 +689,20 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
         };
         const panel = document.getElementById(panelMap[name] || 'qrPanelReader');
         if (panel) panel.classList.add('active');
+
+        if (dynamicCsvDownload) {
+            const url = new URL(location.href);
+            url.searchParams.delete('ajax');
+            url.searchParams.delete('action');
+            if (name === 'sn') {
+                url.searchParams.set('download', 'sn_csv');
+                dynamicCsvDownload.textContent = 'SN CSV 다운로드';
+            } else {
+                url.searchParams.set('download', 'csv');
+                dynamicCsvDownload.textContent = 'QR CSV 다운로드';
+            }
+            dynamicCsvDownload.href = url.toString();
+        }
     }
     function ajaxUrl(action) {
         const url = new URL(location.href);
@@ -782,19 +818,57 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
             });
             const data = await res.json();
             if (!res.ok || !data.ok) throw new Error(data.message || 'SN 조회 실패');
-            const parsed = data.parsed || {};
-            const warnings = Array.isArray(parsed.warnings) ? parsed.warnings : [];
-            snResult.textContent = warnings.length
-                ? `조회 완료: ${parsed.sn_code || ''}\n주의: ${warnings.join(' / ')}`
-                : `조회 완료: ${parsed.sn_code || ''}`;
-            snResult.className = 'snResult ' + (warnings.length ? 'warn' : 'ok');
-            renderSnDetail(parsed);
+
+            const list = Array.isArray(data.parsed_list) ? data.parsed_list : (data.parsed ? [data.parsed] : []);
+            const warningItems = [];
+            list.forEach(item => {
+                const warnings = Array.isArray(item.warnings) ? item.warnings : [];
+                if (warnings.length) warningItems.push(`${item.sn_code || ''}: ${warnings.join(' / ')}`);
+            });
+
+            if (list.length > 1) {
+                snResult.textContent = warningItems.length
+                    ? `SN ${list.length}건 추가 완료\n주의: ${warningItems.join('\n')}`
+                    : `SN ${list.length}건 추가 완료`;
+                snResult.className = 'snResult ' + (warningItems.length ? 'warn' : 'ok');
+                if (snRowsBody) snRowsBody.innerHTML = '';
+                if (snTableWrap) snTableWrap.style.display = 'none';
+            } else {
+                const parsed = list[0] || {};
+                const warnings = Array.isArray(parsed.warnings) ? parsed.warnings : [];
+                snResult.textContent = warnings.length
+                    ? `조회 완료: ${parsed.sn_code || ''}\n주의: ${warnings.join(' / ')}`
+                    : `조회 완료: ${parsed.sn_code || ''}`;
+                snResult.className = 'snResult ' + (warnings.length ? 'warn' : 'ok');
+                renderSnDetail(parsed);
+            }
+
             renderSnHistory(data.rows || []);
         } catch (e) {
             snResult.textContent = e.message || 'SN 조회 실패';
             snResult.className = 'snResult bad';
             snRowsBody.innerHTML = '';
             snTableWrap.style.display = 'none';
+        }
+    }
+    async function clearSnHistory() {
+        const ok = window.confirm('내 SN 조회 이력을 전체 비울까요?');
+        if (!ok) return;
+
+        const res = await fetch(ajaxUrl('sn_clear_history'), {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({clear: true})
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.message || 'SN 이력 비우기 실패');
+
+        renderSnHistory(data.rows || []);
+        if (snRowsBody) snRowsBody.innerHTML = '';
+        if (snTableWrap) snTableWrap.style.display = 'none';
+        if (snResult) {
+            snResult.textContent = `SN 조회 이력 비우기 완료\n삭제 건수: ${data.deleted ?? 0}`;
+            snResult.className = 'snResult ok';
         }
     }
     async function clearHistory() {
@@ -879,12 +953,25 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
             }
         });
     }
+    if (snClearHistoryBtn) {
+        snClearHistoryBtn.addEventListener('click', async () => {
+            try { await clearSnHistory(); } catch (e) {
+                if (snResult) {
+                    snResult.textContent = 'SN 비우기 오류: ' + e.message;
+                    snResult.className = 'snResult bad';
+                } else {
+                    setStatus('SN 비우기 오류: ' + e.message, 'bad');
+                }
+            }
+        });
+    }
     if (clearHistoryBtn) {
         clearHistoryBtn.addEventListener('click', async () => {
             try { await clearHistory(); } catch (e) { setStatus('비우기 오류: ' + e.message, 'bad'); }
         });
     }
     manualCode.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); document.getElementById('manualSaveBtn').click(); } });
+    activateTab('reader');
     window.addEventListener('beforeunload', stopCamera);
 })();
 </script>

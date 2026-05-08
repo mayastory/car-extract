@@ -72,6 +72,25 @@ function qr_sn_model_map(): array {
     ];
 }
 
+function qr_sn_split_codes(string $raw): array {
+    $raw = trim($raw);
+    if ($raw === '') return [];
+
+    $parts = preg_split('/[\r\n,;]+/', $raw);
+    $codes = [];
+    $seen = [];
+
+    foreach ($parts as $part) {
+        $code = strtoupper(preg_replace('/\s+/', '', trim((string)$part)));
+        if ($code === '') continue;
+        if (isset($seen[$code])) continue;
+        $seen[$code] = true;
+        $codes[] = $code;
+    }
+
+    return $codes;
+}
+
 function qr_sn_parse(string $raw): array {
     $sn = strtoupper(preg_replace('/\s+/', '', trim($raw)));
     if ($sn === '') {
@@ -350,6 +369,23 @@ function qr_sn_fetch_recent(PDO $pdo, int $limit = 80): array {
     }
 
     return $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+}
+
+function qr_sn_clear_history(PDO $pdo): int {
+    $accountNo = qr_current_account_no();
+    $accountId = qr_current_account_id();
+
+    if ($accountNo !== null) {
+        $st = $pdo->prepare("DELETE FROM qr_sn_lookup_log WHERE account_no = :account_no");
+        $st->bindValue(':account_no', $accountNo, PDO::PARAM_INT);
+        $st->execute();
+        return $st->rowCount();
+    }
+
+    $st = $pdo->prepare("DELETE FROM qr_sn_lookup_log WHERE account_id = :account_id");
+    $st->bindValue(':account_id', $accountId, PDO::PARAM_STR);
+    $st->execute();
+    return $st->rowCount();
 }
 
 function qr_sn_csv_download(PDO $pdo): void {
