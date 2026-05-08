@@ -560,7 +560,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
         <div class="tableWrap">
             <table>
                 <thead>
-                    <tr><th>조회시간</th><th>SN</th><th>제조일자</th><th>회사</th><th>공장</th><th>프로그램</th><th>타입</th><th>라인</th><th>설비</th><th>캐비티</th><th>리비전</th></tr>
+                    <tr><th>조회시간</th><th>SN</th><th>제조일자</th><th>회사</th><th>공장</th><th>프로그램</th><th>모델</th><th>라인</th><th>설비</th><th>캐비티</th><th>리비전</th></tr>
                 </thead>
                 <tbody id="snHistoryBody">
                 <?php foreach ($snRecentRows as $row): ?>
@@ -571,7 +571,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
                         <td><?= h((string)($row['company_name'] ?? '')) ?></td>
                         <td><?= h((string)($row['plant_name'] ?? '')) ?></td>
                         <td><?= h((string)($row['program_name'] ?? '')) ?></td>
-                        <td><?= h((string)($row['type_name'] ?? '')) ?></td>
+                        <td><?= h((string)($row['model_name'] ?? ($row['type_name'] ?? ''))) ?></td>
                         <td><?= h((string)($row['line_code'] ?? '')) ?></td>
                         <td><?= h((string)($row['equipment_no'] ?? '')) ?></td>
                         <td><?= h((string)($row['cavity'] ?? '')) ?></td>
@@ -761,7 +761,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
             <td>${esc(row.company_name)}</td>
             <td>${esc(row.plant_name)}</td>
             <td>${esc(row.program_name)}</td>
-            <td>${esc(row.type_name)}</td>
+            <td>${esc(row.model_name || row.type_name)}</td>
             <td>${esc(row.line_code)}</td>
             <td>${esc(row.equipment_no)}</td>
             <td>${esc(row.cavity)}</td>

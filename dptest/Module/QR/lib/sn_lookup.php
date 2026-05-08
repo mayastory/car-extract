@@ -59,10 +59,13 @@ function qr_sn_parse(string $raw): array {
     $companyMap = ['D' => 'Dpamstech'];
     $plantMap = ['G' => 'Gunpo 공장'];
     $programMap = ['V' => 'Varo Program'];
-    $typeMap = [
-        'B' => 'IR Base',
-        'Y' => 'Y Carrier',
-        'Z' => 'Z Carrier',
+    $modelMap = [
+        'B' => 'MEM-IR-BASE',
+        'R' => 'MEM-IR-BASE',
+        'X' => 'MEM-X-CARRIER',
+        'Y' => 'MEM-Y-CARRIER',
+        'Z' => 'MEM-Z-CARRIER',
+        'S' => 'MEM-Z-STOPPER',
     ];
     $weekdayMap = ['1' => '월요일', '2' => '화요일', '3' => '수요일', '4' => '목요일', '5' => '금요일', '6' => '토요일', '7' => '일요일'];
 
@@ -95,8 +98,11 @@ function qr_sn_parse(string $raw): array {
         'weekday_name' => $weekdayMap[$dayCode] ?? $dayCode,
         'mfg_date' => $mfgDate,
         'sequence_code' => $sequence,
+        'model_code' => $typeCode,
+        'model_name' => $modelMap[$typeCode] ?? '미등록 모델코드',
+        // 이전 버전 호환용
         'type_code' => $typeCode,
-        'type_name' => $typeMap[$typeCode] ?? '미등록 타입/형태 코드',
+        'type_name' => $modelMap[$typeCode] ?? '미등록 모델코드',
         'delimiter1' => $delimiter1,
         'line_code' => $lineCode,
         'equipment_no' => $equipmentNo,
@@ -111,7 +117,7 @@ function qr_sn_parse(string $raw): array {
             ['프로그램', $programCode, $programMap[$programCode] ?? '미등록 프로그램코드'],
             ['제조일자', $mfgDate !== '' ? $mfgDate : ($yearCode . $weekCode . $dayCode), '년도 ' . $yearCode . ' / ' . $weekCode . '주차 / ' . ($weekdayMap[$dayCode] ?? $dayCode)],
             ['생산순서', $sequence, '생산순서 숫자 5자리'],
-            ['타입/형태', $typeCode, $typeMap[$typeCode] ?? '미등록 타입/형태 코드'],
+            ['모델', $typeCode, $modelMap[$typeCode] ?? '미등록 모델코드'],
             ['생산라인', $lineCode, $lineCode . ' 라인'],
             ['설비번호', $equipmentNo, $lineCode . '열 ' . ((int)$equipmentNo) . '번째 설비'],
             ['금형번호', $moldCode, '금형번호 / 제품 Version'],
@@ -119,6 +125,18 @@ function qr_sn_parse(string $raw): array {
             ['리비전', $revision, '리비전 ' . $revision],
         ],
     ];
+}
+
+function qr_sn_column_exists(PDO $pdo, string $table, string $column): bool {
+    $st = $pdo->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?");
+    $st->execute([$table, $column]);
+    return (int)$st->fetchColumn() > 0;
+}
+
+function qr_sn_add_column_if_missing(PDO $pdo, string $column, string $definition): void {
+    if (!qr_sn_column_exists($pdo, 'qr_sn_lookup_log', $column)) {
+        $pdo->exec("ALTER TABLE qr_sn_lookup_log ADD COLUMN {$column} {$definition}");
+    }
 }
 
 function qr_sn_ensure_schema(PDO $pdo): void {
@@ -139,6 +157,8 @@ function qr_sn_ensure_schema(PDO $pdo): void {
         day_code CHAR(1) DEFAULT NULL,
         mfg_date DATE DEFAULT NULL,
         sequence_code CHAR(5) DEFAULT NULL,
+        model_code CHAR(1) DEFAULT NULL,
+        model_name VARCHAR(80) DEFAULT NULL,
         type_code CHAR(1) DEFAULT NULL,
         type_name VARCHAR(80) DEFAULT NULL,
         line_code CHAR(1) DEFAULT NULL,
@@ -155,6 +175,16 @@ function qr_sn_ensure_schema(PDO $pdo): void {
         KEY idx_sn_code (sn_code),
         KEY idx_mfg_date (mfg_date)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+    qr_sn_add_column_if_missing($pdo, 'model_code', "CHAR(1) DEFAULT NULL AFTER sequence_code");
+    qr_sn_add_column_if_missing($pdo, 'model_name', "VARCHAR(80) DEFAULT NULL AFTER model_code");
+    qr_sn_add_column_if_missing($pdo, 'type_code', "CHAR(1) DEFAULT NULL AFTER model_name");
+    qr_sn_add_column_if_missing($pdo, 'type_name', "VARCHAR(80) DEFAULT NULL AFTER type_code");
+    qr_sn_add_column_if_missing($pdo, 'line_code', "CHAR(1) DEFAULT NULL AFTER type_name");
+    qr_sn_add_column_if_missing($pdo, 'equipment_no', "CHAR(2) DEFAULT NULL AFTER line_code");
+    qr_sn_add_column_if_missing($pdo, 'mold_code', "CHAR(1) DEFAULT NULL AFTER equipment_no");
+    qr_sn_add_column_if_missing($pdo, 'cavity', "CHAR(1) DEFAULT NULL AFTER mold_code");
+    qr_sn_add_column_if_missing($pdo, 'revision', "CHAR(1) DEFAULT NULL AFTER cavity");
 }
 
 function qr_sn_insert_lookup(PDO $pdo, array $parsed): int {
@@ -165,9 +195,9 @@ function qr_sn_insert_lookup(PDO $pdo, array $parsed): int {
     $ua = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
 
     $st = $pdo->prepare("INSERT INTO qr_sn_lookup_log
-        (account_no, account_id, scanner_name, sn_code, company_code, company_name, plant_code, plant_name, program_code, program_name, year_code, week_code, day_code, mfg_date, sequence_code, type_code, type_name, line_code, equipment_no, mold_code, cavity, revision, warnings, remote_ip, user_agent)
+        (account_no, account_id, scanner_name, sn_code, company_code, company_name, plant_code, plant_name, program_code, program_name, year_code, week_code, day_code, mfg_date, sequence_code, model_code, model_name, type_code, type_name, line_code, equipment_no, mold_code, cavity, revision, warnings, remote_ip, user_agent)
         VALUES
-        (:account_no, :account_id, :scanner_name, :sn_code, :company_code, :company_name, :plant_code, :plant_name, :program_code, :program_name, :year_code, :week_code, :day_code, :mfg_date, :sequence_code, :type_code, :type_name, :line_code, :equipment_no, :mold_code, :cavity, :revision, :warnings, :remote_ip, :user_agent)");
+        (:account_no, :account_id, :scanner_name, :sn_code, :company_code, :company_name, :plant_code, :plant_name, :program_code, :program_name, :year_code, :week_code, :day_code, :mfg_date, :sequence_code, :model_code, :model_name, :type_code, :type_name, :line_code, :equipment_no, :mold_code, :cavity, :revision, :warnings, :remote_ip, :user_agent)");
 
     $st->bindValue(':account_no', $accountNo, $accountNo === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
     $st->bindValue(':account_id', $accountId, PDO::PARAM_STR);
@@ -185,6 +215,8 @@ function qr_sn_insert_lookup(PDO $pdo, array $parsed): int {
     if (($parsed['mfg_date'] ?? '') === '') $st->bindValue(':mfg_date', null, PDO::PARAM_NULL);
     else $st->bindValue(':mfg_date', $parsed['mfg_date'], PDO::PARAM_STR);
     $st->bindValue(':sequence_code', $parsed['sequence_code'], PDO::PARAM_STR);
+    $st->bindValue(':model_code', $parsed['model_code'], PDO::PARAM_STR);
+    $st->bindValue(':model_name', $parsed['model_name'], PDO::PARAM_STR);
     $st->bindValue(':type_code', $parsed['type_code'], PDO::PARAM_STR);
     $st->bindValue(':type_name', $parsed['type_name'], PDO::PARAM_STR);
     $st->bindValue(':line_code', $parsed['line_code'], PDO::PARAM_STR);
@@ -225,7 +257,7 @@ function qr_sn_csv_download(PDO $pdo): void {
     echo "\xEF\xBB\xBF";
 
     $out = fopen('php://output', 'w');
-    fputcsv($out, ['조회시간', 'SN', '회사', '공장', '프로그램', '제조일자', '생산순서', '타입/형태', '생산라인', '설비번호', '금형번호', '캐비티', '리비전', '주의사항']);
+    fputcsv($out, ['조회시간', 'SN', '회사', '공장', '프로그램', '제조일자', '생산순서', '모델', '생산라인', '설비번호', '금형번호', '캐비티', '리비전', '주의사항']);
     foreach ($rows as $row) {
         fputcsv($out, [
             $row['created_at'] ?? '',
@@ -235,7 +267,7 @@ function qr_sn_csv_download(PDO $pdo): void {
             $row['program_name'] ?? '',
             $row['mfg_date'] ?? '',
             $row['sequence_code'] ?? '',
-            $row['type_name'] ?? '',
+            $row['model_name'] ?? ($row['type_name'] ?? ''),
             $row['line_code'] ?? '',
             $row['equipment_no'] ?? '',
             $row['mold_code'] ?? '',
