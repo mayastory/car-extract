@@ -1375,6 +1375,48 @@ setDiag('dProtocol', location.protocol, true);
         // 예: DGMG13445216B+E08H4+B
         return /^[A-Z]{4}\d{3}\d{5}[A-Z]\+[A-Z]\d{2}[A-Z]\d\+[A-Z]$/.test(s);
     }
+    function splitManualInputCodes(raw) {
+        const seen = new Set();
+        return String(raw || '')
+            .split(/[\r\n,;]+/)
+            .map(v => v.trim())
+            .filter(v => {
+                if (!v) return false;
+                const key = normalizeScannedCode(v);
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+    }
+    async function saveBarcodeCodes(codes, source='manual') {
+        const res = await fetch(ajaxUrl('save_multi'), {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({code: codes.join('\n'), source})
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.message || '바코드 저장 실패');
+        renderRows(data.rows || []);
+        return data;
+    }
+    async function saveSnCodes(codes, source='manual') {
+        const res = await fetch(ajaxUrl('sn_lookup'), {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({sn: codes.join('\n'), source})
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.message || 'SN 저장 실패');
+        renderSnHistory(data.rows || []);
+        return data;
+    }
+    function appendSaveSummary(parts, label, data) {
+        if (!data) return;
+        const inserted = Number(data.inserted_count ?? data.count ?? 0);
+        const skipped = Number(data.skipped_count ?? 0);
+        if (inserted > 0) parts.push(`${label} ${inserted}건 저장 완료`);
+        if (skipped > 0) parts.push(`${label} 중복 ${skipped}건 제외`);
+    }
     async function saveSnCode(code, source) {
         const res = await fetch(ajaxUrl('sn_lookup'), {
             method: 'POST',
@@ -1427,36 +1469,50 @@ setDiag('dProtocol', location.protocol, true);
         manualResult.className = 'snResult ' + cls;
     }
     async function saveManualCodes() {
-        const code = manualCode ? manualCode.value.trim() : '';
-        if (!code) {
+        const raw = manualCode ? manualCode.value.trim() : '';
+        if (!raw) {
             setManualResult('수동 입력값을 넣어 주세요.', 'bad');
             if (manualCode) manualCode.focus();
             return;
         }
 
-        const res = await fetch(ajaxUrl('save_multi'), {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({code, source: 'manual'})
-        });
-        const data = await res.json();
-        if (!res.ok || !data.ok) throw new Error(data.message || '저장 실패');
+        const codes = splitManualInputCodes(raw);
+        const snCodes = [];
+        const barcodeCodes = [];
 
-        const inserted = Number(data.inserted_count || 0);
-        const skipped = Number(data.skipped_count || 0);
+        codes.forEach(code => {
+            if (isSnCode(code)) snCodes.push(code);
+            else barcodeCodes.push(code);
+        });
+
         const msg = [];
-        if (inserted > 0) msg.push(`QR ${inserted}건 저장 완료`);
-        if (skipped > 0) msg.push(`중복 ${skipped}건 제외`);
-        if (!msg.length) msg.push('처리할 신규 QR이 없습니다.');
-        if (skipped > 0 && Array.isArray(data.skipped) && data.skipped.length <= 5) {
-            msg.push(`중복 QR: ${data.skipped.join(', ')}`);
+        let barcodeData = null;
+        let snData = null;
+
+        if (barcodeCodes.length) {
+            barcodeData = await saveBarcodeCodes(barcodeCodes, 'manual');
+            appendSaveSummary(msg, 'QR', barcodeData);
         }
 
-        setManualResult(msg.join('\n'), skipped > 0 ? 'warn' : 'ok');
-        renderRows(data.rows || []);
+        if (snCodes.length) {
+            snData = await saveSnCodes(snCodes, 'manual_from_barcode_tab');
+            appendSaveSummary(msg, 'SN', snData);
+        }
 
-        if (manualCode) {
-            manualCode.select();
+        if (!msg.length) msg.push('처리할 신규 코드가 없습니다.');
+
+        if (snCodes.length && !barcodeCodes.length) {
+            setManualResult('SN 형식이라 SN 내역에 저장했습니다.', 'warn');
+            if (snInput) snInput.value = raw;
+            if (snResult) {
+                snResult.textContent = msg.join('\n');
+                snResult.className = 'snResult ok';
+            }
+            activateTab('sn');
+        } else {
+            if (snCodes.length) msg.push('SN 형식은 SN 내역에 같이 저장했습니다.');
+            setManualResult(msg.join('\n'), snCodes.length ? 'warn' : 'ok');
+            if (manualCode) manualCode.select();
         }
     }
     async function handleDetected(code, source) {
@@ -1507,47 +1563,71 @@ setDiag('dProtocol', location.protocol, true);
     }
     async function renderSnLookup() {
         try {
-            const sn = snInput ? snInput.value : '';
-            const res = await fetch(ajaxUrl('sn_lookup'), {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({sn})
-            });
-            const data = await res.json();
-            if (!res.ok || !data.ok) throw new Error(data.message || 'SN 저장 실패');
-
-            const list = Array.isArray(data.parsed_list) ? data.parsed_list : (data.parsed ? [data.parsed] : []);
-            const warningItems = [];
-            list.forEach(item => {
-                const warnings = Array.isArray(item.warnings) ? item.warnings : [];
-                if (warnings.length) warningItems.push(`${item.sn_code || ''}: ${warnings.join(' / ')}`);
-            });
-
-            const insertedCount = Number(data.inserted_count ?? list.length);
-            const skippedCount = Number(data.skipped_count ?? 0);
-            const skipped = Array.isArray(data.skipped) ? data.skipped : [];
-
-            if (list.length > 1 || skippedCount > 0) {
-                const msg = [];
-                if (insertedCount > 0) msg.push(`SN ${insertedCount}건 추가 완료`);
-                if (skippedCount > 0) msg.push(`중복 ${skippedCount}건 제외`);
-                if (warningItems.length) msg.push(`주의: ${warningItems.join('\n')}`);
-                if (skippedCount > 0 && skipped.length <= 5) msg.push(`중복 SN: ${skipped.join(', ')}`);
-                snResult.textContent = msg.join('\n') || '처리할 신규 SN이 없습니다.';
-                snResult.className = 'snResult ' + ((warningItems.length || skippedCount > 0) ? 'warn' : 'ok');
-                if (snRowsBody) snRowsBody.innerHTML = '';
-                if (snTableWrap) snTableWrap.style.display = 'none';
-            } else {
-                const parsed = list[0] || {};
-                const warnings = Array.isArray(parsed.warnings) ? parsed.warnings : [];
-                snResult.textContent = warnings.length
-                    ? `저장 완료: ${parsed.sn_code || ''}\n주의: ${warnings.join(' / ')}`
-                    : `저장 완료: ${parsed.sn_code || ''}`;
-                snResult.className = 'snResult ' + (warnings.length ? 'warn' : 'ok');
-                renderSnDetail(parsed);
+            const raw = snInput ? snInput.value.trim() : '';
+            if (!raw) {
+                snResult.textContent = 'SN을 입력해 주세요.';
+                snResult.className = 'snResult bad';
+                if (snInput) snInput.focus();
+                return;
             }
 
-            renderSnHistory(data.rows || []);
+            const codes = splitManualInputCodes(raw);
+            const snCodes = [];
+            const barcodeCodes = [];
+
+            codes.forEach(code => {
+                if (isSnCode(code)) snCodes.push(code);
+                else barcodeCodes.push(code);
+            });
+
+            const msg = [];
+            let snData = null;
+            let barcodeData = null;
+
+            if (snCodes.length) {
+                snData = await saveSnCodes(snCodes, 'manual');
+                const list = Array.isArray(snData.parsed_list) ? snData.parsed_list : (snData.parsed ? [snData.parsed] : []);
+                const warningItems = [];
+                list.forEach(item => {
+                    const warnings = Array.isArray(item.warnings) ? item.warnings : [];
+                    if (warnings.length) warningItems.push(`${item.sn_code || ''}: ${warnings.join(' / ')}`);
+                });
+                appendSaveSummary(msg, 'SN', snData);
+
+                if (snCodes.length === 1 && !barcodeCodes.length) {
+                    const parsed = list[0] || {};
+                    const warnings = Array.isArray(parsed.warnings) ? parsed.warnings : [];
+                    snResult.textContent = warnings.length
+                        ? `저장 완료: ${parsed.sn_code || ''}\n주의: ${warnings.join(' / ')}`
+                        : `저장 완료: ${parsed.sn_code || ''}`;
+                    snResult.className = 'snResult ' + (warnings.length ? 'warn' : 'ok');
+                    renderSnDetail(parsed);
+                    return;
+                }
+
+                if (warningItems.length) msg.push(`주의: ${warningItems.join('\n')}`);
+            }
+
+            if (barcodeCodes.length) {
+                barcodeData = await saveBarcodeCodes(barcodeCodes, 'manual_from_sn_tab');
+                appendSaveSummary(msg, 'QR', barcodeData);
+            }
+
+            if (!msg.length) msg.push('처리할 신규 코드가 없습니다.');
+
+            if (barcodeCodes.length && !snCodes.length) {
+                if (manualCode) manualCode.value = raw;
+                setManualResult(msg.join('\n'), 'ok');
+                snResult.textContent = '바코드 형식이라 바코드 내역에 저장했습니다.';
+                snResult.className = 'snResult warn';
+                activateTab('history');
+            } else {
+                if (barcodeCodes.length) msg.push('바코드 형식은 바코드 내역에 같이 저장했습니다.');
+                snResult.textContent = msg.join('\n');
+                snResult.className = 'snResult ' + (barcodeCodes.length ? 'warn' : 'ok');
+                if (snRowsBody) snRowsBody.innerHTML = '';
+                if (snTableWrap) snTableWrap.style.display = 'none';
+            }
         } catch (e) {
             snResult.textContent = e.message || 'SN 저장 실패';
             snResult.className = 'snResult bad';
