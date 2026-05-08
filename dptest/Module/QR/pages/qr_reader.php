@@ -841,7 +841,6 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
 
         const list = Array.isArray(data.parsed_list) ? data.parsed_list : (data.parsed ? [data.parsed] : []);
         renderSnHistory(data.rows || []);
-        activateTab('sn');
 
         if (Number(data.inserted_count || 0) > 0) {
             const parsed = list[0] || {};
@@ -870,12 +869,10 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
         if (data.duplicate) {
             setStatus(`이미 저장된 코드\nDP: ${p.dp_code || ''}`, 'warn');
             renderRows(data.rows || []);
-            activateTab('history');
             return;
         }
         setStatus(`스캔 완료\nModel: ${p.model_name || ''}\nDP: ${p.dp_code || ''}\nLOT: ${p.lot_date || ''}\nTool: ${p.tool || ''} / Cavity: ${p.cavity || ''} / ea: ${p.ea ?? ''}`, 'ok');
         renderRows(data.rows || []);
-        activateTab('history');
         playSuccessSound();
         try { navigator.vibrate && navigator.vibrate(90); } catch (_) {}
     }
@@ -931,8 +928,7 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
                 await saveSnCode(code, source);
             } else {
                 await saveCode(code, source);
-                activateTab('history');
-            }
+                }
         } catch (e) {
             setStatus('저장 오류: ' + e.message, 'bad');
         }
@@ -1075,7 +1071,11 @@ h1{font-size:24px;margin:0 0 8px;}h2{font-size:17px;margin:0 0 12px}.muted{color
     async function startBarcodeDetectorLoop() {
         const detector = new BarcodeDetector({formats:['qr_code','ean_13','ean_8','code_128','upc_a','upc_e','code_39','itf']});
         const loop = async () => {
-            if (!scanning || !video.videoWidth) return;
+            if (!scanning) return;
+            if (!video.videoWidth) {
+                detectorTimer = setTimeout(loop, 220);
+                return;
+            }
             try {
                 const codes = await detector.detect(video);
                 if (codes && codes.length && codes[0].rawValue) await handleDetected(codes[0].rawValue, 'BarcodeDetector');
