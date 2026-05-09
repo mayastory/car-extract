@@ -3330,6 +3330,7 @@ main, .content, .content-area, .main, .main-content{
               <label>&nbsp;</label>
               <div style="display:flex; gap:8px; align-items:center;">
                 <button class="btn" id="btnRun" type="submit">조회</button>
+                <button class="btn" id="btnMsop" type="button">MSOP</button>
               </div>
             </div>
           </form>
