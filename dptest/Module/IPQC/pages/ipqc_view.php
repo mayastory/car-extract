@@ -4711,6 +4711,39 @@ function showBusy(title, sub){
     }
 
 // 조회 버튼(사용자 submit) 시 모달 + 모델 필수 체크
+    // MSOP 버튼: 현재 모델/선택 FAI를 새 창의 별도 PHP 뷰어로 전달
+    (function(){
+      var btn = document.getElementById('btnMsop');
+      if(!btn) return;
+
+      btn.addEventListener('click', function(){
+        var model = (document.getElementById('model')?.value || '').trim();
+        if(!model){
+          showMsg('모델을 선택해주세요.');
+          return;
+        }
+
+        var qs = new URLSearchParams();
+        qs.set('model', model);
+
+        var fai = '';
+        var faiInputs = document.querySelectorAll('input[name="fai[]"]:checked');
+        for(var i=0; i<faiInputs.length; i++){
+          var v = (faiInputs[i].value || '').trim();
+          if(v && v !== '__ALL__'){
+            fai = v;
+            break;
+          }
+        }
+        if(fai) qs.set('fai', fai);
+
+        var path = window.location.pathname || '';
+        var base = path.replace(/[^\/]*$/, '');
+        var url = base + 'ipqc_msop_view.php?' + qs.toString();
+        window.open(url, 'ipqc_msop_view', 'width=1280,height=900,menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes');
+      });
+    })();
+
     (function(){
       var f=document.getElementById('filterForm');
       if(!f) return;
