@@ -261,6 +261,59 @@ function msop_fai_join(array $faiList): string {
   return implode(', ', array_values(array_filter(array_map('strval', $faiList), function($v){ return trim($v) !== ''; })));
 }
 
+function msop_fai_options_from_request(array $selected): array {
+  $raw = $_GET['fai_all'] ?? [];
+  $vals = [];
+  $push = function($v) use (&$vals, &$push) {
+    if (is_array($v)) {
+      foreach ($v as $vv) $push($vv);
+      return;
+    }
+    $s = trim((string)$v);
+    if ($s === '') return;
+    $parts = preg_split('/\s*(?:\|\||[,;\r\n]+)\s*/u', $s, -1, PREG_SPLIT_NO_EMPTY);
+    if (is_array($parts) && count($parts) > 1) {
+      foreach ($parts as $part) {
+        $part = trim((string)$part);
+        if ($part !== '') $vals[] = $part;
+      }
+    } else {
+      $vals[] = $s;
+    }
+  };
+  $push($raw);
+  foreach ($selected as $v) {
+    $v = trim((string)$v);
+    if ($v !== '') $vals[] = $v;
+  }
+
+  $out = [];
+  $seen = [];
+  foreach ($vals as $v) {
+    $v = trim((string)$v);
+    if ($v === '' || $v === '__ALL__') continue;
+    if (isset($seen[$v])) continue;
+    $seen[$v] = true;
+    $out[] = $v;
+  }
+  return array_slice($out, 0, 800);
+}
+
+function msop_fai_is_selected(string $value, array $selected): bool {
+  foreach ($selected as $v) {
+    if ((string)$v === $value) return true;
+  }
+  return false;
+}
+
+function msop_fai_summary_label(array $faiList): string {
+  $faiList = array_values(array_filter(array_map('strval', $faiList), function($v){ return trim($v) !== ''; }));
+  $n = count($faiList);
+  if ($n === 0) return '(선택 없음)';
+  if ($n === 1) return $faiList[0];
+  return $faiList[0] . ' 외 ' . ($n - 1) . '개';
+}
+
 function msop_shell_enabled(): bool {
   $disabled = (string)ini_get('disable_functions');
   foreach (['shell_exec', 'exec'] as $fn) {
@@ -376,6 +429,7 @@ function msop_extract_fai_pdf(string $pdfPath, array $faiList): array {
 
 $model = trim((string)($_GET['model'] ?? ''));
 $faiList = msop_fai_list_from_request();
+$faiOptions = msop_fai_options_from_request($faiList);
 $fai = msop_fai_join($faiList);
 $action = trim((string)($_GET['action'] ?? ''));
 
@@ -430,6 +484,7 @@ $pdfUrl = '';
 if (!empty($found['ok'])) {
   $q = ['action' => 'pdf', 'model' => $model];
   foreach ($faiList as $lab) $q['fai'][] = $lab;
+  foreach ($faiOptions as $lab) $q['fai_all'][] = $lab;
   $pdfUrl = basename(__FILE__) . '?' . http_build_query($q, '', '&', PHP_QUERY_RFC3986);
 }
 ?>
@@ -447,9 +502,9 @@ if (!empty($found['ok'])) {
     .head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}.title{font-size:22px;font-weight:800;color:#d8ffe0;text-shadow:0 2px 12px rgba(0,0,0,.55)}.sub{font-size:12px;color:var(--muted);margin-top:4px}
     .card{background:rgba(0,0,0,.54);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.35)}
     .filter{padding:12px 14px;display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap}.f{display:flex;flex-direction:column;gap:6px}.f label{font-size:11px;color:var(--muted)}
-    select,input{height:34px;padding:0 10px;background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:10px;color:var(--text);outline:none;min-width:180px}input{min-width:220px}.btn{height:34px;padding:0 14px;border:1px solid rgba(255,255,255,.14);border-radius:10px;background:linear-gradient(180deg,rgba(29,185,84,.95),rgba(18,133,61,.95));color:white;font-weight:800;cursor:pointer}.btn:hover{filter:brightness(1.08)}
-    .info{padding:10px 14px;font-size:12px;color:#d9ffe6;display:flex;gap:10px;flex-wrap:wrap;align-items:center}.chip{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:999px;background:rgba(0,0,0,.32);border:1px solid rgba(120,255,160,.25)}.chip.warn{border-color:rgba(255,204,0,.35);color:#ffe68a}.chip.bad{border-color:rgba(255,82,82,.5);color:#ffb7b7}
-    .viewer{flex:1;min-height:0;overflow:hidden}.viewer iframe{width:100%;height:100%;border:0;background:#111;border-radius:14px}.empty{height:100%;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted);padding:40px;font-size:14px}.path{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    select{height:34px;padding:0 10px;background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:10px;color:var(--text);outline:none;min-width:180px}.btn{height:34px;padding:0 14px;border:1px solid rgba(255,255,255,.14);border-radius:10px;background:linear-gradient(180deg,rgba(29,185,84,.95),rgba(18,133,61,.95));color:white;font-weight:800;cursor:pointer}.btn:hover{filter:brightness(1.08)}
+    .f-fai{min-width:340px}.msbox{position:relative;min-width:340px}.ms-toggle{width:100%;height:34px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:rgba(0,0,0,.35);color:var(--text);font-weight:700;text-align:left;cursor:pointer}.ms-toggle:after{content:'▾';float:right;color:var(--muted)}.msbox.open .ms-toggle:after{content:'▴'}.ms-panel{display:none;position:absolute;z-index:50;top:40px;left:0;width:420px;max-width:calc(100vw - 40px);padding:10px;border:1px solid rgba(120,255,160,.22);border-radius:12px;background:#0b1710;box-shadow:0 18px 45px rgba(0,0,0,.55)}.msbox.open .ms-panel{display:block}.ms-search{width:100%;height:32px;padding:0 10px;margin-bottom:8px;background:rgba(0,0,0,.45);border:1px solid var(--line);border-radius:9px;color:var(--text);outline:none}.ms-btnrow{display:flex;gap:6px;margin-bottom:8px}.mini{height:28px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.06);color:var(--text);cursor:pointer}.ms-list{max-height:270px;overflow:auto;display:grid;grid-template-columns:1fr;gap:4px;padding-right:2px}.ms-item{display:flex;align-items:center;gap:8px;min-height:28px;padding:5px 8px;border-radius:8px;color:rgba(255,255,255,.9);cursor:pointer}.ms-item:hover{background:rgba(29,185,84,.12)}.ms-item input{accent-color:#1db954}.ms-empty{padding:12px;color:var(--muted);font-size:12px}
+    .viewer{flex:1;min-height:0;overflow:hidden}.viewer iframe{width:100%;height:100%;border:0;background:#111;border-radius:14px}.empty{height:100%;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted);padding:40px;font-size:14px}
   </style>
 </head>
 <body>
@@ -457,7 +512,6 @@ if (!empty($found['ok'])) {
     <div class="head">
       <div>
         <div class="title">MSOP PDF 뷰어</div>
-        <div class="sub">모델 기준 최신 Rev PDF를 새 창에서 표시합니다. FAI가 넘어오면 해당 FAI 페이지를 표시하고, 복수 선택 시 여러 페이지를 한 PDF로 묶어 표시합니다.</div>
       </div>
     </div>
 
@@ -473,9 +527,38 @@ if (!empty($found['ok'])) {
           <?php endif; ?>
         </select>
       </div>
-      <div class="f">
-        <label>FAI / Point No. 선택 입력</label>
-        <input name="fai" value="<?= h($fai) ?>" placeholder="예: FAI 14 / 14-P2"/>
+      <div class="f f-fai">
+        <label>FAI / Point No. 선택</label>
+        <div class="msbox" id="faiChooser">
+          <button type="button" class="ms-toggle"><span id="faiSummary"><?= h(msop_fai_summary_label($faiList)) ?></span></button>
+          <div class="ms-panel">
+            <input type="text" class="ms-search" id="faiSearch" placeholder="FAI 검색" autocomplete="off">
+            <div class="ms-btnrow">
+              <button type="button" class="mini" data-fai-act="all">전체선택</button>
+              <button type="button" class="mini" data-fai-act="none">전체해제</button>
+            </div>
+            <div class="ms-list" id="faiList">
+              <?php if (!empty($faiOptions)): ?>
+                <?php foreach ($faiOptions as $opt): ?>
+                  <label class="ms-item" data-label="<?= h(strtolower((string)$opt)) ?>">
+                    <input type="checkbox" class="fai-check" value="<?= h($opt) ?>" <?= msop_fai_is_selected((string)$opt, $faiList) ? 'checked' : '' ?>>
+                    <span><?= h($opt) ?></span>
+                  </label>
+                <?php endforeach; ?>
+              <?php else: ?>
+                <div class="ms-empty">선택 가능한 FAI가 없습니다.</div>
+              <?php endif; ?>
+            </div>
+          </div>
+        </div>
+        <?php foreach ($faiOptions as $opt): ?>
+          <input type="hidden" name="fai_all[]" value="<?= h($opt) ?>">
+        <?php endforeach; ?>
+        <div id="faiHidden">
+          <?php foreach ($faiList as $opt): ?>
+            <input type="hidden" name="fai[]" value="<?= h($opt) ?>">
+          <?php endforeach; ?>
+        </div>
       </div>
       <button class="btn" type="submit">열기</button>
     </form>
@@ -488,5 +571,73 @@ if (!empty($found['ok'])) {
       <?php endif; ?>
     </div>
   </div>
+  <script>
+  (function(){
+    var box = document.getElementById('faiChooser');
+    if(!box) return;
+    var form = box.closest('form');
+    var toggle = box.querySelector('.ms-toggle');
+    var search = document.getElementById('faiSearch');
+    var hidden = document.getElementById('faiHidden');
+    var summary = document.getElementById('faiSummary');
+    function checks(){ return Array.prototype.slice.call(box.querySelectorAll('.fai-check')); }
+    function selected(){
+      return checks().filter(function(c){ return c.checked; }).map(function(c){ return c.value; });
+    }
+    function sync(){
+      var vals = selected();
+      if(hidden){
+        hidden.innerHTML = '';
+        vals.forEach(function(v){
+          var inp = document.createElement('input');
+          inp.type = 'hidden';
+          inp.name = 'fai[]';
+          inp.value = v;
+          hidden.appendChild(inp);
+        });
+      }
+      if(summary){
+        if(vals.length === 0) summary.textContent = '(선택 없음)';
+        else if(vals.length === 1) summary.textContent = vals[0];
+        else summary.textContent = vals[0] + ' 외 ' + (vals.length - 1) + '개';
+      }
+    }
+    if(toggle){
+      toggle.addEventListener('click', function(e){
+        e.preventDefault();
+        box.classList.toggle('open');
+        if(box.classList.contains('open') && search){ setTimeout(function(){ search.focus(); }, 0); }
+      });
+    }
+    checks().forEach(function(c){ c.addEventListener('change', sync); });
+    if(search){
+      search.addEventListener('input', function(){
+        var q = String(search.value || '').trim().toLowerCase();
+        Array.prototype.slice.call(box.querySelectorAll('.ms-item')).forEach(function(item){
+          var label = String(item.getAttribute('data-label') || item.textContent || '').toLowerCase();
+          item.style.display = (!q || label.indexOf(q) >= 0) ? '' : 'none';
+        });
+      });
+    }
+    box.querySelectorAll('[data-fai-act]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var act = btn.getAttribute('data-fai-act');
+        checks().forEach(function(c){
+          var item = c.closest('.ms-item');
+          var visible = !item || item.style.display !== 'none';
+          if(!visible) return;
+          c.checked = (act === 'all');
+        });
+        sync();
+      });
+    });
+    document.addEventListener('click', function(e){
+      if(box.contains(e.target)) return;
+      box.classList.remove('open');
+    });
+    if(form){ form.addEventListener('submit', sync); }
+    sync();
+  })();
+  </script>
 </body>
 </html>

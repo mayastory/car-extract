@@ -4750,6 +4750,33 @@ function showBusy(title, sub){
         return out;
       }
 
+      function allFaiValues(){
+        var out = [];
+        var seen = Object.create(null);
+        function add(v){
+          v = String(v || '').trim();
+          if(!v || v === '__ALL__') return;
+          if(seen[v]) return;
+          seen[v] = true;
+          out.push(v);
+        }
+        try{
+          var modelEl = document.getElementById('model');
+          var typeEl = document.getElementById('type');
+          var model = modelEl ? String(modelEl.value || '') : '';
+          var type = typeEl ? String(typeEl.value || '').trim().toUpperCase() : '';
+          if(typeof faiGetOrderedItems === 'function'){
+            var items = faiGetOrderedItems(type, model) || [];
+            for(var i=0; i<items.length; i++) add(items[i]);
+          }
+        }catch(e){}
+        if(!out.length){
+          var selected = selectedFaiValues();
+          for(var j=0; j<selected.length; j++) add(selected[j]);
+        }
+        return out;
+      }
+
       btn.addEventListener('click', function(){
         var modelEl = document.getElementById('model');
         var model = modelEl ? String(modelEl.value || '').trim() : '';
@@ -4762,6 +4789,9 @@ function showBusy(title, sub){
         qs.set('model', model);
         var fais = selectedFaiValues();
         for(var i=0; i<fais.length; i++) qs.append('fai[]', fais[i]);
+
+        var allFais = allFaiValues();
+        for(var j=0; j<allFais.length; j++) qs.append('fai_all[]', allFais[j]);
 
         var url = cleanRootBase() + 'ipqc_msop_view.php?' + qs.toString();
         window.open(url, 'ipqc_msop_view', 'width=1280,height=900,menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes');
