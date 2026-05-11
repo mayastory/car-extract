@@ -219,6 +219,48 @@ function msop_extract_fai_no(string $fai): string {
   return '';
 }
 
+function msop_fai_list_from_request(): array {
+  $raw = $_GET['fai'] ?? [];
+  $vals = [];
+  $push = function($v) use (&$vals) {
+    if (is_array($v)) {
+      foreach ($v as $vv) {
+        $s = trim((string)$vv);
+        if ($s !== '') $vals[] = $s;
+      }
+      return;
+    }
+    $s = trim((string)$v);
+    if ($s === '') return;
+    // Manual input fallback: comma, line break, pipe, slash-separated list syntax is tolerated.
+    $parts = preg_split('/\s*(?:\|\||[,;\r\n]+)\s*/u', $s, -1, PREG_SPLIT_NO_EMPTY);
+    if (is_array($parts) && count($parts) > 1) {
+      foreach ($parts as $part) {
+        $part = trim((string)$part);
+        if ($part !== '') $vals[] = $part;
+      }
+    } else {
+      $vals[] = $s;
+    }
+  };
+  $push($raw);
+
+  $out = [];
+  $seen = [];
+  foreach ($vals as $v) {
+    $v = trim((string)$v);
+    if ($v === '' || $v === '__ALL__') continue;
+    if (isset($seen[$v])) continue;
+    $seen[$v] = true;
+    $out[] = $v;
+  }
+  return array_slice($out, 0, 80);
+}
+
+function msop_fai_join(array $faiList): string {
+  return implode(', ', array_values(array_filter(array_map('strval', $faiList), function($v){ return trim($v) !== ''; })));
+}
+
 function msop_shell_enabled(): bool {
   $disabled = (string)ini_get('disable_functions');
   foreach (['shell_exec', 'exec'] as $fn) {
@@ -253,11 +295,11 @@ function msop_cache_dir(): string {
   return $dir;
 }
 
-function msop_extract_fai_pdf(string $pdfPath, string $fai): array {
+function msop_extract_fai_pdf(string $pdfPath, array $faiList): array {
   $ret = ['ok' => false, 'page' => null, 'path' => '', 'error' => ''];
-  $num = msop_extract_fai_no($fai);
-  if ($num === '') {
-    $ret['error'] = 'FAI 번호를 추출하지 못했습니다.';
+  $faiList = array_values(array_filter(array_map('trim', $faiList), function($v){ return $v !== '' && $v !== '__ALL__'; }));
+  if (empty($faiList)) {
+    $ret['error'] = 'FAI 선택값이 없습니다.';
     return $ret;
   }
   if (!is_file($pdfPath) || !is_readable($pdfPath)) {
@@ -287,7 +329,18 @@ function msop_extract_fai_pdf(string $pdfPath, string $fai): array {
     return $ret;
   }
 
-  $key = sha1($pdfPath . '|' . (string)@filemtime($pdfPath) . '|' . $num);
+  $labelJson = json_encode($faiList, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+  if (!is_string($labelJson) || $labelJson === '') $labelJson = json_encode([msop_fai_join($faiList)], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+
+  $nums = [];
+  foreach ($faiList as $lab) {
+    $num = msop_extract_fai_no($lab);
+    if ($num !== '') $nums[] = $num;
+  }
+  $numKey = implode('_', array_values(array_unique($nums)));
+  if ($numKey === '') $numKey = sha1(msop_fai_join($faiList));
+
+  $key = sha1($pdfPath . '|' . (string)@filemtime($pdfPath) . '|' . $labelJson);
   $outPath = rtrim($cacheDir, "\\/") . DIRECTORY_SEPARATOR . 'msop_' . $key . '.pdf';
   if (is_file($outPath) && filesize($outPath) > 0) {
     $ret['ok'] = true;
@@ -296,7 +349,7 @@ function msop_extract_fai_pdf(string $pdfPath, string $fai): array {
     return $ret;
   }
 
-  $cmd = $python . ' ' . escapeshellarg($helper) . ' ' . escapeshellarg($pdfPath) . ' ' . escapeshellarg($fai) . ' ' . escapeshellarg($outPath) . ' 2>&1';
+  $cmd = $python . ' ' . escapeshellarg($helper) . ' ' . escapeshellarg($pdfPath) . ' ' . escapeshellarg($labelJson) . ' ' . escapeshellarg($outPath) . ' 2>&1';
   $json = @shell_exec($cmd);
   if (!is_string($json) || trim($json) === '') {
     $ret['error'] = 'MSOP helper 실행 결과가 없습니다.';
@@ -311,6 +364,8 @@ function msop_extract_fai_pdf(string $pdfPath, string $fai): array {
   if (!empty($data['ok']) && !empty($data['out']) && is_file((string)$data['out']) && filesize((string)$data['out']) > 0) {
     $ret['ok'] = true;
     $ret['page'] = isset($data['page']) ? (int)$data['page'] : null;
+    $ret['pages'] = isset($data['pages']) && is_array($data['pages']) ? $data['pages'] : [];
+    $ret['missing'] = isset($data['missing']) && is_array($data['missing']) ? $data['missing'] : [];
     $ret['path'] = (string)$data['out'];
     return $ret;
   }
@@ -320,7 +375,8 @@ function msop_extract_fai_pdf(string $pdfPath, string $fai): array {
 }
 
 $model = trim((string)($_GET['model'] ?? ''));
-$fai = trim((string)($_GET['fai'] ?? ''));
+$faiList = msop_fai_list_from_request();
+$fai = msop_fai_join($faiList);
 $action = trim((string)($_GET['action'] ?? ''));
 
 $found = $model !== '' ? msop_find_latest_pdf($model) : ['ok'=>false, 'root'=>MSOP_ROOT_PATH, 'keys'=>[], 'path'=>'', 'file'=>'', 'rev'=>null, 'error'=>'모델을 선택해주세요.'];
@@ -337,14 +393,19 @@ if ($action === 'pdf') {
   $streamPath = $srcPath;
   $streamFile = (string)($found['file'] ?: basename($srcPath));
 
-  // 예전 JMP Assist.py와 동일하게 FAI 번호가 넘어오면 해당 FAI 페이지만 추출해서 표시한다.
-  if ($fai !== '') {
-    $one = msop_extract_fai_pdf($srcPath, $fai);
+  // 예전 JMP Assist.py처럼 FAI 번호 기준으로 페이지를 찾되, 복수 FAI 선택 시 찾은 페이지들을 한 PDF로 묶어서 표시한다.
+  if (!empty($faiList)) {
+    $one = msop_extract_fai_pdf($srcPath, $faiList);
     if (!empty($one['ok']) && !empty($one['path']) && is_file((string)$one['path'])) {
       $streamPath = (string)$one['path'];
-      $num = msop_extract_fai_no($fai);
+      $nums = [];
+      foreach ($faiList as $lab) {
+        $num = msop_extract_fai_no($lab);
+        if ($num !== '' && !in_array($num, $nums, true)) $nums[] = $num;
+      }
       $base = preg_replace('/\.pdf$/i', '', basename($streamFile));
-      $streamFile = $base . '_FAI_' . ($num !== '' ? $num : 'page') . '.pdf';
+      $suffix = count($nums) === 1 ? $nums[0] : 'multi';
+      $streamFile = $base . '_FAI_' . $suffix . '.pdf';
     }
   }
 
@@ -368,7 +429,7 @@ $models = [
 $pdfUrl = '';
 if (!empty($found['ok'])) {
   $q = ['action' => 'pdf', 'model' => $model];
-  if ($fai !== '') $q['fai'] = $fai;
+  foreach ($faiList as $lab) $q['fai'][] = $lab;
   $pdfUrl = basename(__FILE__) . '?' . http_build_query($q, '', '&', PHP_QUERY_RFC3986);
 }
 ?>
@@ -396,7 +457,7 @@ if (!empty($found['ok'])) {
     <div class="head">
       <div>
         <div class="title">MSOP PDF 뷰어</div>
-        <div class="sub">모델 기준 최신 Rev PDF를 새 창에서 표시합니다. FAI가 넘어오면 해당 FAI 페이지만 표시합니다.</div>
+        <div class="sub">모델 기준 최신 Rev PDF를 새 창에서 표시합니다. FAI가 넘어오면 해당 FAI 페이지를 표시하고, 복수 선택 시 여러 페이지를 한 PDF로 묶어 표시합니다.</div>
       </div>
     </div>
 

@@ -4728,22 +4728,26 @@ function showBusy(title, sub){
         return p;
       }
 
-      function selectedFaiValue(){
+      function selectedFaiValues(){
+        var out = [];
+        var seen = Object.create(null);
+        function add(v){
+          v = String(v || '').trim();
+          if(!v || v === '__ALL__') return;
+          if(seen[v]) return;
+          seen[v] = true;
+          out.push(v);
+        }
         try{
           if(typeof faiSelectedOrdered === 'function'){
             var arr = faiSelectedOrdered() || [];
-            for(var i=0; i<arr.length; i++){
-              var v = String(arr[i] || '').trim();
-              if(v && v !== '__ALL__') return v;
-            }
+            for(var i=0; i<arr.length; i++) add(arr[i]);
           }
         }catch(e){}
+        if(out.length) return out;
         var hidden = document.querySelectorAll('#ms-fai-hidden input[name="fai[]"]');
-        for(var j=0; j<hidden.length; j++){
-          var hv = String(hidden[j].value || '').trim();
-          if(hv && hv !== '__ALL__') return hv;
-        }
-        return '';
+        for(var j=0; j<hidden.length; j++) add(hidden[j].value);
+        return out;
       }
 
       btn.addEventListener('click', function(){
@@ -4756,8 +4760,8 @@ function showBusy(title, sub){
 
         var qs = new URLSearchParams();
         qs.set('model', model);
-        var fai = selectedFaiValue();
-        if(fai) qs.set('fai', fai);
+        var fais = selectedFaiValues();
+        for(var i=0; i<fais.length; i++) qs.append('fai[]', fais[i]);
 
         var url = cleanRootBase() + 'ipqc_msop_view.php?' + qs.toString();
         window.open(url, 'ipqc_msop_view', 'width=1280,height=900,menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes');
