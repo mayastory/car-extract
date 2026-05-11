@@ -4733,7 +4733,14 @@ function showBusy(title, sub){
         var seen = Object.create(null);
         function add(v){
           v = String(v || '').trim();
-          if(!v || v === '__ALL__') return;
+          if(!v) return;
+          if(v === '__ALL__'){
+            out = ['__ALL__'];
+            seen = Object.create(null);
+            seen.__ALL__ = true;
+            return;
+          }
+          if(seen.__ALL__) return;
           if(seen[v]) return;
           seen[v] = true;
           out.push(v);
@@ -4787,9 +4794,8 @@ function showBusy(title, sub){
 
         var qs = new URLSearchParams();
         qs.set('model', model);
-        var typeEl = document.getElementById('type');
-        var type = typeEl ? String(typeEl.value || '').trim().toUpperCase() : '';
-        if(type) qs.set('type', type);
+        // MSOP 뷰어의 FAI 목록은 현재 측정 타입(AOI/OMM/CMM/OQC)과 무관하게 REAL_OMM 기준으로 표시한다.
+        qs.set('type', 'REAL_OMM');
 
         var fais = selectedFaiValues();
         for(var i=0; i<fais.length; i++) qs.append('fai[]', fais[i]);

@@ -232,7 +232,7 @@ function msop_fai_list_from_request(): array {
     }
     $s = trim((string)$v);
     if ($s === '') return;
-    // Manual input fallback: comma, line break, pipe, slash-separated list syntax is tolerated.
+    // Manual input fallback: comma, line break, pipe-separated list syntax is tolerated.
     $parts = preg_split('/\s*(?:\|\||[,;\r\n]+)\s*/u', $s, -1, PREG_SPLIT_NO_EMPTY);
     if (is_array($parts) && count($parts) > 1) {
       foreach ($parts as $part) {
@@ -249,7 +249,9 @@ function msop_fai_list_from_request(): array {
   $seen = [];
   foreach ($vals as $v) {
     $v = trim((string)$v);
-    if ($v === '' || $v === '__ALL__') continue;
+    if ($v === '') continue;
+    if (strtoupper($v) === 'ALL') $v = '__ALL__';
+    if ($v === '__ALL__') return ['__ALL__'];
     if (isset($seen[$v])) continue;
     $seen[$v] = true;
     $out[] = $v;
@@ -257,7 +259,19 @@ function msop_fai_list_from_request(): array {
   return array_slice($out, 0, 80);
 }
 
+function msop_is_all_fai(array $faiList): bool {
+  foreach ($faiList as $v) {
+    if ((string)$v === '__ALL__') return true;
+  }
+  return false;
+}
+
+function msop_fai_display_label(string $v): string {
+  return $v === '__ALL__' ? 'ALL' : $v;
+}
+
 function msop_fai_join(array $faiList): string {
+  if (msop_is_all_fai($faiList)) return 'ALL';
   return implode(', ', array_values(array_filter(array_map('strval', $faiList), function($v){ return trim($v) !== ''; })));
 }
 
@@ -287,38 +301,103 @@ function msop_order_map(): array {
   return $map;
 }
 
+function msop_fai_number_key($v): string {
+  $n = msop_extract_fai_no((string)$v);
+  return $n !== '' ? $n : '';
+}
+
 function msop_fai_options_for_model_type(string $model, string $type, array $selected): array {
-  $type = strtoupper(trim($type));
-  if (!in_array($type, ['AOI','OMM','REAL_OMM','CMM','OQC'], true)) $type = 'OMM';
-  $orderType = ($type === 'REAL_OMM') ? 'AOI' : $type;
+  // MSOP 문서는 REAL_OMM 기준 FAI명으로 보여준다.
+  // IPQC 화면이 AOI/OMM/CMM/OQC 중 무엇으로 맞춰져 있어도 MSOP 선택 목록은 AOI 매핑(=REAL_OMM 기준)을 사용한다.
+  $orderType = 'AOI';
   $mk = msop_model_to_mapkey($model);
   $vals = [];
+  $hasMapVals = false;
 
   $map = msop_order_map();
   if ($mk !== '' && isset($map[$mk]) && is_array($map[$mk]) && isset($map[$mk][$orderType]) && is_array($map[$mk][$orderType])) {
     foreach ($map[$mk][$orderType] as $v) {
       if (is_array($v)) continue;
       $s = trim((string)$v);
+      if ($s !== '' && $s !== '__ALL__') {
+        $vals[] = $s;
+        $hasMapVals = true;
+      }
+    }
+  }
+
+  // 매핑이 없는 예외 상황에서만 요청으로 넘어온 값을 fallback 목록으로 사용한다.
+  if (!$hasMapVals) {
+    foreach ($selected as $v) {
+      $s = trim((string)$v);
       if ($s !== '' && $s !== '__ALL__') $vals[] = $s;
     }
   }
 
-  foreach ($selected as $v) {
-    $s = trim((string)$v);
-    if ($s !== '' && $s !== '__ALL__') $vals[] = $s;
-  }
-
-  $out = [];
-  $seen = [];
+  $out = ['__ALL__'];
+  $seen = ['__ALL__' => true];
   foreach ($vals as $v) {
     if (isset($seen[$v])) continue;
     $seen[$v] = true;
     $out[] = $v;
   }
-  return array_slice($out, 0, 800);
+  return array_slice($out, 0, 801);
+}
+
+function msop_default_fai_selection(array $options): array {
+  foreach ($options as $opt) {
+    $opt = trim((string)$opt);
+    if ($opt !== '' && $opt !== '__ALL__') return [$opt];
+  }
+  return ['__ALL__'];
+}
+
+function msop_normalize_fai_selection(array $selected, array $options): array {
+  if (msop_is_all_fai($selected)) return ['__ALL__'];
+
+  $optExact = [];
+  $optByNum = [];
+  $nonAllCount = 0;
+  foreach ($options as $opt) {
+    $opt = trim((string)$opt);
+    if ($opt === '') continue;
+    $optExact[$opt] = $opt;
+    if ($opt !== '__ALL__') {
+      $nonAllCount++;
+      $num = msop_fai_number_key($opt);
+      if ($num !== '' && !isset($optByNum[$num])) $optByNum[$num] = $opt;
+    }
+  }
+
+  $out = [];
+  $seen = [];
+  foreach ($selected as $v) {
+    $s = trim((string)$v);
+    if ($s === '') continue;
+    $pick = '';
+    if (isset($optExact[$s]) && $s !== '__ALL__') {
+      $pick = $optExact[$s];
+    } else {
+      // OMM/CMM 숫자형 선택값이 넘어온 경우에만 REAL_OMM 기준 FAI명 1개로 치환한다.
+      $num = msop_fai_number_key($s);
+      if ($num !== '' && isset($optByNum[$num])) $pick = $optByNum[$num];
+    }
+    if ($pick !== '' && !isset($seen[$pick])) {
+      $seen[$pick] = true;
+      $out[] = $pick;
+    }
+  }
+
+  if (empty($out)) return msop_default_fai_selection($options);
+  if ($nonAllCount > 0 && count($out) >= $nonAllCount) return ['__ALL__'];
+  return array_slice($out, 0, 80);
 }
 
 function msop_fai_is_selected(string $value, array $selected): bool {
+  // 렌더링 시에는 정확히 선택된 FAI명만 체크한다.
+  // 숫자만 비교하면 '1' 선택 시 1-1, 1-2 등 같은 첫 숫자를 가진 항목까지 전부 체크되는 문제가 생긴다.
+  if ($value === '__ALL__') return msop_is_all_fai($selected);
+  if (msop_is_all_fai($selected)) return false;
   foreach ($selected as $v) {
     if ((string)$v === $value) return true;
   }
@@ -326,11 +405,12 @@ function msop_fai_is_selected(string $value, array $selected): bool {
 }
 
 function msop_fai_summary_label(array $faiList): string {
-  $faiList = array_values(array_filter(array_map('strval', $faiList), function($v){ return trim($v) !== ''; }));
+  if (msop_is_all_fai($faiList)) return 'ALL';
+  $faiList = array_values(array_filter(array_map('strval', $faiList), function($v){ return trim($v) !== '' && $v !== '__ALL__'; }));
   $n = count($faiList);
-  if ($n === 0) return '(선택 없음)';
-  if ($n === 1) return $faiList[0];
-  return $faiList[0] . ' 외 ' . ($n - 1) . '개';
+  if ($n === 0) return 'ALL';
+  if ($n === 1) return msop_fai_display_label($faiList[0]);
+  return msop_fai_display_label($faiList[0]) . ' 외 ' . ($n - 1) . '개';
 }
 
 function msop_shell_enabled(): bool {
@@ -449,8 +529,10 @@ function msop_extract_fai_pdf(string $pdfPath, array $faiList): array {
 $model = trim((string)($_GET['model'] ?? ''));
 $type = strtoupper(trim((string)($_GET['type'] ?? 'OMM')));
 if (!in_array($type, ['AOI','OMM','REAL_OMM','CMM','OQC'], true)) $type = 'OMM';
-$faiList = msop_fai_list_from_request();
+$resetFai = ((string)($_GET['reset_fai'] ?? '') === '1');
+$faiList = $resetFai ? [] : msop_fai_list_from_request();
 $faiOptions = msop_fai_options_for_model_type($model, $type, $faiList);
+$faiList = msop_normalize_fai_selection($faiList, $faiOptions);
 $fai = msop_fai_join($faiList);
 $action = trim((string)($_GET['action'] ?? ''));
 
@@ -469,7 +551,7 @@ if ($action === 'pdf') {
   $streamFile = (string)($found['file'] ?: basename($srcPath));
 
   // 예전 JMP Assist.py처럼 FAI 번호 기준으로 페이지를 찾되, 복수 FAI 선택 시 찾은 페이지들을 한 PDF로 묶어서 표시한다.
-  if (!empty($faiList)) {
+  if (!empty($faiList) && !msop_is_all_fai($faiList)) {
     $one = msop_extract_fai_pdf($srcPath, $faiList);
     if (!empty($one['ok']) && !empty($one['path']) && is_file((string)$one['path'])) {
       $streamPath = (string)$one['path'];
@@ -535,11 +617,11 @@ if (!empty($found['ok'])) {
       </div>
     </div>
 
-    <form class="card filter" method="get" action="<?= h(basename(__FILE__)) ?>">
+    <form class="card filter" method="get" action="<?= h(basename(__FILE__)) ?>" id="msopForm">
       <input type="hidden" name="type" value="<?= h($type) ?>">
       <div class="f">
         <label>모델</label>
-        <select name="model">
+        <select name="model" id="msopModel">
           <?php foreach ($models as $m): ?>
             <option value="<?= h($m) ?>" <?= $model === $m ? 'selected' : '' ?>><?= h($m) ?></option>
           <?php endforeach; ?>
@@ -549,7 +631,7 @@ if (!empty($found['ok'])) {
         </select>
       </div>
       <div class="f f-fai">
-        <label>FAI / Point No. 선택</label>
+        <label>FAI 선택</label>
         <div class="msbox" id="faiChooser">
           <button type="button" class="ms-toggle"><span id="faiSummary"><?= h(msop_fai_summary_label($faiList)) ?></span></button>
           <div class="ms-panel">
@@ -561,9 +643,10 @@ if (!empty($found['ok'])) {
             <div class="ms-list" id="faiList">
               <?php if (!empty($faiOptions)): ?>
                 <?php foreach ($faiOptions as $opt): ?>
-                  <label class="ms-item" data-label="<?= h(strtolower((string)$opt)) ?>">
+                  <?php $optLabel = msop_fai_display_label((string)$opt); ?>
+                  <label class="ms-item" data-label="<?= h(strtolower($optLabel)) ?>">
                     <input type="checkbox" class="fai-check" value="<?= h($opt) ?>" <?= msop_fai_is_selected((string)$opt, $faiList) ? 'checked' : '' ?>>
-                    <span><?= h($opt) ?></span>
+                    <span><?= h($optLabel) ?></span>
                   </label>
                 <?php endforeach; ?>
               <?php else: ?>
@@ -599,8 +682,16 @@ if (!empty($found['ok'])) {
     var hidden = document.getElementById('faiHidden');
     var summary = document.getElementById('faiSummary');
     function checks(){ return Array.prototype.slice.call(box.querySelectorAll('.fai-check')); }
+    function isAll(v){ return String(v || '') === '__ALL__'; }
+    function allCheck(){ return checks().filter(function(c){ return isAll(c.value); })[0] || null; }
+    function nonAllChecks(){ return checks().filter(function(c){ return !isAll(c.value); }); }
+    function display(v){ return isAll(v) ? 'ALL' : String(v || ''); }
     function selected(){
-      return checks().filter(function(c){ return c.checked; }).map(function(c){ return c.value; });
+      var ac = allCheck();
+      if(ac && ac.checked) return ['__ALL__'];
+      var vals = checks().filter(function(c){ return c.checked && !isAll(c.value); }).map(function(c){ return c.value; });
+      if(vals.length > 0 && vals.length >= nonAllChecks().length) return ['__ALL__'];
+      return vals;
     }
     function sync(){
       var vals = selected();
@@ -616,8 +707,8 @@ if (!empty($found['ok'])) {
       }
       if(summary){
         if(vals.length === 0) summary.textContent = '(선택 없음)';
-        else if(vals.length === 1) summary.textContent = vals[0];
-        else summary.textContent = vals[0] + ' 외 ' + (vals.length - 1) + '개';
+        else if(vals.length === 1) summary.textContent = display(vals[0]);
+        else summary.textContent = display(vals[0]) + ' 외 ' + (vals.length - 1) + '개';
       }
     }
     if(toggle){
@@ -627,7 +718,17 @@ if (!empty($found['ok'])) {
         if(box.classList.contains('open') && search){ setTimeout(function(){ search.focus(); }, 0); }
       });
     }
-    checks().forEach(function(c){ c.addEventListener('change', sync); });
+    checks().forEach(function(c){
+      c.addEventListener('change', function(){
+        if(isAll(c.value) && c.checked){
+          nonAllChecks().forEach(function(o){ o.checked = false; });
+        }else if(!isAll(c.value) && c.checked){
+          var ac = allCheck();
+          if(ac) ac.checked = false;
+        }
+        sync();
+      });
+    });
     if(search){
       search.addEventListener('input', function(){
         var q = String(search.value || '').trim().toLowerCase();
@@ -640,12 +741,11 @@ if (!empty($found['ok'])) {
     box.querySelectorAll('[data-fai-act]').forEach(function(btn){
       btn.addEventListener('click', function(){
         var act = btn.getAttribute('data-fai-act');
-        checks().forEach(function(c){
-          var item = c.closest('.ms-item');
-          var visible = !item || item.style.display !== 'none';
-          if(!visible) return;
-          c.checked = (act === 'all');
-        });
+        checks().forEach(function(c){ c.checked = false; });
+        if(act === 'all'){
+          var ac = allCheck();
+          if(ac) ac.checked = true;
+        }
         sync();
       });
     });
@@ -653,7 +753,26 @@ if (!empty($found['ok'])) {
       if(box.contains(e.target)) return;
       box.classList.remove('open');
     });
-    if(form){ form.addEventListener('submit', sync); }
+    if(form){
+      form.addEventListener('submit', function(){
+        sync();
+      });
+    }
+    var modelSel = document.getElementById('msopModel');
+    if(modelSel && form){
+      modelSel.addEventListener('change', function(){
+        if(hidden) hidden.innerHTML = '';
+        var oldReset = form.querySelector('input[name="reset_fai"]');
+        if(!oldReset){
+          oldReset = document.createElement('input');
+          oldReset.type = 'hidden';
+          oldReset.name = 'reset_fai';
+          form.appendChild(oldReset);
+        }
+        oldReset.value = '1';
+        form.submit();
+      });
+    }
     sync();
   })();
   </script>
