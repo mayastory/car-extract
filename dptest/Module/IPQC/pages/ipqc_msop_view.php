@@ -17,9 +17,67 @@ if (function_exists('dp_auth_guard')) {
 
 function h($s) { return htmlspecialchars((string)$s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); }
 
-// 기본 경로. 서버 환경에서 필요하면 config/dp_config.php 쪽에서 MSOP_ROOT_PATH 상수를 정의해도 된다.
+function msop_client_ip(): string {
+  $ip = (string)($_SERVER['REMOTE_ADDR'] ?? '');
+  if (strpos($ip, '::ffff:') === 0) $ip = substr($ip, 7);
+  return trim($ip);
+}
+
+function msop_ip_in_cidr(string $ip, string $cidr): bool {
+  if (strpos($cidr, '/') === false) return $ip === $cidr;
+  [$subnet, $mask] = explode('/', $cidr, 2);
+  $mask = (int)$mask;
+  $ipLong = ip2long($ip);
+  $subLong = ip2long($subnet);
+  if ($ipLong === false || $subLong === false || $mask < 0 || $mask > 32) return false;
+  $maskLong = $mask === 0 ? 0 : ((-1 << (32 - $mask)) & 0xFFFFFFFF);
+  return (($ipLong & $maskLong) === ($subLong & $maskLong));
+}
+
+function msop_is_private_lan_ip(string $ip): bool {
+  if ($ip === '127.0.0.1' || $ip === '::1') return true;
+  if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) return false;
+  return msop_ip_in_cidr($ip, '10.0.0.0/8')
+      || msop_ip_in_cidr($ip, '172.16.0.0/12')
+      || msop_ip_in_cidr($ip, '192.168.0.0/16');
+}
+
+function msop_access_allowed(): bool {
+  $ip = msop_client_ip();
+  // MSOP은 민감 문서이므로 내부망/허용 공인 IP에서만 접근 허용.
+  // 필요 시 config/dp_config.php에서 MSOP_ALLOWED_IPS 상수를 쉼표 구분으로 재정의 가능.
+  if (!defined('MSOP_ALLOWED_IPS')) {
+    define('MSOP_ALLOWED_IPS', '220.74.62.141,127.0.0.1,::1');
+  }
+  if (!defined('MSOP_ALLOW_PRIVATE_LAN')) {
+    define('MSOP_ALLOW_PRIVATE_LAN', true);
+  }
+
+  $allowed = array_filter(array_map('trim', explode(',', (string)MSOP_ALLOWED_IPS)), function($v){ return $v !== ''; });
+  foreach ($allowed as $rule) {
+    if (strpos($rule, '/') !== false) {
+      if (msop_ip_in_cidr($ip, $rule)) return true;
+    } elseif ($ip === $rule) {
+      return true;
+    }
+  }
+  if (MSOP_ALLOW_PRIVATE_LAN && msop_is_private_lan_ip($ip)) return true;
+  return false;
+}
+
+if (!msop_access_allowed()) {
+  http_response_code(403);
+  header('Content-Type: text/html; charset=utf-8');
+  $clientIp = h(msop_client_ip());
+  echo '<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>MSOP 접근 제한</title>';
+  echo '<style>html,body{margin:0;height:100%;background:#06150b;color:#d8ffe0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,"Noto Sans KR",sans-serif}body{display:flex;align-items:center;justify-content:center}.box{width:min(620px,calc(100% - 32px));padding:24px;border:1px solid rgba(255,255,255,.14);border-radius:16px;background:rgba(0,0,0,.55);box-shadow:0 12px 40px rgba(0,0,0,.35)}h1{margin:0 0 10px;font-size:24px}.muted{color:rgba(255,255,255,.68);font-size:13px;line-height:1.6}.ip{display:inline-block;margin-top:10px;padding:6px 10px;border-radius:999px;border:1px solid rgba(255,82,82,.45);color:#ffb7b7;background:rgba(0,0,0,.3)}</style>';
+  echo '</head><body><div class="box"><h1>MSOP 접근 제한</h1><div class="muted">MSOP 문서는 내부망 또는 허용된 IP에서만 볼 수 있습니다.<br>접속 네트워크를 확인해주세요.</div><div class="ip">현재 접속 IP: ' . $clientIp . '</div></div></body></html>';
+  exit;
+}
+
+// 기본 경로. MSOP PDF 원본은 웹루트 밖에 둔다. 필요하면 config/dp_config.php에서 MSOP_ROOT_PATH 상수로 덮어쓸 수 있다.
 if (!defined('MSOP_ROOT_PATH')) {
-  define('MSOP_ROOT_PATH', '\\\\192.168.1.135\\품질\\1. IT 사업부\\MEM25-project\\(Memphis) MSoP\\A2.0');
+  define('MSOP_ROOT_PATH', 'D:\JTMES_PRIVATE\MSOP');
 }
 
 function msop_norm_key($s): string {
@@ -62,9 +120,23 @@ function msop_model_candidates(string $model): array {
   return array_values(array_unique(array_filter($keys)));
 }
 
-function msop_rev_no(string $filename): int {
-  if (preg_match('/REV[._\-\s]?(\d+)/i', $filename, $m)) return (int)$m[1];
-  return 0;
+function msop_rev_info(string $filename): array {
+  // 파일명 예: Memphis A3.0 IR Base..., ... REV_02 ...
+  // REV 표기가 있으면 우선, 없으면 A2.0/A3.1/A4.0 같은 문서 버전을 최신 판별에 사용한다.
+  if (preg_match('/REV[._\-\s]?(\d+)/i', $filename, $m)) {
+    $n = (int)$m[1];
+    return ['score' => 100000 + $n, 'label' => 'REV ' . $n];
+  }
+  if (preg_match('/(^|[^A-Z0-9])A\s*(\d+)\s*[._-]\s*(\d+)/i', $filename, $m)) {
+    $maj = (int)$m[2];
+    $min = (int)$m[3];
+    return ['score' => ($maj * 1000) + $min, 'label' => 'A' . $maj . '.' . $min];
+  }
+  if (preg_match('/(^|[^A-Z0-9])R\s*(\d+)/i', $filename, $m)) {
+    $n = (int)$m[2];
+    return ['score' => $n, 'label' => 'R' . $n];
+  }
+  return ['score' => 0, 'label' => ''];
 }
 
 function msop_find_latest_pdf(string $model): array {
@@ -91,7 +163,8 @@ function msop_find_latest_pdf(string $model): array {
 
   $bestPath = '';
   $bestFile = '';
-  $bestRev = -1;
+  $bestRevScore = -1;
+  $bestRevLabel = null;
   $bestMtime = -1;
 
   $items = @scandir($root);
@@ -113,12 +186,15 @@ function msop_find_latest_pdf(string $model): array {
     $path = rtrim($root, "\\/") . DIRECTORY_SEPARATOR . $fn;
     if (!is_file($path) || !is_readable($path)) continue;
 
-    $rev = msop_rev_no($fn);
+    $revInfo = msop_rev_info($fn);
+    $revScore = (int)($revInfo['score'] ?? 0);
+    $revLabel = (string)($revInfo['label'] ?? '');
     $mtime = (int)@filemtime($path);
-    if ($rev > $bestRev || ($rev === $bestRev && $mtime > $bestMtime)) {
+    if ($revScore > $bestRevScore || ($revScore === $bestRevScore && $mtime > $bestMtime)) {
       $bestPath = $path;
       $bestFile = $fn;
-      $bestRev = $rev;
+      $bestRevScore = $revScore;
+      $bestRevLabel = ($revLabel !== '' ? $revLabel : null);
       $bestMtime = $mtime;
     }
   }
@@ -131,7 +207,7 @@ function msop_find_latest_pdf(string $model): array {
   $out['ok'] = true;
   $out['path'] = $bestPath;
   $out['file'] = $bestFile;
-  $out['rev'] = $bestRev;
+  $out['rev'] = $bestRevLabel;
   return $out;
 }
 
@@ -139,19 +215,6 @@ function msop_extract_fai_no(string $fai): string {
   if (preg_match('/(\d+)/', $fai, $m)) {
     $n = ltrim($m[1], '0');
     return $n === '' ? '0' : $n;
-  }
-  return '';
-}
-
-function msop_find_binary(array $names): string {
-  $isWin = (stripos(PHP_OS, 'WIN') === 0);
-  foreach ($names as $name) {
-    $cmd = $isWin ? ('where ' . escapeshellarg($name) . ' 2>NUL') : ('command -v ' . escapeshellarg($name) . ' 2>/dev/null');
-    $res = @shell_exec($cmd);
-    if (is_string($res) && trim($res) !== '') {
-      $lines = preg_split('/\r?\n/', trim($res));
-      if (!empty($lines[0])) return trim($lines[0], "\" ");
-    }
   }
   return '';
 }
@@ -165,58 +228,94 @@ function msop_shell_enabled(): bool {
   return true;
 }
 
-function msop_find_fai_page(string $pdfPath, string $fai): array {
+function msop_find_python(): string {
+  if (defined('MSOP_PYTHON_BIN') && trim((string)MSOP_PYTHON_BIN) !== '') {
+    return trim((string)MSOP_PYTHON_BIN);
+  }
+  if (!msop_shell_enabled()) return '';
+  $isWin = (stripos(PHP_OS, 'WIN') === 0);
+  $candidates = $isWin ? ['py -3', 'python', 'python3'] : ['python3', 'python'];
+  foreach ($candidates as $cmdName) {
+    $cmd = $isWin ? ($cmdName . ' --version 2>&1') : ('command -v ' . escapeshellarg($cmdName) . ' 2>/dev/null && ' . escapeshellarg($cmdName) . ' --version 2>&1');
+    $res = @shell_exec($cmd);
+    if (is_string($res) && preg_match('/Python\s+\d+/i', $res)) return $cmdName;
+  }
+  return '';
+}
+
+function msop_cache_dir(): string {
+  if (defined('MSOP_CACHE_DIR') && trim((string)MSOP_CACHE_DIR) !== '') {
+    $dir = trim((string)MSOP_CACHE_DIR);
+  } else {
+    $dir = rtrim(sys_get_temp_dir(), "\\/") . DIRECTORY_SEPARATOR . 'jtmes_msop_cache';
+  }
+  if (!is_dir($dir)) @mkdir($dir, 0770, true);
+  return $dir;
+}
+
+function msop_extract_fai_pdf(string $pdfPath, string $fai): array {
+  $ret = ['ok' => false, 'page' => null, 'path' => '', 'error' => ''];
   $num = msop_extract_fai_no($fai);
-  $ret = ['page' => null, 'note' => ''];
   if ($num === '') {
-    $ret['note'] = 'FAI 번호를 추출하지 못해 전체 문서를 표시합니다.';
+    $ret['error'] = 'FAI 번호를 추출하지 못했습니다.';
+    return $ret;
+  }
+  if (!is_file($pdfPath) || !is_readable($pdfPath)) {
+    $ret['error'] = 'PDF 파일을 읽을 수 없습니다.';
     return $ret;
   }
   if (!msop_shell_enabled()) {
-    $ret['note'] = '서버에서 PDF 텍스트 검색 도구를 실행할 수 없어 전체 문서를 표시합니다.';
+    $ret['error'] = '서버에서 외부 실행이 비활성화되어 있습니다.';
     return $ret;
   }
 
-  $pdfinfo = msop_find_binary(['pdfinfo.exe', 'pdfinfo']);
-  $pdftotext = msop_find_binary(['pdftotext.exe', 'pdftotext']);
-  if ($pdfinfo === '' || $pdftotext === '') {
-    $ret['note'] = 'pdftotext/pdfinfo가 없어 전체 문서를 표시합니다.';
+  $helper = __DIR__ . DIRECTORY_SEPARATOR . 'ipqc_msop_extract_page.py';
+  if (!is_file($helper)) {
+    $ret['error'] = 'MSOP Python helper 파일이 없습니다.';
     return $ret;
   }
 
-  $infoCmd = escapeshellarg($pdfinfo) . ' ' . escapeshellarg($pdfPath) . ' 2>&1';
-  $info = @shell_exec($infoCmd);
-  if (!is_string($info) || !preg_match('/Pages:\s*(\d+)/i', $info, $m)) {
-    $ret['note'] = 'PDF 페이지 수를 읽지 못해 전체 문서를 표시합니다.';
+  $python = msop_find_python();
+  if ($python === '') {
+    $ret['error'] = 'Python 실행 파일을 찾지 못했습니다.';
     return $ret;
   }
 
-  $pages = max(1, min(1000, (int)$m[1]));
-  $headerRe = '/MSOP\s*[:]\s*FAI\s*' . preg_quote($num, '/') . '\b/i';
-  $generic1 = '/\bFAI\s*' . preg_quote($num, '/') . '\b/i';
-  $generic2 = '/\bFAI' . preg_quote($num, '/') . '\b/i';
-
-  $fallbackPage = null;
-  for ($p = 1; $p <= $pages; $p++) {
-    $cmd = escapeshellarg($pdftotext) . ' -f ' . $p . ' -l ' . $p . ' -layout ' . escapeshellarg($pdfPath) . ' - 2>&1';
-    $txt = @shell_exec($cmd);
-    if (!is_string($txt) || $txt === '') continue;
-    $u = preg_replace('/\s+/u', ' ', $txt);
-    if (preg_match($headerRe, $u)) {
-      $ret['page'] = $p;
-      return $ret;
-    }
-    if ($fallbackPage === null && (preg_match($generic1, $u) || preg_match($generic2, $u))) {
-      $fallbackPage = $p;
-    }
-  }
-
-  if ($fallbackPage !== null) {
-    $ret['page'] = $fallbackPage;
+  $cacheDir = msop_cache_dir();
+  if ($cacheDir === '' || !is_dir($cacheDir) || !is_writable($cacheDir)) {
+    $ret['error'] = 'MSOP 캐시 폴더에 쓸 수 없습니다.';
     return $ret;
   }
 
-  $ret['note'] = "FAI {$num} 페이지를 찾지 못해 전체 문서를 표시합니다.";
+  $key = sha1($pdfPath . '|' . (string)@filemtime($pdfPath) . '|' . $num);
+  $outPath = rtrim($cacheDir, "\\/") . DIRECTORY_SEPARATOR . 'msop_' . $key . '.pdf';
+  if (is_file($outPath) && filesize($outPath) > 0) {
+    $ret['ok'] = true;
+    $ret['path'] = $outPath;
+    $ret['page'] = null;
+    return $ret;
+  }
+
+  $cmd = $python . ' ' . escapeshellarg($helper) . ' ' . escapeshellarg($pdfPath) . ' ' . escapeshellarg($fai) . ' ' . escapeshellarg($outPath) . ' 2>&1';
+  $json = @shell_exec($cmd);
+  if (!is_string($json) || trim($json) === '') {
+    $ret['error'] = 'MSOP helper 실행 결과가 없습니다.';
+    return $ret;
+  }
+
+  $data = json_decode(trim($json), true);
+  if (!is_array($data)) {
+    $ret['error'] = 'MSOP helper 결과를 해석하지 못했습니다: ' . mb_substr(trim($json), 0, 300, 'UTF-8');
+    return $ret;
+  }
+  if (!empty($data['ok']) && !empty($data['out']) && is_file((string)$data['out']) && filesize((string)$data['out']) > 0) {
+    $ret['ok'] = true;
+    $ret['page'] = isset($data['page']) ? (int)$data['page'] : null;
+    $ret['path'] = (string)$data['out'];
+    return $ret;
+  }
+
+  $ret['error'] = (string)($data['error'] ?? 'FAI 페이지를 찾지 못했습니다.');
   return $ret;
 }
 
@@ -234,21 +333,29 @@ if ($action === 'pdf') {
     exit;
   }
 
-  $path = $found['path'];
-  $file = $found['file'] ?: basename($path);
+  $srcPath = (string)$found['path'];
+  $streamPath = $srcPath;
+  $streamFile = (string)($found['file'] ?: basename($srcPath));
+
+  // 예전 JMP Assist.py와 동일하게 FAI 번호가 넘어오면 해당 FAI 페이지만 추출해서 표시한다.
+  if ($fai !== '') {
+    $one = msop_extract_fai_pdf($srcPath, $fai);
+    if (!empty($one['ok']) && !empty($one['path']) && is_file((string)$one['path'])) {
+      $streamPath = (string)$one['path'];
+      $num = msop_extract_fai_no($fai);
+      $base = preg_replace('/\.pdf$/i', '', basename($streamFile));
+      $streamFile = $base . '_FAI_' . ($num !== '' ? $num : 'page') . '.pdf';
+    }
+  }
+
   @ini_set('zlib.output_compression', '0');
   while (ob_get_level()) { @ob_end_clean(); }
   header('Content-Type: application/pdf');
-  header('Content-Disposition: inline; filename="' . str_replace('"', '', basename($file)) . '"');
-  header('Content-Length: ' . (string)filesize($path));
+  header('Content-Disposition: inline; filename="' . str_replace('"', '', basename($streamFile)) . '"');
+  header('Content-Length: ' . (string)filesize($streamPath));
   header('X-Content-Type-Options: nosniff');
-  readfile($path);
+  readfile($streamPath);
   exit;
-}
-
-$pageInfo = ['page' => null, 'note' => ''];
-if (!empty($found['ok']) && $fai !== '') {
-  $pageInfo = msop_find_fai_page((string)$found['path'], $fai);
 }
 
 $models = [
@@ -263,7 +370,6 @@ if (!empty($found['ok'])) {
   $q = ['action' => 'pdf', 'model' => $model];
   if ($fai !== '') $q['fai'] = $fai;
   $pdfUrl = basename(__FILE__) . '?' . http_build_query($q, '', '&', PHP_QUERY_RFC3986);
-  if (!empty($pageInfo['page'])) $pdfUrl .= '#page=' . (int)$pageInfo['page'];
 }
 ?>
 <!doctype html>
@@ -290,7 +396,7 @@ if (!empty($found['ok'])) {
     <div class="head">
       <div>
         <div class="title">MSOP PDF 뷰어</div>
-        <div class="sub">모델 기준 최신 Rev PDF를 새 창에서 표시합니다. FAI가 넘어오면 가능한 경우 해당 페이지로 이동합니다.</div>
+        <div class="sub">모델 기준 최신 Rev PDF를 새 창에서 표시합니다. FAI가 넘어오면 해당 FAI 페이지만 표시합니다.</div>
       </div>
     </div>
 
@@ -312,19 +418,6 @@ if (!empty($found['ok'])) {
       </div>
       <button class="btn" type="submit">열기</button>
     </form>
-
-    <div class="card info">
-      <span class="chip">ROOT: <span class="path"><?= h($found['root'] ?? MSOP_ROOT_PATH) ?></span></span>
-      <?php if (!empty($found['keys'])): ?><span class="chip">KEY: <?= h(implode(', ', $found['keys'])) ?></span><?php endif; ?>
-      <?php if (!empty($found['ok'])): ?>
-        <span class="chip">PDF: <?= h($found['file']) ?></span>
-        <span class="chip">Rev: <?= h((string)$found['rev']) ?></span>
-        <?php if (!empty($pageInfo['page'])): ?><span class="chip">Page: <?= (int)$pageInfo['page'] ?></span><?php endif; ?>
-        <?php if (!empty($pageInfo['note'])): ?><span class="chip warn"><?= h($pageInfo['note']) ?></span><?php endif; ?>
-      <?php else: ?>
-        <span class="chip bad"><?= h($found['error'] ?? 'PDF를 찾지 못했습니다.') ?></span>
-      <?php endif; ?>
-    </div>
 
     <div class="card viewer">
       <?php if ($pdfUrl !== ''): ?>

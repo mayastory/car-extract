@@ -4711,13 +4711,44 @@ function showBusy(title, sub){
     }
 
 // 조회 버튼(사용자 submit) 시 모달 + 모델 필수 체크
-    // MSOP 버튼: 현재 모델/선택 FAI를 새 창의 별도 PHP 뷰어로 전달
+
+    // MSOP 버튼: clean-root 레거시 URL(/현재설치폴더/ipqc_msop_view.php)로 새 창 열기
     (function(){
       var btn = document.getElementById('btnMsop');
       if(!btn) return;
 
+      var scriptName = <?php echo json_encode((string)($_SERVER['SCRIPT_NAME'] ?? ''), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
+
+      function cleanRootBase(){
+        var p = String(scriptName || window.location.pathname || '').replace(/\\/g, '/');
+        p = p.split('?')[0].split('#')[0];
+        p = p.replace(/\/public\/legacy\/[^\/]*$/i, '/');
+        p = p.replace(/\/[^\/]*$/, '/');
+        if(!p || p.charAt(0) !== '/') p = '/';
+        return p;
+      }
+
+      function selectedFaiValue(){
+        try{
+          if(typeof faiSelectedOrdered === 'function'){
+            var arr = faiSelectedOrdered() || [];
+            for(var i=0; i<arr.length; i++){
+              var v = String(arr[i] || '').trim();
+              if(v && v !== '__ALL__') return v;
+            }
+          }
+        }catch(e){}
+        var hidden = document.querySelectorAll('#ms-fai-hidden input[name="fai[]"]');
+        for(var j=0; j<hidden.length; j++){
+          var hv = String(hidden[j].value || '').trim();
+          if(hv && hv !== '__ALL__') return hv;
+        }
+        return '';
+      }
+
       btn.addEventListener('click', function(){
-        var model = (document.getElementById('model')?.value || '').trim();
+        var modelEl = document.getElementById('model');
+        var model = modelEl ? String(modelEl.value || '').trim() : '';
         if(!model){
           showMsg('모델을 선택해주세요.');
           return;
@@ -4725,21 +4756,10 @@ function showBusy(title, sub){
 
         var qs = new URLSearchParams();
         qs.set('model', model);
-
-        var fai = '';
-        var faiInputs = document.querySelectorAll('input[name="fai[]"]:checked');
-        for(var i=0; i<faiInputs.length; i++){
-          var v = (faiInputs[i].value || '').trim();
-          if(v && v !== '__ALL__'){
-            fai = v;
-            break;
-          }
-        }
+        var fai = selectedFaiValue();
         if(fai) qs.set('fai', fai);
 
-        var path = window.location.pathname || '';
-        var base = path.replace(/[^\/]*$/, '');
-        var url = base + 'ipqc_msop_view.php?' + qs.toString();
+        var url = cleanRootBase() + 'ipqc_msop_view.php?' + qs.toString();
         window.open(url, 'ipqc_msop_view', 'width=1280,height=900,menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes');
       });
     })();
