@@ -275,6 +275,24 @@ function msop_fai_join(array $faiList): string {
   return implode(', ', array_values(array_filter(array_map('strval', $faiList), function($v){ return trim($v) !== ''; })));
 }
 
+function msop_safe_pdf_filename(string $name): string {
+  $name = basename($name);
+  $name = preg_replace('/[\\\/:*?"<>|]+/u', '_', $name);
+  $name = preg_replace('/\s+/u', ' ', $name);
+  $name = trim((string)$name);
+  if ($name === '') $name = 'MSOP.pdf';
+  if (!preg_match('/\.pdf$/i', $name)) $name .= '.pdf';
+  return $name;
+}
+
+function msop_ascii_fallback_filename(string $name): string {
+  $name = msop_safe_pdf_filename($name);
+  $ascii = preg_replace('/[^A-Za-z0-9._ -]+/', '_', $name);
+  $ascii = trim((string)$ascii);
+  if ($ascii === '' || strtolower($ascii) === '.pdf') $ascii = 'MSOP.pdf';
+  return $ascii;
+}
+
 function msop_model_to_mapkey(string $model): string {
   $m = trim($model);
   if ($m === '') return '';
@@ -447,13 +465,14 @@ function msop_cache_dir(): string {
   return $dir;
 }
 
-function msop_extract_fai_pdf(string $pdfPath, array $faiList): array {
+function msop_extract_fai_pdf(string $pdfPath, array $faiList, string $displayTitle = ''): array {
   $ret = ['ok' => false, 'page' => null, 'path' => '', 'error' => ''];
-  $faiList = array_values(array_filter(array_map('trim', $faiList), function($v){ return $v !== '' && $v !== '__ALL__'; }));
+  $faiList = array_values(array_filter(array_map('trim', $faiList), function($v){ return $v !== ''; }));
   if (empty($faiList)) {
     $ret['error'] = 'FAI 선택값이 없습니다.';
     return $ret;
   }
+  $displayTitle = msop_safe_pdf_filename($displayTitle !== '' ? $displayTitle : 'MSOP.pdf');
   if (!is_file($pdfPath) || !is_readable($pdfPath)) {
     $ret['error'] = 'PDF 파일을 읽을 수 없습니다.';
     return $ret;
@@ -492,7 +511,8 @@ function msop_extract_fai_pdf(string $pdfPath, array $faiList): array {
   $numKey = implode('_', array_values(array_unique($nums)));
   if ($numKey === '') $numKey = sha1(msop_fai_join($faiList));
 
-  $key = sha1($pdfPath . '|' . (string)@filemtime($pdfPath) . '|' . $labelJson);
+  $helperMtime = is_file($helper) ? (string)@filemtime($helper) : '0';
+  $key = sha1($pdfPath . '|' . (string)@filemtime($pdfPath) . '|multi-page-v4-title|' . $helperMtime . '|' . $displayTitle . '|' . $labelJson);
   $outPath = rtrim($cacheDir, "\\/") . DIRECTORY_SEPARATOR . 'msop_' . $key . '.pdf';
   if (is_file($outPath) && filesize($outPath) > 0) {
     $ret['ok'] = true;
@@ -501,7 +521,7 @@ function msop_extract_fai_pdf(string $pdfPath, array $faiList): array {
     return $ret;
   }
 
-  $cmd = $python . ' ' . escapeshellarg($helper) . ' ' . escapeshellarg($pdfPath) . ' ' . escapeshellarg($labelJson) . ' ' . escapeshellarg($outPath) . ' 2>&1';
+  $cmd = $python . ' ' . escapeshellarg($helper) . ' ' . escapeshellarg($pdfPath) . ' ' . escapeshellarg($labelJson) . ' ' . escapeshellarg($outPath) . ' ' . escapeshellarg($displayTitle) . ' 2>&1';
   $json = @shell_exec($cmd);
   if (!is_string($json) || trim($json) === '') {
     $ret['error'] = 'MSOP helper 실행 결과가 없습니다.';
@@ -548,30 +568,42 @@ if ($action === 'pdf') {
 
   $srcPath = (string)$found['path'];
   $streamPath = $srcPath;
-  $streamFile = (string)($found['file'] ?: basename($srcPath));
+  $streamFile = msop_safe_pdf_filename((string)($found['file'] ?: basename($srcPath)));
 
   // 예전 JMP Assist.py처럼 FAI 번호 기준으로 페이지를 찾되, 복수 FAI 선택 시 찾은 페이지들을 한 PDF로 묶어서 표시한다.
+  // Chrome PDF 툴바에는 PHP 파일명이 아니라 PDF 파일명이 보이도록 Content-Disposition과 PDF Title metadata를 같이 맞춘다.
   if (!empty($faiList) && !msop_is_all_fai($faiList)) {
-    $one = msop_extract_fai_pdf($srcPath, $faiList);
+    $nums = [];
+    foreach ($faiList as $lab) {
+      $num = msop_extract_fai_no($lab);
+      if ($num !== '' && !in_array($num, $nums, true)) $nums[] = $num;
+    }
+    $base = preg_replace('/\.pdf$/i', '', basename($streamFile));
+    $suffix = count($nums) === 1 ? $nums[0] : 'multi';
+    $targetFile = msop_safe_pdf_filename($base . '_FAI_' . $suffix . '.pdf');
+    $one = msop_extract_fai_pdf($srcPath, $faiList, $targetFile);
     if (!empty($one['ok']) && !empty($one['path']) && is_file((string)$one['path'])) {
       $streamPath = (string)$one['path'];
-      $nums = [];
-      foreach ($faiList as $lab) {
-        $num = msop_extract_fai_no($lab);
-        if ($num !== '' && !in_array($num, $nums, true)) $nums[] = $num;
-      }
-      $base = preg_replace('/\.pdf$/i', '', basename($streamFile));
-      $suffix = count($nums) === 1 ? $nums[0] : 'multi';
-      $streamFile = $base . '_FAI_' . $suffix . '.pdf';
+      $streamFile = $targetFile;
+    }
+  } elseif (!empty($faiList) && msop_is_all_fai($faiList)) {
+    // ALL도 원본을 그대로 직접 스트리밍하면 Chrome 툴바가 php 파일명을 표시할 수 있어,
+    // 캐시 PDF에 원본 파일명을 Title로 심어 둔 뒤 그것을 표시한다. 실패하면 원본으로 fallback한다.
+    $all = msop_extract_fai_pdf($srcPath, ['__ALL__'], $streamFile);
+    if (!empty($all['ok']) && !empty($all['path']) && is_file((string)$all['path'])) {
+      $streamPath = (string)$all['path'];
     }
   }
 
   @ini_set('zlib.output_compression', '0');
   while (ob_get_level()) { @ob_end_clean(); }
+  $streamFile = msop_safe_pdf_filename($streamFile);
+  $fallbackFile = msop_ascii_fallback_filename($streamFile);
   header('Content-Type: application/pdf');
-  header('Content-Disposition: inline; filename="' . str_replace('"', '', basename($streamFile)) . '"');
+  header('Content-Disposition: inline; filename="' . str_replace('"', '', $fallbackFile) . '"; filename*=UTF-8\'\'' . rawurlencode($streamFile));
   header('Content-Length: ' . (string)filesize($streamPath));
   header('X-Content-Type-Options: nosniff');
+  header('Cache-Control: private, max-age=0, must-revalidate');
   readfile($streamPath);
   exit;
 }
