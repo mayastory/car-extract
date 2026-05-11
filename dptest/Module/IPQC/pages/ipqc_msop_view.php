@@ -1,4 +1,5 @@
 <?php
+ob_start();
 // MSOP PDF viewer for IPQC viewer (separate window, no modal).
 // Finds the latest Rev PDF with the same model-key logic used by the legacy JMP Assist MSOP flow.
 if (!defined('JTMES_ROOT')) { define('JTMES_ROOT', realpath(dirname(__DIR__, 3)) ?: dirname(__DIR__, 3)); }
@@ -596,14 +597,36 @@ if ($action === 'pdf') {
   }
 
   @ini_set('zlib.output_compression', '0');
+  @ini_set('default_mimetype', '');
+
+  if (!is_file($streamPath) || !is_readable($streamPath)) {
+    while (ob_get_level()) { @ob_end_clean(); }
+    http_response_code(404);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo 'PDF stream file not found';
+    exit;
+  }
+
+  // 포함 파일/가드에서 기본 text/html 헤더나 공백 출력이 섞이면
+  // Chrome iframe 안에서 PDF가 바이너리 텍스트로 보일 수 있으므로,
+  // PDF 스트리밍 직전에 출력 버퍼와 기존 Content-Type 계열 헤더를 정리한다.
   while (ob_get_level()) { @ob_end_clean(); }
+  header_remove('Content-Type');
+  header_remove('Content-Disposition');
+  header_remove('Content-Length');
+  header_remove('Cache-Control');
+  header_remove('Pragma');
+
   $streamFile = msop_safe_pdf_filename($streamFile);
   $fallbackFile = msop_ascii_fallback_filename($streamFile);
+  $size = @filesize($streamPath);
   header('Content-Type: application/pdf');
-  header('Content-Disposition: inline; filename="' . str_replace('"', '', $fallbackFile) . '"; filename*=UTF-8\'\'' . rawurlencode($streamFile));
-  header('Content-Length: ' . (string)filesize($streamPath));
+  header('Content-Transfer-Encoding: binary');
+  header('Content-Disposition: inline; filename="' . str_replace(['\\', '"', "\r", "\n"], '', $fallbackFile) . '"; filename*=UTF-8\'\'' . rawurlencode($streamFile));
+  if ($size !== false) header('Content-Length: ' . (string)$size);
+  header('Accept-Ranges: bytes');
   header('X-Content-Type-Options: nosniff');
-  header('Cache-Control: private, max-age=0, must-revalidate');
+  header('Cache-Control: private, no-store, max-age=0, must-revalidate');
   readfile($streamPath);
   exit;
 }
