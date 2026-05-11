@@ -4787,11 +4787,12 @@ function showBusy(title, sub){
 
         var qs = new URLSearchParams();
         qs.set('model', model);
+        var typeEl = document.getElementById('type');
+        var type = typeEl ? String(typeEl.value || '').trim().toUpperCase() : '';
+        if(type) qs.set('type', type);
+
         var fais = selectedFaiValues();
         for(var i=0; i<fais.length; i++) qs.append('fai[]', fais[i]);
-
-        var allFais = allFaiValues();
-        for(var j=0; j<allFais.length; j++) qs.append('fai_all[]', allFais[j]);
 
         var url = cleanRootBase() + 'ipqc_msop_view.php?' + qs.toString();
         window.open(url, 'ipqc_msop_view', 'width=1280,height=900,menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes');

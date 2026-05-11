@@ -261,37 +261,56 @@ function msop_fai_join(array $faiList): string {
   return implode(', ', array_values(array_filter(array_map('strval', $faiList), function($v){ return trim($v) !== ''; })));
 }
 
-function msop_fai_options_from_request(array $selected): array {
-  $raw = $_GET['fai_all'] ?? [];
+function msop_model_to_mapkey(string $model): string {
+  $m = trim($model);
+  if ($m === '') return '';
+  if (preg_match('/z\s*[-_]?\s*stopper/i', $m)) return 'ZSTOPPER';
+  if (preg_match('/z\s*[-_]?\s*carrier/i', $m)) return 'ZCARRIER';
+  if (preg_match('/y\s*[-_]?\s*carrier/i', $m)) return 'YCARRIER';
+  if (preg_match('/x\s*[-_]?\s*carrier/i', $m)) return 'XCARRIER';
+  if (preg_match('/ir\s*[-_]?\s*base/i', $m)) return 'IRBASE';
+  return '';
+}
+
+function msop_order_map(): array {
+  static $map = null;
+  if ($map !== null) return $map;
+  $map = [];
+  $cands = [JTMES_ROOT . '/lib/ipqc_order_map.php', JTMES_ROOT . '/ipqc_order_map.php'];
+  foreach ($cands as $file) {
+    if (is_file($file)) {
+      $tmp = include $file;
+      if (is_array($tmp)) $map = $tmp;
+      break;
+    }
+  }
+  return $map;
+}
+
+function msop_fai_options_for_model_type(string $model, string $type, array $selected): array {
+  $type = strtoupper(trim($type));
+  if (!in_array($type, ['AOI','OMM','REAL_OMM','CMM','OQC'], true)) $type = 'OMM';
+  $orderType = ($type === 'REAL_OMM') ? 'AOI' : $type;
+  $mk = msop_model_to_mapkey($model);
   $vals = [];
-  $push = function($v) use (&$vals, &$push) {
-    if (is_array($v)) {
-      foreach ($v as $vv) $push($vv);
-      return;
+
+  $map = msop_order_map();
+  if ($mk !== '' && isset($map[$mk]) && is_array($map[$mk]) && isset($map[$mk][$orderType]) && is_array($map[$mk][$orderType])) {
+    foreach ($map[$mk][$orderType] as $v) {
+      if (is_array($v)) continue;
+      $s = trim((string)$v);
+      if ($s !== '' && $s !== '__ALL__') $vals[] = $s;
     }
-    $s = trim((string)$v);
-    if ($s === '') return;
-    $parts = preg_split('/\s*(?:\|\||[,;\r\n]+)\s*/u', $s, -1, PREG_SPLIT_NO_EMPTY);
-    if (is_array($parts) && count($parts) > 1) {
-      foreach ($parts as $part) {
-        $part = trim((string)$part);
-        if ($part !== '') $vals[] = $part;
-      }
-    } else {
-      $vals[] = $s;
-    }
-  };
-  $push($raw);
+  }
+
   foreach ($selected as $v) {
-    $v = trim((string)$v);
-    if ($v !== '') $vals[] = $v;
+    $s = trim((string)$v);
+    if ($s !== '' && $s !== '__ALL__') $vals[] = $s;
   }
 
   $out = [];
   $seen = [];
   foreach ($vals as $v) {
-    $v = trim((string)$v);
-    if ($v === '' || $v === '__ALL__') continue;
     if (isset($seen[$v])) continue;
     $seen[$v] = true;
     $out[] = $v;
@@ -428,8 +447,10 @@ function msop_extract_fai_pdf(string $pdfPath, array $faiList): array {
 }
 
 $model = trim((string)($_GET['model'] ?? ''));
+$type = strtoupper(trim((string)($_GET['type'] ?? 'OMM')));
+if (!in_array($type, ['AOI','OMM','REAL_OMM','CMM','OQC'], true)) $type = 'OMM';
 $faiList = msop_fai_list_from_request();
-$faiOptions = msop_fai_options_from_request($faiList);
+$faiOptions = msop_fai_options_for_model_type($model, $type, $faiList);
 $fai = msop_fai_join($faiList);
 $action = trim((string)($_GET['action'] ?? ''));
 
@@ -482,9 +503,8 @@ $models = [
 ];
 $pdfUrl = '';
 if (!empty($found['ok'])) {
-  $q = ['action' => 'pdf', 'model' => $model];
+  $q = ['action' => 'pdf', 'model' => $model, 'type' => $type];
   foreach ($faiList as $lab) $q['fai'][] = $lab;
-  foreach ($faiOptions as $lab) $q['fai_all'][] = $lab;
   $pdfUrl = basename(__FILE__) . '?' . http_build_query($q, '', '&', PHP_QUERY_RFC3986);
 }
 ?>
@@ -516,6 +536,7 @@ if (!empty($found['ok'])) {
     </div>
 
     <form class="card filter" method="get" action="<?= h(basename(__FILE__)) ?>">
+      <input type="hidden" name="type" value="<?= h($type) ?>">
       <div class="f">
         <label>모델</label>
         <select name="model">
@@ -551,9 +572,6 @@ if (!empty($found['ok'])) {
             </div>
           </div>
         </div>
-        <?php foreach ($faiOptions as $opt): ?>
-          <input type="hidden" name="fai_all[]" value="<?= h($opt) ?>">
-        <?php endforeach; ?>
         <div id="faiHidden">
           <?php foreach ($faiList as $opt): ?>
             <input type="hidden" name="fai[]" value="<?= h($opt) ?>">
