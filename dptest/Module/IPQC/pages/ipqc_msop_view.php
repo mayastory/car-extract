@@ -278,7 +278,7 @@ function msop_fai_join(array $faiList): string {
 
 function msop_safe_pdf_filename(string $name): string {
   $name = basename($name);
-  $name = preg_replace('/[\\\/:*?"<>|]+/u', '_', $name);
+  $name = preg_replace('~[\\\\/:*?"<>|]+~u', '_', $name);
   $name = preg_replace('/\s+/u', ' ', $name);
   $name = trim((string)$name);
   if ($name === '') $name = 'MSOP.pdf';
@@ -560,6 +560,7 @@ $action = trim((string)($_GET['action'] ?? ''));
 $found = $model !== '' ? msop_find_latest_pdf($model) : ['ok'=>false, 'root'=>MSOP_ROOT_PATH, 'keys'=>[], 'path'=>'', 'file'=>'', 'rev'=>null, 'error'=>'모델을 선택해주세요.'];
 
 if ($action === 'pdf') {
+  @ini_set('display_errors', '0');
   if (empty($found['ok']) || empty($found['path']) || !is_file($found['path'])) {
     http_response_code(404);
     header('Content-Type: text/plain; charset=utf-8');
