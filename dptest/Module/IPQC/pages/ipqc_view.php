@@ -81,7 +81,9 @@ function ipqc_omm_match_tokens($v): array {
   // OMM/REAL_OMM FAI 컬럼 매칭용 토큰.
   // 1순위는 항상 raw exact이고, 아래 토큰은 fallback 전용이다.
   // 예: FAI94-20_, FAI94-20, FAI 94-20_, 94-20_ 를 같은 후보군으로 비교한다.
+  static $__cache = [];
   $raw = (string)$v;
+  if (isset($__cache[$raw])) return $__cache[$raw];
   $tokens = [];
   $add = function($x) use (&$tokens) {
     $x = (string)$x;
@@ -109,7 +111,10 @@ function ipqc_omm_match_tokens($v): array {
     }
   }
 
-  return array_keys($tokens);
+  $__out = array_keys($tokens);
+  if (count($__cache) > 4096) $__cache = [];
+  $__cache[$raw] = $__out;
+  return $__out;
 }
 
 function ipqc_omm_add_match_tokens(array &$set, $v): void {
@@ -2205,6 +2210,21 @@ r.usl, r.lsl, r.result_ok
         $dbKeysOrdered = array_keys($colMeta);
         usort($dbKeysOrdered, function($a, $b) { return ipqc_cmp_omm_cols((string)$a, (string)$b); });
 
+        // 조회 때마다 orderList x colMeta 전체를 중첩 스캔하지 않도록
+        // DB 컬럼 token index를 한 번만 만든다. (표시/매칭 동작은 기존과 동일)
+        $dbTokenIndex = [];
+        foreach ($dbKeysOrdered as $__ck) {
+          $__seenTok = [];
+          foreach (ipqc_omm_match_tokens($__ck) as $__tok) { $__seenTok[$__tok] = 1; }
+          $__rawDb = (string)($colMeta[$__ck]['raw'] ?? '');
+          foreach (ipqc_omm_match_tokens($__rawDb) as $__tok) { $__seenTok[$__tok] = 1; }
+          foreach (array_keys($__seenTok) as $__tok) {
+            if ($__tok === '') continue;
+            if (!isset($dbTokenIndex[$__tok])) $dbTokenIndex[$__tok] = [];
+            $dbTokenIndex[$__tok][] = $__ck;
+          }
+        }
+
         $mappedKeys = [];
         $mappedSet  = [];
         $ord = 0;
@@ -2213,22 +2233,12 @@ r.usl, r.lsl, r.result_ok
           $__rawLab = (string)$__lab;
           if ($__rawLab === '') { $ord++; continue; }
 
-          $__tokens = ipqc_omm_match_tokens($__rawLab);
           $__matchedKey = null;
-
-          foreach (array_keys($colMeta) as $__ck) {
-            if (isset($mappedSet[$__ck])) continue;
-            $__matched = false;
-            foreach (ipqc_omm_match_tokens($__ck) as $__ctok) {
-              if (in_array($__ctok, $__tokens, true)) { $__matched = true; break; }
+          foreach (ipqc_omm_match_tokens($__rawLab) as $__tok) {
+            if (!isset($dbTokenIndex[$__tok])) continue;
+            foreach ($dbTokenIndex[$__tok] as $__candKey) {
+              if (!isset($mappedSet[$__candKey])) { $__matchedKey = $__candKey; break 2; }
             }
-            if (!$__matched) {
-              $__rawDb = (string)($colMeta[$__ck]['raw'] ?? '');
-              foreach (ipqc_omm_match_tokens($__rawDb) as $__ctok) {
-                if (in_array($__ctok, $__tokens, true)) { $__matched = true; break; }
-              }
-            }
-            if ($__matched) { $__matchedKey = $__ck; break; }
           }
 
           // 이름으로 직접 매칭되지 않는 OMM은 매핑 순번과 DB 컬럼 순번으로 연결한다.
