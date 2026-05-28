@@ -65,6 +65,66 @@ function ipqc_order_map_type(string $type): string {
   return $type;
 }
 
+function ipqc_order_index_put(array &$orderIndex, string $type, $label, int $i): void {
+  // OMM/REAL_OMM: raw FAI명을 먼저 등록하고, 정규화 키는 fallback alias로만 추가한다.
+  // 매핑 라벨과 DB 라벨이 FAI prefix/공백/끝 '_' 차이로 어긋나는 경우도 정렬용 alias로만 보조한다.
+  $raw = (string)$label;
+  if ($raw !== '' && !isset($orderIndex[$raw])) $orderIndex[$raw] = $i;
+  if ($type === 'OMM' || $type === 'REAL_OMM') {
+    foreach (ipqc_omm_match_tokens($raw) as $__tok) {
+      if ($__tok !== '' && !isset($orderIndex[$__tok])) $orderIndex[$__tok] = $i;
+    }
+  }
+}
+
+function ipqc_omm_match_tokens($v): array {
+  // OMM/REAL_OMM FAI 컬럼 매칭용 토큰.
+  // 1순위는 항상 raw exact이고, 아래 토큰은 fallback 전용이다.
+  // 예: FAI94-20_, FAI94-20, FAI 94-20_, 94-20_ 를 같은 후보군으로 비교한다.
+  $raw = (string)$v;
+  $tokens = [];
+  $add = function($x) use (&$tokens) {
+    $x = (string)$x;
+    if ($x !== '') $tokens[$x] = 1;
+  };
+
+  $cands = [$raw, trim($raw), ipqc_norm_omm_match_key($raw), ipqc_omm_display_label($raw)];
+  foreach ($cands as $s) {
+    $s = (string)$s;
+    if ($s === '') continue;
+    $add($s);
+
+    $compact = preg_replace('/\s+/u', '', strtoupper($s));
+    if ($compact === null) $compact = strtoupper($s);
+    if ($compact === '') continue;
+
+    $add('@U:' . $compact);
+
+    $noTailUnderscore = rtrim($compact, '_');
+    if ($noTailUnderscore !== '') {
+      $add('@UT:' . $noTailUnderscore);
+      $core = preg_replace('/^FAI/u', '', $noTailUnderscore);
+      if ($core === null) $core = $noTailUnderscore;
+      if ($core !== '') $add('@CORE:' . $core);
+    }
+  }
+
+  return array_keys($tokens);
+}
+
+function ipqc_omm_add_match_tokens(array &$set, $v): void {
+  foreach (ipqc_omm_match_tokens($v) as $__tok) {
+    if ($__tok !== '') $set[$__tok] = 1;
+  }
+}
+
+function ipqc_omm_order_pos_for_label($label, array $orderIndex): int {
+  foreach (ipqc_omm_match_tokens($label) as $__tok) {
+    if (isset($orderIndex[$__tok])) return (int)$orderIndex[$__tok];
+  }
+  return PHP_INT_MAX;
+}
+
 function ipqc_fetch_tools_for_type_model(PDO $pdo, string $type, string $model, array $TYPE_MAP, ?array $oqcSchema = null): array {
   $type = strtoupper(trim($type));
   $model = trim($model);
@@ -861,8 +921,7 @@ if ($__mk !== '' && isset($IPQC_ORDER_MAP[$__mk]) && is_array($IPQC_ORDER_MAP[$_
     foreach ($__list as $__lab) {
       if (is_array($__lab)) continue;
       $__lab = (string)$__lab;
-      $__ordKey = (($type === 'OMM' || $type === 'REAL_OMM') ? ipqc_norm_omm_match_key($__lab) : $__lab);
-      if ($__ordKey !== '' && !isset($orderIndex[$__ordKey])) $orderIndex[$__ordKey] = $i;
+      ipqc_order_index_put($orderIndex, $type, $__lab, $i);
       $i++;
     }
   }
@@ -911,13 +970,9 @@ foreach ($faiSel as $v) {
 }
 $faiSel = array_values(array_unique($tmp));
 if ($type === 'OMM' || $type === 'REAL_OMM') {
-  $tmpNorm = [];
-  foreach ($faiSel as $v) {
-    if ($v === '__ALL__') { $tmpNorm[] = '__ALL__'; continue; }
-    $nv = ipqc_norm_omm_match_key($v);
-    if ($nv !== '') $tmpNorm[] = $nv;
-  }
-  $faiSel = array_values(array_unique($tmpNorm));
+  // 화면 선택값은 사용자가 선택한 원문 라벨 그대로 유지한다.
+  // 정규화/DB raw alias는 뒤쪽 컬럼 필터에서 내부 매칭용으로만 확장한다.
+  $faiSel = array_values(array_unique($faiSel));
 }
 if (count($faiSel) > 500) $faiSel = array_slice($faiSel, 0, 500);
 
@@ -1049,8 +1104,7 @@ if ($type === 'OQC') {
         foreach ($__list as $__lab) {
           if (is_array($__lab)) continue;
           $__lab = (string)$__lab;
-          $__ordKey = (($type === 'OMM' || $type === 'REAL_OMM') ? ipqc_norm_omm_match_key($__lab) : $__lab);
-          if ($__ordKey !== '' && !isset($orderIndex[$__ordKey])) $orderIndex[$__ordKey] = $i;
+          ipqc_order_index_put($orderIndex, $type, $__lab, $i);
           $i++;
         }
       }
@@ -1183,7 +1237,7 @@ if ($type === 'AOI') {
       foreach ($__list as $__lab) {
         if (is_array($__lab)) continue;
         $__lab = (string)$__lab;
-        if ($__lab !== '' && !isset($orderIndex[$__lab])) $orderIndex[$__lab] = $i;
+        ipqc_order_index_put($orderIndex, $type, $__lab, $i);
         $i++;
       }
     }
@@ -1271,6 +1325,20 @@ if ($type === 'AOI') {
       }
     }
   }
+}
+
+// FAI 옵션(OMM 전용): 화면 선택 목록은 매핑.xlsx의 원래 FAI 라벨만 보여준다.
+// DB raw 컬럼명(예: FAI94-10)은 화면 필터 목록에 노출하지 않고, 조회 시 내부 매칭용으로만 사용한다.
+if ($type === 'OMM') {
+  $tmp = [];
+  if (!empty($orderList) && is_array($orderList)) {
+    foreach ($orderList as $lab) {
+      if (is_array($lab)) continue;
+      $lab = (string)$lab;
+      if ($lab !== '') $tmp[] = $lab;
+    }
+  }
+  $faiOptions = array_values(array_unique($tmp));
 }
 
 // FAI 옵션(REAL_OMM 전용): AOI 매핑 순서를 우선 사용한다.
@@ -2090,6 +2158,7 @@ r.usl, r.lsl, r.result_ok
 
           if (!isset($colMeta[$colKey])) {
             $colMeta[$colKey] = [
+              'raw'   => $keyName,
               'label' => ipqc_omm_display_label($keyName),
               'usl'   => $r['usl'],
               'lsl'   => $r['lsl'],
@@ -2129,22 +2198,53 @@ r.usl, r.lsl, r.result_ok
       }
 
       // Build ordered pivot columns
-      // OMM: always follow mapping order (all labels), then append any DB-only columns
+      // OMM: 화면/헤더 라벨은 매핑.xlsx 원래 FAI명을 유지하고,
+      //      DB raw 컬럼명은 내부 key로만 사용한다.
+      //      매핑 라벨과 DB raw 이름이 다르면 1차 token match, 2차 동일 순번 fallback으로 연결한다.
       if ($type === 'OMM' && !empty($orderList)) {
-        // OMM: 매핑.xlsx(order_map)은 '정렬'에만 사용한다.
-        // - DB에 없는 라벨로 신규 컬럼을 만들지 않는다.
-        // - 라벨/키를 정규화/분리/접두어 보정하지 않는다(DB 그대로).
+        $dbKeysOrdered = array_keys($colMeta);
+        usort($dbKeysOrdered, function($a, $b) { return ipqc_cmp_omm_cols((string)$a, (string)$b); });
+
         $mappedKeys = [];
         $mappedSet  = [];
+        $ord = 0;
         foreach ($orderList as $__lab) {
           if (is_array($__lab)) continue;
           $__rawLab = (string)$__lab;
-          $__mapKey = ipqc_norm_omm_match_key($__rawLab);
-          if ($__mapKey === '') continue;
-          if (isset($colMeta[$__mapKey]) && !isset($mappedSet[$__mapKey])) {
-            $mappedSet[$__mapKey] = 1;
-            $mappedKeys[] = $__mapKey;
+          if ($__rawLab === '') { $ord++; continue; }
+
+          $__tokens = ipqc_omm_match_tokens($__rawLab);
+          $__matchedKey = null;
+
+          foreach (array_keys($colMeta) as $__ck) {
+            if (isset($mappedSet[$__ck])) continue;
+            $__matched = false;
+            foreach (ipqc_omm_match_tokens($__ck) as $__ctok) {
+              if (in_array($__ctok, $__tokens, true)) { $__matched = true; break; }
+            }
+            if (!$__matched) {
+              $__rawDb = (string)($colMeta[$__ck]['raw'] ?? '');
+              foreach (ipqc_omm_match_tokens($__rawDb) as $__ctok) {
+                if (in_array($__ctok, $__tokens, true)) { $__matched = true; break; }
+              }
+            }
+            if ($__matched) { $__matchedKey = $__ck; break; }
           }
+
+          // 이름으로 직접 매칭되지 않는 OMM은 매핑 순번과 DB 컬럼 순번으로 연결한다.
+          // 이때도 화면 라벨은 매핑.xlsx의 원래 FAI명을 사용한다.
+          if ($__matchedKey === null && isset($dbKeysOrdered[$ord]) && !isset($mappedSet[$dbKeysOrdered[$ord]])) {
+            $__matchedKey = $dbKeysOrdered[$ord];
+          }
+
+          if ($__matchedKey !== null) {
+            $mappedSet[$__matchedKey] = 1;
+            $mappedKeys[] = $__matchedKey;
+            $colMeta[$__matchedKey]['order_label'] = $__rawLab;
+            $colMeta[$__matchedKey]['label'] = $__rawLab;
+          }
+
+          $ord++;
         }
 
         $extraKeys = [];
@@ -2174,15 +2274,25 @@ r.usl, r.lsl, r.result_ok
       }
 // OMM/CMM: FAI 선택은 '열(컬럼)' 필터이다. 선택된 컬럼만 남긴다. (__ALL__이면 전체)
       if (($type === 'OMM' || $type === 'REAL_OMM' || $type === 'CMM') && isset($colKeys) && is_array($colKeys) && !empty($faiSel) && !in_array('__ALL__', $faiSel, true)) {
-        $selSet = array_fill_keys($faiSel, 1);
+        $selSet = [];
+        foreach ($faiSel as $__sv) {
+          $__sv = (string)$__sv;
+          if ($__sv === '') continue;
+          $selSet[$__sv] = 1;
+          if ($type === 'OMM' || $type === 'REAL_OMM') ipqc_omm_add_match_tokens($selSet, $__sv);
+        }
         $colKeys = array_values(array_filter($colKeys, function($k) use ($selSet, $colMeta, $type){
           $k = (string)$k;
           if ($type === 'OMM' || $type === 'REAL_OMM') {
-            $cmpKey = ipqc_norm_omm_match_key($k);
-            if ($cmpKey !== '' && isset($selSet[$cmpKey])) return true;
+            if (isset($selSet[$k])) return true; // raw/existing key exact match 우선
+            $rawLabel = (string)($colMeta[$k]['raw'] ?? '');
+            if ($rawLabel !== '' && isset($selSet[$rawLabel])) return true;
             $label = (string)($colMeta[$k]['label'] ?? '');
-            $cmpLabel = ipqc_norm_omm_match_key($label);
-            if ($cmpLabel !== '' && isset($selSet[$cmpLabel])) return true;
+            if ($label !== '' && isset($selSet[$label])) return true;
+
+            foreach (ipqc_omm_match_tokens($k) as $__tok) { if (isset($selSet[$__tok])) return true; }
+            foreach (ipqc_omm_match_tokens($rawLabel) as $__tok) { if (isset($selSet[$__tok])) return true; }
+            foreach (ipqc_omm_match_tokens($label) as $__tok) { if (isset($selSet[$__tok])) return true; }
             return false;
           }
           if (isset($selSet[$k])) return true;
@@ -2192,6 +2302,38 @@ r.usl, r.lsl, r.result_ok
           }
           return false;
         }));
+
+        // OMM/REAL_OMM: fallback으로 DB 컬럼이 매칭되더라도 화면 헤더는 사용자가 선택한 원래 FAI명으로 유지한다.
+        // 예: 선택값 FAI94-20_ 이 DB 컬럼 FAI94-20 과 fallback 매칭되어도 헤더는 FAI94-20_ 로 표시.
+        if ($type === 'OMM' || $type === 'REAL_OMM') {
+          $selDisplayMap = [];
+          foreach ($faiSel as $__sv) {
+            $__sv = (string)$__sv;
+            if ($__sv === '' || $__sv === '__ALL__') continue;
+            if (!isset($selDisplayMap[$__sv])) $selDisplayMap[$__sv] = $__sv;
+            foreach (ipqc_omm_match_tokens($__sv) as $__tok) {
+              if ($__tok !== '' && !isset($selDisplayMap[$__tok])) $selDisplayMap[$__tok] = $__sv;
+            }
+          }
+
+          foreach ($colKeys as $__ck) {
+            $__ck = (string)$__ck;
+            $__display = null;
+            $__rawLabel = (string)($colMeta[$__ck]['raw'] ?? '');
+            $__label = (string)($colMeta[$__ck]['label'] ?? '');
+            foreach ([$__ck, $__rawLabel, $__label] as $__cand) {
+              if ($__cand !== '' && isset($selDisplayMap[$__cand])) { $__display = $selDisplayMap[$__cand]; break; }
+            }
+            if ($__display === null) {
+              foreach ([$__ck, $__rawLabel, $__label] as $__cand) {
+                foreach (ipqc_omm_match_tokens($__cand) as $__tok) {
+                  if (isset($selDisplayMap[$__tok])) { $__display = $selDisplayMap[$__tok]; break 2; }
+                }
+              }
+            }
+            if ($__display !== null && $__display !== '' && empty($colMeta[$__ck]['order_label'])) $colMeta[$__ck]['label'] = $__display;
+          }
+        }
       }
 
 $pivotCols = [];
@@ -4054,7 +4196,10 @@ Object.keys(IPQC_TOOL_MODEL_MAP || {}).forEach(function(k){ __TOOLS_LOADED[k] = 
         const key = faiFilterKey(t, m);
         return Array.isArray(IPQC_FAI_OPTIONS_MODEL_MAP[key]) ? IPQC_FAI_OPTIONS_MODEL_MAP[key] : [];
       }
-      if(t === 'OMM' || t === 'CMM'){
+      if(t === 'OMM'){
+        return (mk && IPQC_FAI_MAP && IPQC_FAI_MAP[mk] && Array.isArray(IPQC_FAI_MAP[mk][t])) ? IPQC_FAI_MAP[mk][t] : [];
+      }
+      if(t === 'CMM'){
         return (mk && IPQC_FAI_MAP && IPQC_FAI_MAP[mk] && Array.isArray(IPQC_FAI_MAP[mk][t])) ? IPQC_FAI_MAP[mk][t] : [];
       }
       return [];
@@ -4334,7 +4479,7 @@ Object.keys(IPQC_TOOL_MODEL_MAP || {}).forEach(function(k){ __TOOLS_LOADED[k] = 
           return;
         }
       }
-      if(type === 'REAL_OMM' && model && (!Array.isArray(items) || items.length === 0)){
+      if(type === 'REAL_OMM' && model && !__FAI_OPTIONS_LOADED[faiFilterKey(type, model)]){
         if(empty){
           empty.style.display = 'block';
           empty.textContent = '로딩 중...';
@@ -4348,7 +4493,7 @@ Object.keys(IPQC_TOOL_MODEL_MAP || {}).forEach(function(k){ __TOOLS_LOADED[k] = 
           }
           const curType = (document.getElementById('type') ? (document.getElementById('type').value || '') : '').trim().toUpperCase();
           const curModel = (document.getElementById('model') ? (document.getElementById('model').value || '') : '');
-          if(curType === 'REAL_OMM' && curModel === model){
+          if((curType === 'OMM' || curType === 'REAL_OMM') && curType === type && curModel === model){
             faiBuildListForModel(model, false);
           }
         });
