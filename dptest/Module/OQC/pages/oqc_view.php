@@ -1,6 +1,7 @@
 <?php
 if (!defined('JTMES_ROOT')) {
-    define('JTMES_ROOT', realpath(dirname(__DIR__, 3)) ?: dirname(__DIR__, 3));
+   define('JTMES_ROOT', realpath(dirname(__DIR__, 3)) ?: dirname(__DIR__, 3));
+   
 }
 
 session_start();
@@ -10,8 +11,9 @@ require_once JTMES_ROOT . '/config/dp_config.php';
 $EMBED = !empty($_GET['embed']);
 
 if (!$EMBED) {
-    require_once JTMES_ROOT . '/inc/sidebar.php';
-    require_once JTMES_ROOT . '/inc/dp_userbar.php';
+   require_once JTMES_ROOT . '/inc/sidebar.php';
+   require_once JTMES_ROOT . '/inc/dp_userbar.php';
+   
 }
 
 require_once JTMES_ROOT . '/lib/auth_guard.php';
@@ -19,1237 +21,874 @@ require_once JTMES_ROOT . '/lib/auth_guard.php';
 dp_auth_guard();
 
 if (!function_exists('h')) {
-    function h(?string $s): string
-    {
-        return htmlspecialchars($s ?? '', ENT_QUOTES, 'UTF-8');
-    }
+   function h(?string $s): string {
+     return htmlspecialchars($s ?? '', ENT_QUOTES, 'UTF-8');
+     
+  }
+   
 }
 
 if (!function_exists('fmt_spec_4')) {
-    function fmt_spec_4($v): string
-    {
-        if ($v === null || $v === '') {
-            return '';
-        }
-        if (!is_numeric((string)$v)) {
-            return (string)$v;
-        }
-        return number_format((float)$v, 4, '.', '');
-    }
+   function fmt_spec_4($v): string {
+     if ($v === null || $v === '') return '';
+     if (!is_numeric((string)$v)) return (string)$v;
+     return number_format((float)$v, 4, '.', '');
+     
+  }
+   
 }
 
-function oqc_view_model_key(string $part): string
-{
-    $s = strtoupper(str_replace(['_', '-', ' '], '', $part));
-
-    if (strpos($s, 'ZCARRIER') !== false || $s === 'ZC') {
-        return 'MEM-Z-CARRIER';
-    }
-    if (strpos($s, 'IRBASE') !== false || $s === 'IR') {
-        return 'MEM-IR-BASE';
-    }
-    if (strpos($s, 'XCARRIER') !== false || $s === 'XC') {
-        return 'MEM-X-CARRIER';
-    }
-    if (strpos($s, 'YCARRIER') !== false || $s === 'YC') {
-        return 'MEM-Y-CARRIER';
-    }
-    if (strpos($s, 'ZSTOPPER') !== false || $s === 'ZS') {
-        return 'MEM-Z-STOPPER';
-    }
-
-    return $part;
+function oqc_view_model_key(string $part): string {
+   $s=strtoupper(str_replace(['_','-',' '],'',$part));
+   if(strpos($s,'ZCARRIER')!==false||$s==='ZC')return 'MEM-Z-CARRIER';
+   if(strpos($s,'IRBASE')!==false||$s==='IR')return 'MEM-IR-BASE';
+   if(strpos($s,'XCARRIER')!==false||$s==='XC')return 'MEM-X-CARRIER';
+   if(strpos($s,'YCARRIER')!==false||$s==='YC')return 'MEM-Y-CARRIER';
+   if(strpos($s,'ZSTOPPER')!==false||$s==='ZS')return 'MEM-Z-STOPPER';
+   return $part;
+   
 }
 
-function oqc_view_ng_ignore_point_norm(string $point): string
-{
-    $s = strtoupper(trim($point));
-    $s = str_replace(['–', '—', '－', '‑'], '-', $s);
-    $s = preg_replace('/\s+/u', '', $s);
-
-    return $s ?? '';
+function oqc_view_ng_ignore_point_norm(string $point): string {
+   $s=strtoupper(trim($point));
+   $s=str_replace(['–','—','－','‑'],'-',$s);
+   $s=preg_replace('/\s+/u','',$s);
+   return $s ?? '';
+   
 }
 
-function oqc_view_is_ng_ignored_point(string $modelKey, string $point): bool
-{
-    if ($modelKey !== 'MEM-Z-CARRIER') {
-        return false;
-    }
-
-    static $ignore = null;
-
-    if ($ignore === null) {
-        $ignore = array_fill_keys([
-            '1-1', '1-2', '1-3', '1-4',
-            '99-V1', '100-V1', '101-V1', '102-V1',
-            '99-V2', '100-V2', '101-V2', '102-V2',
-            '105-V3', '106-V3', '107-V3', '108-V3',
-            '105-V4', '106-V4', '107-V4', '108-V4',
-        ], true);
-    }
-
-    return isset($ignore[oqc_view_ng_ignore_point_norm($point)]);
+function oqc_view_is_ng_ignored_point(string $modelKey, string $point): bool {
+   if($modelKey!=='MEM-Z-CARRIER')return false;
+   static $ignore=null;
+   if($ignore===null){
+    $ignore=array_fill_keys(['1-1','1-2','1-3','1-4','99-V1','100-V1','101-V1','102-V1','99-V2','100-V2','101-V2','102-V2','105-V3','106-V3','107-V3','108-V3','105-V4','106-V4','107-V4','108-V4'],true);
+    
+  }
+   return isset($ignore[oqc_view_ng_ignore_point_norm($point)]);
+   
 }
 
-function table_columns(PDO $pdo, string $table): array
-{
-    $cols = [];
-    $stmt = $pdo->query("SHOW COLUMNS FROM `$table`");
-
-    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
-        $cols[strtolower($r['Field'])] = true;
-    }
-
-    return $cols;
+function table_columns(PDO $pdo, string $table): array {
+   $cols=[];
+   $stmt=$pdo->query("SHOW COLUMNS FROM `$table`");
+   foreach($stmt->fetchAll(PDO::FETCH_ASSOC) as $r){
+    $cols[strtolower($r['Field'])]=true;
+    
+  }
+   return $cols;
+   
 }
 
 try {
-    $pdo = dp_get_pdo();
-} catch (PDOException $e) {
-    die('DB 접속 실패: ' . h($e->getMessage()));
+   $pdo = dp_get_pdo();
+   
+}
+ catch (PDOException $e) {
+   die('DB 접속 실패: ' . h($e->getMessage()));
+   
 }
 
 $headerCols = table_columns($pdo, 'oqc_header');
 
 if (!function_exists('dp_session_user_no_local')) {
-    function dp_session_user_no_local(): ?int
-    {
-        foreach (['ship_user_no', 'user_no', 'dp_user_no', 'account_no', 'no', 'No'] as $k) {
-            if (isset($_SESSION[$k]) && is_numeric($_SESSION[$k])) {
-                return (int)$_SESSION[$k];
-            }
-        }
-        return null;
+   function dp_session_user_no_local(): ?int {
+     foreach(['ship_user_no','user_no','dp_user_no','account_no','no','No'] as $k){
+       if(isset($_SESSION[$k]) && is_numeric($_SESSION[$k])) return (int)$_SESSION[$k];
+       
     }
+     return null;
+     
+  }
+   
 }
 
 if (!function_exists('dp_session_user_id_local')) {
-    function dp_session_user_id_local(): ?string
-    {
-        foreach (['ship_user_id', 'user_id', 'userid', 'username', 'id', 'ID'] as $k) {
-            if (!empty($_SESSION[$k])) {
-                return (string)$_SESSION[$k];
-            }
-        }
-        return null;
+   function dp_session_user_id_local(): ?string {
+     foreach(['ship_user_id','user_id','userid','username','id','ID'] as $k){
+       if(!empty($_SESSION[$k])) return (string)$_SESSION[$k];
+       
     }
+     return null;
+     
+  }
+   
 }
 
 if (!function_exists('dp_current_account_row_local')) {
-    function dp_current_account_row_local(PDO $pdo): ?array
-    {
-        $no = dp_session_user_no_local();
-
-        if ($no !== null) {
-            $st = $pdo->prepare('SELECT `No`,`ID`,`NAME`,`lv`,`role`,`status` FROM `account` WHERE `No`=:no LIMIT 1');
-            $st->execute([':no' => $no]);
-            $r = $st->fetch(PDO::FETCH_ASSOC);
-
-            if ($r) {
-                return $r;
-            }
-        }
-
-        $id = dp_session_user_id_local();
-
-        if ($id !== null && $id !== '') {
-            $st = $pdo->prepare('SELECT `No`,`ID`,`NAME`,`lv`,`role`,`status` FROM `account` WHERE `ID`=:id LIMIT 1');
-            $st->execute([':id' => $id]);
-            $r = $st->fetch(PDO::FETCH_ASSOC);
-
-            if ($r) {
-                return $r;
-            }
-        }
-
-        return null;
+   function dp_current_account_row_local(PDO $pdo): ?array {
+     $no=dp_session_user_no_local();
+     if($no!==null){
+      $st=$pdo->prepare('SELECT `No`,`ID`,`NAME`,`lv`,`role`,`status` FROM `account` WHERE `No`=:no LIMIT 1');
+      $st->execute([':no'=>$no]);
+      $r=$st->fetch(PDO::FETCH_ASSOC);
+      if($r)return $r;
+      
     }
+     $id=dp_session_user_id_local();
+     if($id!==null&&$id!==''){
+      $st=$pdo->prepare('SELECT `No`,`ID`,`NAME`,`lv`,`role`,`status` FROM `account` WHERE `ID`=:id LIMIT 1');
+      $st->execute([':id'=>$id]);
+      $r=$st->fetch(PDO::FETCH_ASSOC);
+      if($r)return $r;
+      
+    }
+     return null;
+     
+  }
+   
 }
 
 $viewerAccount = dp_current_account_row_local($pdo);
-$viewerLv = (int)($viewerAccount['lv'] ?? 0);
-$canManualMeasEdit = ($viewerLv >= 98);
+ $viewerLv=(int)($viewerAccount['lv']??0);
+ $canManualMeasEdit=($viewerLv>=98);
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'oqc_manual_meas_save')) {
-    header('Content-Type: application/json; charset=utf-8');
-
-    if (!$canManualMeasEdit) {
-        http_response_code(403);
-        echo json_encode(['ok' => false, 'message' => '권한이 없습니다.']);
-        exit;
+if ($_SERVER['REQUEST_METHOD']==='POST' && (($_POST['action']??'')==='oqc_manual_meas_save')) {
+  
+  header('Content-Type: application/json; charset=utf-8');
+  
+  if(!$canManualMeasEdit){
+    http_response_code(403);
+     echo json_encode(['ok'=>false,'message'=>'권한이 없습니다.']);
+     exit;
+    
+  }
+  
+  $headerId=(int)($_POST['header_id']??0);
+   $postCustomer=$_POST['customer']??'LG';
+   if($postCustomer!=='LG'&&$postCustomer!=='JH')$postCustomer='LG';
+  
+  $postKey1=($postCustomer==='JH')?'jmeas_date':'meas_date';
+   $postKey2=($postCustomer==='JH')?'jmeas_date2':'meas_date2';
+  
+  if($headerId<=0){
+    http_response_code(400);
+     echo json_encode(['ok'=>false,'message'=>'header_id가 올바르지 않습니다.']);
+     exit;
+    
+  }
+  
+  if(!isset($headerCols[$postKey1])){
+    http_response_code(400);
+     echo json_encode(['ok'=>false,'message'=>'측정일 컬럼이 없습니다.']);
+     exit;
+    
+  }
+  
+  $date1=trim((string)($_POST['date1']??''));
+   $date2=trim((string)($_POST['date2']??''));
+  
+  foreach(['date1'=>$date1,'date2'=>$date2] as $label=>$val){
+     if($val!=='' && !preg_match('/^\d{4}-\d{2}-\d{2}$/',$val)){
+      http_response_code(400);
+       echo json_encode(['ok'=>false,'message'=>$label.' 형식이 올바르지 않습니다.']);
+       exit;
+      
     }
-
-    $headerId = (int)($_POST['header_id'] ?? 0);
-    $postCustomer = $_POST['customer'] ?? 'LG';
-
-    if ($postCustomer !== 'LG' && $postCustomer !== 'JH') {
-        $postCustomer = 'LG';
-    }
-
-    $postKey1 = ($postCustomer === 'JH') ? 'jmeas_date' : 'meas_date';
-    $postKey2 = ($postCustomer === 'JH') ? 'jmeas_date2' : 'meas_date2';
-
-    if ($headerId <= 0) {
-        http_response_code(400);
-        echo json_encode(['ok' => false, 'message' => 'header_id가 올바르지 않습니다.']);
-        exit;
-    }
-
-    if (!isset($headerCols[$postKey1])) {
-        http_response_code(400);
-        echo json_encode(['ok' => false, 'message' => '측정일 컬럼이 없습니다.']);
-        exit;
-    }
-
-    $date1 = trim((string)($_POST['date1'] ?? ''));
-    $date2 = trim((string)($_POST['date2'] ?? ''));
-
-    foreach (['date1' => $date1, 'date2' => $date2] as $label => $val) {
-        if ($val !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $val)) {
-            http_response_code(400);
-            echo json_encode(['ok' => false, 'message' => $label . ' 형식이 올바르지 않습니다.']);
-            exit;
-        }
-    }
-
-    $check = $pdo->prepare('SELECT `id` FROM `oqc_header` WHERE `id`=:id LIMIT 1');
-    $check->execute([':id' => $headerId]);
-
-    if (!$check->fetch(PDO::FETCH_ASSOC)) {
-        http_response_code(404);
-        echo json_encode(['ok' => false, 'message' => '대상 헤더를 찾을 수 없습니다.']);
-        exit;
-    }
-
-    if (isset($headerCols[$postKey2])) {
-        $sql = "UPDATE `oqc_header` SET `{$postKey1}`=:d1, `{$postKey2}`=:d2 WHERE `id`=:id LIMIT 1";
-    } else {
-        $sql = "UPDATE `oqc_header` SET `{$postKey1}`=:d1 WHERE `id`=:id LIMIT 1";
-    }
-
-    $st = $pdo->prepare($sql);
-    $st->bindValue(':d1', ($date1 === '' ? null : $date1), ($date1 === '' ? PDO::PARAM_NULL : PDO::PARAM_STR));
-
-    if (isset($headerCols[$postKey2])) {
-        $st->bindValue(':d2', ($date2 === '' ? null : $date2), ($date2 === '' ? PDO::PARAM_NULL : PDO::PARAM_STR));
-    }
-
-    $st->bindValue(':id', $headerId, PDO::PARAM_INT);
-    $st->execute();
-
-    $recommend = $date1 === '' ? $postKey1 : ((isset($headerCols[$postKey2]) && $date2 === '') ? $postKey2 : '직접 수정');
-
-    echo json_encode([
-        'ok' => true,
-        'message' => '저장되었습니다.',
-        'header_id' => $headerId,
-        'date1' => $date1,
-        'date2' => $date2,
-        'key1' => $postKey1,
-        'key2' => isset($headerCols[$postKey2]) ? $postKey2 : '',
-        'recommend' => $recommend,
-    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    exit;
+     
+  }
+  
+  $check=$pdo->prepare('SELECT `id` FROM `oqc_header` WHERE `id`=:id LIMIT 1');
+   $check->execute([':id'=>$headerId]);
+   if(!$check->fetch(PDO::FETCH_ASSOC)){
+    http_response_code(404);
+     echo json_encode(['ok'=>false,'message'=>'대상 헤더를 찾을 수 없습니다.']);
+     exit;
+    
+  }
+  
+  if(isset($headerCols[$postKey2])) $sql="UPDATE `oqc_header` SET `{$postKey1}`=:d1, `{$postKey2}`=:d2 WHERE `id`=:id LIMIT 1";
+   else $sql="UPDATE `oqc_header` SET `{$postKey1}`=:d1 WHERE `id`=:id LIMIT 1";
+  
+  $st=$pdo->prepare($sql);
+   $st->bindValue(':d1',($date1===''?null:$date1),($date1===''?PDO::PARAM_NULL:PDO::PARAM_STR));
+   if(isset($headerCols[$postKey2]))$st->bindValue(':d2',($date2===''?null:$date2),($date2===''?PDO::PARAM_NULL:PDO::PARAM_STR));
+   $st->bindValue(':id',$headerId,PDO::PARAM_INT);
+   $st->execute();
+  
+  $recommend = $date1==='' ? $postKey1 : ((isset($headerCols[$postKey2])&&$date2==='') ? $postKey2 : '직접 수정');
+  
+  echo json_encode(['ok'=>true,'message'=>'저장되었습니다.','header_id'=>$headerId,'date1'=>$date1,'date2'=>$date2,'key1'=>$postKey1,'key2'=>isset($headerCols[$postKey2])?$postKey2:'','recommend'=>$recommend], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+   exit;
+  
 }
 
-$part_name = $_GET['part_name'] ?? '';
-$ship_date = $_GET['ship_date'] ?? '';
+$part_name=$_GET['part_name']??'';
+ $ship_date=$_GET['ship_date']??'';
+ if($ship_date!==''&&!preg_match('/^\d{4}-\d{2}-\d{2}$/',$ship_date))$ship_date='';
+ $kind=$_GET['kind']??'ALL';
 
-if ($ship_date !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $ship_date)) {
-    $ship_date = '';
-}
+$customer=$_GET['customer']??'LG';
+ if($customer!=='LG'&&$customer!=='JH')$customer='LG';
+ $customerLabel=($customer==='JH')?'자화전자(주)':'엘지이노텍(주)';
+ $measKey1=($customer==='JH')?'jmeas_date':'meas_date';
+ $measKey2=($customer==='JH')?'jmeas_date2':'meas_date2';
 
-$kind = $_GET['kind'] ?? 'ALL';
-$customer = $_GET['customer'] ?? 'LG';
+$stmt=$pdo->query("SELECT DISTINCT part_name FROM oqc_header ORDER BY part_name");
+ $part_list=$stmt->fetchAll(PDO::FETCH_COLUMN);
 
-if ($customer !== 'LG' && $customer !== 'JH') {
-    $customer = 'LG';
-}
+$headers=[];
+ $rows=[];
+ $ngMap=[];
+ $specMap=[];
 
-$customerLabel = ($customer === 'JH') ? '자화전자(주)' : '엘지이노텍(주)';
-$measKey1 = ($customer === 'JH') ? 'jmeas_date' : 'meas_date';
-$measKey2 = ($customer === 'JH') ? 'jmeas_date2' : 'meas_date2';
-
-$stmt = $pdo->query('SELECT DISTINCT part_name FROM oqc_header ORDER BY part_name');
-$part_list = $stmt->fetchAll(PDO::FETCH_COLUMN);
-
-$headers = [];
-$rows = [];
-$ngMap = [];
-$specMap = [];
-
-if ($part_name !== '' && $ship_date !== '') {
-    $params = [
-        ':part_name' => $part_name,
-        ':ship_date' => $ship_date,
-    ];
-
-    $kind_sql = '';
-
-    if ($kind === 'FAI' || $kind === 'SPC') {
-        $kind_sql = ' AND h.kind = :kind';
-        $params[':kind'] = $kind;
+if($part_name!==''&&$ship_date!==''){
+  
+  $params=[':part_name'=>$part_name,':ship_date'=>$ship_date];
+   $kind_sql='';
+   if($kind==='FAI'||$kind==='SPC'){
+    $kind_sql=' AND h.kind = :kind';
+    $params[':kind']=$kind;
+    
+  }
+  
+  $dateWhere=isset($headerCols['ship_date'])?" (h.ship_date = :ship_date OR (h.ship_date IS NULL AND h.lot_date = :ship_date)) ":" h.lot_date = :ship_date ";
+  
+  $selMeas=isset($headerCols[$measKey1])?", h.`{$measKey1}`":"";
+   $selMeas2=isset($headerCols[$measKey2])?", h.`{$measKey2}`":"";
+  
+  $sql="SELECT h.id, h.part_name {$selMeas}{$selMeas2}, ".(isset($headerCols['ship_date'])?'h.ship_date,':'')." h.lot_date, h.tool_cavity, h.kind, h.source_file, h.excel_col FROM oqc_header h WHERE h.part_name=:part_name AND {$dateWhere} {$kind_sql} ORDER BY h.excel_col";
+  
+  $stmt=$pdo->prepare($sql);
+   $stmt->execute($params);
+   $headers=$stmt->fetchAll(PDO::FETCH_ASSOC);
+  
+  if($headers){
+    
+    $base=(int)$headers[0]['id'];
+     $stmt=$pdo->prepare('SELECT row_index, point_no, spc_code FROM oqc_measurements WHERE header_id=:hid ORDER BY row_index');
+     $stmt->execute([':hid'=>$base]);
+    
+    foreach($stmt->fetchAll(PDO::FETCH_ASSOC) as $rd){
+      $ri=(int)$rd['row_index'];
+      $rows[$ri]=['point_no'=>$rd['point_no'],'spc_code'=>$rd['spc_code'],'values'=>[]];
+      
     }
-
-    $dateWhere = isset($headerCols['ship_date'])
-        ? ' (h.ship_date = :ship_date OR (h.ship_date IS NULL AND h.lot_date = :ship_date)) '
-        : ' h.lot_date = :ship_date ';
-
-    $selMeas = isset($headerCols[$measKey1]) ? ", h.`{$measKey1}`" : '';
-    $selMeas2 = isset($headerCols[$measKey2]) ? ", h.`{$measKey2}`" : '';
-
-    $sql = "SELECT h.id, h.part_name {$selMeas}{$selMeas2}, "
-         . (isset($headerCols['ship_date']) ? 'h.ship_date,' : '')
-         . " h.lot_date, h.tool_cavity, h.kind, h.source_file, h.excel_col
-              FROM oqc_header h
-             WHERE h.part_name=:part_name
-               AND {$dateWhere} {$kind_sql}
-          ORDER BY h.excel_col";
-
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
-    $headers = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    if ($headers) {
-        $base = (int)$headers[0]['id'];
-        $stmt = $pdo->prepare('SELECT row_index, point_no, spc_code FROM oqc_measurements WHERE header_id=:hid ORDER BY row_index');
-        $stmt->execute([':hid' => $base]);
-
-        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $rd) {
-            $ri = (int)$rd['row_index'];
-            $rows[$ri] = [
-                'point_no' => $rd['point_no'],
-                'spc_code' => $rd['spc_code'],
-                'values' => [],
-            ];
-        }
-
-        $ids = array_column($headers, 'id');
-        $in = implode(',', array_fill(0, count($ids), '?'));
-        $currentModelKey = oqc_view_model_key((string)($headers[0]['part_name'] ?? $part_name));
-
-        $stmt = $pdo->prepare("SELECT header_id, row_index, value FROM oqc_measurements WHERE header_id IN ($in) ORDER BY row_index, header_id");
-        $stmt->execute($ids);
-
-        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $d) {
-            $ri = (int)$d['row_index'];
-            if (isset($rows[$ri])) {
-                $rows[$ri]['values'][(int)$d['header_id']] = $d['value'];
-            }
-        }
-
-        try {
-            $stmt = $pdo->prepare("SELECT point_no, MAX(usl) AS usl, MAX(lsl) AS lsl FROM oqc_result_header WHERE header_id IN ($in) GROUP BY point_no");
-            $stmt->execute($ids);
-
-            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
-                $specMap[$r['point_no']] = [
-                    'usl' => $r['usl'],
-                    'lsl' => $r['lsl'],
-                ];
-            }
-
-            $stmt = $pdo->prepare("SELECT header_id, point_no FROM oqc_result_header WHERE header_id IN ($in) AND result_ok=0");
-            $stmt->execute($ids);
-
-            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
-                $p = (string)($r['point_no'] ?? '');
-                if (!oqc_view_is_ng_ignored_point($currentModelKey, $p)) {
-                    $ngMap[(int)$r['header_id']][$p] = true;
-                }
-            }
-        } catch (Throwable $e) {
-        }
+    
+    $ids=array_column($headers,'id');
+     $in=implode(',',array_fill(0,count($ids),'?'));
+    
+    $currentModelKey=oqc_view_model_key((string)($headers[0]['part_name']??$part_name));
+    
+    $stmt=$pdo->prepare("SELECT header_id,row_index,value FROM oqc_measurements WHERE header_id IN ($in) ORDER BY row_index, header_id");
+     $stmt->execute($ids);
+     foreach($stmt->fetchAll(PDO::FETCH_ASSOC) as $d){
+      $ri=(int)$d['row_index'];
+      if(isset($rows[$ri]))$rows[$ri]['values'][(int)$d['header_id']]=$d['value'];
+      
     }
+    
+    try{
+      $stmt=$pdo->prepare("SELECT point_no, MAX(usl) AS usl, MAX(lsl) AS lsl FROM oqc_result_header WHERE header_id IN ($in) GROUP BY point_no");
+      $stmt->execute($ids);
+      foreach($stmt->fetchAll(PDO::FETCH_ASSOC) as $r){
+        $specMap[$r['point_no']]=['usl'=>$r['usl'],'lsl'=>$r['lsl']];
+        
+      }
+      $stmt=$pdo->prepare("SELECT header_id, point_no FROM oqc_result_header WHERE header_id IN ($in) AND result_ok=0");
+      $stmt->execute($ids);
+      foreach($stmt->fetchAll(PDO::FETCH_ASSOC) as $r){
+        $p=(string)($r['point_no']??'');
+        if(!oqc_view_is_ng_ignored_point($currentModelKey,$p))$ngMap[(int)$r['header_id']][$p]=true;
+        
+      }
+      
+    }
+    catch(Throwable $e){
+      
+    }
+    
+  
+  }
+  
 }
+
 ?>
-<!doctype html>
-<html lang="ko">
-<head>
-    <meta charset="utf-8">
-    <title>OQC 측정 데이터 조회</title>
-    <style>
-        :root {
-            --bg: #202124;
-            --card: #2b2b2b;
-            --fg: #e8eaed;
-            --muted: #9aa0a6;
-            --border: #5f6368;
-            --accent2: #8ab4f8;
-            --radius: 14px;
-            --sticky1: 72px;
-            --sticky2: 72px;
-            --sticky3: 88px;
-            --sticky4: 88px;
-            --ctl-h: 34px;
-        }
 
-        body {
-            margin: 0;
-            padding: 18px;
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            background: var(--bg);
-            color: var(--fg);
-            font-size: 13px;
-        }
-
-        .dp-page {
-            padding-left: 72px;
-            box-sizing: border-box;
-        }
-
-        .wrap {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        h1 {
-            font-size: 20px;
-            margin: 0 0 12px;
-        }
-
-        .filters {
-            display: flex;
-            gap: 14px;
-            align-items: flex-end;
-            flex-wrap: wrap;
-            background: var(--card);
-            border-radius: var(--radius);
-            padding: 14px 18px;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, .45);
-            border: 1px solid rgba(255, 255, 255, .10);
-            margin-bottom: 12px;
-        }
-
-        .filters label {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            font-size: 13px;
-            color: #d7dbe0;
-        }
-
-        .filters input[type=date],
-        .filters select {
-            height: var(--ctl-h);
-            padding: 0 10px;
-            border-radius: 10px;
-            border: 1px solid var(--border);
-            background: var(--bg);
-            color: var(--fg);
-            font-size: 13px;
-        }
-
-        .filters button {
-            height: var(--ctl-h);
-            padding: 0 14px;
-            border-radius: 12px;
-            border: 1px solid rgba(29, 185, 84, .55);
-            font-size: 12.5px;
-            font-weight: 650;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            box-shadow: 0 6px 14px rgba(0, 0, 0, .26);
-            background: rgba(29, 185, 84, .18);
-            color: var(--fg);
-        }
-
-        .filters button:hover {
-            background: rgba(29, 185, 84, .28);
-        }
-
-        .oqc-status-open-btn {
-            border-color: rgba(138, 180, 248, .65) !important;
-            background: rgba(79, 140, 255, .18) !important;
-        }
-
-        .msg,
-        .summary {
-            margin: 0 0 12px;
-            padding: 10px 12px;
-            border-radius: 12px;
-            background: rgba(0, 0, 0, .08);
-            border: 1px solid rgba(255, 255, 255, .10);
-            color: var(--muted);
-            font-size: 12px;
-        }
-
-        .summary {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            align-items: center;
-        }
-
-        .summary strong {
-            color: var(--fg);
-        }
-
-        .table-wrap {
-            overflow-x: auto;
-            overflow-y: visible;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, .10);
-            background: var(--card);
-        }
-
-        table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            min-width: 900px;
-            font-size: 11.5px;
-        }
-
-        th,
-        td {
-            box-sizing: border-box;
-        }
-
-        thead th {
-            position: relative;
-            z-index: 2;
-            background: #303134;
-            color: #cbd5e1;
-            font-size: 11px;
-            text-align: center;
-            padding: 8px 10px;
-            border-bottom: 1px solid rgba(255, 255, 255, .10);
-            white-space: nowrap;
-        }
-
-        tbody td {
-            padding: 8px 10px;
-            font-size: 11.5px;
-            color: var(--fg);
-            border-bottom: 1px solid rgba(255, 255, 255, .06);
-            white-space: nowrap;
-            text-align: center;
-        }
-
-        tbody tr td {
-            background: var(--card);
-        }
-
-        tbody tr:nth-child(even) td {
-            background: #26282c;
-        }
-
-        tbody tr:hover td {
-            background: rgba(29, 185, 84, .08);
-        }
-
-        th.col-head div.sub {
-            font-size: 10px;
-            color: #57d68d;
-        }
-
-        th.num,
-        td.num {
-            width: var(--sticky1);
-            min-width: var(--sticky1);
-            max-width: var(--sticky1);
-        }
-
-        th.spc,
-        td.spc {
-            width: var(--sticky2);
-            min-width: var(--sticky2);
-            max-width: var(--sticky2);
-        }
-
-        th.spec,
-        td.spec {
-            width: var(--sticky3);
-            min-width: var(--sticky3);
-            max-width: var(--sticky3);
-        }
-
-        th.spec2,
-        td.spec2 {
-            width: var(--sticky4);
-            min-width: var(--sticky4);
-            max-width: var(--sticky4);
-        }
-
-        th.sticky,
-        td.sticky {
-            position: sticky;
-            left: 0;
-            text-align: center;
-        }
-
-        th.sticky2,
-        td.sticky2 {
-            position: sticky;
-            left: var(--sticky1);
-            text-align: center;
-            box-shadow: 2px 0 0 rgba(255, 255, 255, .10);
-        }
-
-        th.sticky3,
-        td.sticky3 {
-            position: sticky;
-            left: calc(var(--sticky1) + var(--sticky2));
-            text-align: center;
-            box-shadow: 2px 0 0 rgba(255, 255, 255, .10);
-        }
-
-        th.sticky4,
-        td.sticky4 {
-            position: sticky;
-            left: calc(var(--sticky1) + var(--sticky2) + var(--sticky3));
-            text-align: center;
-            box-shadow: 2px 0 0 rgba(255, 255, 255, .10);
-        }
-
-        th.sticky,
-        td.sticky,
-        th.sticky2,
-        td.sticky2,
-        th.sticky3,
-        td.sticky3,
-        th.sticky4,
-        td.sticky4 {
-            background: #202124;
-            z-index: 5;
-        }
-
-        thead th.sticky,
-        thead th.sticky2,
-        thead th.sticky3,
-        thead th.sticky4 {
-            background: #303134;
-        }
-
-        tbody td.sticky,
-        tbody td.sticky2,
-        tbody td.sticky3,
-        tbody td.sticky4 {
-            z-index: 3;
-            background: #202124;
-        }
-
-        td.ng {
-            background: rgba(232, 93, 93, .12) !important;
-            color: #ffd1d1;
-            font-weight: 700;
-        }
-
-        .manual-date-trigger.can-edit {
-            cursor: pointer;
-        }
-
-        .manual-date-trigger.can-edit:hover {
-            color: #98ffbd;
-            text-decoration: underline;
-        }
-
-        .manual-meas-backdrop,
-        .oqc-status-backdrop {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, .72);
-            z-index: 10040;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            padding: 18px;
-        }
-
-        .manual-meas-backdrop.open,
-        .oqc-status-backdrop.open {
-            display: flex;
-        }
-
-        .manual-meas-modal {
-            width: min(520px, calc(100vw - 24px));
-            background: #23262b;
-            border: 1px solid rgba(255, 255, 255, .12);
-            border-radius: 18px;
-            box-shadow: 0 18px 40px rgba(0, 0, 0, .48);
-            overflow: hidden;
-        }
-
-        .manual-meas-head {
-            padding: 14px 18px;
-            border-bottom: 1px solid rgba(255, 255, 255, .08);
-            font-size: 20px;
-            font-weight: 800;
-        }
-
-        .manual-meas-body {
-            padding: 18px;
-        }
-
-        .manual-meas-meta {
-            font-size: 13px;
-            line-height: 1.7;
-            margin-bottom: 14px;
-        }
-
-        .manual-meas-current {
-            padding: 12px 14px;
-            border-radius: 14px;
-            background: #1e2126;
-            border: 1px solid rgba(255, 255, 255, .08);
-        }
-
-        .manual-meas-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-top: 8px;
-        }
-
-        .manual-meas-key {
-            width: 96px;
-            min-width: 96px;
-            color: #b7c0cb;
-        }
-
-        .manual-meas-row input {
-            flex: 1;
-            height: 36px;
-            border-radius: 10px;
-            border: 1px solid var(--border);
-            background: #121417;
-            color: var(--fg);
-            padding: 0 10px;
-        }
-
-        .manual-meas-row button,
-        .manual-meas-foot button {
-            height: 36px;
-            padding: 0 11px;
-            border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, .12);
-            background: #343942;
-            color: #fff;
-            cursor: pointer;
-        }
-
-        .manual-meas-hint {
-            margin-top: 12px;
-            color: #8de6b0;
-            font-weight: 700;
-        }
-
-        .manual-meas-error {
-            display: none;
-            margin-top: 12px;
-            color: #ffb4b4;
-        }
-
-        .manual-meas-error.show {
-            display: block;
-        }
-
-        .manual-meas-foot {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            padding: 14px 18px;
-            border-top: 1px solid rgba(255, 255, 255, .08);
-        }
-
-        .manual-meas-foot button.primary {
-            background: rgba(29, 185, 84, .22);
-            border-color: rgba(29, 185, 84, .55);
-        }
-
-        .oqc-status-backdrop {
-            z-index: 10030;
-        }
-
-        .oqc-status-shell {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            background: #202124;
-            border: 1px solid rgba(255, 255, 255, .14);
-            border-radius: 18px;
-            box-shadow: 0 22px 54px rgba(0, 0, 0, .58);
-            overflow: hidden;
-        }
-
-        .oqc-status-head {
-            height: 52px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 16px;
-            background: #25282e;
-            border-bottom: 1px solid rgba(255, 255, 255, .10);
-        }
-
-        .oqc-status-title {
-            font-size: 18px;
-            font-weight: 850;
-            color: #fff;
-        }
-
-        .oqc-status-close {
-            width: 38px;
-            height: 36px;
-            border-radius: 11px;
-            border: 1px solid rgba(255, 255, 255, .16);
-            background: #323741;
-            color: #fff;
-            font-size: 22px;
-            cursor: pointer;
-        }
-
-        .oqc-status-frame {
-            width: 100%;
-            height: 100%;
-            border: 0;
-            background: #202124;
-        }
-
-        .float-head {
-            display: none;
-        }
-
-        <?php if (!empty($EMBED)): ?>
-        body {
-            background: transparent !important;
-            padding: 0 !important;
-        }
-
-        .dp-page {
-            padding-left: 0 !important;
-        }
-
-        .wrap {
-            max-width: none;
-            margin: 0;
-            padding: 14px;
-        }
-
-        .filters,
-        .summary,
-        .msg {
-            background: #2b2b2b !important;
-        }
-
-        .table-wrap,
-        table,
-        tbody td {
-            background: #202124 !important;
-        }
-
-        thead th {
-            background: #303134 !important;
-        }
-        <?php endif; ?>
-    </style>
-</head>
-<body>
-<?php
-if (empty($EMBED)) {
-    echo dp_sidebar_render('oqc');
-    echo dp_render_userbar([
-        'admin_badge_mode' => 'modal',
-        'admin_iframe_src' => 'admin_settings',
-        'logout_action' => 'logout',
-    ]);
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>OQC 측정 데이터 조회</title><style>
+:root{
+  --bg:#202124;
+  --card:#2b2b2b;
+  --fg:#e8eaed;
+  --muted:#9aa0a6;
+  --border:#5f6368;
+  --accent2:#8ab4f8;
+  --radius:14px;
+  --sticky1:72px;
+  --sticky2:72px;
+  --sticky3:88px;
+  --sticky4:88px;
+  --ctl-h:34px
 }
-?>
-<div class="dp-page">
-    <div class="wrap">
-        <h1>OQC 측정 데이터 조회</h1>
+body{
+  margin:0;
+  padding:18px;
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  background:var(--bg);
+  color:var(--fg);
+  font-size:13px
+}
+.dp-page{
+  padding-left:72px;
+  box-sizing:border-box
+}
+.wrap{
+  max-width:1400px;
+  margin:0 auto
+}
+h1{
+  font-size:20px;
+  margin:0 0 12px
+}
+.filters{
+  display:flex;
+  gap:14px;
+  align-items:flex-end;
+  flex-wrap:wrap;
+  background:var(--card);
+  border-radius:var(--radius);
+  padding:14px 18px;
+  box-shadow:0 8px 20px rgba(0,0,0,.45);
+  border:1px solid rgba(255,255,255,.10);
+  margin-bottom:12px
+}
+.filters label{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  font-size:13px;
+  color:#d7dbe0
+}
+.filters input[type=date],.filters select{
+  height:var(--ctl-h);
+  padding:0 10px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  background:var(--bg);
+  color:var(--fg);
+  font-size:13px
+}
+.filters button{
+  height:var(--ctl-h);
+  padding:0 14px;
+  border-radius:12px;
+  border:1px solid rgba(29,185,84,.55);
+  font-size:12.5px;
+  font-weight:650;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  box-shadow:0 6px 14px rgba(0,0,0,.26);
+  background:rgba(29,185,84,.18);
+  color:var(--fg)
+}
+.filters button:hover{
+  background:rgba(29,185,84,.28)
+}
+.oqc-status-open-btn{
+  border-color:rgba(138,180,248,.65)!important;
+  background:rgba(79,140,255,.18)!important
+}
+.msg,.summary{
+  margin:0 0 12px;
+  padding:10px 12px;
+  border-radius:12px;
+  background:rgba(0,0,0,.08);
+  border:1px solid rgba(255,255,255,.10);
+  color:var(--muted);
+  font-size:12px
+}
+.summary{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  align-items:center
+}
+.summary strong{
+  color:var(--fg)
+}
+.table-wrap{
+  overflow-x:auto;
+  overflow-y:visible;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.10);
+  background:var(--card)
+}
+table{
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0;
+  min-width:900px;
+  font-size:11.5px
+}
+th,td{
+  box-sizing:border-box
+}
+thead th{
+  position:relative;
+  z-index:2;
+  background:#303134;
+  color:#cbd5e1;
+  font-size:11px;
+  text-align:center;
+  padding:8px 10px;
+  border-bottom:1px solid rgba(255,255,255,.10);
+  white-space:nowrap
+}
+tbody td{
+  padding:8px 10px;
+  font-size:11.5px;
+  color:var(--fg);
+  border-bottom:1px solid rgba(255,255,255,.06);
+  white-space:nowrap;
+  text-align:center
+}
+tbody tr td{
+  background:var(--card)
+}
+tbody tr:nth-child(even) td{
+  background:#26282c
+}
+tbody tr:hover td{
+  background:rgba(29,185,84,.08)
+}
+th.col-head div.sub{
+  font-size:10px;
+  color:#57d68d
+}
+th.num,td.num{
+  width:var(--sticky1);
+  min-width:var(--sticky1);
+  max-width:var(--sticky1)
+}
+th.spc,td.spc{
+  width:var(--sticky2);
+  min-width:var(--sticky2);
+  max-width:var(--sticky2)
+}
+th.spec,td.spec{
+  width:var(--sticky3);
+  min-width:var(--sticky3);
+  max-width:var(--sticky3)
+}
+th.spec2,td.spec2{
+  width:var(--sticky4);
+  min-width:var(--sticky4);
+  max-width:var(--sticky4)
+}
+th.sticky,td.sticky{
+  position:sticky;
+  left:0;
+  text-align:center
+}
+th.sticky2,td.sticky2{
+  position:sticky;
+  left:var(--sticky1);
+  text-align:center;
+  box-shadow:2px 0 0 rgba(255,255,255,.10)
+}
+th.sticky3,td.sticky3{
+  position:sticky;
+  left:calc(var(--sticky1) + var(--sticky2));
+  text-align:center;
+  box-shadow:2px 0 0 rgba(255,255,255,.10)
+}
+th.sticky4,td.sticky4{
+  position:sticky;
+  left:calc(var(--sticky1) + var(--sticky2) + var(--sticky3));
+  text-align:center;
+  box-shadow:2px 0 0 rgba(255,255,255,.10)
+}
+th.sticky,td.sticky,th.sticky2,td.sticky2,th.sticky3,td.sticky3,th.sticky4,td.sticky4{
+  background:#202124;
+  z-index:5
+}
+thead th.sticky,thead th.sticky2,thead th.sticky3,thead th.sticky4{
+  background:#303134
+}
+tbody td.sticky,tbody td.sticky2,tbody td.sticky3,tbody td.sticky4{
+  z-index:3;
+  background:#202124
+}
+td.ng{
+  background:rgba(232,93,93,.12)!important;
+  color:#ffd1d1;
+  font-weight:700
+}
+.manual-date-trigger.can-edit{
+  cursor:pointer
+}
+.manual-date-trigger.can-edit:hover{
+  color:#98ffbd;
+  text-decoration:underline
+}
+.manual-meas-backdrop,.oqc-status-backdrop{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.72);
+  z-index:10040;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:18px
+}
+.manual-meas-backdrop.open,.oqc-status-backdrop.open{
+  display:flex
+}
+.manual-meas-modal{
+  width:min(520px,calc(100vw - 24px));
+  background:#23262b;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:18px;
+  box-shadow:0 18px 40px rgba(0,0,0,.48);
+  overflow:hidden
+}
+.manual-meas-head{
+  padding:14px 18px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  font-size:20px;
+  font-weight:800
+}
+.manual-meas-body{
+  padding:18px
+}
+.manual-meas-meta{
+  font-size:13px;
+  line-height:1.7;
+  margin-bottom:14px
+}
+.manual-meas-current{
+  padding:12px 14px;
+  border-radius:14px;
+  background:#1e2126;
+  border:1px solid rgba(255,255,255,.08)
+}
+.manual-meas-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-top:8px
+}
+.manual-meas-key{
+  width:96px;
+  min-width:96px;
+  color:#b7c0cb
+}
+.manual-meas-row input{
+  flex:1;
+  height:36px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  background:#121417;
+  color:var(--fg);
+  padding:0 10px
+}
+.manual-meas-row button,.manual-meas-foot button{
+  height:36px;
+  padding:0 11px;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.12);
+  background:#343942;
+  color:#fff;
+  cursor:pointer
+}
+.manual-meas-hint{
+  margin-top:12px;
+  color:#8de6b0;
+  font-weight:700
+}
+.manual-meas-error{
+  display:none;
+  margin-top:12px;
+  color:#ffb4b4
+}
+.manual-meas-error.show{
+  display:block
+}
+.manual-meas-foot{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  padding:14px 18px;
+  border-top:1px solid rgba(255,255,255,.08)
+}
+.manual-meas-foot button.primary{
+  background:rgba(29,185,84,.22);
+  border-color:rgba(29,185,84,.55)
+}
+.oqc-status-backdrop{
+  z-index:10030
+}
+.oqc-status-shell{
+  width:100%;
+  height:100%;
+  display:flex;
+  flex-direction:column;
+  background:#202124;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:18px;
+  box-shadow:0 22px 54px rgba(0,0,0,.58);
+  overflow:hidden
+}
+.oqc-status-head{
+  height:52px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 16px;
+  background:#25282e;
+  border-bottom:1px solid rgba(255,255,255,.10)
+}
+.oqc-status-title{
+  font-size:18px;
+  font-weight:850;
+  color:#fff
+}
+.oqc-status-close{
+  width:38px;
+  height:36px;
+  border-radius:11px;
+  border:1px solid rgba(255,255,255,.16);
+  background:#323741;
+  color:#fff;
+  font-size:22px;
+  cursor:pointer
+}
+.oqc-status-frame{
+  width:100%;
+  height:100%;
+  border:0;
+  background:#202124
+}
+.float-head{
+  display:none
+}
 
-        <form method="get" class="filters">
-            <?php if (!empty($EMBED)): ?>
-                <input type="hidden" name="embed" value="1">
-            <?php endif; ?>
+<?php if(!empty($EMBED)): ?>
+body{
+  background:transparent!important;
+  padding:0!important
+}
+.dp-page{
+  padding-left:0!important
+}
+.wrap{
+  max-width:none;
+  margin:0;
+  padding:14px
+}
+.filters,.summary,.msg{
+  background:#2b2b2b!important
+}
+.table-wrap,table,tbody td{
+  background:#202124!important
+}
+thead th{
+  background:#303134!important
+}
+<?php endif;
+ ?>
 
-            <label>
-                납품처
-                <select name="customer">
-                    <option value="LG" <?= $customer === 'LG' ? 'selected' : '' ?>>엘지이노텍(주)</option>
-                    <option value="JH" <?= $customer === 'JH' ? 'selected' : '' ?>>자화전자(주)</option>
-                </select>
-            </label>
+</style></head><body>
+<?php if(empty($EMBED)){
+   echo dp_sidebar_render('oqc');
+   echo dp_render_userbar(['admin_badge_mode'=>'modal','admin_iframe_src'=>'admin_settings','logout_action'=>'logout']);
+   
+}
+ ?>
 
-            <label>
-                모델명
-                <select name="part_name">
-                    <option value="">-- 선택 --</option>
-                    <?php foreach ($part_list as $p): ?>
-                        <option value="<?= h($p) ?>" <?= $p === $part_name ? 'selected' : '' ?>><?= h($p) ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
+<div class="dp-page"><div class="wrap"><h1>OQC 측정 데이터 조회</h1>
+<form method="get" class="filters"><?php if(!empty($EMBED)): ?>
+<input type="hidden" name="embed" value="1"><?php endif;
+ ?>
+<label>납품처<select name="customer"><option value="LG" <?=$customer==='LG'?'selected':''?>
+>엘지이노텍(주)</option><option value="JH" <?=$customer==='JH'?'selected':''?>
+>자화전자(주)</option></select></label><label>모델명<select name="part_name"><option value="">-- 선택 --</option><?php foreach($part_list as $p): ?>
+<option value="<?=h($p)?>" <?=$p===$part_name?'selected':''?>
+><?=h($p)?>
+</option><?php endforeach;
+ ?>
+</select></label><label>측정일<input type="date" name="ship_date" value="<?=h($ship_date)?>" min="2000-01-01" max="9999-12-31"></label><button type="submit">조회</button><button type="button" id="openOqcStatusModal" class="oqc-status-open-btn">OQC 현황표</button></form>
+<div id="oqcStatusBackdrop" class="oqc-status-backdrop" aria-hidden="true"><div class="oqc-status-shell" role="dialog" aria-modal="true"><div class="oqc-status-head"><div class="oqc-status-title">OQC 현황표</div><button type="button" id="closeOqcStatusModal" class="oqc-status-close">×</button></div><iframe id="oqcStatusFrame" class="oqc-status-frame" title="OQC 현황표"></iframe></div></div>
+<?php if($part_name&&$ship_date&&!$headers): ?>
+<div class="msg">해당 조건의 데이터가 없습니다. (납품처: <?=h($customerLabel)?>
+, 모델: <?=h($part_name)?>
+, 출하 기준 날짜: <?=h($ship_date)?>
+)</div><?php endif;
+ ?>
 
-            <label>
-                측정일
-                <input type="date" name="ship_date" value="<?= h($ship_date) ?>" min="2000-01-01" max="9999-12-31">
-            </label>
+<?php if($headers): ?>
+<div class="summary"><span>납품처: <strong><?=h($customerLabel)?>
+</strong></span><span>모델: <strong><?=h($headers[0]['part_name'])?>
+</strong></span><span>출하 기준 날짜: <strong><?=h($ship_date)?>
+</strong></span><span>NG: <strong style="color:#ffb4b4;">빨간색</strong></span><span class="file">파일: <?=h($headers[0]['source_file'])?>
+</span></div><div id="floatHead" class="float-head" aria-hidden="true"><div class="float-scroller"></div></div><div class="table-wrap"><table><thead><tr><th class="sticky num">FAI</th><th class="sticky2 spc">SPC</th><th class="sticky3 spec">USL</th><th class="sticky4 spec2">LSL</th><?php foreach($headers as $hrow): ?>
+<th class="col-head"><div class="top"><?php $top2=$hrow[$measKey2]??null;
+$top1=$hrow[$measKey1]??null;
+if($top2&&$top1)echo h($top2).'<br>'.h($top1);
+elseif($top1)echo h($top1);
+elseif($top2)echo h($top2);
+else echo '&nbsp;';
+ ?>
+</div><div class="main"><?=h($hrow['tool_cavity'])?>
+</div><?php $curDate1=(string)($hrow[$measKey1]??'');
+$curDate2=(string)($hrow[$measKey2]??'');
+ ?>
+<div class="sub manual-date-trigger <?=$canManualMeasEdit?'can-edit':'readonly'?>" data-header-id="<?=(int)$hrow['id']?>" data-customer="<?=h($customer)?>" data-customer-label="<?=h($customerLabel)?>" data-part-name="<?=h($headers[0]['part_name'])?>" data-tool-cavity="<?=h($hrow['tool_cavity'])?>" data-excel-col="<?=h($hrow['excel_col'])?>" data-kind="<?=h($hrow['kind'])?>" data-date1="<?=h($curDate1)?>" data-date2="<?=h($curDate2)?>" data-key1="<?=h($measKey1)?>" data-key2="<?=h($measKey2)?>" title="<?=$canManualMeasEdit?'더블클릭하여 측정일 수동 입력/수정/삭제':''?>"><?=h($hrow['excel_col'])?>
+ (<?=h($hrow['kind'])?>
+)</div></th><?php endforeach;
+ ?>
+</tr></thead><tbody><?php foreach($rows as $row): ?>
+<?php $pno=$row['point_no'];
+$spec=$specMap[$pno]??null;
+$usl=($spec&&$spec['usl']!==null&&$spec['usl']!=='')?fmt_spec_4($spec['usl']):'';
+$lsl=($spec&&$spec['lsl']!==null&&$spec['lsl']!=='')?fmt_spec_4($spec['lsl']):'';
+ ?>
+<tr><td class="sticky num"><?=h($row['point_no'])?>
+</td><td class="sticky2 spc"><?=h($row['spc_code'])?>
+</td><td class="sticky3 spec"><?=$usl===''?'':h($usl)?>
+</td><td class="sticky4 spec2"><?=$lsl===''?'':h($lsl)?>
+</td><?php foreach($headers as $hrow): ?>
+<?php $hid=(int)$hrow['id'];
+$val=$row['values'][$hid]??'';
+$dispVal=($val===''||$val===null)?'':fmt_spec_4($val);
+$isNg=(strpos((string)$pno,'(DC)')===false)&&!oqc_view_is_ng_ignored_point(oqc_view_model_key((string)($headers[0]['part_name']??$part_name)),(string)$pno)&&isset($ngMap[$hid][$pno]);
+ ?>
+<td class="<?=$isNg?'ng':''?>"><?=$dispVal===''?'':h($dispVal)?>
+</td><?php endforeach;
+ ?>
+</tr><?php endforeach;
+ ?>
+</tbody></table></div><?php endif;
+ ?>
 
-            <button type="submit">조회</button>
-            <button type="button" id="openOqcStatusModal" class="oqc-status-open-btn">OQC 현황표</button>
-        </form>
+<?php if($headers&&$canManualMeasEdit): ?>
+<div id="manualMeasBackdrop" class="manual-meas-backdrop" aria-hidden="true"><div class="manual-meas-modal"><div class="manual-meas-head">측정일 수동 입력</div><form id="manualMeasForm"><input type="hidden" name="action" value="oqc_manual_meas_save"><input type="hidden" name="header_id" id="manualMeasHeaderId"><input type="hidden" name="customer" id="manualMeasCustomer"><div class="manual-meas-body"><div class="manual-meas-meta"><div>납품처: <strong id="manualMeasCustomerLabel"></strong></div><div>모델: <strong id="manualMeasPartName"></strong></div><div>Tool#Cavity: <strong id="manualMeasToolCavity"></strong></div><div>열: <strong id="manualMeasExcelCol"></strong></div></div><div class="manual-meas-current"><div class="manual-meas-row"><div class="manual-meas-key" id="manualMeasKey1">meas_date</div><input type="date" name="date1" id="manualMeasDate1" min="2000-01-01" max="9999-12-31"><button type="button" data-clear="1">삭제</button></div><div class="manual-meas-row"><div class="manual-meas-key" id="manualMeasKey2">meas_date2</div><input type="date" name="date2" id="manualMeasDate2" min="2000-01-01" max="9999-12-31"><button type="button" data-clear="2">삭제</button></div><div class="manual-meas-hint" id="manualMeasHint"></div><div class="manual-meas-error" id="manualMeasError"></div></div></div><div class="manual-meas-foot"><button type="button" id="manualMeasCancel">취소</button><button type="submit" class="primary" id="manualMeasSave">저장</button></div></form></div></div><?php endif;
+ ?>
 
-        <div id="oqcStatusBackdrop" class="oqc-status-backdrop" aria-hidden="true">
-            <div class="oqc-status-shell" role="dialog" aria-modal="true">
-                <div class="oqc-status-head">
-                    <div class="oqc-status-title">OQC 현황표</div>
-                    <button type="button" id="closeOqcStatusModal" class="oqc-status-close">×</button>
-                </div>
-                <iframe id="oqcStatusFrame" class="oqc-status-frame" title="OQC 현황표"></iframe>
-            </div>
-        </div>
+</div><?php if(empty($EMBED)): ?>
+<?php $__mb=@include JTMES_ROOT.'/config/matrix_bg.php';
+ if(!is_array($__mb)){
+  $__mb=['enabled'=>true,'text'=>'01','speed'=>1.15,'size'=>16,'zIndex'=>0,'scanlines'=>true,'vignette'=>true];
+  
+}
+ ?>
+<script>window.MATRIX_BG=<?=json_encode($__mb,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)?>
+;
+</script><script src="assets/matrix-bg.js"></script><?php endif;
+ ?>
 
-        <?php if ($part_name && $ship_date && !$headers): ?>
-            <div class="msg">
-                해당 조건의 데이터가 없습니다. (납품처: <?= h($customerLabel) ?>, 모델: <?= h($part_name) ?>, 출하 기준 날짜: <?= h($ship_date) ?>)
-            </div>
-        <?php endif; ?>
+<script>(function(){
+  const openBtn=document.getElementById('openOqcStatusModal'),backdrop=document.getElementById('oqcStatusBackdrop'),closeBtn=document.getElementById('closeOqcStatusModal'),frame=document.getElementById('oqcStatusFrame');
+  if(!openBtn||!backdrop||!closeBtn||!frame)return;
+  function selectedCustomer(){
+    const sel=document.querySelector('select[name="customer"]');
+    return sel&&sel.value==='JH'?'JH':'LG'
+  }
+  function selectedModel(){
+    const sel=document.querySelector('select[name="part_name"]');
+    const val=sel?(sel.value||sel.options[sel.selectedIndex]?.text||''):'';
+    const up=val.toUpperCase().replace(/[\s_-]/g,'');
+    if(up.indexOf('IRBASE')>=0)return'MEM-IR-BASE';
+    if(up.indexOf('XCARRIER')>=0)return'MEM-X-CARRIER';
+    if(up.indexOf('YCARRIER')>=0)return'MEM-Y-CARRIER';
+    if(up.indexOf('ZCARRIER')>=0)return'MEM-Z-CARRIER';
+    if(up.indexOf('ZSTOPPER')>=0)return'MEM-Z-STOPPER';
+    return'MEM-IR-BASE'
+  }
+  function openModal(){
+    const qs=new URLSearchParams();
+    qs.set('embed','1');
+    qs.set('customer',selectedCustomer());
+    qs.set('model',selectedModel());
+    frame.src='oqc_status_modal.php?'+qs.toString();
+    backdrop.classList.add('open');
+    backdrop.setAttribute('aria-hidden','false');
+    document.documentElement.style.overflow='hidden';
+    document.body.style.overflow='hidden'
+  }
+  function closeModal(){
+    backdrop.classList.remove('open');
+    backdrop.setAttribute('aria-hidden','true');
+    document.documentElement.style.overflow='';
+    document.body.style.overflow=''
+  }
+  openBtn.addEventListener('click',openModal);
+  closeBtn.addEventListener('click',closeModal);
+  backdrop.addEventListener('click',e=>{
+    if(e.target===backdrop)closeModal()
+  }
+  );
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'&&backdrop.classList.contains('open'))closeModal()
+  }
+  )
+}
+)();
+</script>
+<?php if($headers&&$canManualMeasEdit): ?>
+<script>(function(){
+  const backdrop=document.getElementById('manualMeasBackdrop'),form=document.getElementById('manualMeasForm');
+  if(!backdrop||!form)return;
+  const q=id=>document.getElementById(id),headerIdEl=q('manualMeasHeaderId'),customerEl=q('manualMeasCustomer'),customerLabelEl=q('manualMeasCustomerLabel'),partNameEl=q('manualMeasPartName'),toolCavityEl=q('manualMeasToolCavity'),excelColEl=q('manualMeasExcelCol'),key1El=q('manualMeasKey1'),key2El=q('manualMeasKey2'),date1El=q('manualMeasDate1'),date2El=q('manualMeasDate2'),hintEl=q('manualMeasHint'),errorEl=q('manualMeasError'),cancelBtn=q('manualMeasCancel'),saveBtn=q('manualMeasSave');
+  let activeTrigger=null;
+  function showError(msg){
+    errorEl.textContent=msg||'';
+    errorEl.classList.toggle('show',!!msg)
+  }
+  function updateHint(){
+    const k1=key1El.textContent.trim(),k2=key2El.textContent.trim(),v1=date1El.value.trim(),v2=date2El.value.trim();
+    hintEl.textContent=!v1?'저장 대상 추천: '+k1:(k2&&!v2?'저장 대상 추천: '+k2:'저장 대상 추천: 직접 수정')
+  }
+  function openManual(t){
+    activeTrigger=t;
+    const ds=t.dataset;
+    headerIdEl.value=ds.headerId||'';
+    customerEl.value=ds.customer||'LG';
+    customerLabelEl.textContent=ds.customerLabel||'';
+    partNameEl.textContent=ds.partName||'';
+    toolCavityEl.textContent=ds.toolCavity||'';
+    excelColEl.textContent=((ds.excelCol||'')+' ('+(ds.kind||'')+')').trim();
+    key1El.textContent=ds.key1||'meas_date';
+    key2El.textContent=ds.key2||'meas_date2';
+    date1El.value=ds.date1||'';
+    date2El.value=ds.date2||'';
+    showError('');
+    updateHint();
+    backdrop.classList.add('open');
+    backdrop.setAttribute('aria-hidden','false')
+  }
+  document.querySelectorAll('.manual-date-trigger.can-edit').forEach(t=>t.addEventListener('dblclick',()=>openManual(t)));
+  cancelBtn.addEventListener('click',()=>backdrop.classList.remove('open'));
+  backdrop.addEventListener('click',e=>{
+    if(e.target===backdrop)backdrop.classList.remove('open')
+  }
+  );
+  form.querySelectorAll('button[data-clear]').forEach(btn=>btn.addEventListener('click',()=>{
+    if(btn.dataset.clear==='1')date1El.value='';
+    if(btn.dataset.clear==='2')date2El.value='';
+    updateHint()
+  }
+  ));
+  date1El.addEventListener('change',updateHint);
+  date2El.addEventListener('change',updateHint);
+  form.addEventListener('submit',e=>{
+    e.preventDefault();
+    showError('');
+    saveBtn.disabled=true;
+    fetch(location.pathname+location.search,{
+      method:'POST',body:new FormData(form),credentials:'same-origin'
+    }
+    ).then(r=>r.json().then(j=>{
+      if(!r.ok||!j.ok)throw new Error(j.message||'저장 실패');
+      return j
+    }
+    )).then(()=>location.reload()).catch(err=>showError(err.message||'저장 실패')).finally(()=>saveBtn.disabled=false)
+  }
+  );
+  
+}
+)();
+</script><?php endif;
+ ?>
 
-        <?php if ($headers): ?>
-            <div class="summary">
-                <span>납품처: <strong><?= h($customerLabel) ?></strong></span>
-                <span>모델: <strong><?= h($headers[0]['part_name']) ?></strong></span>
-                <span>출하 기준 날짜: <strong><?= h($ship_date) ?></strong></span>
-                <span>NG: <strong style="color:#ffb4b4;">빨간색</strong></span>
-                <span class="file">파일: <?= h($headers[0]['source_file']) ?></span>
-            </div>
-
-            <div id="floatHead" class="float-head" aria-hidden="true">
-                <div class="float-scroller"></div>
-            </div>
-
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th class="sticky num">FAI</th>
-                            <th class="sticky2 spc">SPC</th>
-                            <th class="sticky3 spec">USL</th>
-                            <th class="sticky4 spec2">LSL</th>
-
-                            <?php foreach ($headers as $hrow): ?>
-                                <th class="col-head">
-                                    <div class="top">
-                                        <?php
-                                        $top2 = $hrow[$measKey2] ?? null;
-                                        $top1 = $hrow[$measKey1] ?? null;
-
-                                        if ($top2 && $top1) {
-                                            echo h($top2) . '<br>' . h($top1);
-                                        } elseif ($top1) {
-                                            echo h($top1);
-                                        } elseif ($top2) {
-                                            echo h($top2);
-                                        } else {
-                                            echo '&nbsp;';
-                                        }
-                                        ?>
-                                    </div>
-                                    <div class="main"><?= h($hrow['tool_cavity']) ?></div>
-                                    <?php
-                                    $curDate1 = (string)($hrow[$measKey1] ?? '');
-                                    $curDate2 = (string)($hrow[$measKey2] ?? '');
-                                    ?>
-                                    <div
-                                        class="sub manual-date-trigger <?= $canManualMeasEdit ? 'can-edit' : 'readonly' ?>"
-                                        data-header-id="<?= (int)$hrow['id'] ?>"
-                                        data-customer="<?= h($customer) ?>"
-                                        data-customer-label="<?= h($customerLabel) ?>"
-                                        data-part-name="<?= h($headers[0]['part_name']) ?>"
-                                        data-tool-cavity="<?= h($hrow['tool_cavity']) ?>"
-                                        data-excel-col="<?= h($hrow['excel_col']) ?>"
-                                        data-kind="<?= h($hrow['kind']) ?>"
-                                        data-date1="<?= h($curDate1) ?>"
-                                        data-date2="<?= h($curDate2) ?>"
-                                        data-key1="<?= h($measKey1) ?>"
-                                        data-key2="<?= h($measKey2) ?>"
-                                        title="<?= $canManualMeasEdit ? '더블클릭하여 측정일 수동 입력/수정/삭제' : '' ?>"
-                                    ><?= h($hrow['excel_col']) ?> (<?= h($hrow['kind']) ?>)</div>
-                                </th>
-                            <?php endforeach; ?>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($rows as $row): ?>
-                            <?php
-                            $pno = $row['point_no'];
-                            $spec = $specMap[$pno] ?? null;
-                            $usl = ($spec && $spec['usl'] !== null && $spec['usl'] !== '') ? fmt_spec_4($spec['usl']) : '';
-                            $lsl = ($spec && $spec['lsl'] !== null && $spec['lsl'] !== '') ? fmt_spec_4($spec['lsl']) : '';
-                            ?>
-                            <tr>
-                                <td class="sticky num"><?= h($row['point_no']) ?></td>
-                                <td class="sticky2 spc"><?= h($row['spc_code']) ?></td>
-                                <td class="sticky3 spec"><?= $usl === '' ? '' : h($usl) ?></td>
-                                <td class="sticky4 spec2"><?= $lsl === '' ? '' : h($lsl) ?></td>
-
-                                <?php foreach ($headers as $hrow): ?>
-                                    <?php
-                                    $hid = (int)$hrow['id'];
-                                    $val = $row['values'][$hid] ?? '';
-                                    $dispVal = ($val === '' || $val === null) ? '' : fmt_spec_4($val);
-                                    $isNg = (strpos((string)$pno, '(DC)') === false)
-                                        && !oqc_view_is_ng_ignored_point(oqc_view_model_key((string)($headers[0]['part_name'] ?? $part_name)), (string)$pno)
-                                        && isset($ngMap[$hid][$pno]);
-                                    ?>
-                                    <td class="<?= $isNg ? 'ng' : '' ?>"><?= $dispVal === '' ? '' : h($dispVal) ?></td>
-                                <?php endforeach; ?>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-        <?php endif; ?>
-
-        <?php if ($headers && $canManualMeasEdit): ?>
-            <div id="manualMeasBackdrop" class="manual-meas-backdrop" aria-hidden="true">
-                <div class="manual-meas-modal">
-                    <div class="manual-meas-head">측정일 수동 입력</div>
-                    <form id="manualMeasForm">
-                        <input type="hidden" name="action" value="oqc_manual_meas_save">
-                        <input type="hidden" name="header_id" id="manualMeasHeaderId">
-                        <input type="hidden" name="customer" id="manualMeasCustomer">
-
-                        <div class="manual-meas-body">
-                            <div class="manual-meas-meta">
-                                <div>납품처: <strong id="manualMeasCustomerLabel"></strong></div>
-                                <div>모델: <strong id="manualMeasPartName"></strong></div>
-                                <div>Tool#Cavity: <strong id="manualMeasToolCavity"></strong></div>
-                                <div>열: <strong id="manualMeasExcelCol"></strong></div>
-                            </div>
-
-                            <div class="manual-meas-current">
-                                <div class="manual-meas-row">
-                                    <div class="manual-meas-key" id="manualMeasKey1">meas_date</div>
-                                    <input type="date" name="date1" id="manualMeasDate1" min="2000-01-01" max="9999-12-31">
-                                    <button type="button" data-clear="1">삭제</button>
-                                </div>
-
-                                <div class="manual-meas-row">
-                                    <div class="manual-meas-key" id="manualMeasKey2">meas_date2</div>
-                                    <input type="date" name="date2" id="manualMeasDate2" min="2000-01-01" max="9999-12-31">
-                                    <button type="button" data-clear="2">삭제</button>
-                                </div>
-
-                                <div class="manual-meas-hint" id="manualMeasHint"></div>
-                                <div class="manual-meas-error" id="manualMeasError"></div>
-                            </div>
-                        </div>
-
-                        <div class="manual-meas-foot">
-                            <button type="button" id="manualMeasCancel">취소</button>
-                            <button type="submit" class="primary" id="manualMeasSave">저장</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        <?php endif; ?>
-    </div>
-
-    <?php if (empty($EMBED)): ?>
-        <?php
-        $__mb = @include JTMES_ROOT . '/config/matrix_bg.php';
-        if (!is_array($__mb)) {
-            $__mb = [
-                'enabled' => true,
-                'text' => '01',
-                'speed' => 1.15,
-                'size' => 16,
-                'zIndex' => 0,
-                'scanlines' => true,
-                'vignette' => true,
-            ];
-        }
-        ?>
-        <script>
-            window.MATRIX_BG = <?= json_encode($__mb, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
-        </script>
-        <script src="assets/matrix-bg.js"></script>
-    <?php endif; ?>
-
-    <script>
-        (function () {
-            const openBtn = document.getElementById('openOqcStatusModal');
-            const backdrop = document.getElementById('oqcStatusBackdrop');
-            const closeBtn = document.getElementById('closeOqcStatusModal');
-            const frame = document.getElementById('oqcStatusFrame');
-
-            if (!openBtn || !backdrop || !closeBtn || !frame) {
-                return;
-            }
-
-            function selectedCustomer() {
-                const sel = document.querySelector('select[name="customer"]');
-                return sel && sel.value === 'JH' ? 'JH' : 'LG';
-            }
-
-            function selectedModel() {
-                const sel = document.querySelector('select[name="part_name"]');
-                const val = sel ? (sel.value || sel.options[sel.selectedIndex]?.text || '') : '';
-                const up = val.toUpperCase().replace(/[\s_-]/g, '');
-
-                if (up.indexOf('IRBASE') >= 0) return 'MEM-IR-BASE';
-                if (up.indexOf('XCARRIER') >= 0) return 'MEM-X-CARRIER';
-                if (up.indexOf('YCARRIER') >= 0) return 'MEM-Y-CARRIER';
-                if (up.indexOf('ZCARRIER') >= 0) return 'MEM-Z-CARRIER';
-                if (up.indexOf('ZSTOPPER') >= 0) return 'MEM-Z-STOPPER';
-
-                return 'MEM-IR-BASE';
-            }
-
-            function openModal() {
-                const qs = new URLSearchParams();
-                qs.set('embed', '1');
-                qs.set('customer', selectedCustomer());
-                qs.set('model', selectedModel());
-
-                frame.src = 'oqc_status_modal.php?' + qs.toString();
-                backdrop.classList.add('open');
-                backdrop.setAttribute('aria-hidden', 'false');
-                document.documentElement.style.overflow = 'hidden';
-                document.body.style.overflow = 'hidden';
-            }
-
-            function closeModal() {
-                backdrop.classList.remove('open');
-                backdrop.setAttribute('aria-hidden', 'true');
-                document.documentElement.style.overflow = '';
-                document.body.style.overflow = '';
-            }
-
-            openBtn.addEventListener('click', openModal);
-            closeBtn.addEventListener('click', closeModal);
-            backdrop.addEventListener('click', e => {
-                if (e.target === backdrop) {
-                    closeModal();
-                }
-            });
-            document.addEventListener('keydown', e => {
-                if (e.key === 'Escape' && backdrop.classList.contains('open')) {
-                    closeModal();
-                }
-            });
-        })();
-    </script>
-
-    <?php if ($headers && $canManualMeasEdit): ?>
-        <script>
-            (function () {
-                const backdrop = document.getElementById('manualMeasBackdrop');
-                const form = document.getElementById('manualMeasForm');
-
-                if (!backdrop || !form) {
-                    return;
-                }
-
-                const q = id => document.getElementById(id);
-                const headerIdEl = q('manualMeasHeaderId');
-                const customerEl = q('manualMeasCustomer');
-                const customerLabelEl = q('manualMeasCustomerLabel');
-                const partNameEl = q('manualMeasPartName');
-                const toolCavityEl = q('manualMeasToolCavity');
-                const excelColEl = q('manualMeasExcelCol');
-                const key1El = q('manualMeasKey1');
-                const key2El = q('manualMeasKey2');
-                const date1El = q('manualMeasDate1');
-                const date2El = q('manualMeasDate2');
-                const hintEl = q('manualMeasHint');
-                const errorEl = q('manualMeasError');
-                const cancelBtn = q('manualMeasCancel');
-                const saveBtn = q('manualMeasSave');
-                let activeTrigger = null;
-
-                function showError(msg) {
-                    errorEl.textContent = msg || '';
-                    errorEl.classList.toggle('show', !!msg);
-                }
-
-                function updateHint() {
-                    const k1 = key1El.textContent.trim();
-                    const k2 = key2El.textContent.trim();
-                    const v1 = date1El.value.trim();
-                    const v2 = date2El.value.trim();
-
-                    hintEl.textContent = !v1
-                        ? '저장 대상 추천: ' + k1
-                        : (k2 && !v2 ? '저장 대상 추천: ' + k2 : '저장 대상 추천: 직접 수정');
-                }
-
-                function openManual(t) {
-                    activeTrigger = t;
-                    const ds = t.dataset;
-
-                    headerIdEl.value = ds.headerId || '';
-                    customerEl.value = ds.customer || 'LG';
-                    customerLabelEl.textContent = ds.customerLabel || '';
-                    partNameEl.textContent = ds.partName || '';
-                    toolCavityEl.textContent = ds.toolCavity || '';
-                    excelColEl.textContent = ((ds.excelCol || '') + ' (' + (ds.kind || '') + ')').trim();
-                    key1El.textContent = ds.key1 || 'meas_date';
-                    key2El.textContent = ds.key2 || 'meas_date2';
-                    date1El.value = ds.date1 || '';
-                    date2El.value = ds.date2 || '';
-
-                    showError('');
-                    updateHint();
-                    backdrop.classList.add('open');
-                    backdrop.setAttribute('aria-hidden', 'false');
-                }
-
-                document.querySelectorAll('.manual-date-trigger.can-edit').forEach(t => {
-                    t.addEventListener('dblclick', () => openManual(t));
-                });
-
-                cancelBtn.addEventListener('click', () => backdrop.classList.remove('open'));
-                backdrop.addEventListener('click', e => {
-                    if (e.target === backdrop) {
-                        backdrop.classList.remove('open');
-                    }
-                });
-
-                form.querySelectorAll('button[data-clear]').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        if (btn.dataset.clear === '1') {
-                            date1El.value = '';
-                        }
-                        if (btn.dataset.clear === '2') {
-                            date2El.value = '';
-                        }
-                        updateHint();
-                    });
-                });
-
-                date1El.addEventListener('change', updateHint);
-                date2El.addEventListener('change', updateHint);
-
-                form.addEventListener('submit', e => {
-                    e.preventDefault();
-                    showError('');
-                    saveBtn.disabled = true;
-
-                    fetch(location.pathname + location.search, {
-                        method: 'POST',
-                        body: new FormData(form),
-                        credentials: 'same-origin',
-                    })
-                        .then(r => r.json().then(j => {
-                            if (!r.ok || !j.ok) {
-                                throw new Error(j.message || '저장 실패');
-                            }
-                            return j;
-                        }))
-                        .then(() => location.reload())
-                        .catch(err => showError(err.message || '저장 실패'))
-                        .finally(() => saveBtn.disabled = false);
-                });
-            })();
-        </script>
-    <?php endif; ?>
-</div>
-</body>
-</html>
+</div></body></html>
