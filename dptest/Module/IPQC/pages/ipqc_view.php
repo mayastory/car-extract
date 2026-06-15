@@ -145,8 +145,9 @@ function ipqc_fetch_tools_for_type_model(PDO $pdo, string $type, string $model, 
     $cacheKey = 'ipqc_tools|OQC|' . ($model !== '' ? $model : '__ALL__');
 
     try {
-      $where = "{$srcCol} IS NOT NULL AND {$srcCol} <> ''";
-      $params = [];
+      // `_확보용` OQC는 성적서 보충용이므로 JMP Assist/OQC 조회에서는 제외한다.
+      $where = "{$srcCol} IS NOT NULL AND {$srcCol} <> '' AND {$srcCol} NOT LIKE ?";
+      $params = ['%확보용%'];
       if ($model !== '') {
         $where .= " AND {$partCol} = ?";
         $params[] = $model;
@@ -719,9 +720,12 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'oqc_points') {
           $sql = "SELECT DISTINCT m.{$ptCol} AS pt
                   FROM {$mT} m
                   JOIN {$hT} h ON h.{$idCol} = m.{$fkCol}
-                  WHERE h.{$partCol} = ? AND h.{$srcCol} IS NOT NULL AND h.{$srcCol} <> ''";
+                  WHERE h.{$partCol} = ?
+                    AND h.{$srcCol} IS NOT NULL
+                    AND h.{$srcCol} <> ''
+                    AND h.{$srcCol} NOT LIKE ?";
           $st = $pdo->prepare($sql);
-          $st->execute([$cand]);
+          $st->execute([$cand, '%확보용%']);
           $pts = $st->fetchAll(PDO::FETCH_COLUMN, 0);
           if (!is_array($pts)) $pts = [];
 
@@ -737,9 +741,10 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'oqc_points') {
             $sql2 = "SELECT DISTINCT m.{$ptCol} AS pt
                      FROM {$mT} m
                      JOIN {$hT} h ON h.{$idCol} = m.{$fkCol}
-                     WHERE h.{$partCol} = ?";
+                     WHERE h.{$partCol} = ?
+                       AND (h.{$srcCol} IS NULL OR h.{$srcCol} = '' OR h.{$srcCol} NOT LIKE ?)";
             $st2 = $pdo->prepare($sql2);
-            $st2->execute([$cand]);
+            $st2->execute([$cand, '%확보용%']);
             $pts2 = $st2->fetchAll(PDO::FETCH_COLUMN, 0);
             if (is_array($pts2)) {
               foreach ($pts2 as $pv) {
@@ -1083,8 +1088,9 @@ if ($type === 'OQC') {
 
     // models
     try {
-      $sql = "SELECT DISTINCT {$partCol} AS p FROM {$hT} WHERE {$srcCol} IS NOT NULL AND {$srcCol} <> '' ORDER BY p";
-      $models = $pdo->query($sql)->fetchAll(PDO::FETCH_COLUMN, 0);
+      $stmtModels = $pdo->prepare("SELECT DISTINCT {$partCol} AS p FROM {$hT} WHERE {$srcCol} IS NOT NULL AND {$srcCol} <> '' AND {$srcCol} NOT LIKE ? ORDER BY p");
+      $stmtModels->execute(['%확보용%']);
+      $models = $stmtModels->fetchAll(PDO::FETCH_COLUMN, 0);
       if (!is_array($models)) $models = [];
     } catch (Throwable $e) {
       $models = [];
@@ -1120,8 +1126,8 @@ if ($type === 'OQC') {
 
     // years available from source_file
     try {
-      $where = "{$srcCol} IS NOT NULL AND {$srcCol} <> ''";
-      $params = [];
+      $where = "{$srcCol} IS NOT NULL AND {$srcCol} <> '' AND {$srcCol} NOT LIKE ?";
+      $params = ['%확보용%'];
       if ($model !== '') { $where .= " AND {$partCol} = ?"; $params[] = $model; }
 
       // apply tool filter if selected (best-effort)
@@ -1459,8 +1465,8 @@ if ($doQuery) {
       $ymRegex = !empty($ymRegexParts) ? ('(' . implode('|', $ymRegexParts) . ')') : '';
 
       // base WHERE
-      $where = "{$srcCol} IS NOT NULL AND {$srcCol} <> '' AND {$partCol} = ?";
-      $params = [$model];
+      $where = "{$srcCol} IS NOT NULL AND {$srcCol} <> '' AND {$srcCol} NOT LIKE ? AND {$partCol} = ?";
+      $params = ['%확보용%', $model];
 
       // tool filter (Tool only)
       if (!empty($toolsSel)) {
