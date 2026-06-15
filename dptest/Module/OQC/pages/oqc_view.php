@@ -68,6 +68,34 @@ function oqc_view_is_ng_ignored_point(string $modelKey, string $point): bool {
    
 }
 
+
+function oqc_view_is_extra_source_file(?string $sourceFile): bool {
+   $s=(string)($sourceFile ?? '');
+   return $s!=='' && strpos($s,'확보용')!==false;
+   
+}
+
+function oqc_view_source_file_label(array $headers): string {
+   $regular=[];
+   $extra=[];
+   foreach($headers as $row){
+     $sf=trim((string)($row['source_file']??''));
+     if($sf==='')continue;
+     if(oqc_view_is_extra_source_file($sf))$extra[$sf]=true;
+     else $regular[$sf]=true;
+     
+  }
+   if($regular){
+     $label=implode(', ',array_keys($regular));
+     if($extra)$label.=' + 확보용';
+     return $label;
+     
+  }
+   if($extra)return implode(', ',array_keys($extra));
+   return '';
+   
+}
+
 function table_columns(PDO $pdo, string $table): array {
    $cols=[];
    $stmt=$pdo->query("SHOW COLUMNS FROM `$table`");
@@ -230,6 +258,7 @@ $headers=[];
  $rows=[];
  $ngMap=[];
  $specMap=[];
+ $sourceFileLabel='';
 
 if($part_name!==''&&$ship_date!==''){
   
@@ -246,11 +275,12 @@ if($part_name!==''&&$ship_date!==''){
   $selMeas=isset($headerCols[$measKey1])?", h.`{$measKey1}`":"";
    $selMeas2=isset($headerCols[$measKey2])?", h.`{$measKey2}`":"";
   
-  $sql="SELECT h.id, h.part_name {$selMeas}{$selMeas2}, ".(isset($headerCols['ship_date'])?'h.ship_date,':'')." h.lot_date, h.tool_cavity, h.kind, h.source_file, h.excel_col FROM oqc_header h WHERE h.part_name=:part_name AND {$dateWhere} {$kind_sql} ORDER BY h.excel_col";
+  $sql="SELECT h.id, h.part_name {$selMeas}{$selMeas2}, ".(isset($headerCols['ship_date'])?'h.ship_date,':'')." h.lot_date, h.tool_cavity, h.kind, h.source_file, h.excel_col FROM oqc_header h WHERE h.part_name=:part_name AND {$dateWhere} {$kind_sql} ORDER BY CASE WHEN h.source_file LIKE '%확보용%' THEN 1 ELSE 0 END, h.excel_col, h.id";
   
   $stmt=$pdo->prepare($sql);
    $stmt->execute($params);
    $headers=$stmt->fetchAll(PDO::FETCH_ASSOC);
+   $sourceFileLabel=oqc_view_source_file_label($headers);
   
   if($headers){
     
@@ -720,7 +750,7 @@ thead th{
 <div class="summary"><span>납품처: <strong><?=h($customerLabel)?>
 </strong></span><span>모델: <strong><?=h($headers[0]['part_name'])?>
 </strong></span><span>출하 기준 날짜: <strong><?=h($ship_date)?>
-</strong></span><span>NG: <strong style="color:#ffb4b4;">빨간색</strong></span><span class="file">파일: <?=h($headers[0]['source_file'])?>
+</strong></span><span>NG: <strong style="color:#ffb4b4;">빨간색</strong></span><span class="file">파일: <?=h($sourceFileLabel!==''?$sourceFileLabel:($headers[0]['source_file']??''))?>
 </span></div><div id="floatHead" class="float-head" aria-hidden="true"><div class="float-scroller"></div></div><div class="table-wrap"><table><thead><tr><th class="sticky num">FAI</th><th class="sticky2 spc">SPC</th><th class="sticky3 spec">USL</th><th class="sticky4 spec2">LSL</th><?php foreach($headers as $hrow): ?>
 <th class="col-head"><div class="top"><?php $top2=$hrow[$measKey2]??null;
 $top1=$hrow[$measKey1]??null;
