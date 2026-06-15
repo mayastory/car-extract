@@ -564,9 +564,13 @@ try {
         $selectCols[] = "h.`{$col}`";
     }
 
-    $headerSql = "SELECT " . implode(', ', $selectCols) . " FROM oqc_header h WHERE {$cond['sql']} ORDER BY h.id ASC";
+    // `_확보용` OQC 파일은 성적서 보충용이므로 홀딩리스트/NG 판단에서는 제외한다.
+    $excludeExtraSql = " AND (h.source_file IS NULL OR h.source_file NOT LIKE :exclude_extra_source)";
+    $excludeExtraParams = [':exclude_extra_source' => '%확보용%'];
+
+    $headerSql = "SELECT " . implode(', ', $selectCols) . " FROM oqc_header h WHERE {$cond['sql']}{$excludeExtraSql} ORDER BY h.id ASC";
     $stmtHeaders = $pdo->prepare($headerSql);
-    $stmtHeaders->execute($cond['params']);
+    $stmtHeaders->execute($cond['params'] + $excludeExtraParams);
     $allHeaders = $stmtHeaders->fetchAll(PDO::FETCH_ASSOC);
 
     $headersById = [];
