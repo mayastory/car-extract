@@ -485,6 +485,10 @@ th.col-head div.sub{
   font-size:10px;
   color:#57d68d
 }
+th.col-head.extra-source div.main{
+  color:#f2a7a7;
+  font-weight:700
+}
 th.num,td.num{
   width:var(--sticky1);
   min-width:var(--sticky1);
@@ -752,7 +756,7 @@ thead th{
 </strong></span><span>출하 기준 날짜: <strong><?=h($ship_date)?>
 </strong></span><span>NG: <strong style="color:#ffb4b4;">빨간색</strong></span><span class="file">파일: <?=h($sourceFileLabel!==''?$sourceFileLabel:($headers[0]['source_file']??''))?>
 </span></div><div id="floatHead" class="float-head" aria-hidden="true"><div class="float-scroller"></div></div><div class="table-wrap"><table><thead><tr><th class="sticky num">FAI</th><th class="sticky2 spc">SPC</th><th class="sticky3 spec">USL</th><th class="sticky4 spec2">LSL</th><?php foreach($headers as $hrow): ?>
-<th class="col-head"><div class="top"><?php $top2=$hrow[$measKey2]??null;
+<th class="col-head<?=oqc_view_is_extra_source_file($hrow['source_file']??'')?' extra-source':''?>"><div class="top"><?php $top2=$hrow[$measKey2]??null;
 $top1=$hrow[$measKey1]??null;
 if($top2&&$top1)echo h($top2).'<br>'.h($top1);
 elseif($top1)echo h($top1);
