@@ -2410,7 +2410,24 @@ r.usl, r.lsl, r.result_ok
         }
       }
 
-$pivotCols = [];
+// REAL_AOI: DB에는 1~16 고정 배열 보존용 NULL row가 들어갈 수 있다.
+      // 화면에서는 실제 값이 하나도 없는 라벨 행(예: 빈 SPC 5~12)은 숨긴다.
+      if ($type === 'REAL_AOI' && !empty($pivotRows)) {
+        $selectedColKeys = isset($colKeys) && is_array($colKeys) ? $colKeys : array_keys($colMeta);
+        foreach ($pivotRows as $__rk => $__pr) {
+          $__hasValue = false;
+          $__cells = $__pr['cells'] ?? [];
+          foreach ($selectedColKeys as $__ck) {
+            if (array_key_exists($__ck, $__cells) && $__cells[$__ck] !== null && $__cells[$__ck] !== '') {
+              $__hasValue = true;
+              break;
+            }
+          }
+          if (!$__hasValue) unset($pivotRows[$__rk]);
+        }
+      }
+
+      $pivotCols = [];
       foreach ($colKeys as $ck) {
         $pivotCols[] = ['key' => $ck] + $colMeta[$ck];
       }
@@ -2433,6 +2450,13 @@ $pivotCols = [];
 
     $meta['raw_rows'] = $rawCount;
     $meta['rows'] = count($results);
+    if ($type === 'REAL_AOI') {
+      // REAL_AOI는 DB 고정 배열용 NULL row를 화면에서 숨기므로
+      // 표시/전체 카운트도 실제 화면 행 기준으로 맞춘다.
+      $totalRows = count($results);
+      $totalRowsAll = count($results);
+      $totalRowsView = count($results);
+    }
 // date paging - 날짜별로 한 페이지
     // 날짜 목록($pageDates)과 선택 날짜($pageDate)는 header-only 쿼리에서 결정됨.
     // (ALL이 아니면 쿼리 자체가 하루로 제한되므로 여기서 추가 필터링 불필요)
