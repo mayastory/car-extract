@@ -132,6 +132,7 @@
   const QG = {
     built: false,
     isPivot: false,
+    currentMeasureType: '', // normalized measurement type for graph data-slot isolation
     table: null,
     cols: [], // [{idx, key, label, usl, lsl, th}]
     data: null, // raw grouped: tool->cav->date->{__rows:[{label,tds}]}
@@ -1058,6 +1059,128 @@ function sortDateInfo(a,b){
     const nb = mb ? parseInt(mb[1],10) : 9999;
     if (na !== nb) return na - nb;
     return String(a).localeCompare(String(b), undefined, {numeric:true, sensitivity:'base'});
+  }
+
+
+  function qgNormalizeMeasureType(v){
+    let s = (v === null || v === undefined) ? '' : String(v);
+    s = s.trim().toUpperCase();
+    s = s.replace(/[\s\-]+/g, '_').replace(/__+/g, '_');
+    if (s === 'REALAOI') s = 'REAL_AOI';
+    if (s === 'REALA0I') s = 'REAL_AOI';
+    if (s === 'REALOMM') s = 'REAL_OMM';
+    return s;
+  }
+
+  function qgMeasureTypeFromDoc(doc){
+    try{
+      const d = doc || document;
+      const el = qgDocById(d, 'type') || qs('input[name="type"], select[name="type"]', d);
+      if (el && el.value !== undefined) return qgNormalizeMeasureType(el.value);
+    }catch(e){}
+    try{
+      if (QG && QG.query && QG.query.state && QG.query.state.type) return qgNormalizeMeasureType(QG.query.state.type);
+    }catch(e){}
+    return '';
+  }
+
+  function qgMeasureTypeFromTable(table){
+    try{
+      const doc = (table && table.ownerDocument) ? table.ownerDocument : document;
+      const t = qgMeasureTypeFromDoc(doc);
+      if (t) return t;
+    }catch(e){}
+    try{
+      if (QG && QG.query && QG.query.state && QG.query.state.type) return qgNormalizeMeasureType(QG.query.state.type);
+    }catch(e){}
+    return qgNormalizeMeasureType(QG.currentMeasureType || '');
+  }
+
+  function qgIsRealAoiType(typeValue){
+    return qgNormalizeMeasureType(typeValue || (QG && QG.currentMeasureType) || '') === 'REAL_AOI';
+  }
+
+  function qgResetForMeasureTypeChange(nextType){
+    const nt = qgNormalizeMeasureType(nextType || '');
+    QG.currentMeasureType = nt;
+    QG.cols = [];
+    QG.data = null;
+    QG.seriesByCol = null;
+    QG.series = null;
+    QG.tools = [];
+    QG.cavities = [];
+    QG.sel = { colKeys:new Set(), primaryColKey:'', tools:new Set(), cavities:new Set() };
+    QG.editingLimits = false;
+    QG.editingAxis = false;
+
+    // These maps are keyed only by FAI/Point name, so they must not bleed between AOI and REAL_AOI.
+    QG.varLines = {};
+    QG.varLineSeq = 1;
+    QG.axisByCol = {};
+    QG.oocSpecByCol = {};
+    QG.oocLineVisibleByCol = {};
+    QG.limitBaseByCol = {};
+    QG.limitLabelAlignByCol = {};
+    QG.captionByColKey = {};
+    QG.displayNameByColKey = {};
+    QG.plotElemByCol = {};
+    QG.meanStyleByCol = {};
+    QG.bgStyleByCol = {};
+    QG.boxStyleByCol = {};
+    QG._visibleColKeys = [];
+  }
+
+  function qgReadRowIndexFromPivotRow(tr, labelTd){
+    const nodes = [tr, labelTd].filter(Boolean);
+    for (const node of nodes){
+      try{
+        const ds = node.dataset || {};
+        const raw = ds.rowIndex || ds.rowindex || ds.qgRowIndex || ds.qgRowindex || node.getAttribute('data-row-index') || node.getAttribute('data-rowindex');
+        const n = parseInt(String(raw || '').trim(), 10);
+        if (isFinite(n) && n > 0) return n;
+      }catch(e){}
+    }
+    return null;
+  }
+
+  function qgNormalizePointSlotLabel(label, measureType, rowIndex){
+    const type = qgNormalizeMeasureType(measureType || '');
+    const raw = (label === null || label === undefined) ? '' : String(label).trim();
+    if (!raw) return null;
+
+    if (type === 'REAL_AOI'){
+      const ri = (rowIndex !== null && rowIndex !== undefined) ? parseInt(rowIndex, 10) : NaN;
+      if (isFinite(ri) && ri >= 1 && ri <= 16){
+        if (ri <= 4) return { ok:true, label:'FAI ' + String(ri), index:ri, realAoi:true };
+        return { ok:true, label:'SPC ' + String(ri - 4), index:ri, realAoi:true };
+      }
+      let m = /^\s*FAI\s*([1-4])\s*$/i.exec(raw);
+      if (m){
+        const n = parseInt(m[1],10);
+        return { ok:true, label:'FAI ' + String(n), index:n, realAoi:true };
+      }
+      m = /^\s*SPC\s*(\d{1,2})\s*$/i.exec(raw);
+      if (m){
+        const n = parseInt(m[1],10);
+        if (n >= 1 && n <= 12) return { ok:true, label:'SPC ' + String(n), index:4+n, realAoi:true };
+      }
+      return null;
+    }
+
+    // Legacy AOI/OMM/CMM/OQC path: do not accept REAL_AOI slots here.
+    const m = /^\s*Data\s*([1-3])\s*$/i.exec(raw);
+    if (!m) return null;
+    const n = parseInt(m[1],10);
+    return { ok:true, label:'Data ' + String(n), index:n, realAoi:false };
+  }
+
+  function qgResetLiveGraphDataOnly(){
+    QG.data = null;
+    QG.series = null;
+    QG.seriesByCol = null;
+    QG.tools = [];
+    QG.cavities = [];
+    QG.sel = { colKeys:new Set(), primaryColKey:'', tools:new Set(), cavities:new Set() };
   }
 
   function showMsg(txt, holdMs){
@@ -3185,8 +3308,7 @@ function getBase(){
     const idxLbl    = texts.indexOf('라벨');
     if (idxTool < 0 || idxCavity < 0 || idxDate < 0 || idxLbl < 0) return null;
 
-    // Accept: Data 1 / Data1 / DATA 2 etc
-    const reData = /^\s*Data\s*([1-3])\s*$/i;
+    const measureType = qgNormalizeMeasureType(QG.currentMeasureType || qgMeasureTypeFromTable(QG.table));
 
     const group = Object.create(null);
     const ensure = (o,k)=> (o[k]||(o[k]=Object.create(null)));
@@ -3201,16 +3323,33 @@ function getBase(){
       const di = normalizeDateKey(dateRaw);
       const date = di.key;
       if (!date) continue;
-      const lb   = (tds[idxLbl]?.textContent || '').trim();
-
-      const m = reData.exec(lb);
-      if (!m) continue;
+      const labelTd = tds[idxLbl] || null;
+      const lb   = (labelTd?.textContent || '').trim();
+      const slot = qgNormalizePointSlotLabel(lb, measureType, qgReadRowIndexFromPivotRow(tr, labelTd));
+      if (!slot) continue;
 
       const toolO = ensure(group, tool);
       const cavO  = ensure(toolO, cav);
       if (!cavO[date]) cavO[date] = { __rows: [] };
 
-      cavO[date].__rows.push({ label: lb, tds });
+      cavO[date].__rows.push({ label: slot.label, slotIndex: slot.index, realAoi: !!slot.realAoi, tds });
+    }
+
+    // Keep row_index order stable: REAL_AOI = FAI 1~4, SPC 1~12 / legacy = Data 1~3.
+    for (const tool of Object.keys(group)){
+      for (const cav of Object.keys(group[tool] || {})){
+        for (const date of Object.keys(group[tool][cav] || {})){
+          const bucket = group[tool][cav][date];
+          if (bucket && Array.isArray(bucket.__rows)){
+            bucket.__rows.sort((a,b)=>{
+              const ai = isFinite(a && a.slotIndex) ? Number(a.slotIndex) : 9999;
+              const bi = isFinite(b && b.slotIndex) ? Number(b.slotIndex) : 9999;
+              if (ai !== bi) return ai - bi;
+              return String(a && a.label || '').localeCompare(String(b && b.label || ''), undefined, {numeric:true, sensitivity:'base'});
+            });
+          }
+        }
+      }
     }
     return group;
   }
@@ -3324,7 +3463,7 @@ function getBase(){
     const cols = (useTableFallback === false) ? [] : qgColsFromAnyTable(fallbackTable || QG.table || findMainTable(document));
     const colFai = cols.map(c => String(c.label || c.key || ''));
     base.faiOptions = qgUniqueStrings([].concat(mappedFai, hiddenFai, colFai));
-    base.allowAllFai = ['OMM','CMM','OQC'].includes(typeValue);
+    base.allowAllFai = ['OMM','CMM','OQC','REAL_AOI'].includes(typeValue);
     return base;
   }
 
@@ -3880,13 +4019,19 @@ function getBase(){
 
   function qgPopulateFromTable(table){
     if (!table) return false;
+    const nextMeasureType = qgNormalizeMeasureType(qgMeasureTypeFromTable(table));
+    const prevMeasureType = qgNormalizeMeasureType(QG.currentMeasureType || '');
+    const measureTypeChanged = !!(prevMeasureType && nextMeasureType && prevMeasureType !== nextMeasureType);
+    if (measureTypeChanged) qgResetForMeasureTypeChange(nextMeasureType);
+    else if (nextMeasureType) QG.currentMeasureType = nextMeasureType;
+
     QG.table = table;
     const ths = qsa('thead th', QG.table);
     QG.isPivot = detectPivot(ths);
     if (!QG.isPivot) return false;
 
-    const prevColKeys = selectedColKeysInOrder();
-    const prevPrimary = String(QG.sel.primaryColKey || '');
+    const prevColKeys = measureTypeChanged ? [] : selectedColKeysInOrder();
+    const prevPrimary = measureTypeChanged ? '' : String(QG.sel.primaryColKey || '');
     QG.cols = buildColsFromPivot(ths);
     if (!QG.cols.length) return false;
 
@@ -4118,16 +4263,20 @@ function getBase(){
           const bucket = QG.data[tool][cav][date];
           const rows = bucket.__rows || [];
           const vals = [];
+          const pointLabels = [];
           for (const r of rows){
             const td = r.tds[col.idx];
             const v = num(td ? td.textContent : '');
-            if (v !== null) vals.push(v);
+            if (v !== null){
+              vals.push(v);
+              pointLabels.push(String((r && r.label) ? r.label : ('Data ' + String(vals.length))));
+            }
           }
           if (!vals.length) continue;
           const mn = Math.min.apply(null, vals);
           const mx = Math.max.apply(null, vals);
           const mean = vals.reduce((a,b)=>a+b,0)/vals.length;
-          cavO[date] = { vals, min: mn, max: mx, mean };
+          cavO[date] = { vals, pointLabels, min: mn, max: mx, mean, showAllDots: qgIsRealAoiType(QG.currentMeasureType) };
         }
       }
     }
@@ -6575,7 +6724,11 @@ try{
             const value = String(singleBtn.getAttribute('data-value') || '');
             if (!QG.query.state) return;
             if (kind === 'type' || kind === 'model'){
+              const prevType = qgNormalizeMeasureType(QG.query.state.type || QG.currentMeasureType || '');
               QG.query.state[kind] = value;
+              const nextType = qgNormalizeMeasureType(QG.query.state.type || '');
+              if (kind === 'type' && prevType && nextType && prevType !== nextType) qgResetForMeasureTypeChange(nextType);
+              else qgResetLiveGraphDataOnly();
               QG.query.state.pageAll = true;
               QG.query.state.pageDate = '';
               QG.query.state.pageDates = [];
@@ -8144,6 +8297,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
     const def = panelDef || null;
     if (!def) return null;
     const vals = [];
+    const pointLabels = [];
     let minV = Infinity;
     let maxV = -Infinity;
     for (const tVal of (def.tools || [])){
@@ -8154,9 +8308,17 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
         if (isFinite(p.min)) minV = Math.min(minV, Number(p.min));
         if (isFinite(p.max)) maxV = Math.max(maxV, Number(p.max));
         if (Array.isArray(p.vals) && p.vals.length){
-          for (const vv of p.vals){ if (isFinite(vv)) vals.push(Number(vv)); }
+          const labs = Array.isArray(p.pointLabels) ? p.pointLabels : [];
+          for (let vi=0; vi<p.vals.length; vi++){
+            const vv = p.vals[vi];
+            if (isFinite(vv)){
+              vals.push(Number(vv));
+              pointLabels.push(String(labs[vi] || ('Data ' + String(pointLabels.length + 1))));
+            }
+          }
         }else if (isFinite(p.mean)){
           vals.push(Number(p.mean));
+          pointLabels.push('Mean');
         }
       }
     }
@@ -8164,7 +8326,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
     const meanV = vals.length ? (vals.reduce((sum, vv)=> sum + Number(vv || 0), 0) / vals.length) : NaN;
     if (!isFinite(minV) && vals.length) minV = Math.min.apply(null, vals);
     if (!isFinite(maxV) && vals.length) maxV = Math.max.apply(null, vals);
-    return { vals, min:minV, max:maxV, mean:meanV };
+    return { vals, pointLabels, min:minV, max:maxV, mean:meanV, showAllDots: qgIsRealAoiType(QG.currentMeasureType) };
   };
   const qgGetCellDatePoint = (toolVal, cavityVal, dateInfo)=>{
     if (toolVal === null || toolVal === undefined) return null;
@@ -8172,16 +8334,27 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
     const s = ((QG.series||{})[toolVal]||{})[cavityVal]||{};
     const p = qgPickDatePoint(s, dateInfo);
     if (!p) return null;
-    const vals = Array.isArray(p.vals) ? p.vals.filter(v => isFinite(v)).map(v => Number(v)) : [];
+    const vals = [];
+    const pointLabels = [];
+    if (Array.isArray(p.vals)){
+      const labs = Array.isArray(p.pointLabels) ? p.pointLabels : [];
+      for (let vi=0; vi<p.vals.length; vi++){
+        const vv = p.vals[vi];
+        if (isFinite(vv)){
+          vals.push(Number(vv));
+          pointLabels.push(String(labs[vi] || ('Data ' + String(pointLabels.length + 1))));
+        }
+      }
+    }
     let minV = isFinite(p.min) ? Number(p.min) : Infinity;
     let maxV = isFinite(p.max) ? Number(p.max) : -Infinity;
     let meanV = isFinite(p.mean) ? Number(p.mean) : NaN;
-    if (!vals.length && isFinite(meanV)) vals.push(meanV);
+    if (!vals.length && isFinite(meanV)) { vals.push(meanV); pointLabels.push('Mean'); }
     if (!isFinite(minV) && vals.length) minV = Math.min.apply(null, vals);
     if (!isFinite(maxV) && vals.length) maxV = Math.max.apply(null, vals);
     if (!isFinite(meanV) && vals.length) meanV = vals.reduce((sum, vv)=> sum + Number(vv || 0), 0) / vals.length;
     if (!vals.length && !isFinite(minV) && !isFinite(maxV) && !isFinite(meanV)) return null;
-    return { vals, min:minV, max:maxV, mean:meanV };
+    return { vals, pointLabels, min:minV, max:maxV, mean:meanV, showAllDots: qgIsRealAoiType(QG.currentMeasureType) };
   };
 
   const qgGetToolOnlyCavityPoints = (panelDef, dateInfo)=>{
@@ -8787,6 +8960,7 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
       const high = sorted[sorted.length - 1];
       return {
         vals: sorted.slice(),
+        pointLabels: Array.isArray(pointInfo.pointLabels) ? pointInfo.pointLabels.slice(0, sorted.length) : [],
         min: low,
         max: high,
         mean: isFinite(pointInfo.mean) ? Number(pointInfo.mean) : (sorted.reduce((a,b)=>a+b,0) / sorted.length),
@@ -8864,11 +9038,13 @@ function drawMatrixSvg(svg, tools, cavs, dates, opt){
     const drawPointDots = (xPos, pointInfo, markerShape, dotColor, dateInfo, dateKey, extraTip)=>{
       if (!_showPts || _hideDataDots || !pointInfo) return;
       const srcVals = Array.isArray(pointInfo.vals) ? pointInfo.vals : [];
+      const srcLabels = Array.isArray(pointInfo.pointLabels) ? pointInfo.pointLabels : [];
       const vals = pointInfo && pointInfo.showAllDots ? srcVals.slice() : srcVals.slice(0,3);
       for (let vi=0; vi<vals.length; vi++){
         const v = vals[vi];
         const cy = yAt(v);
-        let tip = 'Data ' + String(vi+1) + ': ' + qgFmtPointValue(v) + '\nDate: ' + (dateInfo && (dateInfo.label||dateInfo.key) ? String(dateInfo.label||dateInfo.key) : String(dateKey));
+        const pointLabel = String(srcLabels[vi] || ('Data ' + String(vi+1)));
+        let tip = pointLabel + ': ' + qgFmtPointValue(v) + '\nDate: ' + (dateInfo && (dateInfo.label||dateInfo.key) ? String(dateInfo.label||dateInfo.key) : String(dateKey));
         if (extraTip) tip += '\n' + String(extraTip);
         qgAppendMarkerShape(svg, markerShape, xPos, cy, _dataDotSize, {
           fill: dotColor,
