@@ -3324,6 +3324,58 @@ function getBase(){
     return (b || '').toString();
   }
 
+
+  // Keep the Graph Builder top/header area from being squeezed or left partially
+  // behind after type/query changes in the shell/iframe layout.
+  function qgEnsureHeaderSafeLayout(){
+    try{
+      if (document.getElementById('qgHeaderSafeLayoutStyle')) return;
+      const st = document.createElement('style');
+      st.id = 'qgHeaderSafeLayoutStyle';
+      st.textContent = `
+        #qgOverlay .qg-top{
+          flex:0 0 auto !important;
+          min-height:44px !important;
+          overflow:visible !important;
+          position:relative !important;
+          z-index:40 !important;
+        }
+        #qgOverlay .qg-body{
+          flex:1 1 auto !important;
+          min-height:0 !important;
+        }
+        #qgOverlay .qg-main{
+          min-height:0 !important;
+          position:relative !important;
+        }
+        #qgOverlay #qgGrid{
+          position:relative !important;
+          z-index:1 !important;
+        }
+      `;
+      (document.head || document.documentElement || document.body).appendChild(st);
+    }catch(e){}
+  }
+
+  function qgResetMainScrollNow(){
+    try{
+      const main = qs('#qgOverlay .qg-main') || qs('.qg-main');
+      if (main && typeof main.scrollTop === 'number') main.scrollTop = 0;
+    }catch(e){}
+  }
+
+  function qgRequestMainScrollReset(){
+    try{ QG._resetMainScrollOnNextRender = true; }catch(e){}
+  }
+
+  function qgApplyPendingMainScrollReset(){
+    let need = false;
+    try{ need = !!QG._resetMainScrollOnNextRender; QG._resetMainScrollOnNextRender = false; }catch(e){}
+    if (!need) return;
+    qgResetMainScrollNow();
+    try{ requestAnimationFrame(()=>{ qgResetMainScrollNow(); }); }catch(e){}
+  }
+
   // Prevent the underlying page from scrolling while the full-screen overlay is open.
   function lockScroll(){
     if (QG._scrollLocked) return;
@@ -3368,6 +3420,8 @@ function getBase(){
     try{ document.body.classList.add('qg-open'); }catch(e){}
     ov.setAttribute('aria-hidden','false');
     ov.style.display='block';
+    try{ qgEnsureHeaderSafeLayout(); }catch(e){}
+    try{ qgRequestMainScrollReset(); }catch(e){}
     if (!QG.built) build();
     else refresh();
   }
@@ -4408,6 +4462,7 @@ function getBase(){
       qgEnsureInlineFaiOptionsLoaded(QG.query.state, false);
 
       if (table && qgPopulateFromTable(table)){
+        try{ qgRequestMainScrollReset(); }catch(e){}
         refresh();
       }else{
         showMsg('조회 결과 없음', 1200);
@@ -8405,6 +8460,8 @@ function renderGrid(){
   const grid = qs('#qgGrid');
   if (!grid) return;
   grid.innerHTML = '';
+  try{ qgEnsureHeaderSafeLayout(); }catch(e){}
+  try{ qgApplyPendingMainScrollReset(); }catch(e){}
 
   const keys = selectedColKeysInOrder();
   try{ QG._visibleColKeys = Array.isArray(keys) ? keys.slice() : []; }catch(e){}
