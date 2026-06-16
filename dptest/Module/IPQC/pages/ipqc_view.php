@@ -799,6 +799,8 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'tools') {
   $uiModel = (string)($_GET['model'] ?? '');
   $items = [];
   $err = null;
+  // Graph Builder 옵션 로딩은 현재 조회된 Tool 1개에 묶이면 안 된다.
+  $qgModelScope = (strtolower(trim((string)($_GET['qg_scope'] ?? ''))) === 'model');
 
   try {
     if ($uiType === 'OQC') {
@@ -815,10 +817,26 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'tools') {
     $err = $e->getMessage();
   }
 
+  if ($qgModelScope) {
+    $baseTools = ipqc_default_tools();
+    $mergedTools = [];
+    $seenTools = [];
+    foreach (array_merge($baseTools, is_array($items) ? $items : []) as $__tool) {
+      $__tool = trim((string)$__tool);
+      if ($__tool === '') continue;
+      $__key = strtoupper($__tool);
+      if (isset($seenTools[$__key])) continue;
+      $seenTools[$__key] = true;
+      $mergedTools[] = $__tool;
+    }
+    $items = $mergedTools;
+  }
+
   echo json_encode([
     'ok' => true,
     'type' => $uiType,
     'model' => $uiModel,
+    'scope' => $qgModelScope ? 'model' : 'filtered',
     'items' => array_values(is_array($items) ? $items : []),
     'error' => $err,
   ], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
@@ -834,6 +852,9 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'fai_options') {
   $items = [];
   $err = null;
   $truncated = false;
+  // Graph Builder needs the full type+model option list; the normal page FAI
+  // dropdown can still request the narrower Tool/Year/Month-scoped list.
+  $qgModelScope = (strtolower(trim((string)($_GET['qg_scope'] ?? ''))) === 'model');
 
   try {
     if ($uiType === 'OQC') {
@@ -843,6 +864,38 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'fai_options') {
       $headerTable = (string)$cfg['header'];
       $measTable   = (string)$cfg['meas'];
       $keyCol      = (string)$cfg['key_col'];
+
+      // Graph Builder(qg_scope=model): 기존 OMM/AOI/CMM/OQC/REAL_OMM의 FAI 목록은
+      // DB DISTINCT가 아니라 기존 매핑 순서(IPQC_ORDER_MAP)를 기준으로 유지한다.
+      // REAL_AOI만 신규 타입이므로 ipqc_real_aoi_* DB/keymap에서 별도로 가져온다.
+      if ($qgModelScope && $uiType !== 'REAL_AOI') {
+        $mapKey = ipqc_model_to_mapkey($uiModel);
+        $mapType = ipqc_order_map_type($uiType);
+        $mapped = [];
+        if ($uiType === 'REAL_OMM') $mapType = 'AOI';
+        if ($mapKey !== '' && isset($IPQC_ORDER_MAP[$mapKey][$mapType]) && is_array($IPQC_ORDER_MAP[$mapKey][$mapType])) {
+          foreach ($IPQC_ORDER_MAP[$mapKey][$mapType] as $__lab) {
+            if (is_array($__lab)) continue;
+            $__lab = (string)$__lab;
+            if ($__lab === '' || $__lab === '__ALL__') continue;
+            if ($uiType === 'OMM' || $uiType === 'REAL_OMM' || $uiType === 'AOI') $__lab = ipqc_omm_display_label($__lab);
+            if ($__lab !== '') $mapped[] = $__lab;
+          }
+        }
+        $mapped = array_values(array_unique($mapped));
+        if (!empty($mapped)) {
+          echo json_encode([
+            'ok' => true,
+            'type' => $uiType,
+            'model' => $uiModel,
+            'scope' => 'model',
+            'items' => $mapped,
+            'truncated' => false,
+            'error' => null,
+          ], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+          exit;
+        }
+      }
 
       $yearsReq = $_GET['years'] ?? ($_GET['years[]'] ?? []);
       if (!is_array($yearsReq)) $yearsReq = [$yearsReq];
@@ -862,34 +915,66 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'fai_options') {
         return $t !== '' && strlen($t) <= 16;
       })));
 
-      $where = "h.meas_date IS NOT NULL AND h.part_name = ?";
-      $params = [$uiModel];
+      // Graph Builder(qg_scope=model)는 현재 조회한 Tool/날짜/FAI 1개에 묶이면 안 된다.
+      // 특히 REAL_AOI는 keymap이 있으면 해당 모델 전체 RAW FAI 목록을 먼저 사용한다.
+      $rowsF = [];
+      if ($qgModelScope && $uiType === 'REAL_AOI') {
+        try {
+          $kmTable = 'ipqc_real_aoi_keymap';
+          if (oqc_table_exists($pdo, $kmTable)) {
+            $stmtKm = $pdo->prepare("
+              SELECT DISTINCT fai AS k, MIN(col_order) AS ord
+              FROM {$kmTable}
+              WHERE part_name = ? AND fai IS NOT NULL AND fai <> ''
+              GROUP BY fai
+              ORDER BY ord, k
+              LIMIT 1000
+            ");
+            $stmtKm->execute([$uiModel]);
+            $kmRows = $stmtKm->fetchAll(PDO::FETCH_COLUMN, 0);
+            if (is_array($kmRows) && !empty($kmRows)) $rowsF = $kmRows;
+          }
+        } catch (Throwable $eKm) {
+          // keymap이 없거나 컬럼 차이가 있으면 아래 measurements 조회로 fallback
+        }
+      }
 
-      if (!empty($yearsReq)) {
-        $where .= " AND YEAR(h.meas_date) IN (" . implode(',', array_fill(0, count($yearsReq), '?')) . ")";
-        foreach ($yearsReq as $y) $params[] = $y;
-      }
-      if (!empty($monthsReq)) {
-        $where .= " AND MONTH(h.meas_date) IN (" . implode(',', array_fill(0, count($monthsReq), '?')) . ")";
-        foreach ($monthsReq as $m) $params[] = $m;
-      }
-      if (!empty($toolsReq)) {
-        $where .= " AND h.tool IN (" . implode(',', array_fill(0, count($toolsReq), '?')) . ")";
-        foreach ($toolsReq as $t) $params[] = $t;
-      }
+      if (empty($rowsF)) {
+        $where = "h.meas_date IS NOT NULL AND h.part_name = ?";
+        $params = [$uiModel];
 
-      $sqlF = "
-        SELECT DISTINCT m.{$keyCol} AS k
-        FROM {$headerTable} h
-        JOIN {$measTable} m ON m.header_id = h.id
-        WHERE {$where}
-          AND m.row_index = 1
-        ORDER BY k
-        LIMIT 500
-      ";
-      $stmtF = $pdo->prepare($sqlF);
-      $stmtF->execute($params);
-      $rowsF = $stmtF->fetchAll(PDO::FETCH_COLUMN, 0);
+        if (!$qgModelScope) {
+          if (!empty($yearsReq)) {
+            $where .= " AND YEAR(h.meas_date) IN (" . implode(',', array_fill(0, count($yearsReq), '?')) . ")";
+            foreach ($yearsReq as $y) $params[] = $y;
+          }
+          if (!empty($monthsReq)) {
+            $where .= " AND MONTH(h.meas_date) IN (" . implode(',', array_fill(0, count($monthsReq), '?')) . ")";
+            foreach ($monthsReq as $m) $params[] = $m;
+          }
+          if (!empty($toolsReq)) {
+            $where .= " AND h.tool IN (" . implode(',', array_fill(0, count($toolsReq), '?')) . ")";
+            foreach ($toolsReq as $t) $params[] = $t;
+          }
+        }
+
+        $rowIndexFilter = ($qgModelScope && $uiType === 'REAL_AOI') ? '' : 'AND m.row_index = 1';
+        $limitN = $qgModelScope ? 1000 : 500;
+        $sqlF = "
+          SELECT DISTINCT m.{$keyCol} AS k
+          FROM {$headerTable} h
+          JOIN {$measTable} m ON m.header_id = h.id
+          WHERE {$where}
+            {$rowIndexFilter}
+            AND m.{$keyCol} IS NOT NULL
+            AND m.{$keyCol} <> ''
+          ORDER BY k
+          LIMIT {$limitN}
+        ";
+        $stmtF = $pdo->prepare($sqlF);
+        $stmtF->execute($params);
+        $rowsF = $stmtF->fetchAll(PDO::FETCH_COLUMN, 0);
+      }
       if (is_array($rowsF)) {
         $items = array_values(array_unique(array_filter(array_map(function($v){
           return is_string($v) ? $v : '';
@@ -907,6 +992,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'fai_options') {
     'ok' => true,
     'type' => $uiType,
     'model' => $uiModel,
+    'scope' => $qgModelScope ? 'model' : 'filtered',
     'items' => array_values(is_array($items) ? $items : []),
     'truncated' => $truncated,
     'error' => $err,

@@ -1100,6 +1100,151 @@ function sortDateInfo(a,b){
     return qgNormalizeMeasureType(typeValue || (QG && QG.currentMeasureType) || '') === 'REAL_AOI';
   }
 
+  function qgFaiFilterKeyForState(typeValue, modelValue, state){
+    const t = qgNormalizeMeasureType(typeValue || '');
+    const m = String(modelValue || '');
+    const st = state || ((QG && QG.query && QG.query.state) ? QG.query.state : {});
+    const years = qgUniqueStrings(st.years || []).map(v => String(v || '')).filter(Boolean).sort();
+    const months = qgUniqueStrings(st.months || []).map(v => String(v || '')).filter(Boolean).sort();
+    const tools = qgUniqueStrings(st.tools || []).map(v => String(v || '')).filter(Boolean).sort();
+    return t + '|' + m + '|Y:' + years.join(',') + '|M:' + months.join(',') + '|T:' + tools.join(',');
+  }
+
+  // Graph Builder option cache key: full FAI list for the selected type+model,
+  // independent of the currently queried Tool/Year/Month/Date.
+  function qgFaiModelOptionKey(typeValue, modelValue){
+    return qgNormalizeMeasureType(typeValue || '') + '|' + String(modelValue || '') + '|__MODEL_ALL__';
+  }
+
+  function qgToolFilterKey(typeValue, modelValue){
+    return qgNormalizeMeasureType(typeValue || '') + '|' + String(modelValue || '');
+  }
+
+  function qgReadGlobalMapArray(mapName, keys){
+    try{
+      let m = null;
+      if (mapName === 'IPQC_FAI_OPTIONS_MODEL_MAP'){
+        try{ if (typeof IPQC_FAI_OPTIONS_MODEL_MAP !== 'undefined') m = IPQC_FAI_OPTIONS_MODEL_MAP; }catch(e){}
+      }else if (mapName === 'IPQC_TOOL_MODEL_MAP'){
+        try{ if (typeof IPQC_TOOL_MODEL_MAP !== 'undefined') m = IPQC_TOOL_MODEL_MAP; }catch(e){}
+      }
+      if (!m){
+        const g = (typeof window !== 'undefined') ? window : globalThis;
+        m = g ? g[mapName] : null;
+      }
+      if (!m || typeof m !== 'object') return [];
+      const out = [];
+      const seen = new Set();
+      (Array.isArray(keys) ? keys : []).forEach(k => {
+        const kk = String(k || '');
+        const arr = m[kk];
+        if (!Array.isArray(arr)) return;
+        arr.forEach(v => {
+          const s = String(v == null ? '' : v).trim();
+          if (!s || s === '__ALL__' || seen.has(s)) return;
+          seen.add(s);
+          out.push(s);
+        });
+      });
+      return out;
+    }catch(e){
+      return [];
+    }
+  }
+
+  function qgReadGlobalFaiOptions(typeValue, modelValue, state){
+    const type = qgNormalizeMeasureType(typeValue || '');
+    const model = String(modelValue || '');
+    if (!type || !model) return [];
+    const keys = [
+      qgFaiModelOptionKey(type, model),
+      qgFaiFilterKeyForState(type, model, state),
+      type + '|' + model
+    ];
+    try{
+      let m = null;
+      try{ if (typeof IPQC_FAI_OPTIONS_MODEL_MAP !== 'undefined') m = IPQC_FAI_OPTIONS_MODEL_MAP; }catch(e){}
+      if (!m && typeof window !== 'undefined') m = window.IPQC_FAI_OPTIONS_MODEL_MAP || null;
+      if (m && typeof m === 'object'){
+        const prefix = type + '|' + model + '|';
+        Object.keys(m).forEach(k => { if (String(k).indexOf(prefix) === 0) keys.push(k); });
+      }
+    }catch(e){}
+    return qgReadGlobalMapArray('IPQC_FAI_OPTIONS_MODEL_MAP', qgUniqueStrings(keys));
+  }
+
+  function qgReadGlobalToolOptions(typeValue, modelValue){
+    const type = qgNormalizeMeasureType(typeValue || '');
+    const model = String(modelValue || '');
+    if (!type || !model) return [];
+    return qgReadGlobalMapArray('IPQC_TOOL_MODEL_MAP', [qgToolFilterKey(type, model), String(type || '').toUpperCase() + '|' + model]);
+  }
+
+  function qgReadFaiOptionButtonsFromDoc(doc){
+    try{
+      const d = doc || document;
+      const out = [];
+      const seen = new Set();
+      const sels = [
+        '#ms-fai-list .fai-btn[data-value]',
+        '#ms-fai .fai-btn[data-value]',
+        '#qgq-ms-fai-list .fai-btn[data-qgq-fai]',
+        '#qgq-ms-fai .fai-btn[data-qgq-fai]'
+      ];
+      qsa(sels.join(','), d).forEach(btn => {
+        let v = '';
+        try{ v = btn.getAttribute('data-value') || btn.getAttribute('data-qgq-fai') || ''; }catch(e){}
+        v = String(v || '').trim();
+        if (!v || v === '__ALL__' || seen.has(v)) return;
+        seen.add(v);
+        out.push(v);
+      });
+      return out;
+    }catch(e){
+      return [];
+    }
+  }
+
+  function qgReadToolOptionInputsFromDoc(doc){
+    try{
+      const d = doc || document;
+      const out = [];
+      const seen = new Set();
+      qsa('#ms-tools input[name="tools[]"], #qgq-ms-tools input[data-qgq-multi="tools"]', d).forEach(inp => {
+        const v = String(inp && inp.value != null ? inp.value : '').trim();
+        if (!v || seen.has(v)) return;
+        seen.add(v);
+        out.push(v);
+      });
+      return out;
+    }catch(e){
+      return [];
+    }
+  }
+
+  function qgBuildAjaxUrlForOptions(kind, state){
+    const st = state || ((QG && QG.query && QG.query.state) ? QG.query.state : {});
+    const url = new URL(window.location.href);
+    const sp = url.searchParams;
+    const ajaxKind = String(kind || '');
+    const modelScope = String(st.qgOptionScope || st.optionScope || '').toLowerCase() === 'model';
+    sp.set('ajax', ajaxKind);
+    sp.set('type', qgNormalizeMeasureType(st.type || QG.currentMeasureType || ''));
+    sp.set('model', String(st.model || ''));
+    ['tools[]','years[]','months[]','fai[]','page_dates','page_date','page_all','tool','run','months_present','qg_scope'].forEach(k => sp.delete(k));
+
+    // Graph Builder needs the full model-level option list. Do not let the
+    // currently rendered query (Tool/Year/Month/Date/FAI) shrink the dropdown/list.
+    if (modelScope){
+      sp.set('qg_scope', 'model');
+    }else{
+      (st.tools || []).forEach(v => sp.append('tools[]', String(v || '')));
+      (st.years || []).forEach(v => sp.append('years[]', String(v || '')));
+      (st.months || []).forEach(v => sp.append('months[]', String(v || '')));
+    }
+    return url.toString();
+  }
+
   function qgResetForMeasureTypeChange(nextType){
     const nt = qgNormalizeMeasureType(nextType || '');
     QG.currentMeasureType = nt;
@@ -3412,6 +3557,61 @@ function getBase(){
     }
   }
 
+  function qgSyncColsWithFaiOptions(faiOptions){
+    try{
+      const opts = qgUniqueStrings((Array.isArray(faiOptions) ? faiOptions : []).filter(v => String(v || '') !== '__ALL__'));
+      if (!opts.length || !Array.isArray(QG.cols) || !QG.cols.length) return false;
+
+      const used = new Set();
+      const byKey = new Map();
+      const byLabel = new Map();
+      (QG.cols || []).forEach(c => {
+        const k = String(c && c.key != null ? c.key : '');
+        const l = String(c && c.label != null ? c.label : k);
+        if (k && !byKey.has(k)) byKey.set(k, c);
+        if (l && !byLabel.has(l)) byLabel.set(l, c);
+      });
+
+      const next = [];
+      opts.forEach(labelRaw => {
+        const label = String(labelRaw || '').trim();
+        if (!label) return;
+        let col = byKey.get(label) || byLabel.get(label) || null;
+        if (!col){
+          col = {
+            idx: -1,
+            key: label,
+            label: label,
+            usl: null,
+            lsl: null,
+            baseUsl: null,
+            baseLsl: null,
+            oocSpecPct: 85,
+            th: null,
+            _qgPlaceholder: true,
+          };
+        }
+        const ck = String(col.key || label);
+        if (used.has(ck)) return;
+        used.add(ck);
+        next.push(col);
+      });
+
+      (QG.cols || []).forEach(c => {
+        const ck = String(c && c.key != null ? c.key : '');
+        if (!ck || used.has(ck)) return;
+        used.add(ck);
+        next.push(c);
+      });
+
+      const changed = !qgSameStrArray(next.map(c => String(c.key || '')), (QG.cols || []).map(c => String(c.key || '')));
+      if (changed) QG.cols = next;
+      return changed;
+    }catch(e){
+      return false;
+    }
+  }
+
   function qgModelToMapKey(model){
     try{
       if (typeof ipqcModelToMapKeyJs === 'function') return String(ipqcModelToMapKeyJs(model) || '');
@@ -3425,45 +3625,67 @@ function getBase(){
     return '';
   }
 
-  function qgMappedFaiOptions(typeValue, modelValue){
-    const type = String(typeValue || '').trim().toUpperCase();
+  function qgMappedFaiOptions(typeValue, modelValue, state){
+    const type = qgNormalizeMeasureType(typeValue || '');
     const model = String(modelValue || '');
     const mk = qgModelToMapKey(model);
     let items = [];
+
     try{
       if (type === 'AOI'){
         if (typeof IPQC_AOI_FAI_MODEL_MAP !== 'undefined' && model && Array.isArray(IPQC_AOI_FAI_MODEL_MAP[model])){
-          items = IPQC_AOI_FAI_MODEL_MAP[model];
+          items = items.concat(IPQC_AOI_FAI_MODEL_MAP[model]);
         }else if (typeof IPQC_AOI_FAI_MAP !== 'undefined' && mk && Array.isArray(IPQC_AOI_FAI_MAP[mk])){
-          items = IPQC_AOI_FAI_MAP[mk];
-        }
-      }else if (type === 'OQC'){
-        if (typeof IPQC_OQC_POINT_MODEL_MAP !== 'undefined' && model && Array.isArray(IPQC_OQC_POINT_MODEL_MAP[model])){
-          items = IPQC_OQC_POINT_MODEL_MAP[model];
-        }
-        if ((!items || !items.length) && typeof IPQC_FAI_MAP !== 'undefined' && mk && IPQC_FAI_MAP[mk] && Array.isArray(IPQC_FAI_MAP[mk][type])){
-          items = IPQC_FAI_MAP[mk][type];
+          items = items.concat(IPQC_AOI_FAI_MAP[mk]);
         }
       }else if (type === 'OMM' || type === 'CMM'){
         if (typeof IPQC_FAI_MAP !== 'undefined' && mk && IPQC_FAI_MAP[mk] && Array.isArray(IPQC_FAI_MAP[mk][type])){
-          items = IPQC_FAI_MAP[mk][type];
+          items = items.concat(IPQC_FAI_MAP[mk][type]);
         }
+      }else if (type === 'REAL_OMM'){
+        // 기존 확정 동작 유지: REAL_OMM 선택 목록은 AOI 매핑 순서를 따른다.
+        if (typeof IPQC_AOI_FAI_MODEL_MAP !== 'undefined' && model && Array.isArray(IPQC_AOI_FAI_MODEL_MAP[model])){
+          items = items.concat(IPQC_AOI_FAI_MODEL_MAP[model]);
+        }else if (typeof IPQC_AOI_FAI_MAP !== 'undefined' && mk && Array.isArray(IPQC_AOI_FAI_MAP[mk])){
+          items = items.concat(IPQC_AOI_FAI_MAP[mk]);
+        }
+      }else if (type === 'OQC'){
+        if (typeof IPQC_OQC_POINT_MODEL_MAP !== 'undefined' && model && Array.isArray(IPQC_OQC_POINT_MODEL_MAP[model])){
+          items = items.concat(IPQC_OQC_POINT_MODEL_MAP[model]);
+        }
+        if (typeof IPQC_FAI_MAP !== 'undefined' && mk && IPQC_FAI_MAP[mk] && Array.isArray(IPQC_FAI_MAP[mk][type])){
+          items = items.concat(IPQC_FAI_MAP[mk][type]);
+        }
+      }else if (type === 'REAL_AOI'){
+        // REAL_AOI는 기존 AOI/OMM 매핑을 쓰면 안 된다. 전용 DB/keymap 캐시만 사용한다.
+        const cached = qgReadGlobalFaiOptions(type, model, state);
+        if (cached && cached.length) items = items.concat(cached);
       }
     }catch(e){}
+
+    // 매핑이 없는 예외 케이스만 현재 페이지/DB 캐시를 fallback으로 사용한다.
+    if (!items.length && type !== 'AOI' && type !== 'OMM' && type !== 'CMM' && type !== 'REAL_OMM'){
+      try{
+        const cached = qgReadGlobalFaiOptions(type, model, state);
+        if (cached && cached.length) items = items.concat(cached);
+      }catch(e){}
+    }
     return qgUniqueStrings(items || []);
   }
 
   function qgPatchQueryOptionsForState(options, state, extraFai, fallbackTable, useTableFallback){
     const base = Object.assign({}, options || {});
     const st = state || {};
-    const typeValue = String(st.type || '').trim().toUpperCase();
+    const typeValue = qgNormalizeMeasureType(st.type || '');
     const modelValue = String(st.model || '');
+    const docFromTable = fallbackTable && fallbackTable.ownerDocument ? fallbackTable.ownerDocument : document;
     const hiddenFai = qgUniqueStrings((Array.isArray(extraFai) ? extraFai : []).filter(v => String(v || '') !== '__ALL__'));
-    const mappedFai = qgMappedFaiOptions(typeValue, modelValue);
+    const docFai = qgReadFaiOptionButtonsFromDoc(docFromTable);
+    const mappedFai = qgMappedFaiOptions(typeValue, modelValue, st);
     const cols = (useTableFallback === false) ? [] : qgColsFromAnyTable(fallbackTable || QG.table || findMainTable(document));
     const colFai = cols.map(c => String(c.label || c.key || ''));
-    base.faiOptions = qgUniqueStrings([].concat(mappedFai, hiddenFai, colFai));
-    base.allowAllFai = ['OMM','CMM','OQC','REAL_AOI'].includes(typeValue);
+    base.faiOptions = qgUniqueStrings([].concat(mappedFai, docFai, hiddenFai, colFai));
+    base.allowAllFai = ['OMM','REAL_OMM','CMM','OQC','REAL_AOI'].includes(typeValue);
     return base;
   }
 
@@ -3478,7 +3700,16 @@ function getBase(){
       label: String(btn.getAttribute('data-label') || btn.textContent || '').trim(),
     })).filter(it => it.value);
 
-    const toolOptions = qgUniqueStrings(qsa('#ms-tools input[name="tools[]"]', doc).map(el => String(el.value || '')));
+    const stateLike = {
+      type: String(qgDocById(doc, 'type')?.value || ''),
+      model: String(qgDocById(doc, 'model')?.value || ''),
+    };
+
+    const toolOptions = qgUniqueStrings([].concat(
+      qgReadGlobalToolOptions(stateLike.type, stateLike.model),
+      qgReadToolOptionInputsFromDoc(doc),
+      qsa('#ms-tools input[name="tools[]"]', doc).map(el => String(el.value || ''))
+    ));
     const yearOptions = qgUniqueStrings(qsa('#ms-years input[name="years[]"]', doc).map(el => String(el.value || '')));
     const monthOptions = qgUniqueStrings(qsa('#ms-months input[name="months[]"]', doc).map(el => String(el.value || '')));
 
@@ -3489,10 +3720,6 @@ function getBase(){
       if (v) pageDates.push(v);
     });
 
-    const stateLike = {
-      type: String(qgDocById(doc, 'type')?.value || ''),
-      model: String(qgDocById(doc, 'model')?.value || ''),
-    };
     const hiddenFai = qgReadHiddenValues(doc, '#ms-fai-hidden input[name="fai[]"]');
     const patched = qgPatchQueryOptionsForState({
       typeOptions,
@@ -3821,7 +4048,7 @@ function getBase(){
         </div>
       </div>
       <div class="f">
-        <label>${['CMM','OQC'].includes(String(st.type || '').toUpperCase()) ? 'Point (복수 선택)' : 'FAI (복수 선택)'}</label>
+        <label>${['CMM','OQC'].includes(qgNormalizeMeasureType(st.type || '')) ? 'Point (복수 선택)' : 'FAI (복수 선택)'}</label>
         <div class="ms ms-fai" id="qgq-ms-fai" data-group="fai">
           <button type="button" class="ms-toggle"><span class="ms-summary" id="qgq-ms-fai-summary">${escapeHtml(faiSummary)}</span><span class="ms-caret">▾</span></button>
           <div class="ms-panel">
@@ -4034,6 +4261,10 @@ function getBase(){
     const prevPrimary = measureTypeChanged ? '' : String(QG.sel.primaryColKey || '');
     QG.cols = buildColsFromPivot(ths);
     if (!QG.cols.length) return false;
+    try{
+      const optFai = (QG.query && QG.query.options && Array.isArray(QG.query.options.faiOptions)) ? QG.query.options.faiOptions : [];
+      qgSyncColsWithFaiOptions(optFai);
+    }catch(e){}
 
     try{
       const fs = qs('#qgFaiSummary');
@@ -4093,6 +4324,7 @@ function getBase(){
       }else{
         qgRenderQueryControls(openIds);
       }
+      qgEnsureInlineToolOptionsLoaded(QG.query.state, false);
       qgEnsureInlineFaiOptionsLoaded(QG.query.state, false);
 
       if (table && qgPopulateFromTable(table)){
@@ -4113,48 +4345,189 @@ function getBase(){
     QG.query.options = options;
     QG.query.state = state;
     qgRenderQueryControls();
+    qgEnsureInlineToolOptionsLoaded(state, false);
     qgEnsureInlineFaiOptionsLoaded(state, false);
+  }
+
+  function qgFetchFaiOptionsForState(state){
+    const st = state || ((QG.query && QG.query.state) ? QG.query.state : null);
+    if (!st) return Promise.resolve([]);
+    const typeValue = qgNormalizeMeasureType(st.type || '');
+    const modelValue = String(st.model || '');
+    if (!typeValue || !modelValue) return Promise.resolve([]);
+    const modelScope = String(st.qgOptionScope || st.optionScope || '').toLowerCase() === 'model';
+
+    // 기존 타입(AOI/OMM/CMM/OQC/REAL_OMM)은 모델별 매핑 순서가 정답이다.
+    // Graph Builder 옵션 보강용 DB DISTINCT 호출은 REAL_AOI에서만 필요하다.
+    if (modelScope && typeValue !== 'REAL_AOI'){
+      const mapped = qgMappedFaiOptions(typeValue, modelValue, st);
+      if (mapped && mapped.length) return Promise.resolve(mapped);
+    }
+
+    if (modelScope){
+      const modelCached = qgReadGlobalMapArray('IPQC_FAI_OPTIONS_MODEL_MAP', [qgFaiModelOptionKey(typeValue, modelValue)]);
+      if (modelCached && modelCached.length) return Promise.resolve(modelCached);
+    }else{
+      const cached = qgReadGlobalFaiOptions(typeValue, modelValue, st);
+      if (cached && cached.length) return Promise.resolve(cached);
+    }
+
+    // OQC has a legacy point endpoint. Keep it intact.
+    if (typeValue === 'OQC' && typeof faiFetchOqcPoints === 'function'){
+      return Promise.resolve(faiFetchOqcPoints(modelValue));
+    }
+
+    return fetch(qgBuildAjaxUrlForOptions('fai_options', st), { credentials:'same-origin' })
+      .then(r => r.json())
+      .then(js => {
+        const arr = (js && Array.isArray(js.items)) ? js.items.map(v => String(v || '').trim()).filter(Boolean) : [];
+        try{
+          const k = modelScope ? qgFaiModelOptionKey(typeValue, modelValue) : qgFaiFilterKeyForState(typeValue, modelValue, st);
+          if (typeof IPQC_FAI_OPTIONS_MODEL_MAP !== 'undefined' && IPQC_FAI_OPTIONS_MODEL_MAP && typeof IPQC_FAI_OPTIONS_MODEL_MAP === 'object'){
+            IPQC_FAI_OPTIONS_MODEL_MAP[k] = arr;
+            if (modelScope) IPQC_FAI_OPTIONS_MODEL_MAP[typeValue + '|' + modelValue] = arr;
+          }else if (typeof window !== 'undefined'){
+            if (!window.IPQC_FAI_OPTIONS_MODEL_MAP || typeof window.IPQC_FAI_OPTIONS_MODEL_MAP !== 'object') window.IPQC_FAI_OPTIONS_MODEL_MAP = {};
+            window.IPQC_FAI_OPTIONS_MODEL_MAP[k] = arr;
+            if (modelScope) window.IPQC_FAI_OPTIONS_MODEL_MAP[typeValue + '|' + modelValue] = arr;
+          }
+        }catch(e){}
+        return arr;
+      })
+      .catch(() => []);
+  }
+
+  function qgFetchToolOptionsForState(state){
+    const st = state || ((QG.query && QG.query.state) ? QG.query.state : null);
+    if (!st) return Promise.resolve([]);
+    const typeValue = qgNormalizeMeasureType(st.type || '');
+    const modelValue = String(st.model || '');
+    if (!typeValue || !modelValue) return Promise.resolve([]);
+
+    const modelScope = String(st.qgOptionScope || st.optionScope || '').toLowerCase() === 'model';
+    const cached = qgReadGlobalToolOptions(typeValue, modelValue);
+    if (!modelScope && cached && cached.length) return Promise.resolve(cached);
+
+    return fetch(qgBuildAjaxUrlForOptions('tools', st), { credentials:'same-origin' })
+      .then(r => r.json())
+      .then(js => {
+        const arr = (js && Array.isArray(js.items)) ? js.items.map(v => String(v || '').trim()).filter(Boolean) : [];
+        try{
+          const k = qgToolFilterKey(typeValue, modelValue);
+          if (typeof IPQC_TOOL_MODEL_MAP !== 'undefined' && IPQC_TOOL_MODEL_MAP && typeof IPQC_TOOL_MODEL_MAP === 'object'){
+            IPQC_TOOL_MODEL_MAP[k] = arr;
+          }else if (typeof window !== 'undefined'){
+            if (!window.IPQC_TOOL_MODEL_MAP || typeof window.IPQC_TOOL_MODEL_MAP !== 'object') window.IPQC_TOOL_MODEL_MAP = {};
+            window.IPQC_TOOL_MODEL_MAP[k] = arr;
+          }
+        }catch(e){}
+        return arr;
+      })
+      .catch(() => []);
+  }
+
+  function qgEnsureInlineToolOptionsLoaded(state, triggerQuery){
+    const st = state || ((QG.query && QG.query.state) ? QG.query.state : null);
+    if (!st) return;
+    const typeValue = qgNormalizeMeasureType(st.type || '');
+    const modelValue = String(st.model || '');
+    if (!typeValue || !modelValue) return;
+
+    const cached = qgReadGlobalToolOptions(typeValue, modelValue);
+    if (cached && cached.length){
+      const prevOpts = (QG.query && QG.query.options) ? QG.query.options : {};
+      const merged = qgUniqueStrings([].concat(cached, prevOpts.toolOptions || []));
+      if (!qgSameStrArray(merged, prevOpts.toolOptions || [])){
+        const nextOpts = Object.assign({}, prevOpts, { toolOptions: merged });
+        const nextState = qgEnsureQueryStateValid(nextOpts, Object.assign({}, st));
+        if (QG.query){ QG.query.options = nextOpts; QG.query.state = nextState; }
+        qgRenderQueryControls(qgCollectOpenQueryMs());
+      }
+    }
+
+    const loadKey = typeValue + '|' + modelValue;
+    if (!QG.query.toolModelFetched) QG.query.toolModelFetched = {};
+    if (QG.query.toolModelFetched[loadKey]) return;
+    if (QG.query && QG.query.toolLoadKey === loadKey) return;
+    if (QG.query) QG.query.toolLoadKey = loadKey;
+
+    Promise.resolve(qgFetchToolOptionsForState(Object.assign({}, st, { qgOptionScope:'model' }))).then(function(arr){
+      const cur = (QG.query && QG.query.state) ? QG.query.state : null;
+      if (!cur) return;
+      const curType = qgNormalizeMeasureType(cur.type || '');
+      const curModel = String(cur.model || '');
+      if (curType !== typeValue || curModel !== modelValue) return;
+      if (!Array.isArray(arr) || !arr.length) return;
+
+      const prevOpts = (QG.query && QG.query.options) ? QG.query.options : {};
+      const nextOpts = Object.assign({}, prevOpts, { toolOptions: qgUniqueStrings([].concat(arr, prevOpts.toolOptions || [])) });
+      const nextState = qgEnsureQueryStateValid(nextOpts, Object.assign({}, cur));
+      if (QG.query){ QG.query.options = nextOpts; QG.query.state = nextState; }
+      qgRenderQueryControls(qgCollectOpenQueryMs());
+      if (triggerQuery) qgScheduleInlineQuery(true, false);
+    }).catch(function(){}).finally(function(){
+      try{ if (QG.query && QG.query.toolModelFetched) QG.query.toolModelFetched[loadKey] = true; }catch(e){}
+      if (QG.query && QG.query.toolLoadKey === loadKey) QG.query.toolLoadKey = '';
+    });
   }
 
   function qgEnsureInlineFaiOptionsLoaded(state, triggerQuery){
     const st = state || ((QG.query && QG.query.state) ? QG.query.state : null);
     if (!st) return;
-    const typeValue = String(st.type || '').trim().toUpperCase();
+    const typeValue = qgNormalizeMeasureType(st.type || '');
     const modelValue = String(st.model || '');
-    if (typeValue !== 'OQC' || !modelValue) return;
-    if (qgMappedFaiOptions(typeValue, modelValue).length) return;
-    if (typeof faiFetchOqcPoints !== 'function') return;
+    if (!typeValue || !modelValue) return;
 
-    const loadKey = typeValue + '|' + modelValue;
+    // Patch immediately from static/page cache, but still fetch the model-level list once.
+    // Otherwise the graph builder collapses to the currently queried FAI/Tool only.
+    const cached = qgMappedFaiOptions(typeValue, modelValue, st);
+    if (cached && cached.length){
+      const prevOpts = (QG.query && QG.query.options) ? QG.query.options : {};
+      const nextOpts = qgPatchQueryOptionsForState(prevOpts, st, cached, null, false);
+      if (!qgSameStrArray(nextOpts.faiOptions || [], prevOpts.faiOptions || [])){
+        const nextState = qgEnsureQueryStateValid(nextOpts, Object.assign({}, st));
+        if (QG.query){ QG.query.options = nextOpts; QG.query.state = nextState; }
+        try{ qgSyncColsWithFaiOptions(nextOpts.faiOptions || []); }catch(e){}
+        qgRenderQueryControls(qgCollectOpenQueryMs());
+        try{ renderFaiList(); renderLegend(); }catch(e){}
+      }
+    }
+
+    const loadKey = qgFaiModelOptionKey(typeValue, modelValue);
+    if (!QG.query.faiModelFetched) QG.query.faiModelFetched = {};
+    if (QG.query.faiModelFetched[loadKey]) return;
     if (QG.query && QG.query.faiLoadKey === loadKey) return;
     if (QG.query) QG.query.faiLoadKey = loadKey;
 
-    try{ qgSetQueryBusy(true, 'Point 목록 불러오는 중...'); }catch(e){}
-    Promise.resolve(faiFetchOqcPoints(modelValue)).then(function(){
+    const fetchState = Object.assign({}, st, { qgOptionScope:'model' });
+    Promise.resolve(qgFetchFaiOptionsForState(fetchState)).then(function(arr){
       const cur = (QG.query && QG.query.state) ? QG.query.state : null;
       if (!cur) return;
-      const curType = String(cur.type || '').trim().toUpperCase();
+      const curType = qgNormalizeMeasureType(cur.type || '');
       const curModel = String(cur.model || '');
       if (curType !== typeValue || curModel !== modelValue) return;
+      if (!Array.isArray(arr) || !arr.length) return;
 
       const prevOpts = (QG.query && QG.query.options) ? QG.query.options : {};
-      const nextOpts = qgPatchQueryOptionsForState(prevOpts, cur, cur.fai || [], null, false);
+      const nextOpts = qgPatchQueryOptionsForState(prevOpts, cur, arr, null, false);
       let nextState = Object.assign({}, cur);
       if (QG.query && QG.query.resetFaiOnModelTypeChange) nextState.fai = [];
       nextState = qgEnsureQueryStateValid(nextOpts, nextState);
       if (QG.query){
         QG.query.options = nextOpts;
         QG.query.state = nextState;
-        QG.query.faiLoadKey = '';
         QG.query.resetFaiOnModelTypeChange = false;
       }
+      try{ qgSyncColsWithFaiOptions(nextOpts.faiOptions || []); }catch(e){}
       qgRenderQueryControls(qgCollectOpenQueryMs());
+      try{ renderFaiList(); renderLegend(); }catch(e){}
       if (triggerQuery) qgScheduleInlineQuery(true, false);
     }).catch(function(){}).finally(function(){
-      try{ qgSetQueryBusy(false); }catch(e){}
+      try{ if (QG.query && QG.query.faiModelFetched) QG.query.faiModelFetched[loadKey] = true; }catch(e){}
       if (QG.query && QG.query.faiLoadKey === loadKey) QG.query.faiLoadKey = '';
     });
   }
+
 
 
   function selectedColKeysInOrder(){
@@ -6777,6 +7150,7 @@ try{
               QG.query.state = qgEnsureQueryStateValid(QG.query.options || {}, QG.query.state);
               if (QG.query) QG.query.resetFaiOnModelTypeChange = true;
               qgRenderQueryControls(openIds);
+              qgEnsureInlineToolOptionsLoaded(QG.query.state, true);
               qgEnsureInlineFaiOptionsLoaded(QG.query.state, true);
               qgScheduleInlineQuery(true, false);
             }
