@@ -1100,6 +1100,10 @@ function sortDateInfo(a,b){
     return qgNormalizeMeasureType(typeValue || (QG && QG.currentMeasureType) || '') === 'REAL_AOI';
   }
 
+  function qgAllowAllFaiForType(typeValue){
+    return ['OMM','REAL_OMM','CMM','OQC','REAL_AOI'].includes(qgNormalizeMeasureType(typeValue || ''));
+  }
+
   function qgFaiFilterKeyForState(typeValue, modelValue, state){
     const t = qgNormalizeMeasureType(typeValue || '');
     const m = String(modelValue || '');
@@ -3751,12 +3755,16 @@ function getBase(){
     const modelValue = String(st.model || '');
     const docFromTable = fallbackTable && fallbackTable.ownerDocument ? fallbackTable.ownerDocument : document;
     const hiddenFai = qgUniqueStrings((Array.isArray(extraFai) ? extraFai : []).filter(v => String(v || '') !== '__ALL__'));
-    const docFai = qgReadFaiOptionButtonsFromDoc(docFromTable);
+    // When the measurement type/model is being changed, useTableFallback is false.
+    // In that case do NOT read the already-rendered FAI buttons/table columns,
+    // because they still belong to the previous measurement type and pollute the
+    // new dropdown state (ex: OMM FAI 1/SPC A remaining after switching to REAL_AOI).
+    const docFai = (useTableFallback === false) ? [] : qgReadFaiOptionButtonsFromDoc(docFromTable);
     const mappedFai = qgMappedFaiOptions(typeValue, modelValue, st);
     const cols = (useTableFallback === false) ? [] : qgColsFromAnyTable(fallbackTable || QG.table || findMainTable(document));
     const colFai = cols.map(c => String(c.label || c.key || ''));
     base.faiOptions = qgUniqueStrings([].concat(mappedFai, docFai, hiddenFai, colFai));
-    base.allowAllFai = ['OMM','REAL_OMM','CMM','OQC','REAL_AOI'].includes(typeValue);
+    base.allowAllFai = qgAllowAllFaiForType(typeValue);
     return base;
   }
 
@@ -4584,7 +4592,9 @@ function getBase(){
       const prevOpts = (QG.query && QG.query.options) ? QG.query.options : {};
       const nextOpts = qgPatchQueryOptionsForState(prevOpts, cur, arr, null, false);
       let nextState = Object.assign({}, cur);
-      if (QG.query && QG.query.resetFaiOnModelTypeChange) nextState.fai = [];
+      if (QG.query && QG.query.resetFaiOnModelTypeChange){
+        nextState.fai = nextOpts.allowAllFai ? ['__ALL__'] : [];
+      }
       nextState = qgEnsureQueryStateValid(nextOpts, nextState);
       if (QG.query){
         QG.query.options = nextOpts;
@@ -7218,13 +7228,19 @@ try{
               QG.query.state.pageDate = '';
               QG.query.state.pageDates = [];
               QG.query.state.faiSearch = '';
-              QG.query.state.fai = [];
+              // Type/model changes must not carry the previous type's selected FAI.
+              // For types that support ALL, reset to ALL; otherwise let validation pick
+              // the first valid option after the new option list is loaded.
+              QG.query.state.fai = qgAllowAllFaiForType(QG.query.state.type) ? ['__ALL__'] : [];
               QG.query.options = qgPatchQueryOptionsForState(QG.query.options || {}, QG.query.state, [], null, false);
               QG.query.state = qgEnsureQueryStateValid(QG.query.options || {}, QG.query.state);
               if (QG.query) QG.query.resetFaiOnModelTypeChange = true;
               qgRenderQueryControls(openIds);
-              qgEnsureInlineToolOptionsLoaded(QG.query.state, true);
-              qgEnsureInlineFaiOptionsLoaded(QG.query.state, true);
+              // Do not fire extra table reloads while option lists are being refreshed.
+              // Type/model changes already schedule one main query below; option refresh is
+              // only for dropdown candidates and must not trigger a second/third "조회 중" cycle.
+              qgEnsureInlineToolOptionsLoaded(QG.query.state, false);
+              qgEnsureInlineFaiOptionsLoaded(QG.query.state, false);
               qgScheduleInlineQuery(true, false);
             }
             return;
