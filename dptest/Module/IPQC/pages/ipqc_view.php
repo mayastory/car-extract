@@ -5120,7 +5120,8 @@ const qs = new URLSearchParams();
       qs.delete('page_date');
       qs.delete('page');
       qs.delete('per_page');
-      const url = new URL('lib/ipqc_excel_export.php', window.location.href); url.search = qs.toString();
+      const exportEndpoint = ((type||'').toUpperCase() === 'REAL_AOI') ? 'lib/ipqc_real_aoi_excel_export.php' : 'lib/ipqc_excel_export.php';
+      const url = new URL(exportEndpoint, window.location.href); url.search = qs.toString();
 
       showBusy('내보내는 중...', '파일 생성 중…');
       triggerDownload(url.toString());
@@ -5179,7 +5180,8 @@ qs.set('cols', String(cols));
   qs.delete('page');
   qs.delete('per_page');
 
-  const url = new URL('lib/ipqc_excel_export.php', window.location.href); 
+  const exportEndpoint = ((type||'').toUpperCase() === 'REAL_AOI') ? 'lib/ipqc_real_aoi_excel_export.php' : 'lib/ipqc_excel_export.php';
+  const url = new URL(exportEndpoint, window.location.href); 
   url.search = qs.toString();
 
   showBusy('내보내는 중...', '파일 생성 중…');
