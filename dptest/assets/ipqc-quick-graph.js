@@ -3560,53 +3560,124 @@ function getBase(){
   function qgSyncColsWithFaiOptions(faiOptions){
     try{
       const opts = qgUniqueStrings((Array.isArray(faiOptions) ? faiOptions : []).filter(v => String(v || '') !== '__ALL__'));
-      if (!opts.length || !Array.isArray(QG.cols) || !QG.cols.length) return false;
+      if (!Array.isArray(QG.cols) || !QG.cols.length) return false;
+      if (!opts.length) return false;
 
-      const used = new Set();
-      const byKey = new Map();
-      const byLabel = new Map();
-      (QG.cols || []).forEach(c => {
-        const k = String(c && c.key != null ? c.key : '');
-        const l = String(c && c.label != null ? c.label : k);
-        if (k && !byKey.has(k)) byKey.set(k, c);
-        if (l && !byLabel.has(l)) byLabel.set(l, c);
+      // IMPORTANT:
+      // faiOptions is the *query-control option list* (model-level candidates).
+      // QG.cols is the *currently queried pivot columns* (actual chart targets).
+      // Do not create placeholder columns from faiOptions here.
+      // Otherwise, when the top FAI filter is a single FAI, the lower "대상 FAI"
+      // list incorrectly expands to every model FAI even though the pivot/query
+      // only contains one FAI. Only reorder columns that already exist.
+      const order = new Map();
+      opts.forEach((v, i) => {
+        const k = String(v || '').trim();
+        if (k && !order.has(k)) order.set(k, i);
       });
 
-      const next = [];
-      opts.forEach(labelRaw => {
-        const label = String(labelRaw || '').trim();
-        if (!label) return;
-        let col = byKey.get(label) || byLabel.get(label) || null;
-        if (!col){
-          col = {
-            idx: -1,
-            key: label,
-            label: label,
-            usl: null,
-            lsl: null,
-            baseUsl: null,
-            baseLsl: null,
-            oocSpecPct: 85,
-            th: null,
-            _qgPlaceholder: true,
-          };
-        }
-        const ck = String(col.key || label);
-        if (used.has(ck)) return;
-        used.add(ck);
-        next.push(col);
+      const cur = (QG.cols || []).slice();
+      const next = cur.slice().sort((a,b)=>{
+        const ak = String((a && (a.label || a.key)) || '');
+        const bk = String((b && (b.label || b.key)) || '');
+        const ai = order.has(ak) ? order.get(ak) : (order.has(String(a && a.key || '')) ? order.get(String(a && a.key || '')) : 999999);
+        const bi = order.has(bk) ? order.get(bk) : (order.has(String(b && b.key || '')) ? order.get(String(b && b.key || '')) : 999999);
+        if (ai !== bi) return ai - bi;
+        return cur.indexOf(a) - cur.indexOf(b);
       });
 
-      (QG.cols || []).forEach(c => {
-        const ck = String(c && c.key != null ? c.key : '');
-        if (!ck || used.has(ck)) return;
-        used.add(ck);
-        next.push(c);
-      });
-
-      const changed = !qgSameStrArray(next.map(c => String(c.key || '')), (QG.cols || []).map(c => String(c.key || '')));
+      const changed = !qgSameStrArray(next.map(c => String(c.key || '')), cur.map(c => String(c.key || '')));
       if (changed) QG.cols = next;
       return changed;
+    }catch(e){
+      return false;
+    }
+  }
+
+
+  function qgFaiCompareKeys(v){
+    const out = [];
+    try{
+      let s = (v === null || v === undefined) ? '' : String(v);
+      s = s.trim();
+      if (!s) return out;
+      s = s.replace(/\s+/g, ' ');
+      s = s.replace(/\s*\/\s*/g, ' / ');
+      const up = s.toUpperCase();
+      out.push(up);
+      out.push(up.replace(/\s+/g, ''));
+      out.push(up.replace(/\s*\/\s*/g, '/'));
+    }catch(e){}
+    return qgUniqueStrings(out);
+  }
+
+  function qgActiveQueryFaiFilterKeySet(){
+    try{
+      const st = (QG && QG.query && QG.query.state) ? QG.query.state : null;
+      if (!st) return null;
+      const vals = qgUniqueStrings(st.fai || []).filter(v => {
+        const s = String(v || '').trim();
+        return !!s && s !== '__ALL__';
+      });
+      if (!vals.length) return null;
+      const set = new Set();
+      vals.forEach(v => qgFaiCompareKeys(v).forEach(k => set.add(k)));
+      return set.size ? set : null;
+    }catch(e){
+      return null;
+    }
+  }
+
+  function qgColMatchesActiveFaiFilter(col, keySet){
+    if (!keySet || !col) return true;
+    const candidates = [col.key, col.label];
+    try{
+      const disp = qgGetDisplayLabel(col.key);
+      if (disp) candidates.push(disp);
+    }catch(e){}
+    for (const v of candidates){
+      const keys = qgFaiCompareKeys(v);
+      for (const k of keys){
+        if (keySet.has(k)) return true;
+      }
+    }
+    return false;
+  }
+
+  function qgApplyQueryFaiFilterToCols(){
+    try{
+      const keySet = qgActiveQueryFaiFilterKeySet();
+      if (!keySet) return false;
+      if (!Array.isArray(QG.cols) || !QG.cols.length) return false;
+
+      const before = QG.cols.slice();
+      const next = before.filter(c => qgColMatchesActiveFaiFilter(c, keySet));
+      if (!next.length) return false;
+
+      const beforeKeys = before.map(c => String(c && c.key || ''));
+      const nextKeys = next.map(c => String(c && c.key || ''));
+      const changed = !qgSameStrArray(beforeKeys, nextKeys);
+      if (!changed) return false;
+
+      QG.cols = next;
+
+      const validKeys = new Set(nextKeys);
+      const prevSel = (QG.sel && QG.sel.colKeys && QG.sel.colKeys instanceof Set) ? QG.sel.colKeys : new Set();
+      const orderedSelected = [];
+      for (const c of next){
+        const k = String(c && c.key || '');
+        if (k && prevSel.has(k)) orderedSelected.push(k);
+      }
+      if (!orderedSelected.length && nextKeys.length) orderedSelected.push(nextKeys[0]);
+      if (!QG.sel) QG.sel = { colKeys:new Set(), primaryColKey:'', tools:new Set(), cavities:new Set() };
+      QG.sel.colKeys = new Set(orderedSelected.filter(Boolean));
+      if (!validKeys.has(String(QG.sel.primaryColKey || ''))){
+        QG.sel.primaryColKey = orderedSelected[0] || '';
+      }
+      if (QG.sel.primaryColKey && !QG.sel.colKeys.has(QG.sel.primaryColKey)){
+        QG.sel.colKeys.add(QG.sel.primaryColKey);
+      }
+      return true;
     }catch(e){
       return false;
     }
@@ -4264,6 +4335,7 @@ function getBase(){
     try{
       const optFai = (QG.query && QG.query.options && Array.isArray(QG.query.options.faiOptions)) ? QG.query.options.faiOptions : [];
       qgSyncColsWithFaiOptions(optFai);
+      qgApplyQueryFaiFilterToCols();
     }catch(e){}
 
     try{
@@ -4344,6 +4416,7 @@ function getBase(){
     const state = qgCollectQueryStateFromDoc(document, options);
     QG.query.options = options;
     QG.query.state = state;
+    try{ qgApplyQueryFaiFilterToCols(); }catch(e){}
     qgRenderQueryControls();
     qgEnsureInlineToolOptionsLoaded(state, false);
     qgEnsureInlineFaiOptionsLoaded(state, false);
@@ -4487,7 +4560,7 @@ function getBase(){
       if (!qgSameStrArray(nextOpts.faiOptions || [], prevOpts.faiOptions || [])){
         const nextState = qgEnsureQueryStateValid(nextOpts, Object.assign({}, st));
         if (QG.query){ QG.query.options = nextOpts; QG.query.state = nextState; }
-        try{ qgSyncColsWithFaiOptions(nextOpts.faiOptions || []); }catch(e){}
+        try{ qgSyncColsWithFaiOptions(nextOpts.faiOptions || []); qgApplyQueryFaiFilterToCols(); }catch(e){}
         qgRenderQueryControls(qgCollectOpenQueryMs());
         try{ renderFaiList(); renderLegend(); }catch(e){}
       }
@@ -4518,7 +4591,7 @@ function getBase(){
         QG.query.state = nextState;
         QG.query.resetFaiOnModelTypeChange = false;
       }
-      try{ qgSyncColsWithFaiOptions(nextOpts.faiOptions || []); }catch(e){}
+      try{ qgSyncColsWithFaiOptions(nextOpts.faiOptions || []); qgApplyQueryFaiFilterToCols(); }catch(e){}
       qgRenderQueryControls(qgCollectOpenQueryMs());
       try{ renderFaiList(); renderLegend(); }catch(e){}
       if (triggerQuery) qgScheduleInlineQuery(true, false);
