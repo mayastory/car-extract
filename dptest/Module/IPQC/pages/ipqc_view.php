@@ -1353,9 +1353,47 @@ if ($type === 'OMM') {
   $faiOptions = array_values(array_unique($tmp));
 }
 
+// FAI 옵션(REAL_AOI 전용): Real AOI는 AOI 매핑명이 아니라 DB에 올라간 AOI RAW FAI명을 그대로 사용한다.
+if ($type === 'REAL_AOI') {
+  $faiOptions = [];
+  if ($model !== '' && !empty($toolsSel) && !empty($yearsSel) && !empty($months)) {
+    try {
+      $yIn = implode(',', array_fill(0, count($yearsSel), '?'));
+      $mIn = implode(',', array_fill(0, count($months), '?'));
+      $tIn = implode(',', array_fill(0, count($toolsSel), '?'));
+      $sqlF = "
+        SELECT DISTINCT m.{$keyCol} AS k
+        FROM {$headerTable} h
+        JOIN {$measTable} m ON m.header_id = h.id
+        WHERE h.meas_date IS NOT NULL
+          AND YEAR(h.meas_date) IN ($yIn)
+          AND MONTH(h.meas_date) IN ($mIn)
+          AND h.part_name = ?
+          AND h.tool IN ($tIn)
+          AND m.row_index = 1
+        ORDER BY k
+        LIMIT 500
+      ";
+      $stmtF = $pdo->prepare($sqlF);
+      $stmtF->execute(array_merge($yearsSel, $months, [$model], array_values($toolsSel)));
+      $rowsF = $stmtF->fetchAll(PDO::FETCH_COLUMN, 0);
+      if (is_array($rowsF)) {
+        $faiOptions = array_values(array_unique(array_filter(array_map(function($v){
+          return is_string($v) ? trim($v) : '';
+        }, $rowsF), function($v){
+          return is_string($v) && $v !== '';
+        })));
+        if (count($rowsF) >= 500) $faiOptionsTruncated = true;
+      }
+    } catch (Throwable $e) {
+      // ignore
+    }
+  }
+}
+
 // FAI 옵션(REAL_OMM 전용): AOI 매핑 순서를 우선 사용한다.
 // 정상 동작: REAL_OMM은 우측 cav-sheet 블록이므로 OMM Raw Data 순서가 아니라 AOI 순서를 따라가야 한다.
-if ($type === 'REAL_AOI' || $type === 'REAL_OMM') {
+if ($type === 'REAL_OMM') {
   $tmp = [];
   if (!empty($orderList) && is_array($orderList)) {
     foreach ($orderList as $lab) {
@@ -4217,7 +4255,12 @@ Object.keys(IPQC_TOOL_MODEL_MAP || {}).forEach(function(k){ __TOOLS_LOADED[k] = 
         return (m && IPQC_OQC_POINT_MODEL_MAP && Array.isArray(IPQC_OQC_POINT_MODEL_MAP[m])) ? IPQC_OQC_POINT_MODEL_MAP[m]
           : ((mk && IPQC_FAI_MAP && IPQC_FAI_MAP[mk] && Array.isArray(IPQC_FAI_MAP[mk][t])) ? IPQC_FAI_MAP[mk][t] : []);
       }
-      if(t === 'REAL_AOI' || t === 'REAL_OMM'){
+      if(t === 'REAL_AOI'){
+        // Real AOI는 AOI 매핑명이 아니라 ipqc_real_aoi_* DB에 저장된 RAW FAI명을 사용한다.
+        const key = faiFilterKey(t, m);
+        return Array.isArray(IPQC_FAI_OPTIONS_MODEL_MAP[key]) ? IPQC_FAI_OPTIONS_MODEL_MAP[key] : [];
+      }
+      if(t === 'REAL_OMM'){
         // 정상 동작: REAL_OMM 복수선택 순서는 OMM이 아니라 AOI 매핑 순서를 따라야 한다.
         // REAL_OMM은 OMM Raw Data가 아니라 cav-sheet 우측 블록 데이터이기 때문이다.
         const aoiItems = (m && Array.isArray(IPQC_AOI_FAI_MODEL_MAP[m]))
