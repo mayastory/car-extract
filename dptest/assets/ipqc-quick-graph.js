@@ -5113,6 +5113,45 @@ function qgGetRightDockReserve(){
   }
 }
 
+function qgGetTopToolbarReserve(){
+  try{
+    const main = qs('#qgOverlay .qg-main');
+    if (!main || !main.getBoundingClientRect) return 0;
+    const mr = main.getBoundingClientRect();
+    let reserve = 0;
+
+    // The graph can be rendered behind the floating top toolbar when the plot row
+    // is expanded to fill the whole main area. Reserve only the thin horizontal
+    // toolbar strip; do not reserve the right-side vertical button stack.
+    const candidates = qsa('.qg-toolbar').filter((el)=>{
+      try{
+        if (!el || !el.getBoundingClientRect) return false;
+        const cs = getComputedStyle(el);
+        if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+        const r = el.getBoundingClientRect();
+        if (!r || !(r.width > 8) || !(r.height > 4)) return false;
+        if (r.bottom <= mr.top || r.top >= (mr.top + 72)) return false;
+        // Horizontal icon strip only. A vertical side toolbar is handled by the right reserve.
+        if (r.width < (r.height * 1.4)) return false;
+        return true;
+      }catch(e){ return false; }
+    });
+
+    for (const el of candidates){
+      try{
+        const r = el.getBoundingClientRect();
+        reserve = Math.max(reserve, Math.ceil(r.bottom - mr.top + 6));
+      }catch(e){}
+    }
+
+    if (!reserve) return 0;
+    return Math.max(0, Math.min(56, reserve));
+  }catch(e){
+    return 0;
+  }
+}
+
+
 function qgEnsureAxisLayoutState(){
   const all = ['tool','cavity'];
 
@@ -7948,7 +7987,9 @@ function renderGrid(){
 
   const gyMetrics = qgGetGroupYLayoutMetrics();
   const rightDockReserve = qgGetRightDockReserve();
+  const topToolbarReserve = qgGetTopToolbarReserve();
   try{ grid.style.paddingRight = ((gyMetrics.gridPad || 26) + rightDockReserve) + 'px'; }catch(e){}
+  try{ grid.style.paddingTop = topToolbarReserve ? (topToolbarReserve + 'px') : ''; }catch(e){}
   const gridW = (grid && grid.clientWidth) ? grid.clientWidth : (main ? main.clientWidth : 1200);
   let gridPadR = 0;
   try{ gridPadR = parseFloat(getComputedStyle(grid).paddingRight || '0') || 0; }catch(e){}
@@ -7968,7 +8009,7 @@ function renderGrid(){
   const gridGapY = 0;
   const groupMB = 0;
   const outer = (groupCount - 1) * gridGapY + groupCount * groupMB;
-  const groupCapH = Math.max(220, Math.floor((mainH - mainPad - outer - 4) / groupCount));
+  const groupCapH = Math.max(220, Math.floor((mainH - mainPad - topToolbarReserve - outer - 4) / groupCount));
 
   let anyAdded = 0;
 
