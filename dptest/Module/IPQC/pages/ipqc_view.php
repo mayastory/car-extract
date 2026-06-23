@@ -53,7 +53,7 @@ function ipqc_norm_str_list($arr): array {
 }
 function ipqc_default_tools(): array {
   // JMP Assist 기준(현장 Tool set): I/O 없음
-  return ['A','B','C','D','E','F','G','H','J','K','L','M','N','P','Q','R'];
+  return ['A','B','C','D','E','F','G','H','J','K','L','M','N','P','Q','R','S','T','U'];
 }
 
 function ipqc_order_map_type(string $type): string {
