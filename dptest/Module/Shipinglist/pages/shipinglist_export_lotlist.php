@@ -140,6 +140,7 @@ if (!$ALLOW_VERBOSE_ERRORS) {
 // ✅ 긴 작업(build) 중에도 다른 요청(취소 등)이 막히지 않도록 세션 락 해제
 if (function_exists('session_write_close')) { @session_write_close(); }
 require_once JTMES_ROOT . '/vendor/autoload.php';
+require_once __DIR__ . '/shipinglist_file_report_lib.php';
 
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
@@ -2879,6 +2880,8 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
             <button type="submit" class="btn btn-primary">성적서 생성</button>
             <button type="button" class="btn btn-secondary" onclick="openManualReportBuild();">수동성적서 생성</button>
+            <button type="button" class="btn btn-secondary" id="sfrFileReportButton" onclick="openFileReportBuild();">파일선택 성적서 생성</button>
+            <input type="file" id="sfrFileReportInput" accept=".xls,.xlsx" style="display:none;">
           </div>
           <?php endif; ?>
         </div>
@@ -3323,7 +3326,13 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
     closeReportView();
   });
 </script>
-
+<?php
+$__sfrJs = @file_get_contents(__DIR__ . '/../assets/shipinglist_file_report.js');
+if ($__sfrJs !== false) {
+    echo "<script>\n" . $__sfrJs . "\n</script>";
+}
+unset($__sfrJs);
+?>
 
 </body>
 </html>
@@ -3345,6 +3354,28 @@ $fromDate = normalize_date_ymd($fromDate);
 $toDate   = normalize_date_ymd($toDate);
 $shipTo   = trim($_GET['ship_to']   ?? '');
 
+// 파일선택 성적서: 미리보기에서 검증된 포장번호만 기존 build 쿼리에 추가 필터로 사용한다.
+$FILE_SELECTION_TOKEN = preg_replace('/[^A-Za-z0-9_-]/', '', trim((string)($_GET['file_selection_token'] ?? '')));
+$FILE_SELECTION_SQL = '';
+$FILE_SELECTION_PARAMS = [];
+if ($FILE_SELECTION_TOKEN !== '') {
+    $fileSelection = sfr_selection_load($FILE_SELECTION_TOKEN);
+    if (!is_array($fileSelection)) {
+        echo '파일선택 정보가 만료되었거나 유효하지 않습니다.';
+        exit;
+    }
+    if (trim((string)($fileSelection['ship_to'] ?? '')) !== $shipTo
+        || trim((string)($fileSelection['from_date'] ?? '')) !== $fromDate
+        || trim((string)($fileSelection['to_date'] ?? '')) !== $toDate) {
+        echo '파일선택 조건과 현재 성적서 조건이 일치하지 않습니다.';
+        exit;
+    }
+    [$FILE_SELECTION_SQL, $FILE_SELECTION_PARAMS] = sfr_selection_sql((array)($fileSelection['pack_nos'] ?? []), 'build_pack_');
+    if ($FILE_SELECTION_SQL === '') {
+        echo '선택된 포장번호가 없습니다.';
+        exit;
+    }
+}
 
 $buildToken = preg_replace('/[^A-Za-z0-9_-]/', '', trim((string)($_GET['build_token'] ?? '')));
 if ($buildToken !== '') {
@@ -4116,10 +4147,11 @@ $stmtCnt = $pdo->prepare("
       AND ship_datetime <  :to_dt
       AND ship_to = :ship_to
       AND TRIM(part_name) IN (" . $SHIP_PART_IN_SQL . ")
+      " . $FILE_SELECTION_SQL . "
     GROUP BY TRIM(part_name)
     ORDER BY TRIM(part_name)
 ");
-$stmtCnt->execute(array_merge([':from_dt'=>$fromDt, ':to_dt'=>$toDt, ':ship_to'=>$shipTo], $SHIP_PART_PARAMS));
+$stmtCnt->execute(array_merge([':from_dt'=>$fromDt, ':to_dt'=>$toDt, ':ship_to'=>$shipTo], $SHIP_PART_PARAMS, $FILE_SELECTION_PARAMS));
 $counts = [];
 $sumQty = [];
 while ($r = $stmtCnt->fetch(PDO::FETCH_ASSOC)) {
@@ -4194,10 +4226,11 @@ WHERE ship_datetime >= :from_dt
   AND ship_datetime <  :to_dt
   AND ship_to = :ship_to
   AND TRIM(part_name) IN (" . $SHIP_PART_IN_SQL . ")
+  " . $FILE_SELECTION_SQL . "
 ORDER BY TRIM(part_name), pack_no, ship_datetime, id
 ";
 $stmt = $pdo->prepare($sql);
-$stmt->execute(array_merge([':from_dt'=>$fromDt, ':to_dt'=>$toDt, ':ship_to'=>$shipTo], $SHIP_PART_PARAMS));
+$stmt->execute(array_merge([':from_dt'=>$fromDt, ':to_dt'=>$toDt, ':ship_to'=>$shipTo], $SHIP_PART_PARAMS, $FILE_SELECTION_PARAMS));
 
 // 파트별로 엑셀을 “열어두고” 처리
 $currentPart = null;
