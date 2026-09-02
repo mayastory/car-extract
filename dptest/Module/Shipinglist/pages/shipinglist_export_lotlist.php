@@ -141,6 +141,7 @@ if (!$ALLOW_VERBOSE_ERRORS) {
 if (function_exists('session_write_close')) { @session_write_close(); }
 require_once JTMES_ROOT . '/vendor/autoload.php';
 require_once __DIR__ . '/shipinglist_file_report_lib.php';
+require_once __DIR__ . '/jawha_po_lib.php';
 
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
@@ -202,6 +203,12 @@ try {
     $pdo = dp_get_pdo();
 } catch (PDOException $e) {
     die('DB 접속 실패: ' . h($e->getMessage()));
+}
+
+try {
+    jawha_po_ensure_tables($pdo);
+} catch (Throwable $e) {
+    error_log('[JAWHA_PO] table init failed: ' . $e->getMessage());
 }
 
 // ─────────────────────────────
@@ -2152,6 +2159,29 @@ if (!function_exists('ship_report_cancel_redirect_back')) {
 }
 
 // ─────────────────────────────
+// JAWHA PO 종료
+//  - POST action=jawha_po_end
+// ─────────────────────────────
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (string)($_POST['action'] ?? '') === 'jawha_po_end') {
+    $histMonth = trim((string)($_POST['hist_month'] ?? date('Y-m')));
+    if (!preg_match('/^\d{4}-\d{2}$/', $histMonth)) $histMonth = date('Y-m');
+    $from_date = trim((string)($_POST['from_date'] ?? ''));
+    $to_date   = trim((string)($_POST['to_date'] ?? ''));
+    $ship_to   = trim((string)($_POST['ship_to'] ?? ''));
+    $poId      = (int)($_POST['po_id'] ?? 0);
+
+    $actorMeta = ship_report_actor_meta($pdo);
+    if (empty($actorMeta['is_admin']) && ((int)($actorMeta['lv'] ?? 0) < 2)) {
+        $res = ['ok' => false, 'msg' => '권한이 없습니다. lv 2 이상만 PO를 종료할 수 있습니다.'];
+    } elseif ($poId <= 0) {
+        $res = ['ok' => false, 'msg' => '잘못된 PO입니다.'];
+    } else {
+        $res = jawha_po_close($pdo, $poId, ship_report_actor_display_name($actorMeta));
+    }
+    ship_report_cancel_redirect_back($res, $histMonth, $from_date, $to_date, $ship_to);
+}
+
+// ─────────────────────────────
 // (추가) 발행 내역 취소(롤백)
 //  - POST action=cancel_report
 // ─────────────────────────────
@@ -2335,12 +2365,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array((string)($_POST['action'] 
 	                if ($approvePending && function_exists('report_finish_cancel_request_mark_approved')) {
 	                    report_finish_cancel_request_mark_approved($pdo, $id, $byUser);
 	                }
+	                $poDetach = function_exists('jawha_po_detach_report')
+	                    ? jawha_po_detach_report($pdo, $id)
+	                    : ['ok'=>true, 'detached'=>0];
 	                $del = dp_delete_report_artifacts($id, false);
 					$msg = '취소/롤백 완료';
+					if (!($poDetach['ok'] ?? true)) {
+						$msg .= ' (PO 이력 제거 실패: ' . ($poDetach['error'] ?? 'unknown') . ')';
+					}
 					if (!($del['ok'] ?? true)) {
 						$msg .= ' (파일삭제 실패: ' . ($del['error'] ?? 'unknown') . ')';
 					}
-					$res = ['ok' => true, 'msg' => $msg, 'rollback' => $rb, 'delete' => $del];
+					$res = ['ok' => true, 'msg' => $msg, 'rollback' => $rb, 'delete' => $del, 'po_detach' => $poDetach];
 	            } catch (Throwable $e) {
 	                $res = ['ok' => false, 'msg' => '취소 마킹 실패: ' . $e->getMessage(), 'rollback' => $rb];
 	            }
@@ -2537,6 +2573,9 @@ if ($action === 'report_cancel') {
         if ($approvePending) {
             report_finish_cancel_request_mark_approved($pdo, $id, $by ?: null);
         }
+        $poDetach = function_exists('jawha_po_detach_report')
+            ? jawha_po_detach_report($pdo, $id)
+            : ['ok'=>true, 'detached'=>0];
     // ✅ 서버 저장 폴더(exports/reports/rf_{id}/)도 함께 삭제
     $del = dp_delete_report_artifacts($id, $dry);
 
@@ -2670,6 +2709,14 @@ if ($toDate   === '') $toDate   = $today;
     $histRows  = report_finish_list_month($pdo, $histMonth);
     $cancelActor = ship_report_actor_meta($pdo);
     $canBuildReportButtons = (!empty($cancelActor['is_admin']) || ((int)($cancelActor['lv'] ?? 0) >= 2));
+
+    // JAWHA PO 상태/발행 연결 정보
+    jawha_po_ensure_tables($pdo);
+    $activeJawhaPo = jawha_po_get_active($pdo);
+    $poReportStateMap = !empty($histRows)
+        ? jawha_po_report_state_map($pdo, array_map(static function($r){ return (int)($r['id'] ?? 0); }, $histRows))
+        : [];
+
     ensure_report_finish_cancel_request_columns($pdo);
     if (!empty($histRows)) {
         $rfStateMap = report_finish_cancel_request_state_map($pdo, array_map(static function($r){ return (int)($r['id'] ?? 0); }, $histRows));
@@ -2701,7 +2748,7 @@ if ($toDate   === '') $toDate   = $today;
   --ctl-h:34px;
 }
 body{margin:0;padding:18px;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,'Apple Color Emoji','Segoe UI Emoji';background:var(--bg);color:var(--fg);font-size:13px;}
-.wrap{max-width:860px;margin:0 auto;}
+.wrap{max-width:980px;margin:0 auto;}
 h1{font-size:20px;margin:0 0 12px;}
 .card{background:var(--card);border-radius:var(--radius);padding:16px 18px 14px;box-shadow:0 8px 20px rgba(0,0,0,0.45);margin-bottom:18px;}
 .card.small{padding:14px 18px;}
@@ -2820,6 +2867,14 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
 .mono{font-variant-numeric:tabular-nums;}
 .sumline{margin-top:4px;padding-top:4px;border-top:1px solid rgba(255,255,255,0.10);color:var(--muted);font-size:11px;}
 .status-actions{display:flex;justify-content:center;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px;}
+.po-toggle{height:var(--ctl-h);display:inline-flex;align-items:center;margin:0;cursor:pointer;}
+.po-toggle input{position:absolute;opacity:0;pointer-events:none;}
+.po-toggle-ui{height:var(--ctl-h);padding:0 12px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.05);color:#cbd5e1;display:inline-flex;align-items:center;font-size:12.5px;font-weight:750;box-sizing:border-box;transition:.15s ease;}
+.po-toggle input:checked + .po-toggle-ui{color:#dfffea;border-color:rgba(70,220,130,.78);background:rgba(70,220,130,.13);box-shadow:0 0 0 1px rgba(70,220,130,.20),0 0 12px rgba(70,220,130,.24);}
+.po-toggle input:disabled + .po-toggle-ui{cursor:default;}
+.po-row-label{font-size:11px;font-weight:900;letter-spacing:.08em;color:#b9ffd0;margin-bottom:3px;text-shadow:0 0 8px rgba(70,220,130,.45);}
+.btn-po-end{border-color:rgba(70,220,130,.62);background:rgba(70,220,130,.10);color:#cffff0;box-shadow:0 0 10px rgba(70,220,130,.13);}
+.btn-po-end:hover{border-color:rgba(70,220,130,.90);background:rgba(70,220,130,.18);}
 .admin-menu{position:relative;display:inline-block;}
 .admin-menu summary{list-style:none;}
 .admin-menu summary::-webkit-details-marker{display:none;}
@@ -2880,8 +2935,12 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
             <button type="submit" class="btn btn-primary">성적서 생성</button>
             <button type="button" class="btn btn-secondary" onclick="openManualReportBuild();">수동성적서 생성</button>
-            <button type="button" class="btn btn-secondary" id="sfrFileReportButton" onclick="openFileReportBuild();">파일선택 성적서 생성</button>
+            <button type="button" class="btn btn-secondary" id="sfrFileReportButton">파일선택 성적서 생성</button>
             <input type="file" id="sfrFileReportInput" accept=".xls,.xlsx" style="display:none;">
+            <label class="po-toggle" id="jawhaPoToggle" style="<?=($selectedShipTo === '자화전자(주)' ? '' : 'display:none;')?>" title="<?=h(!empty($activeJawhaPo['po_sn']) ? (string)$activeJawhaPo['po_sn'] : '새 PO 시작')?>">
+              <input type="checkbox" name="po_start" value="1" id="jawhaPoStart" <?=(!empty($activeJawhaPo) ? 'checked disabled' : '')?>>
+              <span class="po-toggle-ui">PO시작</span>
+            </label>
           </div>
           <?php endif; ?>
         </div>
@@ -2897,6 +2956,16 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
 
   const form = document.getElementById('buildForm') || sel.closest('form');
   const topAlert = document.getElementById('topAlert');
+  const poToggle = document.getElementById('jawhaPoToggle');
+  const poStart = document.getElementById('jawhaPoStart');
+  const poAlreadyActive = <?=!empty($activeJawhaPo) ? 'true' : 'false'?>;
+
+  function syncPoToggle(){
+    if (!poToggle || !poStart) return;
+    const isJawha = sel.value === '자화전자(주)';
+    poToggle.style.display = isJawha ? 'inline-flex' : 'none';
+    if (!isJawha && !poAlreadyActive) poStart.checked = false;
+  }
 
   function showTopInfo(msg){
     if (!topAlert) {
@@ -2970,11 +3039,14 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
     } finally {
       inflight = null;
       sel.disabled = false;
+      syncPoToggle();
     }
   }
 
   from.addEventListener('change', refreshShipTo);
   to.addEventListener('change', refreshShipTo);
+  sel.addEventListener('change', syncPoToggle);
+  syncPoToggle();
 
   // 페이지 로드시 날짜가 이미 선택되어 있으면 납품처 목록을 새로 로딩
   if (from.value && to.value) refreshShipTo();
@@ -3007,7 +3079,7 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
             <th style="min-width:100px;">품번</th>
             <th style="min-width:120px;">출하수량</th>
             <th style="min-width:130px;">납품처</th>
-            <th style="min-width:160px;">상태</th>
+            <th style="min-width:220px;">상태</th>
           </tr>
         </thead>
         <tbody>
@@ -3016,6 +3088,13 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
           <?php else: ?>
             <?php foreach ($histRows as $r): ?>
               <?php
+                $ridForPo = (int)($r['id'] ?? 0);
+                $poState = ($ridForPo > 0 && isset($poReportStateMap[$ridForPo])) ? $poReportStateMap[$ridForPo] : null;
+                $isPoReport = is_array($poState);
+                $isActivePoLastReport = ($isPoReport
+                    && (string)($poState['status'] ?? '') === 'active'
+                    && (int)($poState['last_report_finish_id'] ?? 0) === $ridForPo);
+
                 $isCanceled = ((int)($r['is_canceled'] ?? 0) === 1);
                 $cancelReqStatus = trim((string)($r['cancel_request_status'] ?? ''));
                 $cancelReqPending = ($cancelReqStatus === 'pending');
@@ -3142,6 +3221,9 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
                 <td><?=h((string)($r['ship_to'] ?? ''))?></td>
                 <td>
                   <?php $viewOk = is_dir(JTMES_ROOT . '/exports/reports/rf_' . (int)($r['id'] ?? 0)); ?>
+                  <?php if ($isPoReport): ?>
+                    <div class="po-row-label" title="<?=h((string)($poState['po_sn'] ?? ''))?>">PO</div>
+                  <?php endif; ?>
                   <?php if ($isCanceled): ?>
                     <span class="badge cancel">취소완료</span>
                     <?php if ($showRequestAndApproval): ?>
@@ -3210,6 +3292,17 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
                       <?php if ($cancelHandledBy !== ''): ?><div class="mini"><?=h($cancelHandledBy)?></div><?php endif; ?>
                     <?php endif; ?>
                     <div class="status-actions">
+                      <?php if ($isActivePoLastReport): ?>
+                        <form method="post" style="display:inline;" onsubmit="return confirm('현재 PO를 종료할까요?\n\n종료 후 다음 PO시작부터 새 JPO 번호로 누적됩니다.');">
+                          <input type="hidden" name="action" value="jawha_po_end">
+                          <input type="hidden" name="po_id" value="<?=h((string)($poState['po_id'] ?? '0'))?>">
+                          <input type="hidden" name="hist_month" value="<?=h($histMonth)?>">
+                          <input type="hidden" name="from_date" value="<?=h($fromDate)?>">
+                          <input type="hidden" name="to_date" value="<?=h($toDate)?>">
+                          <input type="hidden" name="ship_to" value="<?=h($selectedShipTo)?>">
+                          <button type="submit" class="btn btn-po-end btn-sm">PO 종료</button>
+                        </form>
+                      <?php endif; ?>
                       <?php if ($viewOk): ?>
                         <button type="button" class="btn btn-secondary btn-sm" onclick="openReportView(<?= (int)($r['id'] ?? 0) ?>)">View</button>
                       <?php endif; ?>
@@ -3326,13 +3419,7 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
     closeReportView();
   });
 </script>
-<?php
-$__sfrJs = @file_get_contents(__DIR__ . '/../assets/shipinglist_file_report.js');
-if ($__sfrJs !== false) {
-    echo "<script>\n" . $__sfrJs . "\n</script>";
-}
-unset($__sfrJs);
-?>
+<script src="../assets/shipinglist_file_report.js?v=20260820"></script>
 
 </body>
 </html>
@@ -3410,6 +3497,10 @@ if ($fromDate === '' || $toDate === '' || $shipTo === '') {
 }
 
 $IS_JAWHA = ($shipTo === '자화전자(주)');
+$PO_START_REQUESTED = ($IS_JAWHA && ((int)($_GET['po_start'] ?? 0) === 1));
+$JAWHA_PO_ACTIVE = $IS_JAWHA ? jawha_po_get_active($pdo) : null;
+$JAWHA_PO_ACTIVE_ID = is_array($JAWHA_PO_ACTIVE) ? (int)($JAWHA_PO_ACTIVE['id'] ?? 0) : 0;
+$JAWHA_PO_MODE = ($IS_JAWHA && ($JAWHA_PO_ACTIVE_ID > 0 || $PO_START_REQUESTED));
 
 // ✅ build 마킹 로그 초기화 (취소 시 header_id 기반 롤백용)
 if (function_exists('oqc_marklog_reset')) oqc_marklog_reset();
@@ -5567,6 +5658,85 @@ foreach ($dateList as $prodDate) {
 
 
     // ─────────────────────────────────────────────
+    // JAWHA PO 보강
+    //  - 현재 출하분(PASS0~2)을 먼저 유지
+    //  - 현재 PO에 누적된 과거 생산일+Tool#Cavity 중 이번 출하에 없는 tuple만 빈 일반 슬롯에 추가
+    //  - 이후 기존 PASS3는 그대로 실행한다.
+    // ─────────────────────────────────────────────
+    $poHistoryFillCnt = 0;
+    if ($JAWHA_PO_ACTIVE_ID > 0) {
+        $poHistoryRows = jawha_po_history_for_part($pdo, $JAWHA_PO_ACTIVE_ID, $part);
+        $poCandidates = jawha_po_filter_history_candidates($poHistoryRows, $byDate);
+
+        $buildPoSourceFiles = static function(string $prodDate) use ($srcYmdList, $srcYmdToSfs, $undatedList): array {
+            $list = [];
+            $seen = [];
+            for ($ix = count($srcYmdList) - 1; $ix >= 0; $ix--) {
+                $ymd = (string)$srcYmdList[$ix];
+                if ($ymd === '' || $ymd > $prodDate) continue;
+                foreach (($srcYmdToSfs[$ymd] ?? []) as $sf) {
+                    $sf = trim((string)$sf);
+                    if ($sf === '' || isset($seen[$sf])) continue;
+                    $seen[$sf] = true;
+                    $list[] = $sf;
+                }
+            }
+            foreach ($undatedList as $sf) {
+                $sf = trim((string)$sf);
+                if ($sf === '' || isset($seen[$sf])) continue;
+                $seen[$sf] = true;
+                $list[] = $sf;
+            }
+            return $list;
+        };
+
+        foreach ($poCandidates as $poCand) {
+            $slotIdx = -1;
+            for ($si = $reservedFaiCols; $si < $maxCols; $si++) {
+                if (trim((string)($toolPairs[$si] ?? '')) === '' && (int)($headerIds[$si] ?? 0) <= 0) {
+                    $slotIdx = $si;
+                    break;
+                }
+            }
+            if ($slotIdx < 0) break;
+
+            $poProdDate = trim((string)($poCand['prod_date'] ?? ''));
+            $poTc = normalize_tool_cavity_key((string)($poCand['tool_cavity'] ?? ''));
+            if ($poProdDate === '' || $poTc === '') continue;
+
+            $poSfs = $buildPoSourceFiles($poProdDate);
+            if (!$poSfs) continue;
+
+            $poPick = oqc_pick_best_header_kind_by_source_files_unused(
+                $pdo,
+                $meta,
+                $part,
+                $poSfs,
+                $poProdDate,
+                $poTc,
+                'SPC',
+                array_keys($usedHeaderIds),
+                $tmplPointFullMap,
+                ['FAI']
+            );
+            if (!$poPick) continue;
+
+            $toolPairs[$slotIdx] = $poTc;
+            $headerIds[$slotIdx] = (int)($poPick['id'] ?? 0);
+            $kinds[$slotIdx] = strtoupper(trim((string)($poPick['kind'] ?? 'SPC')));
+            $sourceTags[$slotIdx] = (string)($poPick['src_tag'] ?? oqc_extract_src_tag('', $poProdDate));
+            if ((int)$headerIds[$slotIdx] > 0) {
+                $usedHeaderIds[(int)$headerIds[$slotIdx]] = true;
+                $poHistoryFillCnt++;
+            }
+        }
+
+        if ($poHistoryFillCnt > 0) {
+            logline("  - PO 보강({$JAWHA_PO_ACTIVE['po_sn']}): {$poHistoryFillCnt}건");
+        }
+    }
+
+    // ─────────────────────────────────────────────
     // v7.13 1단계 마킹: 이번 Export에서 선택된 헤더들은 meas_date = 오늘 로 사용 처리
     // ─────────────────────────────────────────────
     $reservedCnt = oqc_reserve_headers_meas_date_v712($pdo, $meta, $headerIds, $shippingDateStr, $part, 'PASS0-2');
@@ -5965,6 +6135,7 @@ foreach ($dateList as $prodDate) {
         logline("  - PASS1: {$pass1Cnt}건");
     }
     logline("  - PASS2: {$pass2Cnt}건");
+    if ((int)($poHistoryFillCnt ?? 0) > 0) logline("  - PO보강: {$poHistoryFillCnt}건");
     logline("  - PASS3: {$pass3Cnt}건");
 logline("  - 총 채움: {$filledCnt}/32");
     logline("──────────────────────────────");
@@ -6253,6 +6424,7 @@ if (PDF_EXPORT_ENABLED) {
 // ─────────────────────────────
 // report_finish 기록 (발행 이력 저장)
 // ─────────────────────────────
+$rfId = 0;
 try {
     // parts_json: 품번 + 출하수량(합계 포함)
     $partsUniq = array_keys($counts);
@@ -6309,6 +6481,26 @@ try {
 } catch (Throwable $e) {
     // 저장 실패해도 export 자체는 계속 진행
     logline('  [경고] report_finish 저장 실패: ' . $e->getMessage());
+}
+
+// JAWHA PO: 성공한 현재 출하분의 생산일 + Tool#Cavity를 PO DB에 누적
+if ($JAWHA_PO_MODE) {
+    try {
+        $poForSave = $JAWHA_PO_ACTIVE;
+        if (!is_array($poForSave) || (int)($poForSave['id'] ?? 0) <= 0) {
+            $actorMetaPo = ship_report_actor_meta($pdo);
+            $poForSave = jawha_po_start($pdo, ship_report_actor_display_name($actorMetaPo));
+        }
+        $poIdForSave = (int)($poForSave['id'] ?? 0);
+        if ($poIdForSave > 0) {
+            if ($rfId > 0) jawha_po_attach_report($pdo, $poIdForSave, $rfId);
+            $poItemsNow = jawha_po_flatten_oqc_agg($oqcAgg ?? []);
+            $poSaved = jawha_po_accumulate_items($pdo, $poIdForSave, $poItemsNow, $rfId);
+            logline("  - PO {$poForSave['po_sn']} 누적: {$poSaved}건");
+        }
+    } catch (Throwable $e) {
+        logline('  [경고] PO 누적 저장 실패: ' . $e->getMessage());
+    }
 }
 
 logline('완료. 잠시 후 다운로드가 시작됩니다.');
