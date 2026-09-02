@@ -62,18 +62,6 @@ if (!function_exists('sfr_parse_qty')) {
     }
 }
 
-
-if (!function_exists('sfr_normalize_part_name')) {
-    function sfr_normalize_part_name($v): string {
-        $s = trim((string)$v);
-        if ($s === '') return '';
-        foreach (['MEM-IR-BASE','MEM-X-CARRIER','MEM-Y-CARRIER','MEM-Z-CARRIER','MEM-Z-STOPPER'] as $part) {
-            if (stripos($s, $part) !== false) return $part;
-        }
-        return $s;
-    }
-}
-
 if (!function_exists('sfr_selection_dir')) {
     function sfr_selection_dir(): string {
         $dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'dptest_file_report_selection';
@@ -199,14 +187,14 @@ if (!function_exists('sfr_choose_sheet_candidate')) {
 
 if (!function_exists('sfr_build_preview')) {
     function sfr_build_preview(array $fileRows, array $dbRows): array {
-        // 파일이 대조표의 기준이다. DB 미매칭이어도 파일의 품번/수량은 반드시 표시한다.
-        // Jahwa처럼 같은 포장번호가 여러 LOT 행으로 반복될 수 있으므로 포장번호 단위로 먼저 합산한다.
+        // 파일은 '포장번호'가 같은 여러 LOT 행이 존재할 수 있다(Jahwa 형식).
+        // 따라서 중복을 오류로 보지 않고 포장번호 단위로 수량을 합산한다.
         $fileByPack = [];
         $fileAmbiguous = [];
         foreach ($fileRows as $row) {
             $pack = sfr_normalize_pack_no($row['pack_no'] ?? '');
             if ($pack === '') continue;
-            $part = sfr_normalize_part_name($row['part'] ?? '');
+            $part = trim((string)($row['part'] ?? ''));
             if (!isset($fileByPack[$pack])) {
                 $fileByPack[$pack] = ['qty' => 0, 'parts' => []];
             }
@@ -222,7 +210,7 @@ if (!function_exists('sfr_build_preview')) {
             $pack = sfr_pack_barcode_tail($row['pack_barcode'] ?? '');
             if ($pack === '') $pack = sfr_normalize_pack_no($row['pack_no'] ?? '');
             if ($pack === '') continue;
-            $part = sfr_normalize_part_name($row['part_name'] ?? '');
+            $part = trim((string)($row['part_name'] ?? ''));
             if (!isset($dbByPack[$pack])) $dbByPack[$pack] = [];
             $dbByPack[$pack][] = [
                 'part' => $part,
@@ -235,40 +223,29 @@ if (!function_exists('sfr_build_preview')) {
         $ambiguous = $fileAmbiguous;
         $matchedPackNos = [];
 
-        // 1) 파일 기준으로 품번별 행을 먼저 만든다.
         foreach ($fileByPack as $pack => $fileInfo) {
-            $fileParts = array_keys((array)$fileInfo['parts']);
-            $filePart = count($fileParts) === 1 ? (string)$fileParts[0] : '';
-            if ($filePart === '') {
-                $ambiguous[$pack] = true;
-            } else {
-                if (!isset($grouped[$filePart])) {
-                    $grouped[$filePart] = ['part' => $filePart, 'file_qty' => 0, 'db_qty' => 0, 'pack_count' => 0];
-                }
-                $grouped[$filePart]['file_qty'] += (int)$fileInfo['qty'];
-                $grouped[$filePart]['pack_count']++;
-            }
-
             $matches = $dbByPack[$pack] ?? [];
             if (!$matches) {
                 $unmatched[$pack] = true;
                 continue;
             }
 
-            $dbParts = [];
+            $parts = [];
             foreach ($matches as $m) {
-                if ($m['part'] !== '') $dbParts[$m['part']] = true;
+                if ($m['part'] !== '') $parts[$m['part']] = true;
             }
-            if (count($dbParts) !== 1) {
+            if (count($parts) !== 1) {
                 $ambiguous[$pack] = true;
                 continue;
             }
 
-            $dbPart = (string)array_key_first($dbParts);
-            if (!isset($grouped[$dbPart])) {
-                $grouped[$dbPart] = ['part' => $dbPart, 'file_qty' => 0, 'db_qty' => 0, 'pack_count' => 0];
+            $part = (string)array_key_first($parts);
+            if (!isset($grouped[$part])) {
+                $grouped[$part] = ['part' => $part, 'file_qty' => 0, 'db_qty' => 0, 'pack_count' => 0];
             }
-            foreach ($matches as $m) $grouped[$dbPart]['db_qty'] += (int)$m['qty'];
+            $grouped[$part]['file_qty'] += (int)$fileInfo['qty'];
+            foreach ($matches as $m) $grouped[$part]['db_qty'] += (int)$m['qty'];
+            $grouped[$part]['pack_count']++;
             $matchedPackNos[$pack] = true;
         }
 

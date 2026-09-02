@@ -100,11 +100,7 @@ try {
     $reader = IOFactory::createReaderForFile($tmp);
     if (method_exists($reader, 'setReadDataOnly')) $reader->setReadDataOnly(true);
     $book = $reader->load($tmp);
-    // 원본 업로드 파일은 서버에 보관하지 않는다. 메모리 로드 직후 PHP 임시파일을 즉시 제거한다.
-    @unlink($tmp);
-    $tmp = '';
 } catch (Throwable $e) {
-    if ($tmp !== '') @unlink($tmp);
     sfr_json_error('엑셀 파일을 읽을 수 없습니다.', 400);
 }
 

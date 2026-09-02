@@ -239,7 +239,11 @@
     fd.append('to_date', dates.toDate || dates.fromDate);
     fd.append('ship_to', shipTo);
 
-    var res = await fetch('shipinglist_file_report_preview.php', {
+    var previewUrl = new URL(window.location.href);
+    previewUrl.searchParams.set('action', 'file_report_preview');
+    previewUrl.searchParams.set('_sfr_ts', String(Date.now()));
+
+    var res = await fetch(previewUrl.toString(), {
       method: 'POST',
       body: fd,
       credentials: 'same-origin',
@@ -276,6 +280,7 @@
     var input = document.getElementById('sfrFileReportInput');
     if (!button || !input) return;
 
+    button.addEventListener('click', openFileReportBuild);
     input.addEventListener('change', async function () {
       var file = input.files && input.files[0] ? input.files[0] : null;
       if (!file) return;
