@@ -22,6 +22,15 @@ if (function_exists('dp_auth_guard')) {
   require_login();
 }
 
+if (empty($_SESSION['ipqc_saved_filter_csrf']) || !is_string($_SESSION['ipqc_saved_filter_csrf'])) {
+  try {
+    $_SESSION['ipqc_saved_filter_csrf'] = bin2hex(random_bytes(24));
+  } catch (Throwable $e) {
+    $_SESSION['ipqc_saved_filter_csrf'] = hash('sha256', session_id() . '|' . microtime(true));
+  }
+}
+$IPQC_SAVED_FILTER_CSRF = (string)$_SESSION['ipqc_saved_filter_csrf'];
+
 function h($s) { return htmlspecialchars((string)$s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); }
 
 // -------------------- UI option cache helpers --------------------
@@ -790,6 +799,121 @@ $TYPE_MAP = [
   'OQC' => ['label' => 'OQC', 'header' => '__OQC__', 'meas' => '__OQC__', 'res' => '', 'key_col' => 'point_no', 'has_spc' => false, 'data_cols' => 200],
 ];
 
+// ---------- AJAX: account-specific JMP Assist saved filter options ----------
+function ipqc_saved_filter_user_key(): string {
+  if (!empty($_SESSION['ship_user_no'])) return 'user_no:' . (string)((int)$_SESSION['ship_user_no']);
+  foreach (['ship_user_id', 'dp_admin_id', 'user_id', 'userid', 'username'] as $k) {
+    if (!empty($_SESSION[$k])) return $k . ':' . trim((string)$_SESSION[$k]);
+  }
+  if (function_exists('dp_auth__session_user_id')) {
+    $v = trim((string)(dp_auth__session_user_id() ?? ''));
+    if ($v !== '') return 'auth:' . $v;
+  }
+  return '';
+}
+
+// DB table is installed once with IPQC/sql/ipqc_jmp_saved_filter.sql.
+
+function ipqc_saved_filter_clean_list($v, int $maxItems = 300): array {
+  if (!is_array($v)) return [];
+  $out = [];
+  $seen = [];
+  foreach ($v as $item) {
+    $item = trim((string)$item);
+    if ($item === '' || strlen($item) > 220 || isset($seen[$item])) continue;
+    $seen[$item] = true;
+    $out[] = $item;
+    if (count($out) >= $maxItems) break;
+  }
+  return $out;
+}
+
+if (isset($_GET['ajax']) && $_GET['ajax'] === 'saved_filter_options') {
+  header('Content-Type: application/json; charset=utf-8');
+  $userKey = ipqc_saved_filter_user_key();
+  if ($userKey === '') {
+    http_response_code(401);
+    echo json_encode(['ok'=>false, 'error'=>'로그인 계정을 확인할 수 없습니다.'], JSON_UNESCAPED_UNICODE);
+    exit;
+  }
+
+  try {
+    if (strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) === 'GET') {
+      $st = $pdo->prepare("SELECT id, option_name, payload_json FROM ipqc_jmp_saved_filter WHERE user_key=? ORDER BY option_name ASC, id ASC");
+      $st->execute([$userKey]);
+      $items = [];
+      while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+        $payload = json_decode((string)($row['payload_json'] ?? ''), true);
+        if (!is_array($payload)) $payload = [];
+        $items[] = [
+          'id'=>(int)$row['id'],
+          'name'=>(string)$row['option_name'],
+          'filters'=>$payload,
+        ];
+      }
+      echo json_encode(['ok'=>true, 'items'=>$items], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+      exit;
+    }
+
+    $body = json_decode((string)file_get_contents('php://input'), true);
+    if (!is_array($body)) $body = $_POST;
+    $csrf = (string)($body['csrf'] ?? '');
+    $sessionCsrf = (string)($_SESSION['ipqc_saved_filter_csrf'] ?? '');
+    if ($csrf === '' || $sessionCsrf === '' || !hash_equals($sessionCsrf, $csrf)) {
+      http_response_code(403);
+      echo json_encode(['ok'=>false, 'error'=>'요청 확인에 실패했습니다. 화면을 새로고침해 주세요.'], JSON_UNESCAPED_UNICODE);
+      exit;
+    }
+
+    $action = strtolower(trim((string)($body['action'] ?? '')));
+    if ($action === 'save') {
+      $name = trim((string)($body['name'] ?? ''));
+      if ($name === '') throw new RuntimeException('옵션명을 입력해 주세요.');
+      if (mb_strlen($name, 'UTF-8') > 30) throw new RuntimeException('옵션명은 30자 이내로 입력해 주세요.');
+
+      $f = is_array($body['filters'] ?? null) ? $body['filters'] : [];
+      $type = strtoupper(trim((string)($f['type'] ?? '')));
+      $model = trim((string)($f['model'] ?? ''));
+      if (!isset($TYPE_MAP[$type])) throw new RuntimeException('측정 타입을 확인해 주세요.');
+      if ($model === '') throw new RuntimeException('모델을 선택해 주세요.');
+
+      $payload = [
+        'type'=>$type,
+        'model'=>$model,
+        'tools'=>ipqc_saved_filter_clean_list($f['tools'] ?? [], 100),
+        'fai'=>ipqc_saved_filter_clean_list($f['fai'] ?? [], 300),
+        'years'=>ipqc_saved_filter_clean_list($f['years'] ?? [], 30),
+        'months'=>ipqc_saved_filter_clean_list($f['months'] ?? [], 12),
+      ];
+      $json = json_encode($payload, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+      if ($json === false) throw new RuntimeException('옵션 데이터를 저장할 수 없습니다.');
+
+      $st = $pdo->prepare("INSERT INTO ipqc_jmp_saved_filter (user_key, option_name, payload_json) VALUES (?, ?, ?)
+        ON DUPLICATE KEY UPDATE payload_json=VALUES(payload_json), updated_at=CURRENT_TIMESTAMP");
+      $st->execute([$userKey, $name, $json]);
+      $st2 = $pdo->prepare("SELECT id FROM ipqc_jmp_saved_filter WHERE user_key=? AND option_name=? LIMIT 1");
+      $st2->execute([$userKey, $name]);
+      echo json_encode(['ok'=>true, 'id'=>(int)$st2->fetchColumn(), 'name'=>$name, 'filters'=>$payload], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+      exit;
+    }
+
+    if ($action === 'delete') {
+      $id = (int)($body['id'] ?? 0);
+      if ($id <= 0) throw new RuntimeException('삭제할 옵션을 선택해 주세요.');
+      $st = $pdo->prepare("DELETE FROM ipqc_jmp_saved_filter WHERE id=? AND user_key=?");
+      $st->execute([$id, $userKey]);
+      echo json_encode(['ok'=>true, 'deleted'=>$st->rowCount() > 0], JSON_UNESCAPED_UNICODE);
+      exit;
+    }
+
+    throw new RuntimeException('지원하지 않는 요청입니다.');
+  } catch (Throwable $e) {
+    http_response_code(400);
+    echo json_encode(['ok'=>false, 'error'=>$e->getMessage()], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+    exit;
+  }
+}
+
 
 // ---------- AJAX: Tool list (for ms-tools realtime refresh) ----------
 if (isset($_GET['ajax']) && $_GET['ajax'] === 'tools') {
@@ -1004,6 +1128,7 @@ $type = strtoupper($_GET['type'] ?? 'OMM');
 if (!isset($TYPE_MAP[$type])) $type = 'OMM';
 
 $model = trim($_GET['model'] ?? '');
+$savedFilterSelectedId = max(0, (int)($_GET['saved_filter_id'] ?? 0));
 
 // Build order index for current model/type (if mapping exists)
 $orderList = [];
@@ -2684,6 +2809,35 @@ if (!isset($displayResults)) { $displayResults = $results; }
       cursor:pointer;
     }
     .btn:hover{ background: rgba(29,185,84,0.28); }
+    .btn.btn-danger{ border-color:rgba(255,82,82,0.62); background:rgba(255,82,82,0.16); color:#ffd8d8; }
+    .btn.btn-danger:hover{ background:rgba(255,82,82,0.27); }
+    .btn:disabled{ opacity:.42; cursor:default; }
+    .jmp-saved-option-field{ flex:0 0 206px; width:206px; max-width:206px; }
+    .jmp-saved-option-row{ display:flex; align-items:center; gap:4px; width:206px; max-width:206px; }
+    .jmp-saved-native{ display:none !important; }
+    .jmp-saved-combo{ position:relative; flex:1 1 auto; min-width:0; width:104px; }
+    .jmp-saved-toggle{ width:100%; height:34px; display:flex; align-items:center; justify-content:space-between; gap:6px; padding:0 9px; border:1px solid var(--line); border-radius:10px; background:rgba(0,0,0,.35); color:var(--text); cursor:pointer; box-sizing:border-box; }
+    .jmp-saved-toggle:hover,.jmp-saved-combo.open .jmp-saved-toggle{ border-color:rgba(29,185,84,.55); background:rgba(29,185,84,.10); }
+    .jmp-saved-summary{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:left; font-weight:700; }
+    .jmp-saved-caret{ flex:0 0 auto; opacity:.8; font-size:10px; }
+    .jmp-saved-panel{ display:none; position:absolute; z-index:10020; top:38px; left:0; width:210px; max-height:240px; overflow:auto; padding:6px; border:1px solid rgba(255,255,255,.12); border-radius:10px; background:#102217; box-shadow:0 12px 28px rgba(0,0,0,.48); }
+    .jmp-saved-combo.open .jmp-saved-panel{ display:block; }
+    .jmp-saved-item{ width:100%; border:0; border-radius:8px; background:transparent; color:var(--text); text-align:left; padding:8px 9px; cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .jmp-saved-item:hover{ background:rgba(29,185,84,.20); }
+    .jmp-saved-item.active{ background:rgba(29,185,84,.28); }
+    .jmp-saved-empty{ padding:8px 9px; color:var(--muted); font-size:12px; }
+    .jmp-saved-option-row .btn{ flex:0 0 auto; padding:0 7px; min-width:40px; }
+    .jmp-saved-tooltip{ position:fixed; z-index:10150; display:none; max-width:360px; padding:9px 10px; border:1px solid rgba(255,255,255,.14); border-radius:9px; background:#0d1d13; color:#eef8f1; box-shadow:0 10px 28px rgba(0,0,0,.52); font-size:11px; line-height:1.45; pointer-events:none; white-space:normal; }
+    .jmp-saved-tooltip.show{ display:block; }
+    .jmp-saved-tooltip b{ color:#aef4c4; }
+    .jmp-option-modal{ position:fixed; inset:0; z-index:10050; display:none; align-items:center; justify-content:center; padding:18px; background:rgba(0,0,0,.68); }
+    .jmp-option-modal.show{ display:flex; }
+    .jmp-option-dialog{ width:min(420px, calc(100vw - 36px)); background:#242625; border:1px solid rgba(255,255,255,.12); border-radius:14px; box-shadow:0 20px 70px rgba(0,0,0,.58); padding:18px; }
+    .jmp-option-title{ font-size:16px; font-weight:800; margin-bottom:14px; }
+    .jmp-option-label{ display:block; font-size:12px; color:var(--muted); margin-bottom:7px; }
+    .jmp-option-input{ width:100%; height:38px; box-sizing:border-box; padding:0 11px; background:rgba(0,0,0,.32); color:var(--text); border:1px solid var(--line); border-radius:10px; outline:none; }
+    .jmp-option-input:focus{ border-color:rgba(29,185,84,.55); }
+    .jmp-option-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
 
     .f.full{ flex: 1 1 100%; }
     .checkgrid{
@@ -3484,6 +3638,7 @@ main, .content, .content-area, .main, .main-content{
           <form method="get" class="filters" id="filterForm">
             <input type="hidden" name="page_all" id="pageAllHidden" value="<?= $pageAll ? '1' : '0' ?>">
             <input type="hidden" name="page_date" id="pageDateHidden" value="<?= h($pageDate) ?>">
+            <input type="hidden" name="saved_filter_id" id="jmpSavedFilterId" value="<?= (int)$savedFilterSelectedId ?>">
             <input type="hidden" name="page_dates" id="pageDatesHidden" value="<?= h(implode(',', $pageDatesSel ?? [])) ?>">
 
             <?php if($EMBED): ?><input type="hidden" name="embed" value="1"/><?php endif; ?>
@@ -3659,6 +3814,23 @@ main, .content, .content-area, .main, .main-content{
                 <button class="btn" id="btnMsop" type="button">MSOP</button>
               </div>
             </div>
+            <div class="f jmp-saved-option-field">
+              <label>옵션</label>
+              <div class="jmp-saved-option-row">
+                <select id="jmpSavedFilterSelect" class="jmp-saved-native" aria-hidden="true" tabindex="-1">
+                  <option value=""></option>
+                </select>
+                <div class="jmp-saved-combo" id="jmpSavedFilterCombo">
+                  <button type="button" class="jmp-saved-toggle" id="jmpSavedFilterToggle" aria-haspopup="listbox" aria-expanded="false">
+                    <span class="jmp-saved-summary" id="jmpSavedFilterSummary"></span>
+                    <span class="jmp-saved-caret">▾</span>
+                  </button>
+                  <div class="jmp-saved-panel" id="jmpSavedFilterPanel" role="listbox"></div>
+                </div>
+                <button class="btn" id="btnSavedFilterAdd" type="button">추가</button>
+                <button class="btn btn-danger" id="btnSavedFilterDelete" type="button" disabled>삭제</button>
+              </div>
+            </div>
           </form>
 
           <?php if($doQuery && $meta['error']): ?>
@@ -3818,6 +3990,19 @@ main, .content, .content-area, .main, .main-content{
       <?php endif; ?>
     </div>
   </div>
+<div class="jmp-option-modal" id="jmpSavedFilterModal" aria-hidden="true">
+  <div class="jmp-option-dialog" role="dialog" aria-modal="true" aria-labelledby="jmpSavedFilterModalTitle">
+    <div class="jmp-option-title" id="jmpSavedFilterModalTitle">조회 옵션 추가</div>
+    <label class="jmp-option-label" for="jmpSavedFilterName">옵션명</label>
+    <input class="jmp-option-input" id="jmpSavedFilterName" type="text" maxlength="30" autocomplete="off" placeholder="예: IR BASE 월간">
+    <div class="jmp-option-actions">
+      <button class="btn" id="btnSavedFilterCancel" type="button">취소</button>
+      <button class="btn" id="btnSavedFilterSave" type="button">저장</button>
+    </div>
+  </div>
+</div>
+<div class="jmp-saved-tooltip" id="jmpSavedFilterTooltip" role="tooltip"></div>
+
 <?php if (empty($EMBED)): ?>
 <!-- ✅ 매트릭스 배경 외부 연결 (config/matrix_bg.php에서 설정) -->
 <?php
@@ -5014,6 +5199,333 @@ window.addEventListener('load', function(){
       if(i < 0 || i >= PAGE_DATES.length-1) return;
       setPageDate(PAGE_DATES[i+1]);
     }
+
+// ---- Account-specific JMP Assist saved filter options ----
+    const IPQC_SAVED_FILTER_CSRF = <?= json_encode($IPQC_SAVED_FILTER_CSRF, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
+    const IPQC_SAVED_FILTER_INITIAL_ID = <?= (int)$savedFilterSelectedId ?>;
+    let IPQC_SAVED_FILTER_ITEMS = [];
+
+    function ipqcSavedFilterApiUrl(){
+      const u = new URL(window.location.href);
+      u.search = '';
+      u.searchParams.set('ajax', 'saved_filter_options');
+      return u.toString();
+    }
+
+    function ipqcSavedFilterCurrentState(){
+      const form = document.getElementById('filterForm');
+      const vals = function(sel){
+        return Array.from(document.querySelectorAll(sel)).map(function(el){ return String(el.value || ''); }).filter(Boolean);
+      };
+      let fai = [];
+      try{ fai = (typeof faiSelectedOrdered === 'function') ? faiSelectedOrdered() : []; }catch(e){ fai = []; }
+      return {
+        type: String(document.getElementById('type')?.value || '').trim().toUpperCase(),
+        model: String(document.getElementById('model')?.value || '').trim(),
+        tools: vals('#ms-tools input[name="tools[]"]:checked'),
+        fai: Array.isArray(fai) ? fai.map(function(v){ return String(v || ''); }).filter(Boolean) : [],
+        years: vals('#ms-years input[name="years[]"]:checked'),
+        months: vals('#ms-months input[name="months[]"]:checked')
+      };
+    }
+
+    function ipqcSavedFilterFormatDetails(item){
+      if(!item || !item.filters) return '';
+      const f = item.filters || {};
+      const join = function(v, emptyText){
+        const a = Array.isArray(v) ? v.map(function(x){ return String(x || '').trim(); }).filter(Boolean) : [];
+        return a.length ? a.join(', ') : (emptyText || '-');
+      };
+      const months = (Array.isArray(f.months) ? f.months : []).map(function(v){ return String(v).replace(/월$/,'') + '월'; });
+      return '<b>'+ipqcSavedFilterEsc(item.name || '')+'</b><br>'+
+        '측정 타입: '+ipqcSavedFilterEsc(f.type || '-')+'<br>'+
+        '모델: '+ipqcSavedFilterEsc(f.model || '-')+'<br>'+
+        'Tool: '+ipqcSavedFilterEsc(join(f.tools, '-'))+'<br>'+
+        'FAI: '+ipqcSavedFilterEsc(join(f.fai, '-'))+'<br>'+
+        '년도: '+ipqcSavedFilterEsc(join(f.years, '-'))+'<br>'+
+        '월: '+ipqcSavedFilterEsc(months.length ? months.join(', ') : '-');
+    }
+
+    function ipqcSavedFilterEsc(v){
+      return String(v == null ? '' : v).replace(/[&<>"']/g, function(ch){
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];
+      });
+    }
+
+    function ipqcSavedFilterTooltipShow(item, anchor){
+      const tip = document.getElementById('jmpSavedFilterTooltip');
+      if(!tip || !item || !anchor) return;
+      tip.innerHTML = ipqcSavedFilterFormatDetails(item);
+      tip.classList.add('show');
+      const r = anchor.getBoundingClientRect();
+      const maxLeft = Math.max(8, window.innerWidth - Math.min(360, tip.offsetWidth || 360) - 8);
+      let left = Math.min(maxLeft, Math.max(8, r.left));
+      let top = r.bottom + 7;
+      if(top + (tip.offsetHeight || 160) > window.innerHeight - 8) top = Math.max(8, r.top - (tip.offsetHeight || 160) - 7);
+      tip.style.left = left + 'px';
+      tip.style.top = top + 'px';
+    }
+
+    function ipqcSavedFilterTooltipHide(){
+      const tip = document.getElementById('jmpSavedFilterTooltip');
+      if(tip) tip.classList.remove('show');
+    }
+
+    function ipqcSavedFilterSetSelected(id){
+      const sel = document.getElementById('jmpSavedFilterSelect');
+      const hidden = document.getElementById('jmpSavedFilterId');
+      const summary = document.getElementById('jmpSavedFilterSummary');
+      const del = document.getElementById('btnSavedFilterDelete');
+      id = String(id || '');
+      const item = IPQC_SAVED_FILTER_ITEMS.find(function(x){ return String(x.id || '') === id; }) || null;
+      if(sel) sel.value = item ? id : '';
+      if(hidden) hidden.value = item ? id : '';
+      if(summary) summary.textContent = item ? String(item.name || '') : '';
+      if(del) del.disabled = !item;
+      document.querySelectorAll('#jmpSavedFilterPanel .jmp-saved-item').forEach(function(btn){
+        btn.classList.toggle('active', !!item && String(btn.getAttribute('data-id') || '') === id);
+      });
+      return item;
+    }
+
+    function ipqcSavedFilterRender(selectedId){
+      const sel = document.getElementById('jmpSavedFilterSelect');
+      const panel = document.getElementById('jmpSavedFilterPanel');
+      if(!sel || !panel) return;
+      const currentHidden = String(document.getElementById('jmpSavedFilterId')?.value || '');
+      const keep = selectedId === undefined ? (String(sel.value || '') || currentHidden) : String(selectedId || '');
+      sel.innerHTML = '';
+      const blank = document.createElement('option');
+      blank.value = '';
+      blank.textContent = '';
+      sel.appendChild(blank);
+      panel.innerHTML = '';
+      const items = Array.isArray(IPQC_SAVED_FILTER_ITEMS) ? IPQC_SAVED_FILTER_ITEMS : [];
+      if(!items.length){
+        const empty = document.createElement('div');
+        empty.className = 'jmp-saved-empty';
+        empty.textContent = '저장된 옵션 없음';
+        panel.appendChild(empty);
+      }
+      items.forEach(function(item){
+        const id = String(item.id || '');
+        const name = String(item.name || '');
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = name;
+        sel.appendChild(opt);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'jmp-saved-item';
+        btn.setAttribute('data-id', id);
+        btn.textContent = name;
+        btn.addEventListener('mouseenter', function(){ ipqcSavedFilterTooltipShow(item, btn); });
+        btn.addEventListener('mouseleave', ipqcSavedFilterTooltipHide);
+        btn.addEventListener('click', function(){
+          const combo = document.getElementById('jmpSavedFilterCombo');
+          const toggle = document.getElementById('jmpSavedFilterToggle');
+          if(combo) combo.classList.remove('open');
+          if(toggle) toggle.setAttribute('aria-expanded','false');
+          ipqcSavedFilterTooltipHide();
+          ipqcSavedFilterSetSelected(id);
+          ipqcSavedFilterApply(item);
+        });
+        panel.appendChild(btn);
+      });
+      ipqcSavedFilterSetSelected(items.some(function(x){ return String(x.id || '') === keep; }) ? keep : '');
+    }
+
+    function ipqcSavedFilterLoad(){
+      return fetch(ipqcSavedFilterApiUrl(), {credentials:'same-origin', cache:'no-store'})
+        .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, body:j}; }); })
+        .then(function(res){
+          if(!res.ok || !res.body || res.body.ok === false) throw new Error((res.body && res.body.error) || '옵션 목록을 불러오지 못했습니다.');
+          IPQC_SAVED_FILTER_ITEMS = Array.isArray(res.body.items) ? res.body.items : [];
+          ipqcSavedFilterRender(String(IPQC_SAVED_FILTER_INITIAL_ID || ''));
+          return IPQC_SAVED_FILTER_ITEMS;
+        })
+        .catch(function(){
+          IPQC_SAVED_FILTER_ITEMS = [];
+          ipqcSavedFilterRender('');
+          return [];
+        });
+    }
+
+    function ipqcSavedFilterPost(payload){
+      payload = payload || {};
+      payload.csrf = IPQC_SAVED_FILTER_CSRF;
+      return fetch(ipqcSavedFilterApiUrl(), {
+        method:'POST',
+        credentials:'same-origin',
+        headers:{'Content-Type':'application/json', 'Accept':'application/json'},
+        body:JSON.stringify(payload)
+      }).then(function(r){
+        return r.json().catch(function(){ return {}; }).then(function(j){
+          if(!r.ok || !j || j.ok === false) throw new Error((j && j.error) || '요청을 처리하지 못했습니다.');
+          return j;
+        });
+      });
+    }
+
+    function ipqcSavedFilterOpenModal(){
+      const modal = document.getElementById('jmpSavedFilterModal');
+      const inp = document.getElementById('jmpSavedFilterName');
+      if(!modal || !inp) return;
+      inp.value = '';
+      modal.classList.add('show');
+      modal.setAttribute('aria-hidden', 'false');
+      setTimeout(function(){ try{ inp.focus(); }catch(e){} }, 0);
+    }
+
+    function ipqcSavedFilterCloseModal(){
+      const modal = document.getElementById('jmpSavedFilterModal');
+      if(!modal) return;
+      modal.classList.remove('show');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+
+    function ipqcSavedFilterSetChecks(rootId, values){
+      const root = document.getElementById(rootId);
+      if(!root) return 0;
+      const set = new Set((Array.isArray(values) ? values : []).map(function(v){ return String(v); }));
+      let matched = 0;
+      root.querySelectorAll('input[type="checkbox"]').forEach(function(cb){
+        cb.checked = set.has(String(cb.value || ''));
+        if(cb.checked) matched++;
+      });
+      syncMs(rootId);
+      return matched;
+    }
+
+    function ipqcSavedFilterSetFai(values){
+      const arr = (Array.isArray(values) ? values : []).map(function(v){ return String(v || ''); }).filter(Boolean);
+      try{ __FAI_SEL = new Set(arr); }catch(e){}
+      const box = document.getElementById('ms-fai-hidden');
+      if(box){
+        box.innerHTML = '';
+        arr.forEach(function(v){
+          const inp = document.createElement('input');
+          inp.type = 'hidden';
+          inp.name = 'fai[]';
+          inp.value = v;
+          box.appendChild(inp);
+        });
+      }
+      try{ faiBuildListForModel(String(document.getElementById('model')?.value || ''), false); }catch(e){}
+      try{ faiSyncSummary(); }catch(e){}
+    }
+
+    function ipqcSavedFilterApply(item){
+      if(!item || !item.filters) return;
+      const f = item.filters;
+      const type = String(f.type || '').trim().toUpperCase();
+      const model = String(f.model || '').trim();
+      if(!type || !model){ showMsg('저장된 옵션 정보가 올바르지 않습니다.'); return; }
+
+      const typeBtn = document.querySelector('#ms-type .ms-singlebtn[data-value="'+(window.CSS && CSS.escape ? CSS.escape(type) : type)+'"]');
+      msSingleSet('ms-type', type, typeBtn ? (typeBtn.getAttribute('data-label') || type) : type, true);
+      const modelBtns = Array.from(document.querySelectorAll('#ms-model .ms-singlebtn'));
+      const modelBtn = modelBtns.find(function(b){ return String(b.getAttribute('data-value') || '') === model; });
+      if(!modelBtn){ showMsg('저장된 모델을 현재 목록에서 찾을 수 없습니다.'); return; }
+      msSingleSet('ms-model', model, modelBtn.getAttribute('data-label') || model, true);
+
+      ipqcSavedFilterSetChecks('ms-years', f.years || []);
+      ipqcSavedFilterSetChecks('ms-months', f.months || []);
+
+      try{
+        const key = ipqcToolKey(type, model);
+        IPQC_TOOL_SELECTION_MAP[key] = (Array.isArray(f.tools) ? f.tools : []).map(function(v){ return String(v || ''); }).filter(Boolean);
+      }catch(e){}
+
+      showBusy('옵션 조회 중...', String(item.name || ''));
+      ipqcRefreshToolsForCurrentFilter(true).then(function(){
+        const wantedTools = Array.isArray(f.tools) ? f.tools : [];
+        const matched = ipqcSavedFilterSetChecks('ms-tools', wantedTools);
+        if(wantedTools.length && matched === 0){
+          hideBusy();
+          showMsg('저장된 Tool을 현재 목록에서 찾을 수 없습니다.');
+          return;
+        }
+        ipqcSavedFilterSetFai(f.fai || []);
+        const hidden = document.getElementById('jmpSavedFilterId');
+        if(hidden) hidden.value = String(item.id || '');
+        const form = document.getElementById('filterForm');
+        if(form) form.submit();
+      }).catch(function(){
+        hideBusy();
+        showMsg('저장된 옵션을 적용하지 못했습니다.');
+      });
+    }
+
+    (function(){
+      const sel = document.getElementById('jmpSavedFilterSelect');
+      const add = document.getElementById('btnSavedFilterAdd');
+      const del = document.getElementById('btnSavedFilterDelete');
+      const modal = document.getElementById('jmpSavedFilterModal');
+      const cancel = document.getElementById('btnSavedFilterCancel');
+      const save = document.getElementById('btnSavedFilterSave');
+      const name = document.getElementById('jmpSavedFilterName');
+      if(!sel || !add || !del) return;
+
+      const combo = document.getElementById('jmpSavedFilterCombo');
+      const toggle = document.getElementById('jmpSavedFilterToggle');
+      const summary = document.getElementById('jmpSavedFilterSummary');
+      ipqcSavedFilterLoad();
+      if(toggle && combo){
+        toggle.addEventListener('click', function(){
+          const open = !combo.classList.contains('open');
+          combo.classList.toggle('open', open);
+          toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
+        toggle.addEventListener('mouseenter', function(){
+          const item = IPQC_SAVED_FILTER_ITEMS.find(function(x){ return String(x.id || '') === String(sel.value || ''); });
+          if(item) ipqcSavedFilterTooltipShow(item, toggle);
+        });
+        toggle.addEventListener('mouseleave', ipqcSavedFilterTooltipHide);
+      }
+      document.addEventListener('click', function(e){
+        if(combo && !combo.contains(e.target)){ combo.classList.remove('open'); if(toggle) toggle.setAttribute('aria-expanded','false'); }
+      });
+      add.addEventListener('click', ipqcSavedFilterOpenModal);
+      del.addEventListener('click', function(){
+        const id = String(sel.value || '');
+        if(!id) return;
+        const item = IPQC_SAVED_FILTER_ITEMS.find(function(x){ return String(x.id || '') === id; });
+        const label = item ? String(item.name || '') : '';
+        if(!window.confirm(label ? '"'+label+'" 옵션을 삭제하시겠습니까?' : '선택한 옵션을 삭제하시겠습니까?')) return;
+        del.disabled = true;
+        ipqcSavedFilterPost({action:'delete', id:parseInt(id,10) || 0}).then(function(){
+          IPQC_SAVED_FILTER_ITEMS = IPQC_SAVED_FILTER_ITEMS.filter(function(x){ return String(x.id || '') !== id; });
+          ipqcSavedFilterRender('');
+        }).catch(function(err){
+          del.disabled = false;
+          showMsg(err && err.message ? err.message : '옵션을 삭제하지 못했습니다.');
+        });
+      });
+      if(cancel) cancel.addEventListener('click', ipqcSavedFilterCloseModal);
+      if(modal) modal.addEventListener('click', function(e){ if(e.target === modal) ipqcSavedFilterCloseModal(); });
+      if(name) name.addEventListener('keydown', function(e){
+        if(e.key === 'Enter'){ e.preventDefault(); if(save) save.click(); }
+        if(e.key === 'Escape'){ e.preventDefault(); ipqcSavedFilterCloseModal(); }
+      });
+      if(save) save.addEventListener('click', function(){
+        const optionName = String(name ? name.value : '').trim();
+        if(!optionName){ showMsg('옵션명을 입력해 주세요.'); if(name) name.focus(); return; }
+        const filters = ipqcSavedFilterCurrentState();
+        if(!filters.model){ showMsg('모델을 선택해 주세요.'); return; }
+        save.disabled = true;
+        ipqcSavedFilterPost({action:'save', name:optionName, filters:filters}).then(function(j){
+          const idx = IPQC_SAVED_FILTER_ITEMS.findIndex(function(x){ return String(x.name || '') === String(j.name || ''); });
+          const row = {id:j.id, name:j.name, filters:j.filters || filters};
+          if(idx >= 0) IPQC_SAVED_FILTER_ITEMS[idx] = row; else IPQC_SAVED_FILTER_ITEMS.push(row);
+          IPQC_SAVED_FILTER_ITEMS.sort(function(a,b){ return String(a.name||'').localeCompare(String(b.name||''), 'ko'); });
+          ipqcSavedFilterRender(String(j.id || ''));
+          ipqcSavedFilterCloseModal();
+        }).catch(function(err){
+          showMsg(err && err.message ? err.message : '옵션을 저장하지 못했습니다.');
+        }).finally(function(){ save.disabled = false; });
+      });
+    })();
 
 function showBusy(title, sub){
       var m=document.getElementById('busyModal');
