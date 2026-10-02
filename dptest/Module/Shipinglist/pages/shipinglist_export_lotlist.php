@@ -211,6 +211,12 @@ try {
     error_log('[JAWHA_PO] table init failed: ' . $e->getMessage());
 }
 
+// PO현황: 현재 페이지 self-route로 처리해 /jtmes/shipinglist 같은 라우터 URL에서도 안전하게 연다.
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET' && (string)($_GET['action'] ?? '') === 'jawha_po_status') {
+    require __DIR__ . '/jawha_po_status.php';
+    exit;
+}
+
 // ─────────────────────────────
 // 설정
 // ─────────────────────────────
@@ -3049,6 +3055,15 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
 .po-row-label{font-size:11px;font-weight:900;letter-spacing:.08em;color:#b9ffd0;margin-bottom:3px;text-shadow:0 0 8px rgba(70,220,130,.45);}
 .btn-po-end{border-color:rgba(70,220,130,.62);background:rgba(70,220,130,.10);color:#cffff0;box-shadow:0 0 10px rgba(70,220,130,.13);}
 .btn-po-end:hover{border-color:rgba(70,220,130,.90);background:rgba(70,220,130,.18);}
+.btn-po-status{border-color:rgba(70,220,130,.55);background:rgba(70,220,130,.08);color:#dfffea;}
+.btn-po-status:hover{border-color:rgba(70,220,130,.82);background:rgba(70,220,130,.16);}
+.po-status-backdrop{position:fixed;inset:0;z-index:10080;display:none;align-items:center;justify-content:center;padding:14px;background:rgba(0,0,0,.72);}
+.po-status-backdrop.open{display:flex;}
+.po-status-shell{width:100%;height:100%;display:flex;flex-direction:column;background:#202124;border:1px solid rgba(255,255,255,.14);border-radius:18px;box-shadow:0 22px 54px rgba(0,0,0,.58);overflow:hidden;}
+.po-status-head{height:52px;flex:0 0 52px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:#25282e;border-bottom:1px solid rgba(255,255,255,.10);}
+.po-status-title{font-size:18px;font-weight:850;color:#fff;}
+.po-status-close{width:38px;height:36px;border-radius:11px;border:1px solid rgba(255,255,255,.16);background:#323741;color:#fff;font-size:22px;cursor:pointer;}
+.po-status-frame{width:100%;height:100%;border:0;background:#202124;}
 .admin-menu{position:relative;display:inline-block;}
 .admin-menu summary{list-style:none;}
 .admin-menu summary::-webkit-details-marker{display:none;}
@@ -3115,12 +3130,19 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
               <input type="checkbox" name="po_start" value="1" id="jawhaPoStart" <?=(!empty($activeJawhaPo) ? 'checked disabled' : '')?>>
               <span class="po-toggle-ui">PO시작</span>
             </label>
+            <button type="button" class="btn btn-secondary btn-po-status" id="jawhaPoStatusButton" style="<?=($selectedShipTo === '자화전자(주)' ? '' : 'display:none;')?>">PO현황</button>
           </div>
           <?php endif; ?>
         </div>
       </div>
 
     </form>
+<div id="jawhaPoStatusBackdrop" class="po-status-backdrop" aria-hidden="true">
+  <div class="po-status-shell" role="dialog" aria-modal="true" aria-label="PO 현황">
+    <div class="po-status-head"><div class="po-status-title">PO 현황</div><button type="button" id="jawhaPoStatusClose" class="po-status-close">×</button></div>
+    <iframe id="jawhaPoStatusFrame" class="po-status-frame" title="PO 현황"></iframe>
+  </div>
+</div>
 <script>
 (function(){
   const from = document.querySelector('input[name="from_date"]');
@@ -3132,13 +3154,14 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
   const topAlert = document.getElementById('topAlert');
   const poToggle = document.getElementById('jawhaPoToggle');
   const poStart = document.getElementById('jawhaPoStart');
+  const poStatusButton = document.getElementById('jawhaPoStatusButton');
   const poAlreadyActive = <?=!empty($activeJawhaPo) ? 'true' : 'false'?>;
 
   function syncPoToggle(){
-    if (!poToggle || !poStart) return;
     const isJawha = sel.value === '자화전자(주)';
-    poToggle.style.display = isJawha ? 'inline-flex' : 'none';
-    if (!isJawha && !poAlreadyActive) poStart.checked = false;
+    if (poToggle) poToggle.style.display = isJawha ? 'inline-flex' : 'none';
+    if (poStatusButton) poStatusButton.style.display = isJawha ? 'inline-flex' : 'none';
+    if (poStart && !isJawha && !poAlreadyActive) poStart.checked = false;
   }
 
   function showTopInfo(msg){
@@ -3224,6 +3247,38 @@ tbody tr:hover td{background:rgba(255,255,255,0.03);}
 
   // 페이지 로드시 날짜가 이미 선택되어 있으면 납품처 목록을 새로 로딩
   if (from.value && to.value) refreshShipTo();
+})();
+</script>
+<script>
+(function(){
+  const btn=document.getElementById('jawhaPoStatusButton');
+  const backdrop=document.getElementById('jawhaPoStatusBackdrop');
+  const closeBtn=document.getElementById('jawhaPoStatusClose');
+  const frame=document.getElementById('jawhaPoStatusFrame');
+  if(!btn||!backdrop||!closeBtn||!frame)return;
+  function openPoStatus(){
+    const sel=document.querySelector('select[name="ship_to"]');
+    if(!sel||sel.value!=='자화전자(주)')return;
+    const url=new URL(location.href);
+    url.searchParams.set('action','jawha_po_status');
+    url.searchParams.set('embed','1');
+    url.searchParams.set('_',String(Date.now()));
+    frame.src=url.toString();
+    backdrop.classList.add('open');
+    backdrop.setAttribute('aria-hidden','false');
+    document.documentElement.style.overflow='hidden';
+    document.body.style.overflow='hidden';
+  }
+  function closePoStatus(){
+    backdrop.classList.remove('open');
+    backdrop.setAttribute('aria-hidden','true');
+    document.documentElement.style.overflow='';
+    document.body.style.overflow='';
+  }
+  btn.addEventListener('click',openPoStatus);
+  closeBtn.addEventListener('click',closePoStatus);
+  backdrop.addEventListener('click',function(e){if(e.target===backdrop)closePoStatus();});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&backdrop.classList.contains('open'))closePoStatus();});
 })();
 </script>
 
