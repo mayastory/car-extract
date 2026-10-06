@@ -2248,20 +2248,6 @@ if ($type === 'AOI') {
     $stmt->execute(array_merge($dateParamsPos, [$model], $toolParamsPos, $faiParamsPos));
     $totalRowsAll = (int)($stmt->fetchColumn() ?: 0);
 
-    $sqlCntView = "SELECT COUNT(*) FROM (
-        SELECT
-          h.part_name, DATE(h.meas_date) AS d, h.tool, h.cavity,
-          {$spcExpr} AS spc,
-          m.{$keyCol} AS key_name
-        FROM {$headerTable} h
-        JOIN {$measTable} m ON m.header_id = h.id
-        WHERE {$baseWhereAoi} {$daySql}
-        GROUP BY h.part_name, DATE(h.meas_date), h.tool, h.cavity, spc, m.{$keyCol}
-    ) t";
-    $stmt = $pdo->prepare($sqlCntView);
-    $stmt->execute(array_merge($dateParamsPos, [$model], $toolParamsPos, $faiParamsPos, $dayParamsPos));
-    $totalRowsView = (int)($stmt->fetchColumn() ?: 0);
-
   } else {
     // OMM/REAL_OMM/CMM pivot row key (rendered): part|tool|cavity|date|idx(row_index)
     $sqlCntAll = "SELECT COUNT(*) FROM (
@@ -2277,18 +2263,6 @@ if ($type === 'AOI') {
     $stmt->execute(array_merge($dateParamsPos, [$model], $toolParamsPos, [$dataCols]));
     $totalRowsAll = (int)($stmt->fetchColumn() ?: 0);
 
-    $sqlCntView = "SELECT COUNT(*) FROM (
-        SELECT
-          h.part_name, DATE(h.meas_date) AS d, h.tool, h.cavity, m.row_index
-        FROM {$headerTable} h
-        JOIN {$measTable} m ON m.header_id = h.id
-        WHERE {$baseWhere} {$daySql}
-          AND m.row_index BETWEEN 1 AND ?
-        GROUP BY h.part_name, DATE(h.meas_date), h.tool, h.cavity, m.row_index
-    ) t";
-    $stmt = $pdo->prepare($sqlCntView);
-    $stmt->execute(array_merge($dateParamsPos, [$model], $toolParamsPos, $dayParamsPos, [$dataCols]));
-    $totalRowsView = (int)($stmt->fetchColumn() ?: 0);
   }
 } catch (Throwable $e) {
   // counts are UI-only; do not break page if something goes wrong
